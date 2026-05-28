@@ -12,7 +12,7 @@
     </p>
 
     <p>
-        Username vừa nhập:
+        Username vừa nhập3333:
         <b>${username}</b>
     </p>
 
