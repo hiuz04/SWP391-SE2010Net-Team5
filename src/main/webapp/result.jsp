@@ -5,20 +5,17 @@
     <title>Kết quả đăng nhập 222</title>
 </head>
 <body>
+    <h1>Kết quả login 222</h1>
+    <p>
+        Message:
+        <b>${message}</b>
+    </p>
 
-<h1>Kết quả login</h1>
+    <p>
+        Username vừa nhập:
+        <b>${username}</b>
+    </p>
 
-<p>
-    Message:
-    <b>${message}</b>
-</p>
-
-<p>
-    Username vừa nhập:
-    <b>${username}</b>
-</p>
-
-<a href="index.jsp">Quay lại trang chủ</a>
-
+    <a href="index.jsp">Quay lại trang chủ</a>
 </body>
 </html>
