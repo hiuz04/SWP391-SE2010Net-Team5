@@ -19,22 +19,22 @@
 <h2>Test POST Servlet</h2>
 
 <form action="login" method="post">
-    <label>Username:</label>
-    <input type="text" name="username" placeholder="Nhập username">
+    <label>Email:</label>
+    <input type="email" name="email" placeholder="Nhập email" required>
 
     <br><br>
 
     <label>Password:</label>
-    <input type="password" name="password" placeholder="Nhập password">
+    <input type="password" name="password" placeholder="Nhập mật khẩu" required>
 
     <br><br>
 
     <button type="submit">Login</button>
 </form>
 
-<p>Tài khoản test:</p>
-<p>Username: <b>admin</b></p>
-<p>Password: <b>123</b></p>
+<p><a href="db-test">Kiểm tra kết nối database</a></p>
+
+<p>Dữ liệu đăng nhập lấy từ bảng <b>users</b> trong SQL Server (FootballBookingSystem).</p>
 
 </body>
 </html>

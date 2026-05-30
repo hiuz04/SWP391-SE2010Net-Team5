@@ -28,3 +28,6 @@ target/
 
 # Intellij
 .idea/
+
+# Database credentials (local only)
+src/main/resources/db.properties

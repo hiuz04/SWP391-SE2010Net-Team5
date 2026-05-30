@@ -1,0 +1,5 @@
+# Sao chép file này thành db.properties và điền thông tin SQL Server của bạn.
+db.driver=com.microsoft.sqlserver.jdbc.SQLServerDriver
+db.url=jdbc:sqlserver://localhost:1433;databaseName=FootballBookingSystem;encrypt=true;trustServerCertificate=true
+db.username=sa
+db.password=YourPasswordHere
