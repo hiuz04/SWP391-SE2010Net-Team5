@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="../../assets/css/styles.css" rel="stylesheet">
+
+    <title>Staff Dashboard | Sport Field Booking</title>
+</head>
+<body>
+<div id="navbar" data-root="../../" data-role="staff" data-name="Staff A" data-active="Dashboard"></div>
+<main class="dashboard-shell">
+    <div class="container"><h1 class="section-title">Staff Dashboard</h1>
+        <p class="text-muted">Tổng quan vận hành trong ngày.</p>
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="stat-card p-4">
+                    <div class="text-muted">Booking hôm nay</div>
+                    <h3 class="fw-bold">24</h3><span class="text-success small">+12%</span></div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card p-4">
+                    <div class="text-muted">Doanh thu</div>
+                    <h3 class="fw-bold">8.4M</h3><span class="text-success small">+8%</span></div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card p-4">
+                    <div class="text-muted">Sân hoạt động</div>
+                    <h3 class="fw-bold">12</h3><span class="text-muted small">/15 sân</span></div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card p-4">
+                    <div class="text-muted">Đánh giá</div>
+                    <h3 class="fw-bold">4.8</h3><span class="text-warning small">★★★★★</span></div>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="card soft-card p-4"><h5>Lịch sân sắp tới</h5>
+                    <table class="table">
+                        <tr>
+                            <td>18:00</td>
+                            <td>Sân 5A</td>
+                            <td>#BK001</td>
+                            <td><span class="badge badge-soft-warning">Chờ check-in</span></td>
+                        </tr>
+                        <tr>
+                            <td>19:00</td>
+                            <td>Sân 7B</td>
+                            <td>#BK002</td>
+                            <td><span class="badge badge-soft-success">Đã check-in</span></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card soft-card p-4"><h5>Thao tác nhanh</h5>
+                    <div class="d-grid gap-2"><a class="btn btn-sf-primary" href="checkin.html">Check-in khách</a><a
+                            class="btn btn-outline-success" href="checkout.html">Checkout & tạo hóa đơn</a><a
+                            class="btn btn-outline-secondary" href="schedule.html">Xem lịch ngày</a></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<div id="footer" data-root="../../"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../assets/js/app.js"></script>
+
+</body>
+</html>
