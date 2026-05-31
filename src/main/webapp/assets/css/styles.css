@@ -135,6 +135,49 @@ a { text-decoration: none; }
   border-color: var(--sf-primary);
   box-shadow: 0 0 0 .25rem rgba(22, 163, 74, .15);
 }
+.password-toggle-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-toggle-wrap .form-control.is-valid,
+.password-toggle-wrap .form-control.is-invalid,
+.was-validated .password-toggle-wrap .form-control:valid,
+.was-validated .password-toggle-wrap .form-control:invalid {
+  background-image: none !important;
+  padding-right: 3rem !important;
+}
+.password-toggle-wrap .form-control {
+  padding-right: 2.75rem;
+}
+.password-toggle-wrap .form-control-lg {
+  padding-right: 3rem;
+}
+.password-toggle-btn {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  border: 0;
+  background: transparent;
+  color: var(--sf-muted);
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  z-index: 10;
+  cursor: pointer;
+}
+.password-toggle-btn:hover {
+  color: var(--sf-primary);
+}
+.password-toggle-btn:focus {
+  outline: none;
+  color: var(--sf-primary);
+}
 .dashboard-shell { padding-top: 28px; padding-bottom: 60px; }
 .role-chip { font-size: .78rem; }
 .footer { background: #0f172a; color: #cbd5e1; }
