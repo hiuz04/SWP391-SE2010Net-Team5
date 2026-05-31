@@ -16,6 +16,7 @@ public class User implements Serializable {
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String roleName;
 
     public User() {
     }
@@ -120,5 +121,13 @@ public class User implements Serializable {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getRoleName() {
+        return roleName;
+    }
+
+    public void setRoleName(String roleName) {
+        this.roleName = roleName;
     }
 }

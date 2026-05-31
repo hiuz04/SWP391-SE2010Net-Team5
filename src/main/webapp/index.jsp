@@ -1,40 +1,180 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
-
-<html>
+<%@ page import="com.swp.model.User" %>
+<%
+    User sessionUser = (User) session.getAttribute("user");
+    String navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
+    if (navRole == null) {
+        navRole = "guest";
+    }
+    String displayName = sessionUser != null ? sessionUser.getFullName() : "";
+    String ctx = request.getContextPath();
+%>
+<!DOCTYPE html>
+<html lang="vi">
 <head>
-    <title>Demo Servlet</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
+    <title>Trang chủ | Sport Field Booking</title>
 </head>
 <body>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Trang chủ"></div>
 
-<h1>Demo Java Servlet</h1>
+<header class="hero">
+    <div class="container">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-8">
+                <span class="badge text-bg-light text-success mb-3 px-3 py-2">Hệ thống đặt sân bóng online</span>
+                <h1 class="display-4 fw-bold mb-3">Đặt sân bóng đá dễ dàng, nhanh chóng</h1>
+                <p class="lead mb-4 text-white-50">Tìm sân, chọn khung giờ, thanh toán và quản lý lịch đặt chỉ trong vài thao tác.</p>
+                <div class="card hero-card p-3 p-lg-4">
+                    <form class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label text-dark">Khu vực</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+                                <input class="form-control" placeholder="Quận, địa chỉ">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-dark">Ngày</label>
+                            <input class="form-control" type="date" data-fill-date="today">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-dark">Giờ</label>
+                            <input class="form-control" type="time" value="18:00">
+                        </div>
+                        <div class="col-md-2 d-grid">
+                            <button type="button" class="btn btn-sf-accent btn-lg" data-demo-alert="Chức năng tìm sân sẽ được cập nhật sau.">
+                                <i class="bi bi-search me-1"></i>Tìm
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
 
-<hr>
+<main>
+    <section class="py-5 bg-white">
+        <div class="container">
+            <div class="row g-4 text-center">
+                <div class="col-md-4">
+                    <div class="soft-card p-4 h-100">
+                        <i class="bi bi-search display-5 text-sf-primary"></i>
+                        <h5 class="mt-3">Tìm kiếm dễ dàng</h5>
+                        <p class="text-muted mb-0">Lọc theo vị trí, loại sân, khung giờ và mức giá.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="soft-card p-4 h-100">
+                        <i class="bi bi-calendar-check display-5 text-sf-primary"></i>
+                        <h5 class="mt-3">Đặt sân nhanh</h5>
+                        <p class="text-muted mb-0">Xem lịch trống và xác nhận booking trực tuyến.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="soft-card p-4 h-100">
+                        <i class="bi bi-credit-card display-5 text-sf-primary"></i>
+                        <h5 class="mt-3">Thanh toán linh hoạt</h5>
+                        <p class="text-muted mb-0">Hỗ trợ chuyển khoản, ví điện tử và thanh toán tại sân.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<h2>Test GET Servlet</h2>
+    <section class="py-5">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-end mb-4">
+                <div>
+                    <h2 class="section-title">Sân bóng nổi bật</h2>
+                    <p class="text-muted mb-0">Các sân có đánh giá tốt và lịch trống phù hợp.</p>
+                </div>
+                <button type="button" class="btn btn-outline-success" data-demo-alert="Danh sách sân sẽ được lấy từ database.">Xem tất cả</button>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-6 col-xl-4">
+                    <div class="card soft-card h-100 overflow-hidden">
+                        <img class="field-img" src="https://images.unsplash.com/photo-1529900681758-f4b84c32ddda?w=900&q=80" alt="Sân bóng">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-0">Sân bóng Thể Thao A</h5>
+                                <span class="badge badge-soft-success">Còn trống</span>
+                            </div>
+                            <p class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>123 Đường ABC, Quận 1, TP.HCM</p>
+                            <div class="d-flex gap-3 small mb-3">
+                                <span><i class="bi bi-star-fill text-warning"></i> 4.8 (124)</span>
+                                <span>Sân 5 người</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="price-tag">300.000đ/giờ</span>
+                                <button type="button" class="btn btn-sf-primary" data-demo-alert="Chức năng đặt sân sẽ được cập nhật sau.">Đặt ngay</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                    <div class="card soft-card h-100 overflow-hidden">
+                        <img class="field-img" src="https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=900&q=80" alt="Sân bóng">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-0">Sân bóng Phú Nhuận</h5>
+                                <span class="badge badge-soft-warning">Sắp đầy</span>
+                            </div>
+                            <p class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>456 Đường XYZ, Phú Nhuận, TP.HCM</p>
+                            <div class="d-flex gap-3 small mb-3">
+                                <span><i class="bi bi-star-fill text-warning"></i> 4.6 (89)</span>
+                                <span>Sân 7 người</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="price-tag">450.000đ/giờ</span>
+                                <button type="button" class="btn btn-sf-primary" data-demo-alert="Chức năng đặt sân sẽ được cập nhật sau.">Đặt ngay</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                    <div class="card soft-card h-100 overflow-hidden">
+                        <img class="field-img" src="https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=900&q=80" alt="Sân bóng">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-0">Sân bóng Tân Bình</h5>
+                                <span class="badge badge-soft-success">Còn trống</span>
+                            </div>
+                            <p class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>789 Đường DEF, Tân Bình, TP.HCM</p>
+                            <div class="d-flex gap-3 small mb-3">
+                                <span><i class="bi bi-star-fill text-warning"></i> 4.9 (156)</span>
+                                <span>Sân 11 người</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="price-tag">800.000đ/giờ</span>
+                                <button type="button" class="btn btn-sf-primary" data-demo-alert="Chức năng đặt sân sẽ được cập nhật sau.">Đặt ngay</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<a href="hello">Bấm vào đây để gọi HelloServlet</a>
+    <% if (sessionUser == null) { %>
+    <section class="py-5 bg-sf-primary text-white">
+        <div class="container text-center">
+            <h2 class="fw-bold">Khuyến mãi đặc biệt</h2>
+            <p class="lead text-white-50">Giảm 20% cho lần đặt sân đầu tiên.</p>
+            <a class="btn btn-light btn-lg" href="<%= ctx %>/register">Đăng ký ngay</a>
+        </div>
+    </section>
+    <% } %>
+</main>
 
-<hr>
+<div id="footer" data-root="<%= ctx %>/"></div>
 
-<h2>Test POST Servlet</h2>
-
-<form action="login" method="post">
-    <label>Email:</label>
-    <input type="email" name="email" placeholder="Nhập email" required>
-
-    <br><br>
-
-    <label>Password:</label>
-    <input type="password" name="password" placeholder="Nhập mật khẩu" required>
-
-    <br><br>
-
-    <button type="submit">Login</button>
-</form>
-
-<p><a href="db-test">Kiểm tra kết nối database</a></p>
-
-<p>Dữ liệu đăng nhập lấy từ bảng <b>users</b> trong SQL Server (FootballBookingSystem).</p>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<%= ctx %>/assets/js/app.js"></script>
 </body>
 </html>
