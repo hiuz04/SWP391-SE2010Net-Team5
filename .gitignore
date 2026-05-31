@@ -29,5 +29,8 @@ target/
 # Intellij
 .idea/
 
+# Resource file
+db.properties
+
 # Database credentials (local only)
 src/main/resources/db.properties
