@@ -1,12 +1,15 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%
+    if (request.getAttribute("googleEnabled") == null) {
+        response.sendRedirect(request.getContextPath() + "/login");
+        return;
+    }
     String ctx = request.getContextPath();
     String login = request.getAttribute("login") != null ? (String) request.getAttribute("login") : "";
     String error = request.getAttribute("error") != null ? (String) request.getAttribute("error") : "";
     String success = request.getAttribute("success") != null ? (String) request.getAttribute("success") : "";
-    if (success.isEmpty() && "1".equals(request.getParameter("registered"))) {
-        success = "Đăng ký thành công! Vui lòng đăng nhập.";
-    }
+    Boolean googleEnabledAttr = (Boolean) request.getAttribute("googleEnabled");
+    boolean googleEnabled = googleEnabledAttr != null && googleEnabledAttr;
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -39,16 +42,32 @@
                     <div class="alert alert-danger"><%= error %></div>
                     <% } %>
 
+                    <% if (googleEnabled) { %>
+                    <a class="btn btn-outline-secondary btn-lg w-100 mb-3 d-flex align-items-center justify-content-center gap-2"
+                       href="<%= ctx %>/auth/google">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width="22" height="22">
+                        Đăng nhập bằng Google
+                    </a>
+                    <div class="text-center text-muted mb-3">hoặc</div>
+                    <% } %>
+
                     <form action="<%= ctx %>/login" method="post">
                         <div class="mb-3">
-                            <label class="form-label" for="login">Email / Số điện thoại</label>
-                            <input id="login" name="login" type="text" class="form-control form-control-lg"
+                            <label class="form-label" for="loginInput">Email / Số điện thoại</label>
+                            <input id="loginInput" name="login" type="text" class="form-control form-control-lg"
                                    placeholder="name@example.com hoặc 090..." value="<%= login %>" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="password">Mật khẩu</label>
-                            <input id="password" name="password" type="password" class="form-control form-control-lg"
-                                   placeholder="••••••••" required>
+                            <div class="password-toggle-wrap">
+                                <input id="password" name="password" type="password"
+                                       class="form-control form-control-lg"
+                                       placeholder="••••••••" required>
+                                <button type="button" class="password-toggle-btn"
+                                        aria-label="Hiện mật khẩu" aria-pressed="false">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="d-flex justify-content-between mb-4">
                             <div class="form-check">
@@ -71,5 +90,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
+<script src="<%= ctx %>/assets/js/password-toggle.js"></script>
 </body>
 </html>

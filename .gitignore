@@ -31,3 +31,4 @@ target/
 
 # Database credentials (local only)
 src/main/resources/db.properties
+src/main/resources/google.properties
