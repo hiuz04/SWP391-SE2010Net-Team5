@@ -57,6 +57,17 @@ public class FieldDAO {
         }
     }
 
+    public void deleteFieldWithFacilityID(long id) {
+        String sql = "DELETE FROM fields WHERE facility_id = ?";
+        try(Connection conn = DBContext.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cố gắng xóa dữ liệu: " + e.getMessage(), e);
+        }
+    }
+
     public Field getFieldByID(long id) {
         Field field = new Field();
         String sql = "SELECT * FROM fields WHERE field_id = ?";
@@ -95,8 +106,8 @@ public class FieldDAO {
                     rs.getString("field_name"),
                     rs.getString("description"),
                     rs.getString("status"),
-                    rs.getObject("created_at", LocalDateTime.class),
-                    rs.getObject("updated_at", LocalDateTime.class)
+                    rs.getTimestamp("created_at").toLocalDateTime(),
+                    rs.getTimestamp("updated_at").toLocalDateTime()
                 ));
             }
 
