@@ -15,7 +15,6 @@ public class DeleteFieldServlet extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         long fieldId = Long.parseLong(req.getParameter("id"));
         Constant.fieldDAO.deleteField(fieldId);
-        resp.sendRedirect(req.getContextPath() + "/owner/field-list");
     }
 
 }

@@ -1,0 +1,69 @@
+<div class="modal fade" id="fieldFormModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <form id="fieldForm" method="post"
+                  action="<%= ctx %>/fields/add">
+
+                <input type="hidden" name="fieldID" id="fieldID">
+
+                <div class="modal-header">
+                    <!-- Đổi thành Edit Field nếu là mode Edit -->
+                    <h5 class="modal-title" id="fieldTitle"></h5>
+                    <button type="button" class="btn-close"
+                            data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <!-- Tên sân -->
+                    <div class="mb-2">
+                        <label for="fieldName" >Tên sân: </label>
+                        <input type="text" name="fieldName" id="fieldName"
+                               class="form-control" required>
+                    </div>
+
+                    <!-- Mô tả -->
+                    <div class="mb-2">
+                        <label for="desc" >Mô tả sân: </label>
+                        <input type="text" name="description" id="desc"
+                               class="form-control">
+                    </div>
+
+                    <!-- Loại sân -->
+                    <div class="mb-2">
+                        <label for="typeF" >Loại sân:</label>
+                        <select name="fieldTypeID" id="typeF" required>
+                        </select>
+                    </div>
+
+                    <!-- Cơ sở -->
+                    <div class="mb-2">
+                        <label for="fac" >Cơ sở sỡ hữu sân: </label>
+                        <select name="facilityId" id="fac" required>
+                        </select>
+                    </div>
+
+                    <!-- Trạng thái -->
+                    <div class="mb-2">
+                        <label for="status" >Trạng thái sân</label>
+                        <select name="status" id="status" required>
+                            <option value="AVAILABLE"> Available </option>
+                            <option value="OCCUPIED"> Occupied </option>
+                            <option value="BOOKED"> Booked </option>
+                            <option value="MAINTENANCE"> Maintenance </option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" id="submitBtn" class="btn btn-primary" onclick="submitField()">
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>

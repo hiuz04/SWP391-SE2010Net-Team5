@@ -1,5 +1,9 @@
 package com.swp.controller.owner;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
 import com.swp.model.Field;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -8,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @WebServlet("/field/edit")
 public class EditFieldServlet extends HttpServlet {
@@ -16,11 +21,17 @@ public class EditFieldServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         long id = Long.parseLong(req.getParameter("id"));
         Field f = Constant.fieldDAO.getFieldByID(id);
-        resp.setContentType("text/plain");
-        resp.setCharacterEncoding("UTF-8");
-        System.out.println(">>> field Name: " + f.getFieldId());
-        String result = f.getFieldId() + "|" + f.getFieldName() + "|" + f.getDescription() + "|" + f.getFieldTypeId() + "|" + f.getFacilityId() + "|" + f.getStatus();
-        resp.getWriter().write(result);
+        resp.setContentType("application/json;charset=UTF-8");
+
+        Gson gson = new GsonBuilder()
+                .registerTypeAdapter(
+                        LocalDateTime.class,
+                        (JsonSerializer<LocalDateTime>) (src, t, c)
+                                -> new JsonPrimitive(src.toString())
+                )
+                .create();
+
+        resp.getWriter().write(gson.toJson(f));
     }
 
     @Override
@@ -41,6 +52,5 @@ public class EditFieldServlet extends HttpServlet {
         f.setStatus(status);
 
         Constant.fieldDAO.editField(f);
-        resp.sendRedirect(req.getContextPath() + "/owner/field-list");
     }
 }

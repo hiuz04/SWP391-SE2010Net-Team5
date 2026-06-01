@@ -8,7 +8,7 @@
       ['Dashboard','#'], ['Lịch trong ngày','#'], ['Check-in','#'], ['Checkout','#']
     ],
     owner: [
-      ['Dashboard','#'], ['Cơ sở','#'], ['Sân bóng','#'], ['Bảng giá','#'], ['Dịch vụ','#']
+      ['Dashboard','UI/owner/dashboard.html'], ['Cơ sở','#'], ['Sân bóng','#'], ['Bảng giá','#'], ['Dịch vụ','#']
     ],
     admin: [
       ['Dashboard','#'], ['Người dùng','#'], ['Duyệt chủ sân','#'], ['Cài đặt','#']

@@ -30,6 +30,5 @@ public class AddFieldServlet extends HttpServlet {
         field.setStatus(status);
 
         Constant.fieldDAO.addField(field);
-        resp.sendRedirect(req.getContextPath() + "/owner/field-list");
     }
 }
