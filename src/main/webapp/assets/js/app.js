@@ -5,13 +5,13 @@
       ['Trang chủ','index.jsp'], ['Tìm sân','#'], ['Tìm đối','#'], ['Lịch sử đặt sân','#'], ['Hồ sơ','#']
     ],
     staff: [
-      ['Dashboard','#'], ['Lịch trong ngày','#'], ['Check-in','#'], ['Checkout','#']
+      ['Dashboard','UI/staff/dashboard.html'], ['Lịch trong ngày','UI/staff/schedule.html'], ['Check-in','UI/staff/checkin.html'], ['Checkout','UI/staff/checkout.html']
     ],
     owner: [
       ['Dashboard','UI/owner/dashboard.html'], ['Cơ sở','#'], ['Sân bóng','#'], ['Bảng giá','#'], ['Dịch vụ','#']
     ],
     admin: [
-      ['Dashboard','#'], ['Người dùng','#'], ['Duyệt chủ sân','#'], ['Cài đặt','#']
+      ['Dashboard','UI/admin/dashboard.html'], ['Người dùng','#'], ['Duyệt chủ sân','#'], ['Cài đặt','#']
     ]
   };
 
@@ -36,7 +36,7 @@
            <ul class="dropdown-menu dropdown-menu-end shadow">
              <li><h6 class="dropdown-header">Tài khoản</h6></li>
              <li><a class="dropdown-item" href="${link(root, '#')}">Thông tin cá nhân</a></li>
-             <li><a class="dropdown-item" href="${link(root, '#')}">Khu vực ${role}</a></li>
+             <li><a class="dropdown-item" href="${link(root, role !== 'guest' ? (pages[role] && pages[role][0] ? pages[role][0][1] : '#') : '#')}">Khu vực ${role}</a></li>
              <li><hr class="dropdown-divider"></li>
              <li><a class="dropdown-item text-danger" href="${link(root, 'logout')}"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</a></li>
            </ul>
