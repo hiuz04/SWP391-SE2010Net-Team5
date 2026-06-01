@@ -1,0 +1,190 @@
+package com.swp.dao;
+
+import com.swp.model.User;
+import com.swp.util.DBContext;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+public class UserDAO {
+
+    private static final String USER_SELECT = """
+            SELECT u.user_id, u.role_id, u.full_name, u.email, u.phone, u.password_hash,
+                   u.avatar_url, u.google_id, u.status, u.created_at, u.updated_at,
+                   r.role_name
+            FROM users u
+            INNER JOIN roles r ON u.role_id = r.role_id
+            """;
+
+    private static final String FIND_BY_LOGIN_AND_PASSWORD = USER_SELECT + """
+            WHERE (u.email = ? OR u.phone = ?) AND u.password_hash = ? AND u.status = 'ACTIVE'
+            """;
+
+    private static final String FIND_BY_GOOGLE_ID = USER_SELECT + """
+            WHERE u.google_id = ? AND u.status = 'ACTIVE'
+            """;
+
+    private static final String FIND_BY_EMAIL = USER_SELECT + """
+            WHERE u.email = ? AND u.status = 'ACTIVE'
+            """;
+
+    public Optional<User> findByLoginAndPassword(String login, String password) {
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(FIND_BY_LOGIN_AND_PASSWORD)) {
+            ps.setString(1, login);
+            ps.setString(2, login);
+            ps.setString(3, password);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi truy vấn người dùng: " + e.getMessage(), e);
+        }
+        return Optional.empty();
+    }
+
+    public Optional<User> findByGoogleId(String googleId) {
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(FIND_BY_GOOGLE_ID)) {
+            ps.setString(1, googleId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi truy vấn Google ID: " + e.getMessage(), e);
+        }
+        return Optional.empty();
+    }
+
+    public Optional<User> findByEmail(String email) {
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(FIND_BY_EMAIL)) {
+            ps.setString(1, email);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi truy vấn email: " + e.getMessage(), e);
+        }
+        return Optional.empty();
+    }
+
+    public boolean existsByEmail(String email) {
+        return exists("SELECT 1 FROM users WHERE email = ?", email);
+    }
+
+    public boolean existsByPhone(String phone) {
+        return exists("SELECT 1 FROM users WHERE phone = ?", phone);
+    }
+
+    public long insert(User user) {
+        String sql = """
+                INSERT INTO users (role_id, full_name, email, phone, password_hash, status)
+                VALUES (?, ?, ?, ?, ?, 'ACTIVE')
+                """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setInt(1, user.getRoleId());
+            ps.setString(2, user.getFullName());
+            ps.setString(3, user.getEmail());
+            ps.setString(4, user.getPhone());
+            ps.setString(5, user.getPasswordHash());
+            ps.executeUpdate();
+            return readGeneratedKey(ps);
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tạo tài khoản: " + e.getMessage(), e);
+        }
+    }
+
+    public long insertGoogleUser(User user) {
+        String sql = """
+                INSERT INTO users (role_id, full_name, email, phone, password_hash, avatar_url, google_id, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+                """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setInt(1, user.getRoleId());
+            ps.setString(2, user.getFullName());
+            ps.setString(3, user.getEmail());
+            ps.setString(4, user.getPhone());
+            ps.setString(5, user.getPasswordHash());
+            ps.setString(6, user.getAvatarUrl());
+            ps.setString(7, user.getGoogleId());
+            ps.executeUpdate();
+            return readGeneratedKey(ps);
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tạo tài khoản Google: " + e.getMessage(), e);
+        }
+    }
+
+    public void linkGoogleAccount(long userId, String googleId, String avatarUrl) {
+        String sql = """
+                UPDATE users
+                SET google_id = ?, avatar_url = COALESCE(?, avatar_url), updated_at = GETDATE()
+                WHERE user_id = ?
+                """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, googleId);
+            ps.setString(2, avatarUrl);
+            ps.setLong(3, userId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi liên kết tài khoản Google: " + e.getMessage(), e);
+        }
+    }
+
+    private long readGeneratedKey(PreparedStatement ps) throws SQLException {
+        try (ResultSet rs = ps.getGeneratedKeys()) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        }
+        return -1;
+    }
+
+    private boolean exists(String sql, String value) {
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, value);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi kiểm tra người dùng: " + e.getMessage(), e);
+        }
+    }
+
+    private User mapRow(ResultSet rs) throws SQLException {
+        User user = new User();
+        user.setUserId(rs.getLong("user_id"));
+        user.setRoleId(rs.getInt("role_id"));
+        user.setFullName(rs.getString("full_name"));
+        user.setEmail(rs.getString("email"));
+        user.setPhone(rs.getString("phone"));
+        user.setPasswordHash(rs.getString("password_hash"));
+        user.setAvatarUrl(rs.getString("avatar_url"));
+        user.setGoogleId(rs.getString("google_id"));
+        user.setStatus(rs.getString("status"));
+        user.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+        user.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
+        user.setRoleName(rs.getString("role_name"));
+        return user;
+    }
+
+    private LocalDateTime toLocalDateTime(Timestamp timestamp) {
+        return timestamp != null ? timestamp.toLocalDateTime() : null;
+    }
+}
