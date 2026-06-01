@@ -36,7 +36,7 @@ public class UserDAO {
 
     public Optional<User> findByLoginAndPassword(String login, String password) {
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(FIND_BY_LOGIN_AND_PASSWORD)) {
+                PreparedStatement ps = conn.prepareStatement(FIND_BY_LOGIN_AND_PASSWORD)) {
             ps.setString(1, login);
             ps.setString(2, login);
             ps.setString(3, password);
@@ -53,7 +53,7 @@ public class UserDAO {
 
     public Optional<User> findByGoogleId(String googleId) {
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(FIND_BY_GOOGLE_ID)) {
+                PreparedStatement ps = conn.prepareStatement(FIND_BY_GOOGLE_ID)) {
             ps.setString(1, googleId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -68,7 +68,7 @@ public class UserDAO {
 
     public Optional<User> findByEmail(String email) {
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(FIND_BY_EMAIL)) {
+                PreparedStatement ps = conn.prepareStatement(FIND_BY_EMAIL)) {
             ps.setString(1, email);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -95,7 +95,7 @@ public class UserDAO {
                 VALUES (?, ?, ?, ?, ?, 'ACTIVE')
                 """;
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, user.getRoleId());
             ps.setString(2, user.getFullName());
             ps.setString(3, user.getEmail());
@@ -114,7 +114,7 @@ public class UserDAO {
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
                 """;
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, user.getRoleId());
             ps.setString(2, user.getFullName());
             ps.setString(3, user.getEmail());
@@ -136,7 +136,7 @@ public class UserDAO {
                 WHERE user_id = ?
                 """;
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, googleId);
             ps.setString(2, avatarUrl);
             ps.setLong(3, userId);
@@ -157,7 +157,7 @@ public class UserDAO {
 
     private boolean exists(String sql, String value) {
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, value);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
