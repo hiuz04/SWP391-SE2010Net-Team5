@@ -1,4 +1,4 @@
-package model;
+package com.swp.model;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -16,7 +16,8 @@ public class PasswordResetToken implements Serializable {
     public PasswordResetToken() {
     }
 
-    public PasswordResetToken(Long tokenId, Long userId, String token, String otpCode, LocalDateTime expiresAt, Boolean used, LocalDateTime createdAt) {
+    public PasswordResetToken(Long tokenId, Long userId, String token, String otpCode, LocalDateTime expiresAt,
+            Boolean used, LocalDateTime createdAt) {
         this.tokenId = tokenId;
         this.userId = userId;
         this.token = token;
