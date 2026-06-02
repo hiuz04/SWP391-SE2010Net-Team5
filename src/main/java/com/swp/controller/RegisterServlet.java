@@ -3,6 +3,7 @@ package com.swp.controller;
 import com.swp.dao.RoleDAO;
 import com.swp.dao.UserDAO;
 import com.swp.model.User;
+import com.swp.util.GoogleConfig;
 import com.swp.util.RegisterValidator;
 import com.swp.util.ValidationResult;
 import jakarta.servlet.ServletException;
@@ -28,6 +29,7 @@ public class RegisterServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/");
             return;
         }
+        request.setAttribute("googleEnabled", GoogleConfig.isConfigured());
         request.getRequestDispatcher("/register.jsp").forward(request, response);
     }
 
@@ -98,6 +100,7 @@ public class RegisterServlet extends HttpServlet {
 
     private void forward(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        request.setAttribute("googleEnabled", GoogleConfig.isConfigured());
         request.getRequestDispatcher("/register.jsp").forward(request, response);
     }
 
