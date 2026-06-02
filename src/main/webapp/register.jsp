@@ -2,6 +2,10 @@
 <%@ page import="java.util.Collections" %>
 <%@ page import="java.util.Map" %>
 <%
+    if (request.getAttribute("googleEnabled") == null) {
+        response.sendRedirect(request.getContextPath() + "/register");
+        return;
+    }
     String ctx = request.getContextPath();
     String fullName = request.getAttribute("fullName") != null ? (String) request.getAttribute("fullName") : "";
     String phone = request.getAttribute("phone") != null ? (String) request.getAttribute("phone") : "";
@@ -16,6 +20,8 @@
     String emailClass = fieldErrors.containsKey("email") ? "is-invalid" : "";
     String passwordClass = fieldErrors.containsKey("password") ? "is-invalid" : "";
     String confirmClass = fieldErrors.containsKey("confirmPassword") ? "is-invalid" : "";
+    Boolean googleEnabledAttr = (Boolean) request.getAttribute("googleEnabled");
+    boolean googleEnabled = googleEnabledAttr != null && googleEnabledAttr;
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -107,6 +113,15 @@
                         </div>
                         <button type="submit" class="btn btn-sf-primary btn-lg w-100 mt-4">Tạo tài khoản</button>
                     </form>
+
+                    <% if (googleEnabled) { %>
+                    <div class="text-center text-muted my-3">hoặc</div>
+                    <a class="btn btn-outline-secondary btn-lg w-100 mb-3 d-flex align-items-center justify-content-center gap-2"
+                       href="<%= ctx %>/auth/google">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width="22" height="22">
+                        Đăng nhập bằng Google
+                    </a>
+                    <% } %>
 
                     <p class="text-center mt-4 mb-0">
                         Đã có tài khoản? <a href="<%= ctx %>/login">Đăng nhập</a>

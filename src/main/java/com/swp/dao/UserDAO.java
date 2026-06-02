@@ -89,6 +89,32 @@ public class UserDAO {
         return exists("SELECT 1 FROM users WHERE phone = ?", phone);
     }
 
+    public boolean existsByEmailExcludeUser(String email, long userId) {
+        try (Connection conn = DBContext.getConnection();
+                PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM users WHERE email = ? AND user_id != ?")) {
+            ps.setString(1, email);
+            ps.setLong(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi kiểm tra trùng email: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean existsByPhoneExcludeUser(String phone, long userId) {
+        try (Connection conn = DBContext.getConnection();
+                PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM users WHERE phone = ? AND user_id != ?")) {
+            ps.setString(1, phone);
+            ps.setLong(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi kiểm tra trùng số điện thoại: " + e.getMessage(), e);
+        }
+    }
+
     public long insert(User user) {
         String sql = """
                 INSERT INTO users (role_id, full_name, email, phone, password_hash, status)
@@ -164,6 +190,25 @@ public class UserDAO {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi kiểm tra người dùng: " + e.getMessage(), e);
+        }
+    }
+
+    public void updateProfile(User user) {
+        String sql = """
+                UPDATE users
+                SET full_name = ?, phone = ?, email = ?, password_hash = ?, updated_at = GETDATE()
+                WHERE user_id = ?
+                """;
+        try (Connection conn = DBContext.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, user.getFullName());
+            ps.setString(2, user.getPhone());
+            ps.setString(3, user.getEmail());
+            ps.setString(4, user.getPasswordHash());
+            ps.setLong(5, user.getUserId());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật hồ sơ: " + e.getMessage(), e);
         }
     }
 
