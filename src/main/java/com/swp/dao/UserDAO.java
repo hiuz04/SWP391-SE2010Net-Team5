@@ -34,6 +34,10 @@ public class UserDAO {
             WHERE u.email = ? AND u.status = 'ACTIVE'
             """;
 
+    private static final String FIND_BY_EMAIL_OR_PHONE = USER_SELECT + """
+            WHERE (u.email = ? OR u.phone = ?) AND u.status = 'ACTIVE'
+            """;
+
     public Optional<User> findByLoginAndPassword(String login, String password) {
         try (Connection conn = DBContext.getConnection();
                 PreparedStatement ps = conn.prepareStatement(FIND_BY_LOGIN_AND_PASSWORD)) {
@@ -79,6 +83,44 @@ public class UserDAO {
             throw new RuntimeException("Lỗi truy vấn email: " + e.getMessage(), e);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Tìm user theo email HOẶC số điện thoại (dùng cho chức năng quên mật khẩu).
+     */
+    public Optional<User> findByEmailOrPhone(String input) {
+        try (Connection conn = DBContext.getConnection();
+                PreparedStatement ps = conn.prepareStatement(FIND_BY_EMAIL_OR_PHONE)) {
+            ps.setString(1, input);
+            ps.setString(2, input);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tìm user theo email/phone: " + e.getMessage(), e);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Cập nhật mật khẩu mới cho user (plain text, phù hợp với cách lưu hiện tại).
+     */
+    public void updatePassword(long userId, String newPassword) {
+        String sql = """
+                UPDATE users
+                SET password_hash = ?, updated_at = GETDATE()
+                WHERE user_id = ?
+                """;
+        try (Connection conn = DBContext.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newPassword);
+            ps.setLong(2, userId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật mật khẩu: " + e.getMessage(), e);
+        }
     }
 
     public boolean existsByEmail(String email) {
