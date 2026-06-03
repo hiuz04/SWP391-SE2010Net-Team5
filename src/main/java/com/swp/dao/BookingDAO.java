@@ -3,17 +3,21 @@ package com.swp.dao;
 import com.swp.model.Booking;
 import com.swp.model.Field;
 import com.swp.model.FieldMaintenanceSchedule;
+import com.swp.model.dto.BookingView;
 import com.swp.util.DBContext;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-
+import java.sql.Types;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -257,5 +261,208 @@ public class BookingDAO {
         }
 
         return schedules;
+    }
+    public BookingView getBookingPreviewInfoByFieldId(Long fieldId, Long customerId) throws SQLException {
+        String sql = """
+                SELECT NULL AS booking_id,
+                       NULL AS booking_code,
+                       u.user_id AS customer_id,
+                       u.full_name AS customer_name,
+                       u.phone AS customer_phone,
+                       u.email AS customer_email,
+                       fa.facility_id,
+                       fa.facility_name,
+                       fa.address AS facility_address,
+                       fa.hotline AS facility_hotline,
+                       f.field_id,
+                       f.field_name,
+                       ft.type_name AS field_type_name,
+                       ft.number_of_players,
+                       NULL AS start_time,
+                       NULL AS end_time,
+                       NULL AS original_price,
+                       NULL AS discount_amount,
+                       NULL AS total_amount,
+                       NULL AS deposit_amount,
+                       NULL AS status,
+                       NULL AS hold_expires_at,
+                       NULL AS qr_code,
+                       NULL AS created_at,
+                       NULL AS updated_at,
+                       NULL AS cancellation_reason,
+                       NULL AS cancelled_at,
+                       NULL AS payment_status,
+                       NULL AS payment_method_name,
+                       NULL AS paid_amount,
+                       NULL AS paid_at
+                FROM fields f
+                INNER JOIN facilities fa ON f.facility_id = fa.facility_id
+                INNER JOIN field_types ft ON f.field_type_id = ft.field_type_id
+                INNER JOIN users u ON u.user_id = ?
+                WHERE f.field_id = ?
+                  AND f.status = 'AVAILABLE'
+                """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, customerId);
+            ps.setLong(2, fieldId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapBookingView(rs);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public boolean isFieldAvailable(Long fieldId, LocalDateTime startTime, LocalDateTime endTime) throws SQLException {
+        try (Connection conn = DBContext.getConnection()) {
+            return isFieldAvailable(conn, fieldId, startTime, endTime);
+        }
+    }
+
+    private boolean isFieldAvailable(Connection conn, Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
+            throws SQLException {
+
+        String sql = """
+                SELECT
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM fields f WITH (UPDLOCK, HOLDLOCK)
+                            WHERE f.field_id = ?
+                              AND f.status = 'AVAILABLE'
+                        )
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM bookings b
+                            WHERE b.field_id = ?
+                              AND b.status NOT IN ('CANCELLED', 'EXPIRED', 'REJECTED')
+                              AND b.start_time < ?
+                              AND b.end_time > ?
+                        )
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM field_maintenance_schedules m
+                            WHERE m.field_id = ?
+                              AND m.status <> 'CANCELLED'
+                              AND m.start_time < ?
+                              AND m.end_time > ?
+                        )
+                        THEN 1
+                        ELSE 0
+                    END AS available
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, fieldId);
+            ps.setLong(2, fieldId);
+            ps.setTimestamp(3, Timestamp.valueOf(endTime));
+            ps.setTimestamp(4, Timestamp.valueOf(startTime));
+            ps.setLong(5, fieldId);
+            ps.setTimestamp(6, Timestamp.valueOf(endTime));
+            ps.setTimestamp(7, Timestamp.valueOf(startTime));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt("available") == 1;
+            }
+        }
+    }
+    public BigDecimal calculatePrice(Long fieldId, LocalDateTime startTime, LocalDateTime endTime) throws SQLException {
+        String sql = """
+                SELECT TOP 1 pr.price
+                FROM price_rules pr
+                INNER JOIN fields f ON f.field_id = ?
+                WHERE pr.status = 'ACTIVE'
+                  AND (pr.field_id = f.field_id OR pr.field_id IS NULL)
+                  AND (pr.field_type_id = f.field_type_id OR pr.field_type_id IS NULL)
+                  AND (pr.facility_id = f.facility_id OR pr.facility_id IS NULL)
+                  AND (pr.specific_date = ? OR pr.specific_date IS NULL)
+                  AND (pr.day_of_week = ? OR pr.day_of_week IS NULL)
+                  AND pr.start_time <= CAST(? AS time)
+                  AND pr.end_time >= CAST(? AS time)
+                ORDER BY
+                  CASE WHEN pr.field_id = f.field_id THEN 0 ELSE 1 END,
+                  CASE WHEN pr.specific_date = ? THEN 0 ELSE 1 END,
+                  pr.priority DESC,
+                  pr.price_rule_id DESC
+                """;
+
+        BigDecimal hourlyPrice = BigDecimal.ZERO;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, fieldId);
+            ps.setDate(2, java.sql.Date.valueOf(startTime.toLocalDate()));
+            ps.setString(3, startTime.getDayOfWeek().name());
+            ps.setString(4, startTime.toLocalTime().toString());
+            ps.setString(5, endTime.toLocalTime().toString());
+            ps.setDate(6, java.sql.Date.valueOf(startTime.toLocalDate()));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && rs.getBigDecimal("price") != null) {
+                    hourlyPrice = rs.getBigDecimal("price");
+                }
+            }
+        }
+
+        BigDecimal minutes = BigDecimal.valueOf(Duration.between(startTime, endTime).toMinutes());
+        BigDecimal hours = minutes.divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+        return hourlyPrice.multiply(hours).setScale(2, RoundingMode.HALF_UP);
+    }
+    private BookingView mapBookingView(ResultSet rs) throws SQLException {
+        BookingView view = new BookingView();
+
+        view.setBookingId(getLongOrNull(rs, "booking_id"));
+        view.setBookingCode(rs.getString("booking_code"));
+        view.setCustomerId(getLongOrNull(rs, "customer_id"));
+        view.setCustomerName(rs.getString("customer_name"));
+        view.setCustomerPhone(rs.getString("customer_phone"));
+        view.setCustomerEmail(rs.getString("customer_email"));
+        view.setFacilityId(getLongOrNull(rs, "facility_id"));
+        view.setFacilityName(rs.getString("facility_name"));
+        view.setFacilityAddress(rs.getString("facility_address"));
+        view.setFacilityHotline(rs.getString("facility_hotline"));
+        view.setFieldId(getLongOrNull(rs, "field_id"));
+        view.setFieldName(rs.getString("field_name"));
+        view.setFieldTypeName(rs.getString("field_type_name"));
+        view.setNumberOfPlayers(getIntegerOrNull(rs, "number_of_players"));
+        view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
+        view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
+        view.setOriginalPrice(rs.getBigDecimal("original_price"));
+        view.setDiscountAmount(rs.getBigDecimal("discount_amount"));
+        view.setTotalAmount(rs.getBigDecimal("total_amount"));
+        view.setDepositAmount(rs.getBigDecimal("deposit_amount"));
+        view.setStatus(rs.getString("status"));
+        view.setHoldExpiresAt(toLocalDateTime(rs.getTimestamp("hold_expires_at")));
+        view.setQrCode(rs.getString("qr_code"));
+        view.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+        view.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
+        view.setCancellationReason(rs.getString("cancellation_reason"));
+        view.setCancelledAt(toLocalDateTime(rs.getTimestamp("cancelled_at")));
+        view.setPaymentStatus(rs.getString("payment_status"));
+        view.setPaymentMethodName(rs.getString("payment_method_name"));
+        view.setPaidAmount(rs.getBigDecimal("paid_amount"));
+        view.setPaidAt(toLocalDateTime(rs.getTimestamp("paid_at")));
+
+        return view;
+    }
+    private Long getLongOrNull(ResultSet rs, String column) throws SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private Integer getIntegerOrNull(ResultSet rs, String column) throws SQLException {
+        int value = rs.getInt(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private LocalDateTime toLocalDateTime(Timestamp timestamp) {
+        return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 }

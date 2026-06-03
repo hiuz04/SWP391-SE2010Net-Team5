@@ -4,8 +4,9 @@ import com.swp.dao.BookingDAO;
 import com.swp.model.Booking;
 import com.swp.model.Field;
 import com.swp.model.FieldMaintenanceSchedule;
-import com.swp.model.FieldScheduleSlot;
 import com.swp.model.User;
+import com.swp.model.dto.BookingView;
+import com.swp.model.dto.FieldScheduleSlot;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -14,14 +15,20 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 @WebServlet(name = "BookingController", urlPatterns = {"/booking"})
 public class BookingController extends HttpServlet {
@@ -42,15 +49,15 @@ public class BookingController extends HttpServlet {
         String action = trim(request.getParameter("action"));
 
         try {
-            if (action == null || action.isEmpty() || "create".equals(action)) {
-                showSchedulePage(request, response);
-            } else {
-                response.sendRedirect(request.getContextPath() + "/");
+            switch (action == null || action.isEmpty() ? "create" : action) {
+                case "create" -> showSchedulePage(request, response);
+                case "confirm" -> showConfirmationPage(request, response);
+                default -> response.sendRedirect(request.getContextPath() + "/");
             }
         } catch (SQLException e) {
             handleError(response, e);
-        } catch (NumberFormatException e) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Dữ liệu không hợp lệ.");
+        } catch (IllegalArgumentException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         }
     }
 
@@ -94,6 +101,66 @@ public class BookingController extends HttpServlet {
         request.setAttribute("scheduleMap", scheduleMap);
 
         request.getRequestDispatcher("/WEB-INF/booking/create-booking.jsp").forward(request, response);
+    }
+
+    private void showConfirmationPage(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException, SQLException {
+
+        User currentUser = requireLogin(request, response);
+        if (currentUser == null) {
+            return;
+        }
+
+        Long fieldId = parseLong(request.getParameter("fieldId"), "fieldId không hợp lệ.");
+        LocalDateTime startTime = parseLocalDateTime(request.getParameter("startTime"), "Giờ bắt đầu không hợp lệ.");
+        LocalDateTime endTime = parseLocalDateTime(request.getParameter("endTime"), "Giờ kết thúc không hợp lệ.");
+        validateTimeRange(startTime, endTime);
+
+        BookingView bookingInfo = bookingDAO.getBookingPreviewInfoByFieldId(fieldId, currentUser.getUserId());
+        if (bookingInfo == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Không tìm thấy sân.");
+            return;
+        }
+
+        if (!bookingDAO.isFieldAvailable(fieldId, startTime, endTime)) {
+            redirectWithError(request, response, "create", "Khung giờ đã được đặt hoặc sân đang bảo trì.");
+            return;
+        }
+
+        BigDecimal originalPrice = bookingDAO.calculatePrice(fieldId, startTime, endTime);
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        BigDecimal totalAmount = originalPrice.subtract(discountAmount);
+        BigDecimal depositAmount = totalAmount;
+        LocalDateTime holdExpiresAt = LocalDateTime.now().plusMinutes(15);
+
+        Booking bookingPreview = new Booking();
+        bookingPreview.setFieldId(fieldId);
+        bookingPreview.setFacilityId(bookingInfo.getFacilityId());
+        bookingPreview.setCustomerId(currentUser.getUserId());
+        bookingPreview.setStartTime(startTime);
+        bookingPreview.setEndTime(endTime);
+        bookingPreview.setOriginalPrice(originalPrice);
+        bookingPreview.setDiscountAmount(discountAmount);
+        bookingPreview.setTotalAmount(totalAmount);
+        bookingPreview.setDepositAmount(depositAmount);
+        bookingPreview.setStatus("HOLD");
+        bookingPreview.setHoldExpiresAt(holdExpiresAt);
+
+        bookingInfo.setStartTime(startTime);
+        bookingInfo.setEndTime(endTime);
+        bookingInfo.setOriginalPrice(originalPrice);
+        bookingInfo.setDiscountAmount(discountAmount);
+        bookingInfo.setTotalAmount(totalAmount);
+        bookingInfo.setDepositAmount(depositAmount);
+        bookingInfo.setStatus("HOLD");
+        bookingInfo.setHoldExpiresAt(holdExpiresAt);
+
+        request.setAttribute("bookingInfo", bookingInfo);
+        request.setAttribute("bookingPreview", bookingPreview);
+        request.setAttribute("startTimeValue", startTime.toString());
+        request.setAttribute("endTimeValue", endTime.toString());
+
+        request.getRequestDispatcher("/WEB-INF/booking/booking-confirm.jsp").forward(request, response);
     }
 
     private Long getFacilityIdFromRequest(HttpServletRequest request) throws SQLException {
@@ -260,5 +327,74 @@ public class BookingController extends HttpServlet {
                 HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                 "Có lỗi xảy ra khi hiển thị lịch sân: " + e.getMessage()
         );
+    }
+
+    private Long parseLong(String rawValue, String message) {
+        String value = trim(rawValue);
+        if (value == null || value.isEmpty()) {
+            throw new IllegalArgumentException(message);
+        }
+
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(message, e);
+        }
+    }
+
+    private LocalDateTime parseLocalDateTime(String rawValue, String message) {
+        String value = trim(rawValue);
+        if (value == null || value.isEmpty()) {
+            throw new IllegalArgumentException(message);
+        }
+
+        try {
+            return LocalDateTime.parse(value);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException(message, e);
+        }
+    }
+
+    private void redirectWithError(HttpServletRequest request, HttpServletResponse response,
+                                   String targetAction, String message) throws IOException {
+        StringBuilder url = new StringBuilder(request.getContextPath())
+                .append("/booking?action=").append(targetAction)
+                .append("&error=")
+                .append(URLEncoder.encode(message, StandardCharsets.UTF_8));
+
+        String facilityId = trim(request.getParameter("facilityId"));
+        if (facilityId == null || facilityId.isEmpty()) {
+            Long fieldId = null;
+            try {
+                fieldId = parseLong(request.getParameter("fieldId"), "");
+            } catch (IllegalArgumentException ignored) {
+            }
+            if (fieldId != null) {
+                try {
+                    Long facility = bookingDAO.getFacilityIdByFieldId(fieldId);
+                    if (facility != null) {
+                        facilityId = facility.toString();
+                    }
+                } catch (SQLException ignored) {
+                }
+            }
+        }
+
+        if (facilityId != null && !facilityId.isEmpty()) {
+            url.append("&facilityId=").append(facilityId);
+        }
+
+        String startTime = trim(request.getParameter("startTime"));
+        if (startTime != null && startTime.length() >= 10) {
+            url.append("&date=").append(startTime, 0, 10);
+        }
+
+        response.sendRedirect(url.toString());
+    }
+
+    private void validateTimeRange(LocalDateTime startTime, LocalDateTime endTime) {
+        if (startTime == null || endTime == null || !startTime.isBefore(endTime)) {
+            throw new IllegalArgumentException("Giờ bắt đầu phải trước giờ kết thúc.");
+        }
     }
 }
