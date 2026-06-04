@@ -1,13 +1,20 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="com.swp.model.User" %>
+<%@ page import="com.swp.model.dto.TopFieldSummary" %>
+<%@ page import="java.util.List" %>
+<%@ page import="java.util.Collections" %>
 <%
-    User sessionUser = (User) session.getAttribute("user");
-    String navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
-    if (navRole == null) {
-        navRole = "guest";
-    }
+    User sessionUser = (User) request.getAttribute("sessionUser");
+    if (sessionUser == null) sessionUser = (User) session.getAttribute("user");
+    String navRole = (String) request.getAttribute("navRole");
+    if (navRole == null) navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
+    if (navRole == null) navRole = "guest";
     String displayName = sessionUser != null ? sessionUser.getFullName() : "";
     String ctx = request.getContextPath();
+
+    @SuppressWarnings("unchecked")
+    List<TopFieldSummary> topFields = (List<TopFieldSummary>) request.getAttribute("topFields");
+    if (topFields == null) topFields = Collections.emptyList();
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -92,81 +99,65 @@
             <div class="d-flex justify-content-between align-items-end mb-4">
                 <div>
                     <h2 class="section-title">Sân bóng nổi bật</h2>
-                    <p class="text-muted mb-0">Các sân có đánh giá tốt và lịch trống phù hợp.</p>
+                    <p class="text-muted mb-0">Top 3 sân được đặt nhiều nhất.</p>
                 </div>
-                <button type="button" class="btn btn-outline-success" data-demo-alert="Danh sách sân sẽ được lấy từ database.">Xem tất cả</button>
             </div>
             <div class="row g-4">
-                <div class="col-md-6 col-xl-4">
-                    <div class="card soft-card h-100 overflow-hidden">
-                        <img class="field-img" src="https://images.unsplash.com/photo-1529900681758-f4b84c32ddda?w=900&q=80" alt="Sân bóng">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h5 class="card-title mb-0">Sân bóng Thể Thao A</h5>
-                                <span class="badge badge-soft-success">Còn trống</span>
-                            </div>
-                            <p class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>123 Đường ABC, Quận 1, TP.HCM</p>
-                            <div class="d-flex gap-3 small mb-3">
-                                <span><i class="bi bi-star-fill text-warning"></i> 4.8 (124)</span>
-                                <span>Sân 5 người</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="price-tag">300.000đ/giờ</span>
-                                <button type="button" class="btn btn-sf-primary" data-demo-alert="Chức năng đặt sân sẽ được cập nhật sau.">Đặt ngay</button>
+                <% if (topFields.isEmpty()) { %>
+                    <div class="col-12 text-center text-muted py-5">
+                        <i class="bi bi-calendar-x display-4"></i>
+                        <p class="mt-3">Chưa có dữ liệu sân nổi bật.</p>
+                    </div>
+                <% } else { %>
+                    <% for (TopFieldSummary field : topFields) { %>
+                    <div class="col-md-6 col-xl-4">
+                        <div class="card soft-card h-100 overflow-hidden">
+                            <img class="field-img" src="https://images.unsplash.com/photo-1529900681758-f4b84c32ddda?w=900&q=80" alt="Sân bóng">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h5 class="card-title mb-0"><%= field.getFieldName() %></h5>
+                                    <%
+                                        String badgeClass = "AVAILABLE".equalsIgnoreCase(field.getStatus())
+                                            ? "badge-soft-success" : "badge-soft-danger";
+                                        String badgeText = "AVAILABLE".equalsIgnoreCase(field.getStatus())
+                                            ? "Còn trống" : "Không khả dụng";
+                                    %>
+                                    <span class="badge <%= badgeClass %>"><%= badgeText %></span>
+                                </div>
+                                <p class="text-muted small mb-2">
+                                    <i class="bi bi-building me-1"></i><%= field.getFacilityName() != null ? field.getFacilityName() : "" %>
+                                </p>
+                                <p class="text-muted small mb-2">
+                                    <i class="bi bi-geo-alt me-1"></i><%= field.getFullLocation() %>
+                                </p>
+                                <div class="d-flex gap-3 small mb-3">
+                                    <span><i class="bi bi-trophy-fill text-warning"></i> <%= field.getBookingCount() %> lượt đặt</span>
+                                    <% if (field.getFieldTypeName() != null && !field.getFieldTypeName().isBlank()) { %>
+                                        <span><%= field.getFieldTypeName() %></span>
+                                    <% } %>
+                                </div>
+                                <div class="d-flex justify-content-end">
+                                    <a href="<%= ctx %>/booking?facilityId=<%= field.getFacilityId() %>" class="btn btn-sf-primary">Đặt ngay</a>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-6 col-xl-4">
-                    <div class="card soft-card h-100 overflow-hidden">
-                        <img class="field-img" src="https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=900&q=80" alt="Sân bóng">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h5 class="card-title mb-0">Sân bóng Phú Nhuận</h5>
-                                <span class="badge badge-soft-warning">Sắp đầy</span>
-                            </div>
-                            <p class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>456 Đường XYZ, Phú Nhuận, TP.HCM</p>
-                            <div class="d-flex gap-3 small mb-3">
-                                <span><i class="bi bi-star-fill text-warning"></i> 4.6 (89)</span>
-                                <span>Sân 7 người</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="price-tag">450.000đ/giờ</span>
-                                <button type="button" class="btn btn-sf-primary" data-demo-alert="Chức năng đặt sân sẽ được cập nhật sau.">Đặt ngay</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-4">
-                    <div class="card soft-card h-100 overflow-hidden">
-                        <img class="field-img" src="https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=900&q=80" alt="Sân bóng">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h5 class="card-title mb-0">Sân bóng Tân Bình</h5>
-                                <span class="badge badge-soft-success">Còn trống</span>
-                            </div>
-                            <p class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>789 Đường DEF, Tân Bình, TP.HCM</p>
-                            <div class="d-flex gap-3 small mb-3">
-                                <span><i class="bi bi-star-fill text-warning"></i> 4.9 (156)</span>
-                                <span>Sân 11 người</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="price-tag">800.000đ/giờ</span>
-                                <button type="button" class="btn btn-sf-primary" data-demo-alert="Chức năng đặt sân sẽ được cập nhật sau.">Đặt ngay</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                    <% } %>
+                <% } %>
             </div>
         </div>
     </section>
 
-    <% if (sessionUser == null) { %>
+    <% if ("guest".equalsIgnoreCase(navRole) || "customer".equalsIgnoreCase(navRole)) { %>
     <section class="py-5 bg-sf-primary text-white">
         <div class="container text-center">
             <h2 class="fw-bold">Khuyến mãi đặc biệt</h2>
             <p class="lead text-white-50">Giảm 20% cho lần đặt sân đầu tiên.</p>
+            <% if (sessionUser == null) { %>
             <a class="btn btn-light btn-lg" href="<%= ctx %>/register">Đăng ký ngay</a>
+            <% } else { %>
+            <a class="btn btn-light btn-lg" href="#">Nhận voucher</a>
+            <% } %>
         </div>
     </section>
     <% } %>

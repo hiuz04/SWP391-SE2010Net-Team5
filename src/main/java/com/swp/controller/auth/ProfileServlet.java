@@ -1,7 +1,13 @@
+/*
+ * Author: Tran Bao Long
+ * 3/6/2026
+ */
 package com.swp.controller.auth;
 
 import com.swp.dao.UserDAO;
+import com.swp.dao.BookingDAO;
 import com.swp.model.User;
+import com.swp.util.PasswordUtil;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -19,6 +25,7 @@ import java.util.regex.Pattern;
 public class ProfileServlet extends HttpServlet {
 
     private final UserDAO userDAO = new UserDAO();
+    private final BookingDAO bookingDAO = new BookingDAO();
 
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("^[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}$");
@@ -26,6 +33,11 @@ public class ProfileServlet extends HttpServlet {
     private static final Pattern FULL_NAME_PATTERN =
             Pattern.compile("^[\\p{L}][\\p{L}\\s'.]{1,98}[\\p{L}.]$|^[\\p{L}]{2,}$");
 
+    /**
+     * Xử lý yêu cầu GET: hiển thị trang hồ sơ người dùng.
+     * Lấy thông tin mới nhất của user từ DB và cập nhật vào session.
+     * Nếu chưa đăng nhập, chuyển hướng về trang login.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -45,10 +57,23 @@ public class ProfileServlet extends HttpServlet {
         User user = freshUserOpt.get();
         session.setAttribute("user", user);
 
+        int bookingCount = 0;
+        try {
+            bookingCount = bookingDAO.getBookingCountByCustomerId(user.getUserId());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        request.setAttribute("bookingCount", bookingCount);
         request.setAttribute("currentUser", user);
         request.getRequestDispatcher("/profile.jsp").forward(request, response);
     }
 
+    /**
+     * Xử lý yêu cầu POST: cập nhật thông tin cá nhân.
+     * Validate các trường họ tên, email, số điện thoại và mật khẩu mới (nếu có).
+     * Kiểm tra email/SĐT không trùng với tài khoản khác, sau đó lưu vào DB và cập nhật session.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -119,6 +144,14 @@ public class ProfileServlet extends HttpServlet {
             user.setPhone(phone);
             user.setEmail(email);
 
+            int bookingCount = 0;
+            try {
+                bookingCount = bookingDAO.getBookingCountByCustomerId(user.getUserId());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            request.setAttribute("bookingCount", bookingCount);
             request.setAttribute("errors", errors);
             request.setAttribute("currentUser", user);
             request.getRequestDispatcher("/profile.jsp").forward(request, response);
@@ -129,7 +162,7 @@ public class ProfileServlet extends HttpServlet {
         user.setPhone(phone);
         user.setEmail(email);
         if (changePassword) {
-            user.setPasswordHash(password);
+            user.setPasswordHash(PasswordUtil.hashPassword(password));
         }
 
         try {
@@ -137,15 +170,28 @@ public class ProfileServlet extends HttpServlet {
             session.setAttribute("user", user);
 
             request.setAttribute("success", "Cập nhật hồ sơ thành công!");
-            request.setAttribute("currentUser", user);
-            request.getRequestDispatcher("/profile.jsp").forward(request, response);
         } catch (RuntimeException e) {
             request.setAttribute("error", "Lỗi hệ thống: Không thể cập nhật thông tin.");
-            request.setAttribute("currentUser", user);
-            request.getRequestDispatcher("/profile.jsp").forward(request, response);
         }
+
+        int bookingCount = 0;
+        try {
+            bookingCount = bookingDAO.getBookingCountByCustomerId(user.getUserId());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        request.setAttribute("bookingCount", bookingCount);
+        request.setAttribute("currentUser", user);
+        request.getRequestDispatcher("/profile.jsp").forward(request, response);
     }
 
+    /**
+     * Kiểm tra chuỗi có chứa ít nhất một ký tự chữ cái không.
+     *
+     * @param value chuỗi cần kiểm tra
+     * @return true nếu có chữa ít nhất một chữ cái
+     */
     private boolean containsLetter(String value) {
         for (char c : value.toCharArray()) {
             if (Character.isLetter(c)) {
@@ -155,6 +201,12 @@ public class ProfileServlet extends HttpServlet {
         return false;
     }
 
+    /**
+     * Kiểm tra chuỗi có chứa ít nhất một ký tự số không.
+     *
+     * @param value chuỗi cần kiểm tra
+     * @return true nếu có chứa ít nhất một chữ số
+     */
     private boolean containsDigit(String value) {
         for (char c : value.toCharArray()) {
             if (Character.isDigit(c)) {
@@ -164,6 +216,12 @@ public class ProfileServlet extends HttpServlet {
         return false;
     }
 
+    /**
+     * Loại bỏ khoảng trắng đầu/cuối chuỗi. Trả về null nếu đầu vào là null.
+     *
+     * @param value chuỗi cần trim
+     * @return chuỗi đã trim, hoặc null
+     */
     private String trim(String value) {
         return value == null ? null : value.trim();
     }

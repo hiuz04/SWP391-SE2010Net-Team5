@@ -1,9 +1,14 @@
+/*
+ * Author: Tran Bao Long
+ * 31/5/2026
+ */
 package com.swp.controller.auth;
 
 import com.swp.dao.RoleDAO;
 import com.swp.dao.UserDAO;
 import com.swp.model.User;
 import com.swp.util.GoogleConfig;
+import com.swp.util.PasswordUtil;
 import com.swp.util.RegisterValidator;
 import com.swp.util.ValidationResult;
 import jakarta.servlet.ServletException;
@@ -21,6 +26,10 @@ public class RegisterServlet extends HttpServlet {
     private final UserDAO userDAO = new UserDAO();
     private final RoleDAO roleDAO = new RoleDAO();
 
+    /**
+     * Xử lý yêu cầu GET: hiển thị trang đăng ký.
+     * Nếu người dùng đã đăng nhập, chuyển hướng về trang chủ.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -33,6 +42,11 @@ public class RegisterServlet extends HttpServlet {
         request.getRequestDispatcher("/register.jsp").forward(request, response);
     }
 
+    /**
+     * Xử lý yêu cầu POST: thực hiện đăng ký tài khoản mới.
+     * Validate các trường nhập vào, kiểm tra email/số điện thoại đã tồn tại chưa,
+     * tạo User mới và lưu vào database, sau đó chuyển hướng đến trang login.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -82,7 +96,7 @@ public class RegisterServlet extends HttpServlet {
             user.setFullName(fullName);
             user.setEmail(email);
             user.setPhone(phone);
-            user.setPasswordHash(password);
+            user.setPasswordHash(PasswordUtil.hashPassword(password));
 
             userDAO.insert(user);
             response.sendRedirect(request.getContextPath() + "/login?registered=1");
@@ -92,18 +106,29 @@ public class RegisterServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Lưu lại giá trị các trường form nhập vào request attribute
+     * để form không bị trống khi trang được reload sau lỗi validation.
+     */
     private void preserveForm(HttpServletRequest request, String fullName, String phone, String email) {
         request.setAttribute("fullName", fullName);
         request.setAttribute("phone", phone);
         request.setAttribute("email", email);
     }
 
+    /**
+     * Chuyển tiếp request đến trang register.jsp kèm theo trạng thái Google OAuth.
+     */
     private void forward(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         request.setAttribute("googleEnabled", GoogleConfig.isConfigured());
         request.getRequestDispatcher("/register.jsp").forward(request, response);
     }
 
+    /**
+     * Loại bỏ khoảng trắng đầu/cuối chuỗi. Trả về null nếu đầu vào là null.
+
+     */
     private String trim(String value) {
         return value == null ? null : value.trim();
     }
