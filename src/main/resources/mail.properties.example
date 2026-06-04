@@ -1,0 +1,13 @@
+# Cấu hình SMTP để gửi email quên mật khẩu
+# Hướng dẫn tạo App Password Gmail:
+#   1. Vào https://myaccount.google.com/security
+#   2. Bật xác minh 2 bước (2-Step Verification)
+#   3. Tìm "App passwords" → tạo mật khẩu cho ứng dụng "Mail"
+#   4. Điền mật khẩu 16 ký tự đó vào mail.password bên dưới
+mail.smtp.host=smtp.gmail.com
+mail.smtp.port=587
+mail.smtp.auth=true
+mail.smtp.starttls.enable=true
+mail.from=your_gmail@gmail.com
+mail.password=your_16_char_app_password
+mail.from.name=Sport Field Booking

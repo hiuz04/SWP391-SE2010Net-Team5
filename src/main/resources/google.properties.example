@@ -1,0 +1,7 @@
+# Sao chép thành google.properties và điền thông tin từ Google Cloud Console.
+# Hướng dẫn: docs/GOOGLE_LOGIN.md
+# KHÔNG đặt Client Secret thật vào file .example (file này có thể commit Git).
+
+google.client.id=YOUR_CLIENT_ID.apps.googleusercontent.com
+google.client.secret=YOUR_CLIENT_SECRET
+google.redirect.uri=http://localhost:8080/SWP391-SE2010Net-Team5/auth/google/callback
