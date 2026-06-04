@@ -1,7 +1,7 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 
 <%@ page import="com.swp.model.Field" %>
-<%@ page import="com.swp.model.FieldScheduleSlot" %>
+<%@ page import="com.swp.model.dto.FieldScheduleSlot" %>
 <%@ page import="com.swp.model.User" %>
 
 <%@ page import="java.time.LocalDate" %>
@@ -18,6 +18,7 @@
 
     Long facilityId = (Long) request.getAttribute("facilityId");
     LocalDate selectedDate = (LocalDate) request.getAttribute("selectedDate");
+    String error = (String) request.getAttribute("error");
 
     List<Field> fields = (List<Field>) request.getAttribute("fields");
     List<String> timeHeaders = (List<String>) request.getAttribute("timeHeaders");
@@ -27,6 +28,7 @@
     if (selectedDate == null) {
         selectedDate = LocalDate.now();
     }
+    LocalDate maxBookingDate = LocalDate.now().plusMonths(1);
 
     if (fields == null) {
         fields = new ArrayList<>();
@@ -248,16 +250,32 @@
                     </p>
                 </div>
 
-                <div>
-                    <label for="bookingDate" class="form-label mb-1">Chọn ngày</label>
-                    <input type="date"
-                           id="bookingDate"
-                           class="form-control"
-                           value="<%= selectedDate %>">
+                <div class="d-flex gap-3 flex-wrap">
+                    <div>
+                        <label for="repeatType" class="form-label mb-1">Loại thuê</label>
+                        <select id="repeatType" class="form-select">
+                            <option value="NONE">Thuê đơn lẻ</option>
+                            <option value="MONTHLY">Thuê theo tháng</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="bookingDate" class="form-label mb-1">Chọn ngày</label>
+                        <input type="date"
+                               id="bookingDate"
+                               class="form-control"
+                               min="<%= LocalDate.now() %>"
+                               max="<%= maxBookingDate %>"
+                               value="<%= selectedDate %>">
+                    </div>
                 </div>
             </div>
 
             <div class="d-flex gap-3 flex-wrap mb-3">
+                <% if (error != null && !error.isBlank()) { %>
+                <div class="alert alert-danger w-100 mb-0"><%= error %></div>
+                <% } %>
+
                 <span>
                     <span class="legend-dot legend-available"></span>Còn trống
                 </span>
@@ -389,6 +407,7 @@
     const selectedDateText = '<%= selectedDate %>';
 
     const bookingDateInput = document.getElementById('bookingDate');
+    const repeatTypeInput = document.getElementById('repeatType');
     const selectedInfo = document.getElementById('selectedInfo');
     const continueButton = document.getElementById('continueButton');
 
@@ -403,6 +422,12 @@
 
         window.location.href =
             ctx + '/booking?action=create&facilityId=' + facilityId + '&date=' + this.value;
+    });
+
+    repeatTypeInput.addEventListener('change', function () {
+        if (startCell !== null && endCell !== null) {
+            updateSelectedInfo();
+        }
     });
 
     document.querySelectorAll('.slot-cell').forEach(cell => {
@@ -453,6 +478,14 @@
         startCell.classList.add('selected-start');
         endCell.classList.add('selected-end');
 
+        updateSelectedInfo();
+    }
+
+    function updateSelectedInfo() {
+        const repeatNote = repeatTypeInput.value === 'MONTHLY'
+            ? ' | Thuê theo tháng: hệ thống sẽ tự chọn các tuần tiếp theo trong vòng 1 tháng và kiểm tra trùng lịch.'
+            : ' | Thuê đơn lẻ';
+
         selectedInfo.innerHTML =
             '<strong>Đã chọn:</strong> '
             + startCell.dataset.fieldName
@@ -461,7 +494,8 @@
             + ' - '
             + endCell.dataset.endLabel
             + ' | Ngày '
-            + selectedDateText;
+            + selectedDateText
+            + repeatNote;
     }
 
     function clearSelection() {
@@ -471,23 +505,24 @@
     }
 
     continueButton.addEventListener('click', function () {
+        if (startCell !== null && endCell !== null) {
+            window.location.href =
+                ctx
+                + '/booking?action=confirm'
+                + '&fieldId=' + encodeURIComponent(startCell.dataset.fieldId)
+                + '&startTime=' + encodeURIComponent(startCell.dataset.start)
+                + '&endTime=' + encodeURIComponent(endCell.dataset.end)
+                + '&repeatType=' + encodeURIComponent(repeatTypeInput.value);
+            return;
+        }
+
         if (startCell === null || endCell === null) {
             alert('Vui lòng chọn khung giờ trước.');
             return;
         }
-
-        alert(
-            'Bạn đã chọn: '
-            + startCell.dataset.fieldName
-            + ' | '
-            + startCell.dataset.startLabel
-            + ' - '
-            + endCell.dataset.endLabel
-            + ' | Ngày '
-            + selectedDateText
-        );
     });
 </script>
 
 </body>
 </html>
+
