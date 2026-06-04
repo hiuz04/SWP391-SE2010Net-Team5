@@ -2,7 +2,7 @@
 (function () {
   const pages = {
     customer: [
-      ['Trang chủ','index.jsp'], ['Tìm sân','#'], ['Tìm đối','#'], ['Lịch sử đặt sân','#'], ['Hồ sơ','#']
+      ['Trang chủ','index.jsp'], ['Tìm sân','#'], ['Tìm đối','#'], ['Lịch sử đặt sân','#'], ['Hồ sơ','profile']
     ],
     staff: [
       ['Dashboard','UI/staff/dashboard.html'], ['Lịch trong ngày','UI/staff/schedule.html'], ['Check-in','UI/staff/checkin.html'], ['Checkout','UI/staff/checkout.html']
@@ -32,14 +32,14 @@
       ? `<a class="btn btn-outline-success" href="${link(root, 'login')}">Đăng nhập</a><a class="btn btn-sf-primary" href="${link(root, 'register')}">Đăng ký</a>`
       : `<a class="btn btn-light position-relative" href="${link(root, '#')}" title="Thông báo"><i class="bi bi-bell"></i><span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span></a>
          <div class="dropdown">
-           <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-person-circle me-1"></i>${name}</button>
-           <ul class="dropdown-menu dropdown-menu-end shadow">
-             <li><h6 class="dropdown-header">Tài khoản</h6></li>
-             <li><a class="dropdown-item" href="${link(root, '#')}">Thông tin cá nhân</a></li>
-             <li><a class="dropdown-item" href="${link(root, role !== 'guest' ? (pages[role] && pages[role][0] ? pages[role][0][1] : '#') : '#')}">Khu vực ${role}</a></li>
-             <li><hr class="dropdown-divider"></li>
-             <li><a class="dropdown-item text-danger" href="${link(root, 'logout')}"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</a></li>
-           </ul>
+            <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-person-circle me-1"></i>${name}</button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li><h6 class="dropdown-header">Tài khoản</h6></li>
+              <li><a class="dropdown-item" href="${link(root, 'profile')}">Thông tin cá nhân</a></li>
+              <li><a class="dropdown-item" href="${link(root, role !== 'guest' ? (pages[role] && pages[role][0] ? pages[role][0][1] : '#') : '#')}">Khu vực ${role}</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="${link(root, 'logout')}"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</a></li>
+            </ul>
          </div>`;
 
     target.innerHTML = `
@@ -79,7 +79,7 @@
             </div>
             <div class="col-6 col-lg-2"><h6 class="text-white">Khách hàng</h6><a class="d-block mb-2" href="${link(root, 'index.jsp')}">Trang chủ</a><a class="d-block mb-2" href="${link(root, 'register')}">Đăng ký</a></div>
             <div class="col-6 col-lg-2"><h6 class="text-white">Tài khoản</h6><a class="d-block mb-2" href="${link(root, 'login')}">Đăng nhập</a></div>
-            <div class="col-lg-4"><h6 class="text-white">Liên hệ</h6><p class="mb-1"><i class="bi bi-geo-alt me-2"></i>TP.HCM, Việt Nam</p><p class="mb-1"><i class="bi bi-envelope me-2"></i>support@sportfield.local</p></div>
+            <div class="col-lg-4"><h6 class="text-white">Liên hệ</h6><p class="mb-1"><i class="bi bi-geo-alt me-2"></i>Hoà Lạc, Việt Nam</p><p class="mb-1"><i class="bi bi-envelope me-2"></i>tranbaolong.280904@gmail.com</p></div>
           </div>
           <hr class="border-secondary my-4"><p class="small mb-0">© 2026 Sport Field Booking. Static Bootstrap UI prototype.</p>
         </div>
