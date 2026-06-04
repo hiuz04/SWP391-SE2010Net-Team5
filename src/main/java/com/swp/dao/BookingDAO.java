@@ -856,6 +856,29 @@ public class BookingDAO {
         return bookings;
     }
 
+    public int getBookingCountByCustomerId(Long customerId) throws SQLException {
+        String sql = """
+                SELECT COUNT(*)
+                FROM bookings
+                WHERE customer_id = ?
+                  AND status NOT IN ('CANCELLED', 'REJECTED')
+                """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, customerId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+
+        return 0;
+    }
+
     private boolean isFieldAvailable(Connection conn, Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
             throws SQLException {
 
