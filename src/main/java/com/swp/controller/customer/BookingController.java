@@ -1,4 +1,4 @@
-package com.swp.controller;
+package com.swp.controller.customer;
 
 import com.swp.dao.BookingDAO;
 import com.swp.model.Booking;
