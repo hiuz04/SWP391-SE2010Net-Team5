@@ -1,3 +1,12 @@
+/**
+ * Module: Field Management
+ * File: EditFieldServlet.java
+ * Description: Xử lý chức năng lấy thông tin về các loại sân bóng của cơ sở.
+ *
+ * Author: Dương Hải Anh
+ * Version: 1.0
+ * Update Notes: 01/06/2026
+ */
 package com.swp.controller.owner;
 
 import com.google.gson.Gson;

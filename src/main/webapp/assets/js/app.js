@@ -1,4 +1,11 @@
-
+/**
+ * File: app.js
+ * Description: Xử lý render các thành phần giao diện dùng chung (Navbar và Footer).
+ *
+ * Author: Dương Hải Anh
+ * Version: 1.0
+ * Created date: 01/06/2026
+ */
 (function () {
   const pages = {
     customer: [
@@ -8,7 +15,7 @@
       ['Dashboard','UI/staff/dashboard.html'], ['Lịch trong ngày','UI/staff/schedule.html'], ['Check-in','UI/staff/checkin.html'], ['Checkout','UI/staff/checkout.html']
     ],
     owner: [
-      ['Dashboard','UI/owner/dashboard.html'], ['Cơ sở','#'], ['Sân bóng','#'], ['Bảng giá','#'], ['Dịch vụ','#']
+      ['Dashboard',''], ['Cơ sở','/facility-list'], ['Sân bóng','/field-list'], ['Bảng giá','']
     ],
     admin: [
       ['Dashboard','UI/admin/dashboard.html'], ['Người dùng','#'], ['Duyệt chủ sân','#'], ['Cài đặt','#']

@@ -1,0 +1,72 @@
+/**
+ * Module: Facility Management
+ * File: facility.css
+ * Description: Định dạng giao diện cho trang danh sách và trang nhập liệu cơ sở.
+ *
+ * Author: Dương Hải Anh
+ * Version: 1.0
+ * Created date: 04/06/2026
+ */
+.facility-form-wrapper {
+    min-height: 100vh;
+    padding: 40px 20px;
+    background: #f8f9fa;
+    display: flex;
+    justify-content: center;
+}
+
+.facility-form-card {
+    max-width: 700px;
+    border: none;
+    border-radius: 16px;
+}
+
+.facility-form-card .card-body {
+    padding: 32px;
+}
+
+.form-label{
+    font-weight: 500;
+}
+
+#formTitle {
+    color: rgb(32, 147, 74);
+    font-weight: 700;
+}
+
+.back-btn {
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 12px;
+
+    background: #ffffff;
+    color: rgb(32, 147, 74);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+    transition: all .2s ease;
+}
+
+.back-btn:hover {
+    background: rgb(32, 147, 74);
+    color: white;
+    transform: translateX(-2px);
+}
+
+.back-btn i {
+    font-size: 1.1rem;
+}
+
+.btn-primary {
+    background: rgb(32, 147, 74);
+    border-color: rgb(32, 147, 74);
+}
+
+.btn-primary:hover {
+    background: rgb(26, 120, 60);
+    border-color: rgb(26, 120, 60);
+}

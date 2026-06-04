@@ -1,7 +1,7 @@
 /**
- * Module: Field Management
- * File: FieldListServlet.java
- * Description: Xử lý điều hướng người dùng đến trang hiển thị danh sách Field.
+ * Module: Owner Dashboard
+ * File: DashboardServlet.java
+ * Description: Xử lý điều hướng người dùng đến trang quản trị của chủ sở hữu (Owner Dashboard).
  *
  * Author: Dương Hải Anh
  * Version: 1.0
@@ -19,8 +19,8 @@ import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 
-@WebServlet("/owner/field-list")
-public class FieldListServlet extends HttpServlet {
+@WebServlet("/owner")
+public class DashboardServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
@@ -38,6 +38,6 @@ public class FieldListServlet extends HttpServlet {
             return;
         }
 
-        req.getRequestDispatcher("/WEB-INF/owner/field-list.jsp").forward(req, resp);
+        req.getRequestDispatcher("/WEB-INF/owner/dashboard.jsp").forward(req, resp);
     }
 }

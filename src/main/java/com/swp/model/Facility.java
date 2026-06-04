@@ -14,8 +14,6 @@ public class Facility implements Serializable {
     private String ward;
     private String district;
     private String city;
-    private BigDecimal latitude;
-    private BigDecimal longitude;
     private String hotline;
     private LocalTime openingTime;
     private LocalTime closingTime;
@@ -28,7 +26,7 @@ public class Facility implements Serializable {
     public Facility() {
     }
 
-    public Facility(Long facilityId, String facilityName, String description, String address, String ward, String district, String city, BigDecimal latitude, BigDecimal longitude, String hotline, LocalTime openingTime, LocalTime closingTime, String generalRules, String status, Boolean featured, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public Facility(Long facilityId, String facilityName, String description, String address, String ward, String district, String city, String hotline, LocalTime openingTime, LocalTime closingTime, String generalRules, String status, Boolean featured, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.facilityId = facilityId;
         this.facilityName = facilityName;
         this.description = description;
@@ -36,8 +34,6 @@ public class Facility implements Serializable {
         this.ward = ward;
         this.district = district;
         this.city = city;
-        this.latitude = latitude;
-        this.longitude = longitude;
         this.hotline = hotline;
         this.openingTime = openingTime;
         this.closingTime = closingTime;
@@ -102,22 +98,6 @@ public class Facility implements Serializable {
 
     public void setCity(String city) {
         this.city = city;
-    }
-
-    public BigDecimal getLatitude() {
-        return latitude;
-    }
-
-    public void setLatitude(BigDecimal latitude) {
-        this.latitude = latitude;
-    }
-
-    public BigDecimal getLongitude() {
-        return longitude;
-    }
-
-    public void setLongitude(BigDecimal longitude) {
-        this.longitude = longitude;
     }
 
     public String getHotline() {

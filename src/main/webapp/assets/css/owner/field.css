@@ -1,0 +1,50 @@
+/**
+ * Module: Field Management
+ * File: field.css
+ * Description: Định dạng giao diện cho trang danh sách và trang nhập liệu sân bóng.
+ *
+ * Author: Dương Hải Anh
+ * Version: 1.1
+ * Created date: 01/06/2026
+ * Updated date: 04/06/2026
+ * Update Notes: Bổ sung thêm các thuộc tính CSS để tối ưu hóa giao diện.
+ */
+:root {
+    --main-color: rgb(32, 145, 74);
+    --main-hover: rgb(25, 120, 62);
+}
+
+.custom-header {
+    background: var(--main-color);
+    color: white;
+    border-bottom: none;
+    height: 45px;
+}
+
+.field-modal .modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+    border: none;
+}
+
+.custom-input:focus {
+    border-color: var(--main-color);
+    box-shadow: 0 0 0 0.2rem rgba(32, 145, 74, 0.25);
+}
+
+.custom-btn {
+    background: var(--main-color);
+    color: white;
+    border: none;
+    padding: 8px 18px;
+    transition: 0.2s;
+}
+
+.custom-btn:hover {
+    background: var(--main-hover);
+    color: white;
+}
+
+.form-label {
+    font-weight: 500;
+}
