@@ -11,7 +11,7 @@
  */
 
 // Lưu đường context của trang
-const ctx = "/SWP391_war_exploded";
+const ctx = "/SWP391-SE2010Net-Team5";
 
 // Danh sách status
 const statusList = [
