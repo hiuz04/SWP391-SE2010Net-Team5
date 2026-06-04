@@ -1,7 +1,7 @@
 /**
  * Module: Field Management
- * File: FieldListServlet.java
- * Description: Xử lý điều hướng người dùng đến trang hiển thị danh sách Field.
+ * File: FieldFormServlet.java
+ * Description: Xử lý điều hướng người dùng đến trang nhập liệu dành riêng cho Field.
  *
  * Author: Dương Hải Anh
  * Version: 1.0
@@ -9,27 +9,18 @@
  */
 package com.swp.controller.owner;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializer;
-import com.swp.model.dto.FacilityWithField;
-import com.swp.model.Facility;
-import com.swp.model.Field;
+import com.swp.model.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
 
-@WebServlet("/owner/field-list")
-public class FieldListServlet extends HttpServlet {
+@WebServlet("/owner/field-form")
+public class FieldFormServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession(false);
@@ -47,6 +38,6 @@ public class FieldListServlet extends HttpServlet {
             return;
         }
 
-        req.getRequestDispatcher("/WEB-INF/owner/field-list.jsp").forward(req, resp);
+        req.getRequestDispatcher("/WEB-INF/owner/field-form.jsp").forward(req, resp);
     }
 }

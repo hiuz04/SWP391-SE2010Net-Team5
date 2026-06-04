@@ -1,3 +1,14 @@
+/**
+ * Module: Facility Management
+ * File: AddFacilityServlet.java
+ * Description: Xử lý chức năng thêm mới cơ sở.
+ *
+ * Author: Dương Hải Anh
+ * Version: 1.1
+ * Created date: 01/06/2026
+ * Updated date: 04/06/2026
+ * Update Notes: Loại bỏ 2 trường latitude và longtitude
+ */
 package com.swp.controller.owner;
 
 import com.swp.model.Facility;
@@ -55,8 +66,6 @@ public class AddFacilityServlet extends HttpServlet {
         fac.setWard(ward);
         fac.setDistrict(district);
         fac.setCity(city);
-        fac.setLatitude(latitude);
-        fac.setLongitude(longitude);
         fac.setHotline(hotline);
         fac.setOpeningTime(openingTime);
         fac.setClosingTime(closingTime);

@@ -1,3 +1,12 @@
+/**
+ * Module: Field Management
+ * File: AddFieldServlet.java
+ * Description: Xử lý chức năng thêm mới sân bóng.
+ *
+ * Author: Dương Hải Anh
+ * Version: 1.0
+ * Created date: 31/05/2026
+ */
 package com.swp.controller.owner;
 
 import com.swp.model.Field;
