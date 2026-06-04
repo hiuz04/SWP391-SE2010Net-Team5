@@ -1,3 +1,11 @@
+/**
+ * File: Constant.java
+ * Description: Chứa các hằng số được sử dụng trong hệ thống của chủ sân.
+ *
+ * Author: Duong Hai Anh
+ * Version: 1.0
+ * Created Date: 31/05/2026
+ */
 package com.swp.controller.owner;
 
 import com.swp.dao.FacilityDAO;

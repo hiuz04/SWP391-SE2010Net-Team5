@@ -1,3 +1,7 @@
+/*
+ * Author: Tran Bao Long
+ * 31/5/2026
+ */
 package com.swp.controller.auth;
 
 import com.swp.dao.UserDAO;
@@ -19,6 +23,9 @@ public class LoginServlet extends HttpServlet {
 
     private final UserDAO userDAO = new UserDAO();
 
+    /**
+     hien thi trang dăng nhap
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -31,6 +38,12 @@ public class LoginServlet extends HttpServlet {
         request.getRequestDispatcher("/login.jsp").forward(request, response);
     }
 
+    /**
+     * Xử lý yêu cầu POST: thực hiện xác thực đăng nhập.
+     * Nhận email/SĐT và mật khẩu, kiểm tra với database.
+     * Nếu hợp lệ, tạo session và chuyển hướng về trang chủ.
+     * Nếu không hợp lệ, hiển thị lại trang login kèm thông báo lỗi.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -69,6 +82,11 @@ public class LoginServlet extends HttpServlet {
         request.getRequestDispatcher("/login.jsp").forward(request, response);
     }
 
+    /**
+     * Chuẩn bị các attribute cần thiết trước khi hiển thị trang login:
+     * thông báo đăng ký thành công (nếu có), lỗi từ Google OAuth (nếu có),
+     * và trạng thái bật/tắt nút đăng nhập Google.
+     */
     private void prepareLoginPage(HttpServletRequest request) {
         if ("1".equals(request.getParameter("registered"))) {
             request.setAttribute("success", "Đăng ký thành công! Vui lòng đăng nhập.");
@@ -82,6 +100,12 @@ public class LoginServlet extends HttpServlet {
         request.setAttribute("googleEnabled", GoogleConfig.isConfigured());
     }
 
+    /**
+     * Chuyển đổi mã lỗi Google OAuth sang thông báo tiếng Việt thân thiện.
+     *
+     * @param code mã lỗi từ query parameter googleError
+     * @return chuỗi thông báo lỗi hiển thị cho người dùng
+     */
     private String resolveGoogleError(String code) {
         if ("not_configured".equals(code)) {
             return "Đăng nhập Google chưa được cấu hình. Kiểm tra file google.properties.";
@@ -98,6 +122,12 @@ public class LoginServlet extends HttpServlet {
         return "Đăng nhập Google thất bại. Vui lòng thử lại.";
     }
 
+    /**
+     * Loại bỏ khoảng trắng đầu/cuối chuỗi. Trả về null nếu đầu vào là null.
+     *
+     * @param value chuỗi cần trim
+     * @return chuỗi đã trim, hoặc null
+     */
     private String trim(String value) {
         return value == null ? null : value.trim();
     }

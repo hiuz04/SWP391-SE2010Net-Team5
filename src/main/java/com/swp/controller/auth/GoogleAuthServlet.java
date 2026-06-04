@@ -1,3 +1,7 @@
+/*
+ * Author: Tran Bao Long
+ * 31/5/2026
+ */
 package com.swp.controller.auth;
 
 import com.swp.service.GoogleOAuthService;
