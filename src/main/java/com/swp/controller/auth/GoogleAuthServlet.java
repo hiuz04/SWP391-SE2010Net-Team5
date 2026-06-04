@@ -1,4 +1,4 @@
-package com.swp.controller;
+package com.swp.controller.auth;
 
 import com.swp.service.GoogleOAuthService;
 import com.swp.util.GoogleConfig;
