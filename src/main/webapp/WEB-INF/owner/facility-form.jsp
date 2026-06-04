@@ -105,16 +105,16 @@
                             </select>
                         </div>
 
-                        <div class="col-md-6 d-flex align-items-end">
-                            <div class="form-check mb-2">
-                                <input class="form-check-input"
-                                       type="checkbox"
-                                       id="feat">
-                                <label class="form-check-label" for="feat">
-                                    Cơ sở nổi bật
-                                </label>
-                            </div>
-                        </div>
+<%--                        <div class="col-md-6 d-flex align-items-end">--%>
+<%--                            <div class="form-check mb-2">--%>
+<%--                                <input class="form-check-input"--%>
+<%--                                       type="checkbox"--%>
+<%--                                       id="feat">--%>
+<%--                                <label class="form-check-label" for="feat">--%>
+<%--                                    Cơ sở nổi bật--%>
+<%--                                </label>--%>
+<%--                            </div>--%>
+<%--                        </div>--%>
 
                     </div>
 
