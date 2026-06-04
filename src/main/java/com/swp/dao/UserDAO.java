@@ -40,14 +40,12 @@ public class UserDAO {
             """;
 
     /**
-     * Xác thực đăng nhập: tìm user theo email hoặc số điện thoại kết hợp với mật khẩu.
-     * Chỉ trả về user có {@code status = 'ACTIVE'}.
+     * Xác thực đăng nhập: tìm user theo email hoặc số điện thoại kết hợp với mật
+     * khẩu.(user : active)
      * Mật khẩu được kiểm tra an toàn bằng băm BCrypt qua PasswordUtil.
-     *
-     * @param login    email hoặc số điện thoại của người dùng
-     * @param password mật khẩu gốc người dùng nhập
-     * @return {@code Optional<User>} chứa user nếu thông tin hợp lệ, ngược lại {@code Optional.empty()}
-     * @throws RuntimeException nếu có lỗi kết nối database
+     * 
+     * @return {@code Optional<User>} chứa user nếu thông tin hợp lệ, ngược lại
+     *         {@code Optional.empty()}
      */
     public Optional<User> findByLoginAndPassword(String login, String password) {
         try (Connection conn = DBContext.getConnection();

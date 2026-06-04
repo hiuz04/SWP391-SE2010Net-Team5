@@ -1,3 +1,7 @@
+/*
+ * Author: Tran Bao Long
+ * 31/5/2026
+ */
 package com.swp.util;
 
 import org.mindrot.jbcrypt.BCrypt;
@@ -13,8 +17,7 @@ public final class PasswordUtil {
 
     /**
      * Băm mật khẩu sử dụng thuật toán BCrypt.
-     *
-     * @param plainPassword mật khẩu gốc (chưa băm)
+
      * @return mật khẩu đã được băm (hash)
      */
     public static String hashPassword(String plainPassword) {
@@ -26,9 +29,7 @@ public final class PasswordUtil {
 
     /**
      * Kiểm tra xem mật khẩu gốc có khớp với mật khẩu đã băm hay không.
-     *
-     * @param plainPassword mật khẩu người dùng nhập vào
-     * @param hashedPassword mật khẩu đã băm lưu trong DB
+
      * @return {@code true} nếu khớp, ngược lại {@code false}
      */
     public static boolean checkPassword(String plainPassword, String hashedPassword) {

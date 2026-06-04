@@ -127,9 +127,7 @@ public class RegisterServlet extends HttpServlet {
 
     /**
      * Loại bỏ khoảng trắng đầu/cuối chuỗi. Trả về null nếu đầu vào là null.
-     *
-     * @param value chuỗi cần trim
-     * @return chuỗi đã trim, hoặc null
+
      */
     private String trim(String value) {
         return value == null ? null : value.trim();
