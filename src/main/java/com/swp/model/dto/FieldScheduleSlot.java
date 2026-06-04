@@ -1,4 +1,4 @@
-package com.swp.model;
+package com.swp.model.dto;
 
 import java.time.LocalDateTime;
 
