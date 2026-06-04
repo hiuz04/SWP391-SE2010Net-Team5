@@ -125,7 +125,7 @@ public class BookingController extends HttpServlet {
         LocalDate maxBookingDate = today.plusMonths(MAX_BOOKING_ADVANCE_MONTHS);
         if (selectedDate.isBefore(today) || selectedDate.isAfter(maxBookingDate)) {
             selectedDate = today;
-            request.setAttribute("error", "Ch\u1ec9 cho ph\u00e9p \u0111\u1eb7t s\u00e2n tr\u01b0\u1edbc trong v\u00f2ng 1 th\u00e1ng.");
+            request.setAttribute("error", "Chỉ cho phép đặt sân trước trong vòng 1 tháng.");
         }
 
         List<Field> fields = bookingDAO.getFieldsByFacility(facilityId);
@@ -155,38 +155,37 @@ public class BookingController extends HttpServlet {
 
     private void showConfirmationPage(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException, SQLException {
-
+        //check login
         User currentUser = requireLogin(request, response);
         if (currentUser == null) {
             return;
         }
-
+        //Parse dữ liệu từ URL
         Long fieldId = parseLong(request.getParameter("fieldId"), "fieldId không hợp lệ.");
         LocalDateTime startTime = parseLocalDateTime(request.getParameter("startTime"), "Giờ bắt đầu không hợp lệ.");
         LocalDateTime endTime = parseLocalDateTime(request.getParameter("endTime"), "Giờ kết thúc không hợp lệ.");
+        //Validate giờ
         validateTimeRange(startTime, endTime);
         validateBookingAdvanceWindow(startTime);
+        //Parse loại thuê
         RepeatRequest repeatRequest = parseRepeatRequest(
                 request.getParameter("repeatType"),
                 startTime.toLocalDate()
         );
-
+        //Lấy thông tin preview
         BookingView bookingInfo = bookingDAO.getBookingPreviewInfoByFieldId(fieldId, currentUser.getUserId());
         // Khong co thong tin san thi khong the tao booking hold.
         if (bookingInfo == null) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "Không tìm thấy sân.");
             return;
         }
-
+        //Check sân còn trống
         if (!bookingDAO.isFieldAvailable(fieldId, startTime, endTime)) {
             redirectWithError(request, response, "create", "Khung giờ đã được đặt hoặc sân đang bảo trì.");
             return;
         }
 
-        /*
-         * BEGIN: Validate Booking Time
-         * Checks each recurring slot before rendering the confirmation screen.
-         */
+        //Nếu thuê lặp thì check từng slot
         List<BookingSlot> bookingSlots = buildBookingSlots(startTime, endTime, repeatRequest);
         for (BookingSlot slot : bookingSlots) {
             if (!bookingDAO.isFieldAvailable(fieldId, slot.startTime(), slot.endTime())) {
@@ -194,12 +193,11 @@ public class BookingController extends HttpServlet {
                 return;
             }
         }
-        /*
-         * END: Validate Booking Time
-         */
 
+        //Tính tiền
         boolean fullPaymentRequired = REPEAT_MONTHLY.equals(repeatRequest.repeatType());
         BookingAmounts amounts = calculateAggregateBookingAmounts(fieldId, bookingSlots, fullPaymentRequired);
+        //Tạo preview HOLD 15 phút
         LocalDateTime holdExpiresAt = LocalDateTime.now().plusMinutes(HOLD_MINUTES);
 
         Booking bookingPreview = new Booking();
@@ -234,63 +232,16 @@ public class BookingController extends HttpServlet {
         request.getRequestDispatcher("/WEB-INF/booking/booking-confirm.jsp").forward(request, response);
     }
 
-    private void createBookingHold(HttpServletRequest request, HttpServletResponse response)
-            throws IOException, SQLException {
-
-        User currentUser = requireLogin(request, response);
-        // Neu chua dang nhap thi requireLogin da chuyen huong sang trang login.
-        if (currentUser == null) {
-            return;
-        }
-
-        Long fieldId = parseLong(request.getParameter("fieldId"), "fieldId không hợp lệ.");
-        LocalDateTime startTime = parseLocalDateTime(request.getParameter("startTime"), "Giờ bắt đầu không hợp lệ.");
-        LocalDateTime endTime = parseLocalDateTime(request.getParameter("endTime"), "Giờ kết thúc không hợp lệ.");
-        validateTimeRange(startTime, endTime);
-
-        BookingView bookingInfo = bookingDAO.getBookingPreviewInfoByFieldId(fieldId, currentUser.getUserId());
-        // Khong co thong tin san thi khong the tao booking hold.
-        if (bookingInfo == null) {
-            throw new IllegalArgumentException("Không tìm thấy sân.");
-        }
-
-        BookingAmounts amounts = calculateBookingAmounts(fieldId, startTime, endTime);
-
-        // Tao booking o trang thai HOLD de giu cho tam thoi trong luc cho thanh toan.
-        Booking booking = new Booking();
-        booking.setBookingCode(generateBookingCode());
-        booking.setCustomerId(currentUser.getUserId());
-        booking.setFacilityId(bookingInfo.getFacilityId());
-        booking.setFieldId(fieldId);
-        booking.setStartTime(startTime);
-        booking.setEndTime(endTime);
-        booking.setOriginalPrice(amounts.originalPrice());
-        booking.setDiscountAmount(amounts.discountAmount());
-        booking.setTotalAmount(amounts.totalAmount());
-        booking.setDepositAmount(amounts.depositAmount());
-        booking.setStatus("HOLD");
-        booking.setHoldExpiresAt(LocalDateTime.now().plusMinutes(15));
-        booking.setQrCode(booking.getBookingCode());
-
-        long bookingId = bookingDAO.createBookingHold(
-                booking,
-                currentUser.getUserId(),
-                "Customer created booking hold"
-        );
-
-        response.sendRedirect(request.getContextPath()
-                + "/booking?action=detail&id=" + bookingId + "&success=created");
-    }
 
     private void createBookingHoldWithRepeat(HttpServletRequest request, HttpServletResponse response)
             throws IOException, SQLException {
-
+        //Check login
         User currentUser = requireLogin(request, response);
         // Neu chua dang nhap thi dung xu ly de tranh tao booking khong co customer.
         if (currentUser == null) {
             return;
         }
-
+        //Parse dữ liệu, validate thời gian
         Long fieldId = parseLong(request.getParameter("fieldId"), "fieldId không hợp lệ.");
         LocalDateTime startTime = parseLocalDateTime(request.getParameter("startTime"), "Giờ bắt đầu không hợp lệ.");
         LocalDateTime endTime = parseLocalDateTime(request.getParameter("endTime"), "Giờ kết thúc không hợp lệ.");
@@ -300,7 +251,7 @@ public class BookingController extends HttpServlet {
                 request.getParameter("repeatType"),
                 startTime.toLocalDate()
         );
-
+        //Lấy thông tin sân
         BookingView bookingInfo = bookingDAO.getBookingPreviewInfoByFieldId(fieldId, currentUser.getUserId());
         // Chan tao booking khi fieldId khong ton tai hoac khong lay duoc du lieu san.
         if (bookingInfo == null) {
@@ -312,11 +263,14 @@ public class BookingController extends HttpServlet {
          * Voi thue lap, moi slot se tao mot booking rieng; DAO se kiem tra lai
          * toan bo slot trong transaction truoc khi ghi DB.
          */
+
+        //Build danh sách booking cần tạo
         List<BookingSlot> bookingSlots = buildBookingSlots(startTime, endTime, repeatRequest);
         List<Booking> bookings = new ArrayList<>();
         LocalDateTime holdExpiresAt = LocalDateTime.now().plusMinutes(HOLD_MINUTES);
         // Tinh tien va tao object Booking cho tung lan dat trong chuoi lap.
         for (BookingSlot slot : bookingSlots) {
+            //Tính tiền từng booking
             BookingAmounts amounts = calculateBookingAmounts(
                     fieldId,
                     slot.startTime(),
@@ -757,10 +711,10 @@ public class BookingController extends HttpServlet {
         LocalDate bookingDate = startTime.toLocalDate();
 
         if (bookingDate.isBefore(today)) {
-            throw new IllegalArgumentException("Kh\u00f4ng th\u1ec3 \u0111\u1eb7t s\u00e2n cho ng\u00e0y \u0111\u00e3 qua.");
+            throw new IllegalArgumentException("Không thể đặt sân cho ngày đã qua.");
         }
         if (bookingDate.isAfter(maxBookingDate)) {
-            throw new IllegalArgumentException("Ch\u1ec9 cho ph\u00e9p \u0111\u1eb7t s\u00e2n tr\u01b0\u1edbc trong v\u00f2ng 1 th\u00e1ng.");
+            throw new IllegalArgumentException("Chỉ cho phép đặt sân trước trong vòng 1 tháng.");
         }
     }
 
