@@ -1,4 +1,4 @@
-package com.swp.controller;
+package com.swp.controller.auth;
 
 import com.swp.dao.RoleDAO;
 import com.swp.dao.UserDAO;

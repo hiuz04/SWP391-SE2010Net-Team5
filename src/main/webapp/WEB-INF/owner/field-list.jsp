@@ -8,7 +8,7 @@
     String ctx = request.getContextPath();
     Map<Facility, List<Field>> fieldFacility = (Map<Facility, List<Field>>) request.getAttribute("fieldFacility");
 %>
-<%@ include file="/owner/fieldFormModal.jsp" %>
+<%@ include file="/WEB-INF/owner/fieldFormModal.jsp" %>
 <html>
 <head>
     <meta charset="UTF-8">

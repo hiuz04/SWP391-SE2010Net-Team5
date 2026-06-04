@@ -1,4 +1,4 @@
-package com.swp.controller;
+package com.swp.controller.staff;
 
 import com.swp.dao.StaffDashboardDAO;
 import com.swp.model.User;

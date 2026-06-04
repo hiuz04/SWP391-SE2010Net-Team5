@@ -1,4 +1,4 @@
-package com.swp.dto;
+package com.swp.model.dto;
 
 import com.swp.model.Facility;
 import com.swp.model.Field;
