@@ -29,6 +29,10 @@ target/
 # Intellij
 .idea/
 
+# Resource file
+db.properties
+
 # Database credentials (local only)
 src/main/resources/db.properties
 src/main/resources/google.properties
+src/main/resources/mail.properties

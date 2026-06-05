@@ -1,8 +1,14 @@
+/*
+ * Author: Tran Bao Long
+ * 4/6/2026
+ */
 package com.swp.controller.auth;
 
 import com.swp.dao.UserDAO;
 import com.swp.model.User;
+import com.swp.model.User;
 import com.swp.util.MailUtil;
+import com.swp.util.PasswordUtil;
 import jakarta.mail.MessagingException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -23,12 +29,21 @@ public class ForgotPasswordServlet extends HttpServlet {
 
     private final UserDAO userDAO = new UserDAO();
 
+    /**
+     hien thi reset mk
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         request.getRequestDispatcher("/forgot-password.jsp").forward(request, response);
     }
 
+    /**
+     * Xử lý yêu cầu POST: xử lý yêu cầu đặt lại mật khẩu.
+     * Nhận email hoặc số điện thoại, tìm user trong DB,
+     * sinh mật khẩu ngẫu nhiên mới, cập nhật vào DB và gửi qua email.
+     * Luôn trả về thông báo chung (không lộ thông tin tài khoản có tồn tại hay không).
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -62,8 +77,9 @@ public class ForgotPasswordServlet extends HttpServlet {
                 // Sinh mật khẩu ngẫu nhiên
                 String newPassword = generatePassword();
 
-                // Cập nhật mật khẩu trong DB
-                userDAO.updatePassword(user.getUserId(), newPassword);
+                // Cập nhật mật khẩu trong DB (băm mật khẩu trước khi lưu)
+                String hashedPassword = PasswordUtil.hashPassword(newPassword);
+                userDAO.updatePassword(user.getUserId(), hashedPassword);
 
                 // Gửi email
                 if (MailUtil.isConfigured()) {
@@ -96,7 +112,12 @@ public class ForgotPasswordServlet extends HttpServlet {
         request.getRequestDispatcher("/forgot-password.jsp").forward(request, response);
     }
 
-    /** Sinh mật khẩu ngẫu nhiên an toàn gồm chữ và số. */
+    /**
+     * Sinh mật khẩu ngẫu nhiên an toàn gồm chữ và số.
+     * Độ dài được xác định bởi hằng số {@code PASSWORD_LENGTH}.
+     *
+     * @return chuỗi mật khẩu ngẫu nhiên
+     */
     private String generatePassword() {
         StringBuilder sb = new StringBuilder(PASSWORD_LENGTH);
         for (int i = 0; i < PASSWORD_LENGTH; i++) {
@@ -105,6 +126,12 @@ public class ForgotPasswordServlet extends HttpServlet {
         return sb.toString();
     }
 
+    /**
+     * Loại bỏ khoảng trắng đầu/cuối chuỗi. Trả về null nếu đầu vào là null.
+     *
+     * @param value chuỗi cần trim
+     * @return chuỗi đã trim, hoặc null
+     */
     private String trim(String value) {
         return value == null ? null : value.trim();
     }

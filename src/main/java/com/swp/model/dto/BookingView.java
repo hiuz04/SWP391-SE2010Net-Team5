@@ -35,9 +35,17 @@ public class BookingView implements Serializable {
 
     private String status;
     private LocalDateTime holdExpiresAt;
+    private String cancellationReason;
+    private LocalDateTime cancelledAt;
     private String qrCode;
+    private String paymentStatus;
+    private String paymentMethodName;
+    private BigDecimal paidAmount;
+    private LocalDateTime paidAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private boolean canCancel;
+    private String cancelReasonMessage;
 
     public BookingView() {
     }
@@ -218,12 +226,60 @@ public class BookingView implements Serializable {
         this.holdExpiresAt = holdExpiresAt;
     }
 
+    public String getCancellationReason() {
+        return cancellationReason;
+    }
+
+    public void setCancellationReason(String cancellationReason) {
+        this.cancellationReason = cancellationReason;
+    }
+
+    public LocalDateTime getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public void setCancelledAt(LocalDateTime cancelledAt) {
+        this.cancelledAt = cancelledAt;
+    }
+
     public String getQrCode() {
         return qrCode;
     }
 
     public void setQrCode(String qrCode) {
         this.qrCode = qrCode;
+    }
+
+    public String getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
+    public String getPaymentMethodName() {
+        return paymentMethodName;
+    }
+
+    public void setPaymentMethodName(String paymentMethodName) {
+        this.paymentMethodName = paymentMethodName;
+    }
+
+    public BigDecimal getPaidAmount() {
+        return paidAmount;
+    }
+
+    public void setPaidAmount(BigDecimal paidAmount) {
+        this.paidAmount = paidAmount;
+    }
+
+    public LocalDateTime getPaidAt() {
+        return paidAt;
+    }
+
+    public void setPaidAt(LocalDateTime paidAt) {
+        this.paidAt = paidAt;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -240,5 +296,21 @@ public class BookingView implements Serializable {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public boolean isCanCancel() {
+        return canCancel;
+    }
+
+    public void setCanCancel(boolean canCancel) {
+        this.canCancel = canCancel;
+    }
+
+    public String getCancelReasonMessage() {
+        return cancelReasonMessage;
+    }
+
+    public void setCancelReasonMessage(String cancelReasonMessage) {
+        this.cancelReasonMessage = cancelReasonMessage;
     }
 }

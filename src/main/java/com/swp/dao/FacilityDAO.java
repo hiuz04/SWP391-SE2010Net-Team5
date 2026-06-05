@@ -19,15 +19,13 @@ public class FacilityDAO {
                 "ward, " +
                 "district, " +
                 "city, " +
-                "latitude, " +
-                "longitude, " +
                 "hotline, " +
                 "opening_time, " +
                 "closing_time, " +
                 "general_rules, " +
                 "status, " +
                 "featured" +
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -38,31 +36,23 @@ public class FacilityDAO {
             ps.setString(5, facility.getDistrict());
             ps.setString(6, facility.getCity());
 
-            if(facility.getLatitude() != null) {
-                ps.setBigDecimal(7, facility.getLatitude());
-            } else {ps.setNull(7, Types.DECIMAL);}
+            ps.setString(7, facility.getHotline());
 
-            if(facility.getLongitude() != null) {
-                ps.setBigDecimal(8, facility.getLongitude());
-            } else {ps.setNull(8, Types.DECIMAL);}
-
-            ps.setString(9, facility.getHotline());
-
-            ps.setTime(10,
+            ps.setTime(8,
                 facility.getOpeningTime() != null
                     ? Time.valueOf(facility.getOpeningTime())
                     : null
             );
 
-            ps.setTime(11,
+            ps.setTime(9,
                 facility.getClosingTime() != null
                     ? Time.valueOf(facility.getClosingTime())
                     : null
             );
 
-            ps.setString(12, facility.getGeneralRules());
-            ps.setString(13, facility.getStatus());
-            ps.setBoolean(14, facility.getFeatured());
+            ps.setString(10, facility.getGeneralRules());
+            ps.setString(11, facility.getStatus());
+            ps.setBoolean(12, facility.getFeatured());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi tạo mới dữ liệu: " + e.getMessage(), e);
@@ -77,8 +67,6 @@ public class FacilityDAO {
                 "ward=?, " +
                 "district=?, " +
                 "city=?, " +
-                "latitude=?, " +
-                "longitude=?, " +
                 "hotline=?, " +
                 "opening_time=?, " +
                 "closing_time=?, " +
@@ -96,32 +84,24 @@ public class FacilityDAO {
             ps.setString(5, facility.getDistrict());
             ps.setString(6, facility.getCity());
 
-            if(facility.getLatitude() != null) {
-                ps.setBigDecimal(7, facility.getLatitude());
-            } else {ps.setNull(7, Types.DECIMAL);}
+            ps.setString(7, facility.getHotline());
 
-            if(facility.getLongitude() != null) {
-                ps.setBigDecimal(8, facility.getLongitude());
-            } else {ps.setNull(8, Types.DECIMAL);}
-
-            ps.setString(9, facility.getHotline());
-
-            ps.setTime(10,
+            ps.setTime(8,
                     facility.getOpeningTime() != null
                             ? Time.valueOf(facility.getOpeningTime())
                             : null
             );
 
-            ps.setTime(11,
+            ps.setTime(9,
                     facility.getClosingTime() != null
                             ? Time.valueOf(facility.getClosingTime())
                             : null
             );
 
-            ps.setString(12, facility.getGeneralRules());
-            ps.setString(13, facility.getStatus());
-            ps.setBoolean(14, facility.getFeatured());
-            ps.setLong(15, facility.getFacilityId());
+            ps.setString(10, facility.getGeneralRules());
+            ps.setString(11, facility.getStatus());
+            ps.setBoolean(12, facility.getFeatured());
+            ps.setLong(13, facility.getFacilityId());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi cập nhật dữ liệu: " + e.getMessage(), e);
@@ -158,8 +138,6 @@ public class FacilityDAO {
                         rs.getString("ward"),
                         rs.getString("district"),
                         rs.getString("city"),
-                        rs.getBigDecimal("latitude"),
-                        rs.getBigDecimal("longitude"),
                         rs.getString("hotline"),
                         rs.getTime("opening_time") != null
                                 ? rs.getTime("opening_time").toLocalTime()
@@ -197,8 +175,6 @@ public class FacilityDAO {
                         rs.getString("ward"),
                         rs.getString("district"),
                         rs.getString("city"),
-                        rs.getBigDecimal("latitude"),
-                        rs.getBigDecimal("longitude"),
                         rs.getString("hotline"),
                         rs.getTime("opening_time") != null
                                 ? rs.getTime("opening_time").toLocalTime()

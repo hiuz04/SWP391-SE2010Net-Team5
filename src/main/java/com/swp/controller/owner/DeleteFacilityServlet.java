@@ -1,3 +1,12 @@
+/**
+ * Module: Facility Management
+ * File: DeleteFacilityServlet.java
+ * Description: Xử lý loại bỏ cơ sở.
+ *
+ * Author: Dương Hải Anh
+ * Version: 1.0
+ * Created date: 01/06/2026
+ */
 package com.swp.controller.owner;
 
 import jakarta.servlet.ServletException;

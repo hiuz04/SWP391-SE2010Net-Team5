@@ -1,3 +1,14 @@
+/**
+ * Module: Facility Management
+ * File: EditFacilityServlet.java
+ * Description: Xử lý chức năng kiểm tra, lấy dữ liệu và thay đổi thông tin cơ sở.
+ *
+ * Author: Dương Hải Anh
+ * Version: 1.1
+ * Created date: 01/06/2026
+ * Updated date: 06/05/2026
+ * Update Notes: Loại bỏ trường latitude và longtitude
+ */
 package com.swp.controller.owner;
 
 import com.google.gson.Gson;
@@ -48,17 +59,6 @@ public class EditFacilityServlet extends HttpServlet {
         String ward = req.getParameter("ward");
         String district = req.getParameter("district");
         String city = req.getParameter("city");
-
-        String latStr = req.getParameter("latitude");
-        String lngStr = req.getParameter("longitude");
-        BigDecimal latitude = (latStr == null || latStr.trim().isEmpty())
-                ? null
-                : new BigDecimal(latStr);
-
-        BigDecimal longitude = (lngStr == null || lngStr.trim().isEmpty())
-                ? null
-                : new BigDecimal(lngStr);
-
         String hotline = req.getParameter("hotline");
         String openStr = req.getParameter("openingTime");
         String closeStr = req.getParameter("closingTime");
@@ -83,8 +83,6 @@ public class EditFacilityServlet extends HttpServlet {
         fac.setWard(ward);
         fac.setDistrict(district);
         fac.setCity(city);
-        fac.setLatitude(latitude);
-        fac.setLongitude(longitude);
         fac.setHotline(hotline);
         fac.setOpeningTime(openingTime);
         fac.setClosingTime(closingTime);

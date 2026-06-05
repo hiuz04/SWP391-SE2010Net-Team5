@@ -58,14 +58,11 @@
                                                 <div class="row g-2 mt-2">
                                                     <div class="col">
                                                         <div class="stat-card p-3">
-                                                            <strong class="fs-4 text-sf-primary">12</strong>
+                                                            <strong class="fs-4 text-sf-primary">
+                                                                <%= request.getAttribute("bookingCount") !=null ?
+                                                                    request.getAttribute("bookingCount") : 0 %>
+                                                            </strong>
                                                             <div class="small text-muted">Booking</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col">
-                                                        <div class="stat-card p-3">
-                                                            <strong class="fs-4 text-sf-primary">4.9</strong>
-                                                            <div class="small text-muted">Rating</div>
                                                         </div>
                                                     </div>
                                                 </div>
