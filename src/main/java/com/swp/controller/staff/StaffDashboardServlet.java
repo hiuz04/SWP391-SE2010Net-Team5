@@ -35,8 +35,8 @@ public class StaffDashboardServlet extends HttpServlet {
     private final StaffDashboardDAO dao = new StaffDashboardDAO();
 
     // Role IDs – adjust if your DB uses different values
-    private static final int ROLE_STAFF   = 2;
-    private static final int ROLE_MANAGER = 3;
+    private static final int ROLE_STAFF   = 3;
+    private static final int ROLE_OWNER   = 2;
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -53,7 +53,7 @@ public class StaffDashboardServlet extends HttpServlet {
             write(resp, error("Chưa đăng nhập"));
             return;
         }
-        if (user.getRoleId() != ROLE_STAFF && user.getRoleId() != ROLE_MANAGER) {
+        if (user.getRoleId() != ROLE_STAFF && user.getRoleId() != ROLE_OWNER) {
             resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
             write(resp, error("Không có quyền truy cập"));
             return;
@@ -166,9 +166,9 @@ public class StaffDashboardServlet extends HttpServlet {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private void write(HttpServletResponse resp, String json) throws IOException {
-        try (PrintWriter out = resp.getWriter()) {
-            out.print(json);
-        }
+        PrintWriter out = resp.getWriter();
+        out.print(json);
+        out.flush();
     }
 
     private String error(String msg) {
