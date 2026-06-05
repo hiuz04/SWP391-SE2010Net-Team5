@@ -8,6 +8,7 @@ import com.swp.dao.UserDAO;
 import com.swp.model.User;
 import com.swp.util.AuthUtil;
 import com.swp.util.GoogleConfig;
+import com.swp.util.LoginAttemptUtil;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -61,9 +62,19 @@ public class LoginServlet extends HttpServlet {
             return;
         }
 
+        if (LoginAttemptUtil.isLocked(login)) {
+            long remaining = LoginAttemptUtil.getRemainingLockTimeInMinutes(login);
+            request.setAttribute("error", "Tài khoản của bạn đã bị khóa do nhập sai quá nhiều lần. Vui lòng thử lại sau " + remaining + " phút.");
+            request.setAttribute("login", login);
+            prepareLoginPage(request);
+            request.getRequestDispatcher("/login.jsp").forward(request, response);
+            return;
+        }
+
         try {
             Optional<User> user = userDAO.findByLoginAndPassword(login, password);
             if (user.isPresent()) {
+                LoginAttemptUtil.loginSucceeded(login);
                 HttpSession session = request.getSession(true);
                 User loggedIn = user.get();
                 session.setAttribute("user", loggedIn);
@@ -71,7 +82,13 @@ public class LoginServlet extends HttpServlet {
                 response.sendRedirect(request.getContextPath() + "/");
                 return;
             }
-            request.setAttribute("error", "Sai email/số điện thoại hoặc mật khẩu!");
+            
+            LoginAttemptUtil.loginFailed(login);
+            if (LoginAttemptUtil.isLocked(login)) {
+                request.setAttribute("error", "Bạn đã nhập sai 5 lần liên tiếp. Tài khoản bị khóa trong 30 phút.");
+            } else {
+                request.setAttribute("error", "Sai email/số điện thoại hoặc mật khẩu!");
+            }
             request.setAttribute("login", login);
         } catch (RuntimeException e) {
             request.setAttribute("error", "Không kết nối được database. Kiểm tra db.properties và SQL Server.");
