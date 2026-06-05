@@ -12,7 +12,7 @@
       ['Trang chủ','index'], ['Tìm sân','#'], ['Tìm đối','#'], ['Lịch sử đặt sân','#'], ['Hồ sơ','profile']
     ],
     staff: [
-      ['Dashboard','UI/staff/dashboard.html'], ['Lịch trong ngày','UI/staff/schedule.html'], ['Check-in','UI/staff/checkin.html'], ['Checkout','UI/staff/checkout.html']
+      ['Dashboard','staff/dashboard'], ['Lịch trong ngày','staff/schedule'], ['Check-in','staff/checkin'], ['Checkout','staff/checkout']
     ],
     owner: [
       ['Dashboard',''], ['Cơ sở','/facility-list'], ['Sân bóng','/field-list'], ['Bảng giá','']
