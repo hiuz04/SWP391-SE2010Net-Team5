@@ -1,0 +1,89 @@
+<%@ page import="com.swp.model.User" %><%--
+  Created by IntelliJ IDEA.
+  User: duong
+  Date: 6/7/2026
+  Time: 6:32 PM
+  To change this template use File | Settings | File Templates.
+--%>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%
+    User sessionUser = (User) session.getAttribute("user");
+    String navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
+    if (navRole == null) {
+        navRole = "guest";
+    }
+    String displayName = sessionUser != null ? sessionUser.getFullName() : "";
+    String ctx = request.getContextPath();
+%>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
+    <link href="<%= ctx %>/assets/css/customer/search.css" rel="stylesheet">
+
+    <title>Tìm sân | Sport Field Booking</title>
+</head>
+<body>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Chi tiết sân"></div>
+
+<main class="py-4">
+    <div class="container">
+        <div class="row g-4">
+            <aside class="col-lg-3">
+                <div class="card soft-card p-3 sidebar-card">
+                    <h5>Bộ lọc tìm kiếm</h5>
+
+                    <label class="form-label mt-3" for="province">Tỉnh/Thành phố</label>
+                    <select class="form-control" id="province">
+                        <option value="">Tất cả tỉnh thành</option>
+                    </select>
+
+                    <label class="form-label mt-3" for="ward">Phường/Xã</label>
+                    <select class="form-control" id="ward">
+                        <option value="">Tất cả xã phường</option>
+                    </select>
+
+                    <label class="form-label mt-3" for="type">Loại sân</label>
+                    <select class="form-select" id="type">
+                        <option value="">Tất cả</option>
+                        <option value="1">Sân 5</option>
+                        <option value="2">Sân 7</option>
+                        <option value="3">Sân 11</option>
+                    </select>
+
+                    <div class="d-grid mt-3">
+                        <button class="btn btn-sf-primary" onclick="searchData()">Áp dụng</button>
+                    </div>
+                </div>
+            </aside>
+            <section class="col-lg-9">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div><h1 class="section-title">Tìm sân bóng</h1>
+                        <p class="text-muted mb-0" id="fieldCount"></p></div>
+                    <select class="form-select w-auto">
+                        <option>Sắp xếp: Gần nhất</option>
+                        <option>Đánh giá cao</option>
+                        <option>Giá thấp</option>
+                    </select></div>
+<%--                <div class="map-placeholder mb-4">--%>
+<%--                    <div><i class="bi bi-map display-4"></i><h5 class="mt-2">Khu vực bản đồ</h5>--%>
+<%--                        <p class="mb-0">Có thể tích hợp Google Maps/OpenStreetMap khi nối backend.</p></div>--%>
+<%--                </div>--%>
+                <div class="row g-4" id="list-container"></div>
+            </section>
+        </div>
+    </div>
+</main>
+<div id="footer" data-root="../../"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<%= ctx %>/assets/js/customer/search.js"></script>
+<script src="<%= ctx %>/assets/js/app.js"></script>
+</body>
+</html>
+

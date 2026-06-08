@@ -9,7 +9,7 @@
 (function () {
   const pages = {
     customer: [
-      ['Trang chủ','index.jsp'], ['Tìm sân','#'], ['Tìm đối','#'], ['Lịch sử đặt sân','#'], ['Hồ sơ','profile']
+      ['Trang chủ','index.jsp'], ['Tìm sân','search'], ['Tìm đối','#'], ['Lịch sử đặt sân','#'], ['Hồ sơ','profile']
     ],
     staff: [
       ['Dashboard','UI/staff/dashboard.html'], ['Lịch trong ngày','UI/staff/schedule.html'], ['Check-in','UI/staff/checkin.html'], ['Checkout','UI/staff/checkout.html']
@@ -52,7 +52,7 @@
     target.innerHTML = `
       <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top shadow-sm">
         <div class="container">
-          <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="${link(root, 'index.jsp')}">
+          <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="${link(root, '/index.jsp')}">
             <span class="logo-box">⚽</span><span>Sport Field Booking</span>
           </a>
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"><span class="navbar-toggler-icon"></span></button>
@@ -84,7 +84,7 @@
               <div class="d-flex align-items-center gap-2 mb-3"><span class="logo-box">⚽</span><h5 class="mb-0 text-white">Sport Field Booking</h5></div>
               <p>Phiên bản chuyển đổi sang HTML, CSS, Bootstrap. Dữ liệu hiện là mock data để phục vụ demo giao diện.</p>
             </div>
-            <div class="col-6 col-lg-2"><h6 class="text-white">Khách hàng</h6><a class="d-block mb-2" href="${link(root, 'index.jsp')}">Trang chủ</a><a class="d-block mb-2" href="${link(root, 'register')}">Đăng ký</a></div>
+            <div class="col-6 col-lg-2"><h6 class="text-white">Khách hàng</h6><a class="d-block mb-2" href="${link(root, '/index.jsp')}">Trang chủ</a><a class="d-block mb-2" href="${link(root, 'register')}">Đăng ký</a></div>
             <div class="col-6 col-lg-2"><h6 class="text-white">Tài khoản</h6><a class="d-block mb-2" href="${link(root, 'login')}">Đăng nhập</a></div>
             <div class="col-lg-4"><h6 class="text-white">Liên hệ</h6><p class="mb-1"><i class="bi bi-geo-alt me-2"></i>Hoà Lạc, Việt Nam</p><p class="mb-1"><i class="bi bi-envelope me-2"></i>tranbaolong.280904@gmail.com</p></div>
           </div>

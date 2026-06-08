@@ -1,0 +1,107 @@
+package com.swp.model.dto;
+
+import com.swp.model.Field;
+import com.swp.model.FieldType;
+
+import java.time.LocalTime;
+import java.util.List;
+
+public class FieldDetail {
+
+    private long facilityId;
+    private String facilityName;
+    private String complexAddress;
+    private List<FieldType> fieldTypeList;
+    private List<Field> fields;
+    private String description;
+    private LocalTime openingTime;
+    private LocalTime closingTime;
+    private String hotline;
+
+    public FieldDetail() {
+    }
+
+    public FieldDetail(long facilityId, String facilityName, String complexAddress, List<FieldType> fieldTypeList, List<Field> fields, String description, LocalTime openingTime, LocalTime closingTime, String hotline) {
+        this.facilityId = facilityId;
+        this.facilityName = facilityName;
+        this.complexAddress = complexAddress;
+        this.fieldTypeList = fieldTypeList;
+        this.fields = fields;
+        this.description = description;
+        this.openingTime = openingTime;
+        this.closingTime = closingTime;
+        this.hotline = hotline;
+    }
+
+    public List<Field> getFields() {
+        return fields;
+    }
+
+    public void setFields(List<Field> fields) {
+        this.fields = fields;
+    }
+
+    public String getHotline() {
+        return hotline;
+    }
+
+    public void setHotline(String hotline) {
+        this.hotline = hotline;
+    }
+
+    public long getFacilityId() {
+        return facilityId;
+    }
+
+    public void setFacilityId(long facilityId) {
+        this.facilityId = facilityId;
+    }
+
+    public String getFacilityName() {
+        return facilityName;
+    }
+
+    public void setFacilityName(String facilityName) {
+        this.facilityName = facilityName;
+    }
+
+    public String getComplexAddress() {
+        return complexAddress;
+    }
+
+    public void setComplexAddress(String complexAddress) {
+        this.complexAddress = complexAddress;
+    }
+
+    public List<FieldType> getFieldTypeList() {
+        return fieldTypeList;
+    }
+
+    public void setFieldTypeList(List<FieldType> fieldTypeList) {
+        this.fieldTypeList = fieldTypeList;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public LocalTime getOpeningTime() {
+        return openingTime;
+    }
+
+    public void setOpeningTime(LocalTime openingTime) {
+        this.openingTime = openingTime;
+    }
+
+    public LocalTime getClosingTime() {
+        return closingTime;
+    }
+
+    public void setClosingTime(LocalTime closingTime) {
+        this.closingTime = closingTime;
+    }
+}

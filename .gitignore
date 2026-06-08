@@ -36,3 +36,4 @@ db.properties
 src/main/resources/db.properties
 src/main/resources/google.properties
 src/main/resources/mail.properties
+src/main/resources/cloudinary.properties

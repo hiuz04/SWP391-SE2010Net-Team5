@@ -1,6 +1,7 @@
 package com.swp.dao;
 
 import com.swp.model.Facility;
+import com.swp.model.dto.FieldComplexCard;
 import com.swp.util.DBContext;
 
 import java.sql.*;
@@ -39,15 +40,15 @@ public class FacilityDAO {
             ps.setString(7, facility.getHotline());
 
             ps.setTime(8,
-                facility.getOpeningTime() != null
-                    ? Time.valueOf(facility.getOpeningTime())
-                    : null
+                    facility.getOpeningTime() != null
+                            ? Time.valueOf(facility.getOpeningTime())
+                            : null
             );
 
             ps.setTime(9,
-                facility.getClosingTime() != null
-                    ? Time.valueOf(facility.getClosingTime())
-                    : null
+                    facility.getClosingTime() != null
+                            ? Time.valueOf(facility.getClosingTime())
+                            : null
             );
 
             ps.setString(10, facility.getGeneralRules());
@@ -110,8 +111,8 @@ public class FacilityDAO {
 
     public void deleteFacility(long id) {
         String sql = "DELETE FROM facilities WHERE facility_id = ?";
-        try(Connection conn = DBContext.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -195,4 +196,58 @@ public class FacilityDAO {
         return list;
     }
 
+    public List<String> getAllCities() {
+
+        String sql = """
+                    SELECT DISTINCT city
+                    FROM facilities
+                    ORDER BY city
+                """;
+
+        List<String> cities = new ArrayList<>();
+
+        try (
+                Connection conn = DBContext.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql);
+        ) {
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                cities.add(rs.getString("city"));
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return cities;
+    }
+
+    public List<String> getAllWards() {
+
+        String sql = """
+            SELECT DISTINCT ward
+            FROM facilities
+            WHERE ward IS NOT NULL AND ward <> ''
+            ORDER BY ward
+        """;
+
+        List<String> wards = new ArrayList<>();
+
+        try (
+                Connection conn = DBContext.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()
+        ) {
+
+            while (rs.next()) {
+                wards.add(rs.getString("ward"));
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return wards;
+    }
 }

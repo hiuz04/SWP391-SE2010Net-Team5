@@ -1,0 +1,36 @@
+.facility-item{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: .82rem;
+    color: #374151;
+}
+.bi {
+    color: #16a34a;
+}
+.btn-sf-secondary{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 11px;
+    background: transparent;
+    border: 2px solid #16a34a;
+    color:  #16a34a;
+    border-radius: 8px;
+    font-size: .95rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all .18s;
+}
+.btn-sf-secondary:hover{
+    background: #dcfce7;
+    color: #15803d;
+}
