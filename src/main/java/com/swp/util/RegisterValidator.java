@@ -41,14 +41,9 @@ public final class RegisterValidator {
             result.addFieldError("phone", "Số điện thoại phải bắt đầu bằng 0 và có 10–11 chữ số.");
         }
 
-        if (password == null || password.isBlank()) {
-            result.addFieldError("password", "Mật khẩu không được để trống.");
-        } else if (password.length() < 6) {
-            result.addFieldError("password", "Mật khẩu phải có ít nhất 6 ký tự.");
-        } else if (password.length() > 64) {
-            result.addFieldError("password", "Mật khẩu không được vượt quá 64 ký tự.");
-        } else if (!containsLetter(password) || !containsDigit(password)) {
-            result.addFieldError("password", "Mật khẩu phải có ít nhất 1 chữ cái và 1 chữ số.");
+        String passwordError = PasswordUtil.validatePassword(password);
+        if (passwordError != null) {
+            result.addFieldError("password", passwordError);
         }
 
         if (confirmPassword == null || confirmPassword.isBlank()) {
@@ -60,21 +55,4 @@ public final class RegisterValidator {
         return result;
     }
 
-    private static boolean containsLetter(String value) {
-        for (char c : value.toCharArray()) {
-            if (Character.isLetter(c)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean containsDigit(String value) {
-        for (char c : value.toCharArray()) {
-            if (Character.isDigit(c)) {
-                return true;
-            }
-        }
-        return false;
-    }
 }

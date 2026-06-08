@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Quên mật khẩu – nhận mật khẩu mới qua email tài khoản Sport Field Booking.">
+    <meta name="description" content="Quên mật khẩu – nhận mã OTP qua email tài khoản Sport Field Booking.">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
@@ -63,7 +63,7 @@
                         </div>
                         <h1 class="fw-bold fs-3 mb-1">Quên mật khẩu</h1>
                         <p class="text-muted mb-0" style="font-size:14px;">
-                            Nhập email hoặc số điện thoại – mật khẩu mới sẽ được gửi tới email của bạn.
+                            Nhập email hoặc số điện thoại – mã OTP sẽ được gửi tới email của bạn.
                         </p>
                     </div>
 
@@ -84,7 +84,6 @@
                     <% } %>
 
                     <!-- Form -->
-                    <% if (success == null) { %>
                     <form id="fp-form" method="post" action="<%= ctx %>/forgot-password" novalidate>
                         <div class="mb-4">
                             <label class="form-label fw-semibold" for="contact">
@@ -110,21 +109,13 @@
                         </div>
 
                         <button id="fp-btn" type="submit" class="btn btn-fp btn-lg w-100 mb-3">
-                            <span id="btn-text"><i class="bi bi-send me-2"></i>Gửi mật khẩu mới</span>
+                            <span id="btn-text"><i class="bi bi-send me-2"></i>Nhận mã OTP</span>
                             <span id="btn-loading" class="d-none">
                                 <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                Đang gửi…
+                                Đang xử lý…
                             </span>
                         </button>
                     </form>
-                    <% } else { %>
-                    <!-- Sau khi gửi thành công: nút quay lại đăng nhập -->
-                    <div class="text-center mt-2">
-                        <a href="<%= ctx %>/login" class="btn btn-fp btn-lg px-5">
-                            <i class="bi bi-box-arrow-in-right me-2"></i>Đăng nhập ngay
-                        </a>
-                    </div>
-                    <% } %>
 
                     <p class="text-center mt-4 mb-0" style="font-size:14px;">
                         Nhớ mật khẩu rồi?

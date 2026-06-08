@@ -45,4 +45,44 @@ public final class PasswordUtil {
             return plainPassword.equals(hashedPassword);
         }
     }
+
+    /**
+     * Kiểm tra tính hợp lệ của mật khẩu (độ dài, ký tự chữ và số).
+     *
+     * @param password mật khẩu cần kiểm tra
+     * @return null nếu hợp lệ, ngược lại trả về chuỗi thông báo lỗi
+     */
+    public static String validatePassword(String password) {
+        if (password == null || password.isBlank()) {
+            return "Mật khẩu không được để trống.";
+        }
+        if (password.length() < 6) {
+            return "Mật khẩu phải có ít nhất 6 ký tự.";
+        }
+        if (password.length() > 64) {
+            return "Mật khẩu không được vượt quá 64 ký tự.";
+        }
+        if (!containsLetter(password) || !containsDigit(password)) {
+            return "Mật khẩu phải có ít nhất 1 chữ cái và 1 chữ số.";
+        }
+        return null;
+    }
+
+    private static boolean containsLetter(String value) {
+        for (char c : value.toCharArray()) {
+            if (Character.isLetter(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsDigit(String value) {
+        for (char c : value.toCharArray()) {
+            if (Character.isDigit(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
