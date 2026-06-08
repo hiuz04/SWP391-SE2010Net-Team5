@@ -17,8 +17,8 @@ public class FieldDAO {
     public void addField(Field f) {
         String sql = "INSERT INTO fields(facility_id, field_type_id, field_name, description, status) VALUES (?,?,?,?,?)";
 
-        try(Connection conn = DBContext.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, f.getFacilityId());
             ps.setInt(2, f.getFieldTypeId());
             ps.setString(3, f.getFieldName());
@@ -34,7 +34,7 @@ public class FieldDAO {
         String sql = "UPDATE fields SET field_name=?, description=?, field_type_id=?, facility_id=?, status=? WHERE field_id=?";
 
         try (Connection conn = DBContext.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, f.getFieldName());
             ps.setString(2, f.getDescription());
             ps.setInt(3, f.getFieldTypeId());
@@ -49,8 +49,8 @@ public class FieldDAO {
 
     public void deleteField(long id) {
         String sql = "DELETE FROM fields WHERE field_id = ?";
-        try(Connection conn = DBContext.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -60,8 +60,8 @@ public class FieldDAO {
 
     public void deleteFieldWithFacilityID(long id) {
         String sql = "DELETE FROM fields WHERE facility_id = ?";
-        try(Connection conn = DBContext.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -72,8 +72,8 @@ public class FieldDAO {
     public Field getFieldByID(long id) {
         Field field = new Field();
         String sql = "SELECT * FROM fields WHERE field_id = ?";
-        try(Connection conn = DBContext.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
             ResultSet rs = ps.executeQuery();
 
@@ -87,8 +87,36 @@ public class FieldDAO {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi truy cập dữ liệu: " + e.getMessage(), e);
-        };
+        }
+        ;
         return field;
+    }
+
+    public List<Field> getFieldBelongToThisFacilityId(long id) {
+        List<Field> list = new ArrayList<>();
+
+        String sql = "SELECT * FROM fields WHERE facility_id = ?";
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                list.add(new Field(
+                        rs.getLong("field_id"),
+                        rs.getLong("facility_id"),
+                        rs.getInt("field_type_id"),
+                        rs.getString("field_name"),
+                        rs.getString("description"),
+                        rs.getString("status"),
+                        rs.getTimestamp("created_at").toLocalDateTime(),
+                        rs.getTimestamp("updated_at").toLocalDateTime()
+                ));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi truy cập dữ liệu: " + e.getMessage(), e);
+        }
+        return list;
     }
 
     public List<Field> getAllField() {
@@ -96,19 +124,19 @@ public class FieldDAO {
         String sql = "SELECT * FROM fields";
 
         try (Connection conn = DBContext.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
                 list.add(new Field(
-                    rs.getLong("field_id"),
-                    rs.getLong("facility_id"),
-                    rs.getInt("field_type_id"),
-                    rs.getString("field_name"),
-                    rs.getString("description"),
-                    rs.getString("status"),
-                    rs.getTimestamp("created_at").toLocalDateTime(),
-                    rs.getTimestamp("updated_at").toLocalDateTime()
+                        rs.getLong("field_id"),
+                        rs.getLong("facility_id"),
+                        rs.getInt("field_type_id"),
+                        rs.getString("field_name"),
+                        rs.getString("description"),
+                        rs.getString("status"),
+                        rs.getTimestamp("created_at").toLocalDateTime(),
+                        rs.getTimestamp("updated_at").toLocalDateTime()
                 ));
             }
 

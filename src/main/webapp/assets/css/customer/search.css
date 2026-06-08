@@ -1,0 +1,27 @@
+.facility-item{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #e6f4ef;
+    border: none;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: .82rem;
+    color: #059669;
+}
+.soft-card {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    transition: 0.2s;
+}
+
+.soft-card:hover {
+    transform: translateY(-2px);
+}
+
+.object-fit-cover {
+    object-fit: cover;
+    min-height: 220px;
+}
