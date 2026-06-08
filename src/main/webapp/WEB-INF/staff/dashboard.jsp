@@ -1,4 +1,4 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" isELIgnored="true" %>
 <%@ page import="com.swp.model.User" %>
 <%
     String ctx = request.getContextPath();
@@ -522,7 +522,7 @@ async function loadDashboard() {
 
     const bkpi = data.bookingKpi || {};
     document.getElementById('kpi-bookings').textContent = `${bkpi.completed || 0} / ${bkpi.totalBookings || 0}`;
-    document.getElementById('kpi-pending').textContent  = data.pendingCheckin ?? 0;
+    document.getElementById('kpi-pending').textContent  = (data.pendingCheckin !== undefined && data.pendingCheckin !== null) ? data.pendingCheckin : 0;
 
     const rating = data.avgRating;
     document.getElementById('kpi-rating').innerHTML = rating != null

@@ -213,6 +213,10 @@ public class StaffDashboardServlet extends HttpServlet {
 
     private static LocalTime parseTime(String s) {
         if (s == null) return LocalTime.MIDNIGHT;
+        // If it's a full DATETIME string (contains space), extract the time part
+        if (s.contains(" ")) {
+            s = s.split(" ")[1];
+        }
         // SQL Server returns "HH:mm:ss" or "HH:mm:ss.n…"; normalise to HH:mm
         if (s.contains(".")) s = s.substring(0, s.indexOf('.'));
         // Trim to HH:mm if seconds are present
