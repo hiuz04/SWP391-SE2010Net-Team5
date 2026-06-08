@@ -1,5 +1,5 @@
 // Lưu đường context của trang
-const ctx = "/SWP391-SE2010Net-Team5";
+const ctx = window.APP_CTX || "";
 
 const id = new URLSearchParams(window.location.search).get("id");
 
@@ -19,6 +19,10 @@ function loadData(id) {
                 el.innerHTML = data.hotline;
             });
             document.getElementById("fieldCount").innerHTML = data.fields.length;
+            const bookingUrl = document.getElementById("bookingUrl");
+            if (bookingUrl) {
+                bookingUrl.href = `${ctx}/booking?action=create&facilityId=${data.facilityId}`;
+            }
 
             const fields = document.getElementById("fields");
             fields.innerHTML = "";

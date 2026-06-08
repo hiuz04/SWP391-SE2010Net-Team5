@@ -114,14 +114,14 @@
                 <h1 class="section-title">L&#7883;ch s&#7917; &#273;&#7863;t s&#226;n</h1>
                 <p class="text-muted mb-0">Theo d&#245;i c&#225;c booking &#273;&#227;, &#273;ang v&#224; s&#7855;p di&#7877;n ra.</p>
             </div>
-            <a class="btn btn-sf-primary" href="<%= ctx %>/">&#272;&#7863;t s&#226;n m&#7899;i</a>
+            <a class="btn btn-sf-primary" href="<%= ctx %>/search">&#272;&#7863;t s&#226;n m&#7899;i</a>
         </div>
 
         <% if (bookings.isEmpty()) { %>
         <div class="card soft-card p-5 text-center">
             <h5>Ch&#432;a c&#243; booking n&#224;o</h5>
             <p class="text-muted">B&#7841;n c&#243; th&#7875; t&#236;m s&#226;n v&#224; t&#7841;o booking &#273;&#7847;u ti&#234;n.</p>
-            <div><a class="btn btn-sf-primary" href="<%= ctx %>/">V&#7873; trang ch&#7911;</a></div>
+            <div><a class="btn btn-sf-primary" href="<%= ctx %>/search">T&#236;m s&#226;n</a></div>
         </div>
         <% } else { %>
         <div class="card table-card shadow-sm border-0">
