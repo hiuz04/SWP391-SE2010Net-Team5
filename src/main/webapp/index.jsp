@@ -37,25 +37,59 @@
                 <h1 class="display-4 fw-bold mb-3">Đặt sân bóng đá dễ dàng, nhanh chóng</h1>
                 <p class="lead mb-4 text-white-50">Tìm sân, chọn khung giờ, thanh toán và quản lý lịch đặt chỉ trong vài thao tác.</p>
                 <div class="card hero-card p-3 p-lg-4">
-                    <form class="row g-3 align-items-end">
-                        <div class="col-md-4">
-                            <label class="form-label text-dark">Khu vực</label>
+                    <form class="row g-3 align-items-end" action="<%= ctx %>/search" method="get">
+                        <div class="col-md-3">
+                            <label class="form-label text-dark fw-semibold">Tỉnh / Thành phố</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
-                                <input class="form-control" placeholder="Quận, địa chỉ">
+                                <select class="form-select" name="province">
+                                    <option value="" selected>Tất cả</option>
+                                    <%
+                                        @SuppressWarnings("unchecked")
+                                        java.util.List<String> cities = (java.util.List<String>) request.getAttribute("cities");
+                                        if (cities != null) {
+                                            for (String c : cities) {
+                                    %>
+                                    <option value="<%= c %>"><%= c %></option>
+                                    <%
+                                            }
+                                        }
+                                    %>
+                                </select>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label text-dark">Ngày</label>
-                            <input class="form-control" type="date" data-fill-date="today">
+                            <label class="form-label text-dark fw-semibold">Phường / Xã</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-geo-alt-fill"></i></span>
+                                <select class="form-select" name="ward">
+                                    <option value="" selected>Tất cả</option>
+                                    <%
+                                        @SuppressWarnings("unchecked")
+                                        java.util.List<String> wards = (java.util.List<String>) request.getAttribute("wards");
+                                        if (wards != null) {
+                                            for (String w : wards) {
+                                    %>
+                                    <option value="<%= w %>"><%= w %></option>
+                                    <%
+                                            }
+                                        }
+                                    %>
+                                </select>
+                            </div>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label text-dark">Giờ</label>
-                            <input class="form-control" type="time" value="18:00">
+                            <label class="form-label text-dark fw-semibold">Loại sân</label>
+                            <select class="form-select" name="type">
+                                <option value="" selected>Tất cả</option>
+                                <option value="1">Sân 5</option>
+                                <option value="2">Sân 7</option>
+                                <option value="3">Sân 11</option>
+                            </select>
                         </div>
-                        <div class="col-md-2 d-grid">
-                            <button type="button" class="btn btn-sf-accent btn-lg" data-demo-alert="Chức năng tìm sân sẽ được cập nhật sau.">
-                                <i class="bi bi-search me-1"></i>Tìm
+                        <div class="col-md-3 d-grid">
+                            <button type="submit" class="btn btn-sf-accent btn-lg">
+                                <i class="bi bi-search me-1"></i>Tìm sân
                             </button>
                         </div>
                     </form>
