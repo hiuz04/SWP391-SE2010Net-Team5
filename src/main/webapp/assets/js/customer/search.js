@@ -133,3 +133,43 @@ function searchData() {
         .then(res => res.json())
         .then(renderData);
 }
+
+// Khởi tạo trang: tải danh sách filter, sau đó kiểm tra URL params
+async function initPage() {
+    await Promise.all([
+        loadProvinces(),
+        loadWards()
+    ]);
+
+    // Kiểm tra query parameter trên URL (từ trang chủ chuyển sang)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlProvince = urlParams.get("province");
+    const urlWard = urlParams.get("ward");
+    const urlType = urlParams.get("type");
+    
+    let hasParams = false;
+    
+    if (urlProvince) {
+        document.getElementById("province").value = urlProvince;
+        hasParams = true;
+    }
+    if (urlWard) {
+        document.getElementById("ward").value = urlWard;
+        hasParams = true;
+    }
+    if (urlType) {
+        document.getElementById("type").value = urlType;
+        hasParams = true;
+    }
+
+    if (hasParams) {
+        // Có ít nhất 1 param từ trang chủ -> trigger tìm kiếm
+        searchData();
+    } else {
+        // Load mặc định
+        loadData();
+    }
+}
+
+// Chạy khởi tạo
+initPage();
