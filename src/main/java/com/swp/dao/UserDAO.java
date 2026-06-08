@@ -2,6 +2,7 @@ package com.swp.dao;
 
 import com.swp.model.User;
 import com.swp.util.DBContext;
+import com.swp.util.PasswordUtil;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -38,15 +39,25 @@ public class UserDAO {
             WHERE (u.email = ? OR u.phone = ?) AND u.status = 'ACTIVE'
             """;
 
+    /**
+     * Xác thực đăng nhập: tìm user theo email hoặc số điện thoại kết hợp với mật
+     * khẩu.(user : active)
+     * Mật khẩu được kiểm tra an toàn bằng băm BCrypt qua PasswordUtil.
+     * 
+     * @return {@code Optional<User>} chứa user nếu thông tin hợp lệ, ngược lại
+     *         {@code Optional.empty()}
+     */
     public Optional<User> findByLoginAndPassword(String login, String password) {
         try (Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(FIND_BY_LOGIN_AND_PASSWORD)) {
+                PreparedStatement ps = conn.prepareStatement(FIND_BY_EMAIL_OR_PHONE)) {
             ps.setString(1, login);
             ps.setString(2, login);
-            ps.setString(3, password);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapRow(rs));
+                    User user = mapRow(rs);
+                    if (PasswordUtil.checkPassword(password, user.getPasswordHash())) {
+                        return Optional.of(user);
+                    }
                 }
             }
         } catch (SQLException e) {

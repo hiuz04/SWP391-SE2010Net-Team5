@@ -1,6 +1,7 @@
 package com.swp.dao;
 
 import com.swp.model.Field;
+import com.swp.model.dto.TopFieldSummary;
 import com.swp.util.DBContext;
 
 import java.sql.Connection;
@@ -141,6 +142,54 @@ public class FieldDAO {
 
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi truy cập dữ liệu: " + e.getMessage(), e);
+        }
+
+        return list;
+    }
+
+    /**
+     * Lấy top 3 sân có lượt booking cao nhất.
+     * Loại trừ các sân đang bảo trì (status = MAINTENANCE).
+     * Join với bảng bookings để đếm, facility để lấy địa chỉ, field_types để lấy tên loại sân.
+     */
+    public List<TopFieldSummary> getTop3FieldsByBooking() {
+        List<TopFieldSummary> list = new ArrayList<>();
+        String sql =
+            "SELECT TOP 3 " +
+            "  f.field_id, f.field_name, f.description, f.status, f.facility_id, " +
+            "  fac.facility_name, fac.address, fac.district, fac.city, " +
+            "  COALESCE(ft.type_name, '') AS field_type_name, " +
+            "  COUNT(b.booking_id) AS booking_count " +
+            "FROM fields f " +
+            "LEFT JOIN bookings b ON b.field_id = f.field_id " +
+            "LEFT JOIN facilities fac ON fac.facility_id = f.facility_id " +
+            "LEFT JOIN field_types ft ON ft.field_type_id = f.field_type_id " +
+            "WHERE f.status <> 'MAINTENANCE' " +
+            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.facility_id, " +
+            "         fac.facility_name, fac.address, fac.district, fac.city, ft.type_name " +
+            "ORDER BY booking_count DESC";
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                list.add(new TopFieldSummary(
+                    rs.getLong("field_id"),
+                    rs.getString("field_name"),
+                    rs.getString("description"),
+                    rs.getString("status"),
+                    rs.getString("field_type_name"),
+                    rs.getLong("facility_id"),
+                    rs.getString("facility_name"),
+                    rs.getString("address"),
+                    rs.getString("district"),
+                    rs.getString("city"),
+                    rs.getInt("booking_count")
+                ));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi lấy top 3 sân nổi bật: " + e.getMessage(), e);
         }
 
         return list;
