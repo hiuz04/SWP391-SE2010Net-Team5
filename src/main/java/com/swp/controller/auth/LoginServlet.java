@@ -25,7 +25,7 @@ public class LoginServlet extends HttpServlet {
     private final UserDAO userDAO = new UserDAO();
 
     /**
-     hien thi trang dăng nhap
+     * hien thi trang dăng nhap
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -64,7 +64,9 @@ public class LoginServlet extends HttpServlet {
 
         if (LoginAttemptUtil.isLocked(login)) {
             long remaining = LoginAttemptUtil.getRemainingLockTimeInMinutes(login);
-            request.setAttribute("error", "Tài khoản của bạn đã bị khóa do nhập sai quá nhiều lần. Vui lòng thử lại sau " + remaining + " phút.");
+            request.setAttribute("error",
+                    "Tài khoản của bạn đã bị khóa do nhập sai quá nhiều lần. Vui lòng thử lại sau " + remaining
+                            + " phút.");
             request.setAttribute("login", login);
             prepareLoginPage(request);
             request.getRequestDispatcher("/login.jsp").forward(request, response);
@@ -82,7 +84,7 @@ public class LoginServlet extends HttpServlet {
                 response.sendRedirect(request.getContextPath() + "/");
                 return;
             }
-            
+
             LoginAttemptUtil.loginFailed(login);
             if (LoginAttemptUtil.isLocked(login)) {
                 request.setAttribute("error", "Bạn đã nhập sai 5 lần liên tiếp. Tài khoản bị khóa trong 30 phút.");
@@ -107,6 +109,8 @@ public class LoginServlet extends HttpServlet {
     private void prepareLoginPage(HttpServletRequest request) {
         if ("1".equals(request.getParameter("registered"))) {
             request.setAttribute("success", "Đăng ký thành công! Vui lòng đăng nhập.");
+        } else if ("1".equals(request.getParameter("resetSuccess"))) {
+            request.setAttribute("success", "Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.");
         }
         if (request.getAttribute("error") == null) {
             String googleError = request.getParameter("googleError");

@@ -23,11 +23,17 @@ import java.util.Optional;
 @WebServlet("/forgot-password")
 public class ForgotPasswordServlet extends HttpServlet {
 
-    private static final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    private static final int PASSWORD_LENGTH = 10;
+    private static final String DIGITS = "0123456789";
+    private static final int OTP_LENGTH = 6;
     private final SecureRandom random = new SecureRandom();
+    
+    private static final java.util.regex.Pattern EMAIL_PATTERN =
+            java.util.regex.Pattern.compile("^[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}$");
+    private static final java.util.regex.Pattern PHONE_PATTERN =
+            java.util.regex.Pattern.compile("^0\\d{9,10}$");
 
     private final UserDAO userDAO = new UserDAO();
+    private final com.swp.dao.PasswordResetTokenDAO tokenDAO = new com.swp.dao.PasswordResetTokenDAO();
 
     /**
      hien thi reset mk
@@ -51,9 +57,18 @@ public class ForgotPasswordServlet extends HttpServlet {
         request.setCharacterEncoding("UTF-8");
         String input = trim(request.getParameter("contact"));
 
-        // Validate đầu vào
+        // Validate đầu vào trống
         if (input == null || input.isBlank()) {
             request.setAttribute("error", "Vui lòng nhập email hoặc số điện thoại.");
+            request.getRequestDispatcher("/forgot-password.jsp").forward(request, response);
+            return;
+        }
+
+        // Validate định dạng email / SĐT
+        boolean isEmail = EMAIL_PATTERN.matcher(input).matches();
+        boolean isPhone = PHONE_PATTERN.matcher(input).matches();
+        if (!isEmail && !isPhone) {
+            request.setAttribute("error", "Định dạng không hợp lệ. Vui lòng nhập đúng email (vd: name@example.com) hoặc số điện thoại (bắt đầu bằng 0, 10-11 số).");
             request.getRequestDispatcher("/forgot-password.jsp").forward(request, response);
             return;
         }
@@ -74,31 +89,35 @@ public class ForgotPasswordServlet extends HttpServlet {
                     return;
                 }
 
-                // Sinh mật khẩu ngẫu nhiên
-                String newPassword = generatePassword();
+                // Vô hiệu hóa các OTP cũ của user này
+                tokenDAO.invalidateOldTokens(user.getUserId());
 
-                // Cập nhật mật khẩu trong DB (băm mật khẩu trước khi lưu)
-                String hashedPassword = PasswordUtil.hashPassword(newPassword);
-                userDAO.updatePassword(user.getUserId(), hashedPassword);
+                // Sinh mã OTP ngẫu nhiên
+                String otpCode = generateOtp();
+                java.time.LocalDateTime expiresAt = java.time.LocalDateTime.now().plusMinutes(5);
+
+                // Lưu OTP vào DB
+                tokenDAO.insertToken(user.getUserId(), otpCode, expiresAt);
 
                 // Gửi email
                 if (MailUtil.isConfigured()) {
-                    String subject = "Mật khẩu mới – Sport Field Booking";
-                    String body = MailUtil.buildNewPasswordEmail(user.getFullName(), newPassword);
+                    String subject = "Mã OTP Đặt lại mật khẩu – Sport Field Booking";
+                    String body = MailUtil.buildOtpEmail(user.getFullName(), otpCode);
                     MailUtil.sendHtml(toEmail, subject, body);
                 } else {
-                    // Mail chưa cấu hình → log để dev biết (production không nên xảy ra)
-                    System.err.println("[ForgotPassword] Mail chưa cấu hình. Mật khẩu mới cho "
-                            + toEmail + ": " + newPassword);
+                    // Mail chưa cấu hình → log để dev biết
+                    System.err.println("[ForgotPassword] Mail chưa cấu hình. OTP mới cho "
+                            + toEmail + ": " + otpCode);
                     request.setAttribute("error",
                             "Hệ thống email chưa được cấu hình. Vui lòng liên hệ quản trị viên.");
                     request.getRequestDispatcher("/forgot-password.jsp").forward(request, response);
                     return;
                 }
             }
-            // Luôn trả về thông báo chung dù có hay không có tài khoản (tránh lộ thông tin)
-            request.setAttribute("success",
-                    "Nếu email hoặc số điện thoại khớp với tài khoản, mật khẩu mới đã được gửi đến địa chỉ email của bạn.");
+            // Luôn lưu lại session để check bước tiếp theo, chuyển hướng sang nhập OTP
+            request.getSession().setAttribute("resetEmail", input);
+            response.sendRedirect(request.getContextPath() + "/verify-otp");
+            return;
 
         } catch (RuntimeException e) {
             System.err.println("[ForgotPassword] Lỗi DB: " + e.getMessage());
@@ -113,15 +132,12 @@ public class ForgotPasswordServlet extends HttpServlet {
     }
 
     /**
-     * Sinh mật khẩu ngẫu nhiên an toàn gồm chữ và số.
-     * Độ dài được xác định bởi hằng số {@code PASSWORD_LENGTH}.
-     *
-     * @return chuỗi mật khẩu ngẫu nhiên
+     * Sinh mã OTP 6 số ngẫu nhiên.
      */
-    private String generatePassword() {
-        StringBuilder sb = new StringBuilder(PASSWORD_LENGTH);
-        for (int i = 0; i < PASSWORD_LENGTH; i++) {
-            sb.append(CHARS.charAt(random.nextInt(CHARS.length())));
+    private String generateOtp() {
+        StringBuilder sb = new StringBuilder(OTP_LENGTH);
+        for (int i = 0; i < OTP_LENGTH; i++) {
+            sb.append(DIGITS.charAt(random.nextInt(DIGITS.length())));
         }
         return sb.toString();
     }

@@ -123,12 +123,9 @@ public class ProfileServlet extends HttpServlet {
         boolean changePassword = false;
         if (password != null && !password.isEmpty()) {
             changePassword = true;
-            if (password.length() < 6) {
-                errors.put("password", "Mật khẩu mới phải có ít nhất 6 ký tự.");
-            } else if (password.length() > 64) {
-                errors.put("password", "Mật khẩu mới không được vượt quá 64 ký tự.");
-            } else if (!containsLetter(password) || !containsDigit(password)) {
-                errors.put("password", "Mật khẩu mới phải có ít nhất 1 chữ cái và 1 chữ số.");
+            String passwordError = PasswordUtil.validatePassword(password);
+            if (passwordError != null) {
+                errors.put("password", passwordError);
             }
         }
 
@@ -186,35 +183,7 @@ public class ProfileServlet extends HttpServlet {
         request.getRequestDispatcher("/profile.jsp").forward(request, response);
     }
 
-    /**
-     * Kiểm tra chuỗi có chứa ít nhất một ký tự chữ cái không.
-     *
-     * @param value chuỗi cần kiểm tra
-     * @return true nếu có chữa ít nhất một chữ cái
-     */
-    private boolean containsLetter(String value) {
-        for (char c : value.toCharArray()) {
-            if (Character.isLetter(c)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
-    /**
-     * Kiểm tra chuỗi có chứa ít nhất một ký tự số không.
-     *
-     * @param value chuỗi cần kiểm tra
-     * @return true nếu có chứa ít nhất một chữ số
-     */
-    private boolean containsDigit(String value) {
-        for (char c : value.toCharArray()) {
-            if (Character.isDigit(c)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     /**
      * Loại bỏ khoảng trắng đầu/cuối chuỗi. Trả về null nếu đầu vào là null.

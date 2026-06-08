@@ -144,4 +144,52 @@ public final class MailUtil {
                 </html>
                 """.formatted(fullName, newPassword);
     }
+
+    /**
+     * Tạo nội dung HTML email mã OTP.
+     */
+    public static String buildOtpEmail(String fullName, String otpCode) {
+        return """
+                <!DOCTYPE html>
+                <html lang="vi">
+                <head><meta charset="UTF-8"></head>
+                <body style="font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0;">
+                  <div style="max-width:560px; margin:40px auto; background:#fff; border-radius:12px;
+                              box-shadow:0 4px 20px rgba(0,0,0,0.08); overflow:hidden;">
+                    <!-- Header -->
+                    <div style="background:linear-gradient(135deg,#1a472a,#2d6a4f); padding:36px 40px; text-align:center;">
+                      <h1 style="color:#fff; margin:0; font-size:26px; letter-spacing:1px;">⚽ Sport Field Booking</h1>
+                    </div>
+                    <!-- Body -->
+                    <div style="padding:40px;">
+                      <h2 style="color:#1a472a; margin-top:0;">Mã OTP Đặt Lại Mật Khẩu</h2>
+                      <p style="color:#555; line-height:1.7;">
+                        Xin chào <strong>%s</strong>,
+                      </p>
+                      <p style="color:#555; line-height:1.7;">
+                        Bạn vừa yêu cầu đặt lại mật khẩu. Vui lòng sử dụng mã OTP dưới đây để tiếp tục.
+                        Mã này có hiệu lực trong vòng 5 phút.
+                      </p>
+                      <!-- OTP box -->
+                      <div style="background:#f0faf4; border:2px dashed #2d6a4f; border-radius:8px;
+                                  padding:20px; text-align:center; margin:24px 0;">
+                        <span style="font-size:32px; font-weight:bold; color:#1a472a; letter-spacing:8px;">%s</span>
+                      </div>
+                      <p style="color:#999; font-size:13px; line-height:1.6;">
+                        Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.
+                        Không chia sẻ mã OTP này cho bất kỳ ai.
+                      </p>
+                    </div>
+                    <!-- Footer -->
+                    <div style="background:#f8f9fa; padding:20px 40px; text-align:center;
+                                border-top:1px solid #eee;">
+                      <p style="color:#aaa; font-size:12px; margin:0;">
+                        © 2025 Sport Field Booking. Mọi quyền được bảo lưu.
+                      </p>
+                    </div>
+                  </div>
+                </body>
+                </html>
+                """.formatted(fullName, otpCode);
+    }
 }

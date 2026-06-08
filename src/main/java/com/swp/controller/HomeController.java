@@ -5,6 +5,7 @@
 package com.swp.controller;
 
 import com.swp.dao.FieldDAO;
+import com.swp.dao.FacilityDAO;
 import com.swp.model.User;
 import com.swp.model.dto.TopFieldSummary;
 import jakarta.servlet.ServletException;
@@ -26,6 +27,7 @@ import java.util.List;
 public class HomeController extends HttpServlet {
 
     private final FieldDAO fieldDAO = new FieldDAO();
+    private final FacilityDAO facilityDAO = new FacilityDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -54,6 +56,20 @@ public class HomeController extends HttpServlet {
         request.setAttribute("navRole", navRole);
         request.setAttribute("displayName", displayName);
         request.setAttribute("topFields", topFields);
+
+        // Lấy danh sách tỉnh/thành phố và phường/xã cho form tìm kiếm
+        List<String> cities;
+        List<String> wards;
+        try {
+            cities = facilityDAO.getAllCities();
+            wards = facilityDAO.getAllWards();
+        } catch (Exception e) {
+            e.printStackTrace();
+            cities = Collections.emptyList();
+            wards = Collections.emptyList();
+        }
+        request.setAttribute("cities", cities);
+        request.setAttribute("wards", wards);
 
         request.getRequestDispatcher("/index.jsp").forward(request, response);
     }
