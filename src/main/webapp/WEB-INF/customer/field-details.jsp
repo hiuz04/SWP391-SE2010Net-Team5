@@ -89,7 +89,7 @@
                 </div>
                 <aside class="col-lg-4">
                     <div class="card soft-card p-4 sidebar-card"><h4 class="fw-bold">Đặt sân</h4>
-                        <a class="btn btn-sf-primary btn-lg w-100" href="booking-confirm.html"><i
+                        <a class="btn btn-sf-primary btn-lg w-100" id="bookingUrl" href="<%= ctx %>/booking"><i
                                 class="bi bi-calendar-check me-2" style="color: white"></i> Đặt sân ngay</a>
                         <a class="btn-sf-secondary btn-lg w-100"><i
                                 class="bi bi-telephone-fill me-1"></i> Gọi: <span class="hotline"></span></a>
@@ -100,6 +100,9 @@
     </div>
 </main>
 <div id="footer" data-root="../../"></div>
+<script>
+    window.APP_CTX = '<%= ctx %>';
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script src="<%= ctx %>/assets/js/customer/field-detail.js"></script>
