@@ -608,6 +608,10 @@ public class BookingController extends HttpServlet {
             List<Booking> bookings,
             List<FieldMaintenanceSchedule> maintenances
     ) {
+        if (slotStart != null && slotStart.isBefore(LocalDateTime.now())) {
+            return "DISABLED";
+        }
+
         if (field.getStatus() == null || !"AVAILABLE".equalsIgnoreCase(field.getStatus())) {
             return "DISABLED";
         }
@@ -706,6 +710,10 @@ public class BookingController extends HttpServlet {
     }
 
     private void validateBookingAdvanceWindow(LocalDateTime startTime) {
+        if (startTime.isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Kh\u00f4ng th\u1ec3 \u0111\u1eb7t s\u00e2n tr\u01b0\u1edbc gi\u1edd hi\u1ec7n t\u1ea1i.");
+        }
+
         LocalDate today = LocalDate.now();
         LocalDate maxBookingDate = today.plusMonths(MAX_BOOKING_ADVANCE_MONTHS);
         LocalDate bookingDate = startTime.toLocalDate();
