@@ -47,8 +47,8 @@ public class ForgotPasswordServlet extends HttpServlet {
     /**
      * Xử lý yêu cầu POST: xử lý yêu cầu đặt lại mật khẩu.
      * Nhận email hoặc số điện thoại, tìm user trong DB,
-     * sinh mật khẩu ngẫu nhiên mới, cập nhật vào DB và gửi qua email.
-     * Luôn trả về thông báo chung (không lộ thông tin tài khoản có tồn tại hay không).
+     * sinh mã OTP mới, cập nhật vào DB và gửi qua email.
+     * Thông báo lỗi nếu tài khoản không tồn tại.
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -82,9 +82,8 @@ public class ForgotPasswordServlet extends HttpServlet {
                 // Kiểm tra user có email hay không
                 String toEmail = user.getEmail();
                 if (toEmail == null || toEmail.isBlank()) {
-                    // Tài khoản chỉ có số điện thoại, không có email → thông báo chung
-                    request.setAttribute("success",
-                            "Nếu thông tin khớp với tài khoản, mật khẩu mới đã được gửi đến email của bạn.");
+                    request.setAttribute("error",
+                            "Tài khoản không được liên kết với email nào.");
                     request.getRequestDispatcher("/forgot-password.jsp").forward(request, response);
                     return;
                 }
@@ -113,11 +112,16 @@ public class ForgotPasswordServlet extends HttpServlet {
                     request.getRequestDispatcher("/forgot-password.jsp").forward(request, response);
                     return;
                 }
+                
+                // Lưu lại session để check bước tiếp theo, chuyển hướng sang nhập OTP
+                request.getSession().setAttribute("resetEmail", input);
+                response.sendRedirect(request.getContextPath() + "/verify-otp");
+                return;
+            } else {
+                request.setAttribute("error", "Email hoặc số điện thoại không tồn tại trong hệ thống.");
+                request.getRequestDispatcher("/forgot-password.jsp").forward(request, response);
+                return;
             }
-            // Luôn lưu lại session để check bước tiếp theo, chuyển hướng sang nhập OTP
-            request.getSession().setAttribute("resetEmail", input);
-            response.sendRedirect(request.getContextPath() + "/verify-otp");
-            return;
 
         } catch (RuntimeException e) {
             System.err.println("[ForgotPassword] Lỗi DB: " + e.getMessage());
