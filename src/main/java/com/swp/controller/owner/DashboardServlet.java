@@ -19,7 +19,7 @@ import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 
-@WebServlet("/owner")
+@WebServlet({"/owner", "/owner/dashboard"})
 public class DashboardServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -27,14 +27,14 @@ public class DashboardServlet extends HttpServlet {
 
         // Chưa đăng nhập
         if(session == null || session.getAttribute("user") == null) {
-            resp.sendRedirect(req.getContextPath() + "/login.jsp");
+            resp.sendRedirect(req.getContextPath() + "/login");
             return;
         }
 
         // Không phải là Owner
         User user = (User) session.getAttribute("user");
         if(!Constant.OWNER_ROLE_NAME.equals(user.getRoleName())) {
-            resp.sendRedirect(req.getContextPath() + "/index.jsp");
+            resp.sendRedirect(req.getContextPath() + "/");
             return;
         }
 

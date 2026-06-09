@@ -36,4 +36,17 @@ public final class AuthUtil {
             default -> "customer";
         };
     }
+
+    public static String dashboardPath(String roleName) {
+        if (roleName == null || roleName.isBlank()) {
+            return "/";
+        }
+        return switch (roleName.toUpperCase()) {
+            case "ADMIN" -> "/admin/dashboard";
+            case "OWNER" -> "/owner/dashboard";
+            case "STAFF" -> "/staff/dashboard";
+            case "CUSTOMER" -> "/search";
+            default -> "/";
+        };
+    }
 }

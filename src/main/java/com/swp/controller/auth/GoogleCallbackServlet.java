@@ -78,7 +78,7 @@ public class GoogleCallbackServlet extends HttpServlet {
             User loggedIn = resolveUser(googleUser);
             session.setAttribute("user", loggedIn);
             session.setAttribute("navRole", AuthUtil.toNavRole(loggedIn.getRoleName()));
-            response.sendRedirect(ctx + "/");
+            response.sendRedirect(ctx + AuthUtil.dashboardPath(loggedIn.getRoleName()));
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Google login failed", e);
             response.sendRedirect(ctx + "/login?googleError=failed");
