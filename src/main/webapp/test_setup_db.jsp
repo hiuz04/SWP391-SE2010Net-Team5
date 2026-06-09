@@ -40,6 +40,42 @@
             out.println("<div class='status-step success'><i class='bi bi-trash3-fill me-2'></i>Đang dọn dẹp các lịch đặt sân, ca làm việc cũ của hôm nay (" + todayStr + ")...</div>");
             try (Statement stmt = conn.createStatement()) {
                 stmt.executeUpdate(
+                    "IF OBJECT_ID('booking_status_logs', 'U') IS NOT NULL " +
+                    "DELETE FROM booking_status_logs WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
+                );
+                stmt.executeUpdate(
+                    "IF OBJECT_ID('booking_promotions', 'U') IS NOT NULL " +
+                    "DELETE FROM booking_promotions WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
+                );
+                stmt.executeUpdate(
+                    "IF OBJECT_ID('booking_services', 'U') IS NOT NULL " +
+                    "DELETE FROM booking_services WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
+                );
+                stmt.executeUpdate(
+                    "IF OBJECT_ID('booking_details', 'U') IS NOT NULL " +
+                    "DELETE FROM booking_details WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
+                );
+                stmt.executeUpdate(
+                    "IF OBJECT_ID('booking_items', 'U') IS NOT NULL " +
+                    "DELETE FROM booking_items WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
+                );
+                stmt.executeUpdate(
+                    "IF OBJECT_ID('feedbacks', 'U') IS NOT NULL " +
+                    "DELETE FROM feedbacks WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
+                );
+                stmt.executeUpdate(
+                    "IF OBJECT_ID('reviews', 'U') IS NOT NULL " +
+                    "DELETE FROM reviews WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
+                );
+                stmt.executeUpdate(
+                    "IF OBJECT_ID('payment_callbacks', 'U') IS NOT NULL " +
+                    "DELETE FROM payment_callbacks WHERE payment_id IN (SELECT payment_id FROM payments WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "'))"
+                );
+                stmt.executeUpdate(
+                    "IF OBJECT_ID('payments', 'U') IS NOT NULL " +
+                    "DELETE FROM payments WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
+                );
+                stmt.executeUpdate(
                     "DELETE FROM invoices WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
                 );
                 stmt.executeUpdate(
