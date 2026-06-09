@@ -18,7 +18,7 @@
       ['Dashboard',''], ['Cơ sở','/facility-list'], ['Sân bóng','/field-list'], ['Bảng giá','']
     ],
     admin: [
-      ['Dashboard','UI/admin/dashboard.html'], ['Người dùng','#'], ['Duyệt chủ sân','#'], ['Cài đặt','#']
+      ['Dashboard','admin/dashboard'], ['Người dùng','#'], ['Duyệt chủ sân','#'], ['Cài đặt','#']
     ]
   };
 

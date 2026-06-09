@@ -32,7 +32,8 @@ public class LoginServlet extends HttpServlet {
             throws ServletException, IOException {
         HttpSession session = request.getSession(false);
         if (session != null && session.getAttribute("user") != null) {
-            response.sendRedirect(request.getContextPath() + "/");
+            User loggedIn = (User) session.getAttribute("user");
+            response.sendRedirect(request.getContextPath() + AuthUtil.dashboardPath(loggedIn.getRoleName()));
             return;
         }
         prepareLoginPage(request);
@@ -81,7 +82,7 @@ public class LoginServlet extends HttpServlet {
                 User loggedIn = user.get();
                 session.setAttribute("user", loggedIn);
                 session.setAttribute("navRole", AuthUtil.toNavRole(loggedIn.getRoleName()));
-                response.sendRedirect(request.getContextPath() + "/");
+                response.sendRedirect(request.getContextPath() + AuthUtil.dashboardPath(loggedIn.getRoleName()));
                 return;
             }
 

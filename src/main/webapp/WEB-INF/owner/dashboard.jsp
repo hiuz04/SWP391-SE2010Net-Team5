@@ -9,8 +9,21 @@
 * Created date: 31/05/2026
 -->
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page import="com.swp.model.User" %>
+<%!
+    private String esc(String value) {
+        if (value == null) return "";
+        return value.replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;").replace("\"", "&quot;")
+                .replace("'", "&#39;");
+    }
+%>
 <%
     String ctx = request.getContextPath();
+    User currentUser = (User) session.getAttribute("user");
+    String currentName = currentUser != null && currentUser.getFullName() != null
+            ? currentUser.getFullName()
+            : "Owner";
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -23,7 +36,7 @@
     <title>Owner Dashboard | Sport Field Booking</title>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/owner" data-role="owner" data-name="Owner A" data-active="Dashboard"></div>
+<div id="navbar" data-root="<%= ctx %>/owner" data-role="owner" data-name="<%= esc(currentName) %>" data-active="Dashboard"></div>
 <main class="dashboard-shell">
     <div class="container"><h1 class="section-title">Owner Dashboard</h1>
         <p class="text-muted">Theo dõi hiệu quả kinh doanh cơ sở sân.</p>
