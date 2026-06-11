@@ -66,7 +66,7 @@
                                 <label class="form-label" for="phone">Số điện thoại <span class="text-danger">*</span></label>
                                 <input id="phone" name="phone" class="form-control <%= phoneClass %>"
                                        placeholder="0901234567" value="<%= phone %>"
-                                       inputmode="numeric" pattern="0[0-9]{9,10}" required>
+                                       inputmode="numeric" pattern="0[35789][0-9]{8}" required>
                                 <div class="invalid-feedback" data-field-error="phone">
                                     <%= fieldErrors.getOrDefault("phone", "Số điện thoại không hợp lệ.") %>
                                 </div>
