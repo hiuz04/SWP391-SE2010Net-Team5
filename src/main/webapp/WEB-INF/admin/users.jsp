@@ -1,13 +1,28 @@
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page import="com.swp.model.User" %>
+<%!
+    private String esc(String value) {
+        if (value == null) return "";
+        return value.replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;").replace("\"", "&quot;")
+                .replace("'", "&#39;");
+    }
+%>
+<%
+    String ctx = request.getContextPath();
+    User currentUser = (User) session.getAttribute("user");
+    String currentName = currentUser != null && currentUser.getFullName() != null
+            ? currentUser.getFullName()
+            : "Admin";
+%>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="../../assets/css/styles.css" rel="stylesheet">
-
+    <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
     <title>Quản lý người dùng | Sport Field Booking</title>
     <style>
         .avatar-circle {
@@ -44,7 +59,7 @@
     </style>
 </head>
 <body class="bg-light">
-<div id="navbar" data-root="../../" data-role="admin" data-name="Admin" data-active="Người dùng"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="admin" data-name="<%= esc(currentName) %>" data-active="Người dùng"></div>
 
 <main class="py-4">
     <div class="container">
@@ -127,7 +142,7 @@
                             <td><span class="text-muted small">01/01/2023</span></td>
                             <td><span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2">Hoạt động</span></td>
                             <td class="text-end pe-4">
-                                <a href="user-details.html" class="action-btn text-primary" title="Chi tiết"><i class="bi bi-eye"></i></a>
+                                <a href="<%= ctx %>/admin/user-details" class="action-btn text-primary" title="Chi tiết"><i class="bi bi-eye"></i></a>
                                 <button class="action-btn text-secondary" title="Sửa" data-bs-toggle="modal" data-bs-target="#userModal"><i class="bi bi-pencil"></i></button>
                             </td>
                         </tr>
@@ -150,7 +165,7 @@
                             <td><span class="text-muted small">15/05/2023</span></td>
                             <td><span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2">Hoạt động</span></td>
                             <td class="text-end pe-4">
-                                <a href="user-details.html" class="action-btn text-primary" title="Chi tiết"><i class="bi bi-eye"></i></a>
+                                <a href="<%= ctx %>/admin/user-details" class="action-btn text-primary" title="Chi tiết"><i class="bi bi-eye"></i></a>
                                 <button class="action-btn text-secondary" title="Sửa" data-bs-toggle="modal" data-bs-target="#userModal"><i class="bi bi-pencil"></i></button>
                                 <button class="action-btn text-danger" title="Khóa" data-bs-toggle="modal" data-bs-target="#banModal"><i class="bi bi-slash-circle"></i></button>
                             </td>
@@ -175,7 +190,7 @@
                             <td><span class="badge rounded-pill bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2">Chờ duyệt</span></td>
                             <td class="text-end pe-4">
                                 <button class="btn btn-sm btn-outline-success rounded-pill me-1"><i class="bi bi-check-circle me-1"></i> Duyệt</button>
-                                <a href="user-details.html" class="action-btn text-primary" title="Chi tiết"><i class="bi bi-eye"></i></a>
+                                <a href="<%= ctx %>/admin/user-details" class="action-btn text-primary" title="Chi tiết"><i class="bi bi-eye"></i></a>
                             </td>
                         </tr>
                         <!-- Row 4: Banned User -->
@@ -297,10 +312,10 @@
     </div>
 </div>
 
-<div id="footer" data-root="../../"></div>
+<div id="footer" data-root="<%= ctx %>/"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../../assets/js/app.js"></script>
+<script src="<%= ctx %>/assets/js/app.js"></script>
 
 </body>
 </html>
