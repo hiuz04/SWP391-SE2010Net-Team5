@@ -1,5 +1,6 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="com.swp.model.User" %>
+<%@ page import="java.util.List" %>
 <%!
     private String esc(String value) {
         if (value == null) return "";
@@ -123,99 +124,90 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Row 1: Admin -->
+<%
+    List<User> userList = (List<User>) request.getAttribute("userList");
+    if (userList != null && !userList.isEmpty()) {
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        for (User u : userList) {
+            String roleBadgeClass = "bg-secondary";
+            String roleName = u.getRoleName() != null ? u.getRoleName() : "Khách hàng";
+            if ("Admin".equalsIgnoreCase(roleName)) roleBadgeClass = "bg-danger";
+            else if ("Customer".equalsIgnoreCase(roleName)) roleBadgeClass = "bg-primary";
+            else if ("Owner".equalsIgnoreCase(roleName)) roleBadgeClass = "bg-warning text-dark";
+            else if ("Staff".equalsIgnoreCase(roleName)) roleBadgeClass = "bg-info";
+
+            String statusBadgeClass = "bg-secondary";
+            String statusText = u.getStatus() != null ? u.getStatus() : "ACTIVE";
+            if ("ACTIVE".equalsIgnoreCase(statusText)) {
+                statusBadgeClass = "bg-success bg-opacity-10 text-success border border-success border-opacity-25";
+                statusText = "Hoạt động";
+            } else if ("PENDING".equalsIgnoreCase(statusText)) {
+                statusBadgeClass = "bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25";
+                statusText = "Chờ duyệt";
+            } else if ("BANNED".equalsIgnoreCase(statusText)) {
+                statusBadgeClass = "bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25";
+                statusText = "Đã khóa";
+            }
+
+            String firstLetter = u.getFullName() != null && u.getFullName().length() > 0 ? u.getFullName().substring(0, 1).toUpperCase() : "U";
+            String avatarClass = "bg-gradient-secondary";
+            if ("Admin".equalsIgnoreCase(roleName)) avatarClass = "bg-gradient-danger";
+            else if ("Customer".equalsIgnoreCase(roleName)) avatarClass = "bg-gradient-primary";
+            else if ("Owner".equalsIgnoreCase(roleName)) avatarClass = "bg-gradient-warning";
+%>
                         <tr>
                             <td class="ps-4">
                                 <div class="d-flex align-items-center">
-                                    <div class="avatar-circle bg-gradient-danger me-3">H</div>
+                                    <div class="avatar-circle <%= avatarClass %> me-3"><%= esc(firstLetter) %></div>
                                     <div>
-                                        <h6 class="mb-0 fw-bold">Hệ Thống Admin</h6>
-                                        <small class="text-muted">ID: #USR-001</small>
+                                        <h6 class="mb-0 fw-bold <%= "BANNED".equalsIgnoreCase(u.getStatus()) ? "text-muted text-decoration-line-through" : "" %>"><%= esc(u.getFullName()) %></h6>
+                                        <small class="text-muted">ID: #USR-<%= String.format("%03d", u.getUserId()) %></small>
                                     </div>
                                 </div>
                             </td>
                             <td>
-                                <div class="small"><i class="bi bi-envelope me-1 text-muted"></i> admin@system.com</div>
-                                <div class="small mt-1"><i class="bi bi-telephone me-1 text-muted"></i> 0900 123 456</div>
+                                <div class="small"><i class="bi bi-envelope me-1 text-muted"></i> <%= esc(u.getEmail()) %></div>
+                                <div class="small mt-1"><i class="bi bi-telephone me-1 text-muted"></i> <%= esc(u.getPhone()) %></div>
                             </td>
-                            <td><span class="badge bg-danger">Admin</span></td>
-                            <td><span class="text-muted small">01/01/2023</span></td>
-                            <td><span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2">Hoạt động</span></td>
+                            <td><span class="badge <%= roleBadgeClass %>"><%= esc(roleName) %></span></td>
+                            <td><span class="text-muted small"><%= u.getCreatedAt() != null ? u.getCreatedAt().format(formatter) : "" %></span></td>
+                            <td><span class="badge rounded-pill <%= statusBadgeClass %> px-2"><%= statusText %></span></td>
                             <td class="text-end pe-4">
-                                <a href="<%= ctx %>/admin/user-details" class="action-btn text-primary" title="Chi tiết"><i class="bi bi-eye"></i></a>
-                                <button class="action-btn text-secondary" title="Sửa" data-bs-toggle="modal" data-bs-target="#userModal"><i class="bi bi-pencil"></i></button>
+                                <% if ("PENDING".equalsIgnoreCase(u.getStatus()) && "Owner".equalsIgnoreCase(roleName)) { %>
+                                <form method="post" action="<%= ctx %>/admin/users" class="d-inline">
+                                    <input type="hidden" name="action" value="approve">
+                                    <input type="hidden" name="userId" value="<%= u.getUserId() %>">
+                                    <button type="submit" class="btn btn-sm btn-outline-success rounded-pill me-1"><i class="bi bi-check-circle me-1"></i> Duyệt</button>
+                                </form>
+                                <% } %>
+                                <a href="<%= ctx %>/admin/user-details?id=<%= u.getUserId() %>" class="action-btn text-primary" title="Chi tiết"><i class="bi bi-eye"></i></a>
+                                <button class="action-btn text-secondary" title="Sửa" onclick="openEditModal('<%= u.getUserId() %>', '<%= esc(u.getFullName()) %>', '<%= esc(u.getPhone()) %>', '<%= esc(u.getEmail()) %>', '<%= esc(roleName) %>', '<%= esc(u.getStatus()) %>')"><i class="bi bi-pencil"></i></button>
+                                <% if (!"BANNED".equalsIgnoreCase(u.getStatus())) { %>
+                                <button class="action-btn text-danger" title="Khóa" onclick="openBanModal('<%= u.getUserId() %>')"><i class="bi bi-slash-circle"></i></button>
+                                <% } else { %>
+                                <form method="post" action="<%= ctx %>/admin/users" class="d-inline">
+                                    <input type="hidden" name="action" value="unban">
+                                    <input type="hidden" name="userId" value="<%= u.getUserId() %>">
+                                    <button type="submit" class="action-btn text-success" title="Mở khóa"><i class="bi bi-unlock"></i></button>
+                                </form>
+                                <form method="post" action="<%= ctx %>/admin/users" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa vĩnh viễn người dùng này?');">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="userId" value="<%= u.getUserId() %>">
+                                    <button type="submit" class="action-btn text-danger" title="Xóa vĩnh viễn"><i class="bi bi-trash"></i></button>
+                                </form>
+                                <% } %>
                             </td>
                         </tr>
-                        <!-- Row 2: Customer -->
+<%
+        }
+    } else {
+%>
                         <tr>
-                            <td class="ps-4">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-circle bg-gradient-primary me-3">N</div>
-                                    <div>
-                                        <h6 class="mb-0 fw-bold">Nguyễn Văn Khách</h6>
-                                        <small class="text-muted">ID: #USR-042</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="small"><i class="bi bi-envelope me-1 text-muted"></i> khach.nguyen@example.com</div>
-                                <div class="small mt-1"><i class="bi bi-telephone me-1 text-muted"></i> 0912 345 678</div>
-                            </td>
-                            <td><span class="badge bg-primary">Khách hàng</span></td>
-                            <td><span class="text-muted small">15/05/2023</span></td>
-                            <td><span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2">Hoạt động</span></td>
-                            <td class="text-end pe-4">
-                                <a href="<%= ctx %>/admin/user-details" class="action-btn text-primary" title="Chi tiết"><i class="bi bi-eye"></i></a>
-                                <button class="action-btn text-secondary" title="Sửa" data-bs-toggle="modal" data-bs-target="#userModal"><i class="bi bi-pencil"></i></button>
-                                <button class="action-btn text-danger" title="Khóa" data-bs-toggle="modal" data-bs-target="#banModal"><i class="bi bi-slash-circle"></i></button>
-                            </td>
+                            <td colspan="6" class="text-center py-4 text-muted">Không có dữ liệu người dùng</td>
                         </tr>
-                        <!-- Row 3: Owner Pending -->
-                        <tr>
-                            <td class="ps-4">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-circle bg-gradient-warning me-3">T</div>
-                                    <div>
-                                        <h6 class="mb-0 fw-bold">Trần Chủ Sân</h6>
-                                        <small class="text-muted">ID: #USR-105</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="small"><i class="bi bi-envelope me-1 text-muted"></i> chu.tran@sport.vn</div>
-                                <div class="small mt-1"><i class="bi bi-telephone me-1 text-muted"></i> 0988 765 432</div>
-                            </td>
-                            <td><span class="badge bg-warning text-dark">Chủ sân</span></td>
-                            <td><span class="text-muted small">Vừa xong</span></td>
-                            <td><span class="badge rounded-pill bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2">Chờ duyệt</span></td>
-                            <td class="text-end pe-4">
-                                <button class="btn btn-sm btn-outline-success rounded-pill me-1"><i class="bi bi-check-circle me-1"></i> Duyệt</button>
-                                <a href="<%= ctx %>/admin/user-details" class="action-btn text-primary" title="Chi tiết"><i class="bi bi-eye"></i></a>
-                            </td>
-                        </tr>
-                        <!-- Row 4: Banned User -->
-                        <tr>
-                            <td class="ps-4">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-circle bg-gradient-secondary me-3">L</div>
-                                    <div>
-                                        <h6 class="mb-0 fw-bold text-muted text-decoration-line-through">Lê Bị Khóa</h6>
-                                        <small class="text-muted">ID: #USR-088</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="small"><i class="bi bi-envelope me-1 text-muted"></i> le.spam@spam.com</div>
-                                <div class="small mt-1"><i class="bi bi-telephone me-1 text-muted"></i> 0999 999 999</div>
-                            </td>
-                            <td><span class="badge bg-primary opacity-50">Khách hàng</span></td>
-                            <td><span class="text-muted small">01/02/2023</span></td>
-                            <td><span class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2">Đã khóa</span></td>
-                            <td class="text-end pe-4">
-                                <button class="action-btn text-success" title="Mở khóa"><i class="bi bi-unlock"></i></button>
-                                <button class="action-btn text-danger" title="Xóa vĩnh viễn"><i class="bi bi-trash"></i></button>
-                            </td>
-                        </tr>
+<%
+    }
+%>
                     </tbody>
                 </table>
             </div>
@@ -223,7 +215,7 @@
             <!-- Pagination -->
             <div class="card-footer bg-white border-top p-3">
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-muted small">Hiển thị 1 đến 4 trong số 128 người dùng</span>
+                    <span class="text-muted small">Hiển thị dữ liệu trang 1</span>
                     <nav>
                         <ul class="pagination pagination-sm mb-0">
                             <li class="page-item disabled"><a class="page-link" href="#">Trước</a></li>
@@ -248,23 +240,25 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form>
+                <form id="userForm" method="post" action="<%= ctx %>/admin/users">
+                    <input type="hidden" name="action" id="userFormAction" value="add">
+                    <input type="hidden" name="userId" id="userIdInput" value="">
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label small fw-semibold">Họ và tên <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" placeholder="Nhập họ tên">
+                            <input type="text" class="form-control" name="fullName" id="fullNameInput" placeholder="Nhập họ tên" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Số điện thoại <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" placeholder="Nhập SĐT">
+                            <input type="text" class="form-control" name="phone" id="phoneInput" placeholder="Nhập SĐT" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Email <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" placeholder="Nhập Email">
+                            <input type="email" class="form-control" name="email" id="emailInput" placeholder="Nhập Email" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Vai trò <span class="text-danger">*</span></label>
-                            <select class="form-select">
+                            <select class="form-select" name="roleName" id="roleNameSelect">
                                 <option value="Customer">Khách hàng</option>
                                 <option value="Staff">Nhân viên</option>
                                 <option value="Manager">Quản lý</option>
@@ -274,22 +268,22 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Trạng thái</label>
-                            <select class="form-select">
-                                <option value="Active">Đang hoạt động</option>
-                                <option value="Pending">Chờ xác minh</option>
-                                <option value="Banned">Khóa</option>
+                            <select class="form-select" name="status" id="statusSelect">
+                                <option value="ACTIVE">Đang hoạt động</option>
+                                <option value="PENDING">Chờ xác minh</option>
+                                <option value="BANNED">Khóa</option>
                             </select>
                         </div>
                         <div class="col-12">
                             <label class="form-label small fw-semibold">Mật khẩu mới (Nếu có)</label>
-                            <input type="password" class="form-control" placeholder="Để trống nếu không muốn đổi">
+                            <input type="password" class="form-control" name="password" id="passwordInput" placeholder="Để trống nếu không muốn đổi">
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer border-top-0 pt-0">
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
-                <button type="button" class="btn btn-success">Lưu thông tin</button>
+                <button type="submit" form="userForm" class="btn btn-success">Lưu thông tin</button>
             </div>
         </div>
     </div>
@@ -304,10 +298,14 @@
             </div>
             <h5 class="fw-bold mb-2">Xác nhận khóa tài khoản</h5>
             <p class="text-muted small mb-4">Tài khoản này sẽ không thể đăng nhập và đặt sân được nữa. Bạn có chắc chắn?</p>
-            <div class="d-flex justify-content-center gap-2">
-                <button type="button" class="btn btn-light w-50" data-bs-dismiss="modal">Hủy</button>
-                <button type="button" class="btn btn-danger w-50">Khóa ngay</button>
-            </div>
+            <form method="post" action="<%= ctx %>/admin/users">
+                <input type="hidden" name="action" value="ban">
+                <input type="hidden" name="userId" id="banUserId" value="">
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light w-50" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger w-50">Khóa ngay</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -316,6 +314,40 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
+
+<script>
+    function openEditModal(id, name, phone, email, role, status) {
+        document.getElementById('userModalLabel').innerText = 'Sửa thông tin người dùng';
+        document.getElementById('userFormAction').value = 'edit';
+        document.getElementById('userIdInput').value = id;
+        document.getElementById('fullNameInput').value = name;
+        document.getElementById('phoneInput').value = phone;
+        document.getElementById('emailInput').value = email;
+        document.getElementById('roleNameSelect').value = role;
+        document.getElementById('statusSelect').value = status;
+        document.getElementById('passwordInput').placeholder = 'Để trống nếu không muốn đổi';
+        
+        var userModal = new bootstrap.Modal(document.getElementById('userModal'));
+        userModal.show();
+    }
+
+    function openBanModal(id) {
+        document.getElementById('banUserId').value = id;
+        var banModal = new bootstrap.Modal(document.getElementById('banModal'));
+        banModal.show();
+    }
+    
+    // Reset form when clicking Add user button
+    document.querySelector('button[data-bs-target="#userModal"]').addEventListener('click', function() {
+        if(this.getAttribute('title') !== 'Sửa') {
+            document.getElementById('userModalLabel').innerText = 'Thêm người dùng mới';
+            document.getElementById('userForm').reset();
+            document.getElementById('userFormAction').value = 'add';
+            document.getElementById('userIdInput').value = '';
+            document.getElementById('passwordInput').placeholder = 'Mật khẩu mặc định: 123456';
+        }
+    });
+</script>
 
 </body>
 </html>
