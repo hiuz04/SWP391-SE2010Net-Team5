@@ -282,6 +282,82 @@ public class UserDAO {
         return user;
     }
 
+    public java.util.List<User> getAllUsers() {
+        java.util.List<User> users = new java.util.ArrayList<>();
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(USER_SELECT + " ORDER BY u.created_at DESC");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                users.add(mapRow(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi truy vấn danh sách người dùng: " + e.getMessage(), e);
+        }
+        return users;
+    }
+
+    public Optional<User> getUserById(long userId) {
+        String sql = USER_SELECT + " WHERE u.user_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi truy vấn người dùng theo ID: " + e.getMessage(), e);
+        }
+        return Optional.empty();
+    }
+
+    public void updateUserStatus(long userId, String status) {
+        String sql = "UPDATE users SET status = ?, updated_at = GETDATE() WHERE user_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, status);
+            ps.setLong(2, userId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật trạng thái người dùng: " + e.getMessage(), e);
+        }
+    }
+
+    public void deleteUser(long userId) {
+        String sql = "DELETE FROM users WHERE user_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi xóa người dùng: " + e.getMessage(), e);
+        }
+    }
+
+    public void updateUserByAdmin(User user) {
+        String sql = """
+                UPDATE users
+                SET full_name = ?, phone = ?, email = ?, role_id = ?, status = ?,
+                    password_hash = COALESCE(NULLIF(?, ''), password_hash),
+                    updated_at = GETDATE()
+                WHERE user_id = ?
+                """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, user.getFullName());
+            ps.setString(2, user.getPhone());
+            ps.setString(3, user.getEmail());
+            ps.setInt(4, user.getRoleId());
+            ps.setString(5, user.getStatus());
+            ps.setString(6, user.getPasswordHash());
+            ps.setLong(7, user.getUserId());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật thông tin người dùng bởi admin: " + e.getMessage(), e);
+        }
+    }
+
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
         return timestamp != null ? timestamp.toLocalDateTime() : null;
     }
