@@ -52,6 +52,7 @@
                     <% } %>
 
                     <form id="registerForm" action="<%= ctx %>/register" method="post" novalidate>
+                        <input type="hidden" name="csrfToken" value="<%= session.getAttribute("csrfToken") != null ? session.getAttribute("csrfToken") : "" %>">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label" for="fullName">Họ tên <span class="text-danger">*</span></label>

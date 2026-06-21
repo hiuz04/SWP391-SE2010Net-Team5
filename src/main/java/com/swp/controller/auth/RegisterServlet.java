@@ -38,8 +38,7 @@ public class RegisterServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/");
             return;
         }
-        request.setAttribute("googleEnabled", GoogleConfig.isConfigured());
-        request.getRequestDispatcher("/register.jsp").forward(request, response);
+        forward(request, response);
     }
 
     /**
@@ -52,6 +51,14 @@ public class RegisterServlet extends HttpServlet {
             throws ServletException, IOException {
 
         request.setCharacterEncoding("UTF-8");
+
+        HttpSession currentSession = request.getSession(false);
+        String sessionCsrf = currentSession != null ? (String) currentSession.getAttribute("csrfToken") : null;
+        String requestCsrf = request.getParameter("csrfToken");
+        if (sessionCsrf == null || !sessionCsrf.equals(requestCsrf)) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid CSRF Token");
+            return;
+        }
 
         String fullName = trim(request.getParameter("fullName"));
         String phone = trim(request.getParameter("phone"));
@@ -121,6 +128,10 @@ public class RegisterServlet extends HttpServlet {
      */
     private void forward(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        HttpSession session = request.getSession(true);
+        if (session.getAttribute("csrfToken") == null) {
+            session.setAttribute("csrfToken", java.util.UUID.randomUUID().toString());
+        }
         request.setAttribute("googleEnabled", GoogleConfig.isConfigured());
         request.getRequestDispatcher("/register.jsp").forward(request, response);
     }

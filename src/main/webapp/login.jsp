@@ -52,6 +52,7 @@
                     <% } %>
 
                     <form action="<%= ctx %>/login" method="post">
+                        <input type="hidden" name="csrfToken" value="<%= session.getAttribute("csrfToken") != null ? session.getAttribute("csrfToken") : "" %>">
                         <div class="mb-3">
                             <label class="form-label" for="loginInput">Email / Số điện thoại</label>
                             <input id="loginInput" name="login" type="text" class="form-control form-control-lg"

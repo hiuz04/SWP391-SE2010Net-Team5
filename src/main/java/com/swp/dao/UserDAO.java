@@ -23,9 +23,7 @@ public class UserDAO {
             INNER JOIN roles r ON u.role_id = r.role_id
             """;
 
-    private static final String FIND_BY_LOGIN_AND_PASSWORD = USER_SELECT + """
-            WHERE (u.email = ? OR u.phone = ?) AND u.password_hash = ? AND u.status = 'ACTIVE'
-            """;
+
 
     private static final String FIND_BY_GOOGLE_ID = USER_SELECT + """
             WHERE u.google_id = ? AND u.status = 'ACTIVE'
@@ -282,6 +280,7 @@ public class UserDAO {
         return user;
     }
 
+    //lay danh sach user trong admindashboard
     public java.util.List<User> getAllUsers() {
         java.util.List<User> users = new java.util.ArrayList<>();
         try (Connection conn = DBContext.getConnection();
