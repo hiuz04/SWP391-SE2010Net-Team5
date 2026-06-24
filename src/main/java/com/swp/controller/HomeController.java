@@ -43,10 +43,10 @@ public class HomeController extends HttpServlet {
                 ? (String) session.getAttribute("navRole") : "guest";
         String displayName = sessionUser != null ? sessionUser.getFullName() : "";
 
-        // Lấy top 3 sân nổi bật theo lượt booking
+        // Lấy danh sách sân được đánh dấu là HOT
         List<TopFieldSummary> topFields;
         try {
-            topFields = fieldDAO.getTop3FieldsByBooking();
+            topFields = fieldDAO.getHotFields();
         } catch (Exception e) {
             e.printStackTrace();
             topFields = Collections.emptyList();

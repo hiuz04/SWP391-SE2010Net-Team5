@@ -57,7 +57,8 @@ public class FieldAPIServlet extends HttpServlet {
                     fT.getTypeName(),
                     fac.getFacilityName(),
                     f.getDescription(),
-                    f.getStatus()
+                    f.getStatus(),
+                    f.isHot()
             ));
         }
 
