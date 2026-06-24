@@ -14,6 +14,7 @@ public class TopFieldSummary {
     private String description;
     private String status;
     private String fieldTypeName;
+    private boolean isHot;
 
     private long facilityId;
     private String facilityName;
@@ -27,13 +28,14 @@ public class TopFieldSummary {
     }
 
     public TopFieldSummary(long fieldId, String fieldName, String description, String status,
-                           String fieldTypeName, long facilityId, String facilityName,
+                           String fieldTypeName, boolean isHot, long facilityId, String facilityName,
                            String address, String district, String city, int bookingCount) {
         this.fieldId = fieldId;
         this.fieldName = fieldName;
         this.description = description;
         this.status = status;
         this.fieldTypeName = fieldTypeName;
+        this.isHot = isHot;
         this.facilityId = facilityId;
         this.facilityName = facilityName;
         this.address = address;
@@ -56,6 +58,9 @@ public class TopFieldSummary {
 
     public String getFieldTypeName() { return fieldTypeName; }
     public void setFieldTypeName(String fieldTypeName) { this.fieldTypeName = fieldTypeName; }
+
+    public boolean isHot() { return isHot; }
+    public void setHot(boolean isHot) { this.isHot = isHot; }
 
     public long getFacilityId() { return facilityId; }
     public void setFacilityId(long facilityId) { this.facilityId = facilityId; }

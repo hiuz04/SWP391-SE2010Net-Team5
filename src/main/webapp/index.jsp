@@ -133,7 +133,7 @@
             <div class="d-flex justify-content-between align-items-end mb-4">
                 <div>
                     <h2 class="section-title">Sân bóng nổi bật</h2>
-                    <p class="text-muted mb-0">Top 3 sân được đặt nhiều nhất.</p>
+                    <p class="text-muted mb-0">Danh sách các sân nổi bật do chủ sân đề xuất.</p>
                 </div>
             </div>
             <div class="row g-4">
