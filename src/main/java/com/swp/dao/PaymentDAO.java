@@ -30,6 +30,9 @@ public class PaymentDAO {
         String sql = """
                 SELECT b.booking_id,
                        b.booking_code,
+                       b.recurring_group_id,
+                       COALESCE(rg.repeat_type, 'NONE') AS repeat_type,
+                       grp.recurring_count,
                        b.customer_id,
                        b.facility_id,
                        fa.facility_name,
@@ -38,18 +41,31 @@ public class PaymentDAO {
                        ft.type_name AS field_type_name,
                        b.start_time,
                        b.end_time,
-                       b.total_amount,
-                       b.deposit_amount,
+                       grp.total_amount,
+                       grp.deposit_amount,
                        b.status,
-                       b.hold_expires_at,
+                       grp.hold_expires_at,
                        lp.payment_status,
                        lp.payment_method_name,
                        lp.paid_amount,
                        lp.paid_at
                 FROM bookings b
+                LEFT JOIN booking_recurring_groups rg ON b.recurring_group_id = rg.recurring_group_id
                 INNER JOIN facilities fa ON b.facility_id = fa.facility_id
                 INNER JOIN fields f ON b.field_id = f.field_id
                 INNER JOIN field_types ft ON f.field_type_id = ft.field_type_id
+                OUTER APPLY (
+                    SELECT COUNT(*) AS recurring_count,
+                           SUM(sb.total_amount) AS total_amount,
+                           SUM(sb.deposit_amount) AS deposit_amount,
+                           MIN(sb.hold_expires_at) AS hold_expires_at
+                    FROM bookings sb
+                    WHERE sb.customer_id = b.customer_id
+                      AND (
+                          (b.recurring_group_id IS NOT NULL AND sb.recurring_group_id = b.recurring_group_id)
+                          OR (b.recurring_group_id IS NULL AND sb.booking_id = b.booking_id)
+                      )
+                ) grp
                 OUTER APPLY (
                     SELECT TOP 1
                            p.status AS payment_status,
@@ -58,17 +74,48 @@ public class PaymentDAO {
                            p.paid_at
                     FROM payments p
                     LEFT JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
-                    WHERE p.booking_id = b.booking_id
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM bookings paid_booking
+                        WHERE paid_booking.booking_id = p.booking_id
+                          AND paid_booking.customer_id = b.customer_id
+                          AND (
+                              (b.recurring_group_id IS NOT NULL AND paid_booking.recurring_group_id = b.recurring_group_id)
+                              OR (b.recurring_group_id IS NULL AND paid_booking.booking_id = b.booking_id)
+                          )
+                    )
                     ORDER BY p.created_at DESC, p.payment_id DESC
                 ) lp
                 WHERE b.booking_id = ?
                   AND b.customer_id = ?
                   AND b.status = 'HOLD'
-                  AND b.hold_expires_at > GETDATE()
+                  AND grp.hold_expires_at > GETDATE()
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM bookings invalid_booking
+                      WHERE invalid_booking.customer_id = b.customer_id
+                        AND (
+                            (b.recurring_group_id IS NOT NULL AND invalid_booking.recurring_group_id = b.recurring_group_id)
+                            OR (b.recurring_group_id IS NULL AND invalid_booking.booking_id = b.booking_id)
+                        )
+                        AND (
+                            invalid_booking.status <> 'HOLD'
+                            OR invalid_booking.hold_expires_at <= GETDATE()
+                        )
+                  )
                   AND NOT EXISTS (
                       SELECT 1
                       FROM payments paid
-                      WHERE paid.booking_id = b.booking_id
+                      WHERE EXISTS (
+                          SELECT 1
+                          FROM bookings paid_booking
+                          WHERE paid_booking.booking_id = paid.booking_id
+                            AND paid_booking.customer_id = b.customer_id
+                            AND (
+                                (b.recurring_group_id IS NOT NULL AND paid_booking.recurring_group_id = b.recurring_group_id)
+                                OR (b.recurring_group_id IS NULL AND paid_booking.booking_id = b.booking_id)
+                            )
+                      )
                         AND paid.status = 'SUCCESS'
                   )
                 """;
@@ -112,14 +159,45 @@ public class PaymentDAO {
     public Payment createPendingDepositPayment(long bookingId, long customerId, int paymentMethodId)
             throws SQLException {
         String selectBooking = """
-                SELECT b.deposit_amount,
+                SELECT grp.deposit_amount,
                        b.status,
-                       CASE WHEN b.hold_expires_at > GETDATE() THEN 1 ELSE 0 END AS hold_valid,
-                       CASE WHEN EXISTS (
-                           SELECT 1 FROM payments p
-                           WHERE p.booking_id = b.booking_id AND p.status = 'SUCCESS'
-                       ) THEN 1 ELSE 0 END AS has_success
+                       CASE
+                           WHEN grp.invalid_booking_count = 0
+                                AND grp.hold_expired_count = 0
+                           THEN 1
+                           ELSE 0
+                       END AS hold_valid,
+                       CASE
+                           WHEN EXISTS (
+                               SELECT 1
+                               FROM payments p
+                               WHERE p.status = 'SUCCESS'
+                                 AND EXISTS (
+                                     SELECT 1
+                                     FROM bookings paid_booking
+                                     WHERE paid_booking.booking_id = p.booking_id
+                                       AND paid_booking.customer_id = b.customer_id
+                                       AND (
+                                           (b.recurring_group_id IS NOT NULL AND paid_booking.recurring_group_id = b.recurring_group_id)
+                                           OR (b.recurring_group_id IS NULL AND paid_booking.booking_id = b.booking_id)
+                                       )
+                                 )
+                           )
+                           THEN 1
+                           ELSE 0
+                       END AS has_success
                 FROM bookings b WITH (UPDLOCK, HOLDLOCK)
+                OUTER APPLY (
+                    SELECT SUM(sb.deposit_amount) AS deposit_amount,
+                           SUM(CASE WHEN sb.status <> 'HOLD' THEN 1 ELSE 0 END) AS invalid_booking_count,
+                           SUM(CASE WHEN sb.hold_expires_at > GETDATE() THEN 0 ELSE 1 END) AS hold_expired_count
+                    FROM bookings sb WITH (UPDLOCK, HOLDLOCK)
+                    WHERE sb.customer_id = b.customer_id
+                      AND (
+                          (b.recurring_group_id IS NOT NULL AND sb.recurring_group_id = b.recurring_group_id)
+                          OR (b.recurring_group_id IS NULL AND sb.booking_id = b.booking_id)
+                      )
+                ) grp
                 WHERE b.booking_id = ?
                   AND b.customer_id = ?
                 """;
@@ -228,9 +306,27 @@ public class PaymentDAO {
                        p.customer_id,
                        p.status AS payment_status,
                        b.status AS booking_status,
-                       CASE WHEN b.hold_expires_at > GETDATE() THEN 1 ELSE 0 END AS hold_valid
+                       b.recurring_group_id,
+                       scope.booking_count,
+                       CASE
+                           WHEN scope.invalid_booking_count = 0
+                                AND scope.hold_expired_count = 0
+                           THEN 1
+                           ELSE 0
+                       END AS hold_valid
                 FROM payments p WITH (UPDLOCK, HOLDLOCK)
                 INNER JOIN bookings b WITH (UPDLOCK, HOLDLOCK) ON p.booking_id = b.booking_id
+                OUTER APPLY (
+                    SELECT COUNT(*) AS booking_count,
+                           SUM(CASE WHEN sb.status <> 'HOLD' THEN 1 ELSE 0 END) AS invalid_booking_count,
+                           SUM(CASE WHEN sb.hold_expires_at > GETDATE() THEN 0 ELSE 1 END) AS hold_expired_count
+                    FROM bookings sb WITH (UPDLOCK, HOLDLOCK)
+                    WHERE sb.customer_id = b.customer_id
+                      AND (
+                          (b.recurring_group_id IS NOT NULL AND sb.recurring_group_id = b.recurring_group_id)
+                          OR (b.recurring_group_id IS NULL AND sb.booking_id = b.booking_id)
+                      )
+                ) scope
                 WHERE p.transaction_ref = ?
                 """;
         String updateBooking = """
@@ -274,10 +370,18 @@ public class PaymentDAO {
                     return false;
                 }
 
-                try (PreparedStatement ps = conn.prepareStatement(updateBooking)) {
-                    ps.setLong(1, payment.bookingId());
-                    if (ps.executeUpdate() != 1) {
-                        throw new SQLException("Booking khong con hop le de xac nhan thanh toan.");
+                List<Long> bookingIds = getScopedBookingIds(conn, payment);
+                if (bookingIds.isEmpty() || bookingIds.size() != payment.bookingCount()) {
+                    conn.commit();
+                    return false;
+                }
+
+                for (Long bookingId : bookingIds) {
+                    try (PreparedStatement ps = conn.prepareStatement(updateBooking)) {
+                        ps.setLong(1, bookingId);
+                        if (ps.executeUpdate() != 1) {
+                            throw new SQLException("Booking khong con hop le de xac nhan thanh toan.");
+                        }
                     }
                 }
                 try (PreparedStatement ps = conn.prepareStatement(updatePayment)) {
@@ -287,11 +391,13 @@ public class PaymentDAO {
                         throw new SQLException("Khong cap nhat duoc trang thai thanh toan.");
                     }
                 }
-                try (PreparedStatement ps = conn.prepareStatement(insertStatusLog)) {
-                    ps.setLong(1, payment.bookingId());
-                    ps.setLong(2, payment.customerId());
-                    ps.setString(3, "Deposit payment completed: " + transactionRef);
-                    ps.executeUpdate();
+                for (Long bookingId : bookingIds) {
+                    try (PreparedStatement ps = conn.prepareStatement(insertStatusLog)) {
+                        ps.setLong(1, bookingId);
+                        ps.setLong(2, payment.customerId());
+                        ps.setString(3, "Payment completed: " + transactionRef);
+                        ps.executeUpdate();
+                    }
                 }
                 insertCallback(conn, payment.paymentId(), rawPayload, signature, true);
 
@@ -312,6 +418,8 @@ public class PaymentDAO {
                        p.customer_id,
                        p.status AS payment_status,
                        b.status AS booking_status,
+                       b.recurring_group_id,
+                       1 AS booking_count,
                        CASE WHEN b.hold_expires_at > GETDATE() THEN 1 ELSE 0 END AS hold_valid
                 FROM payments p WITH (UPDLOCK, HOLDLOCK)
                 INNER JOIN bookings b ON p.booking_id = b.booking_id
@@ -426,6 +534,9 @@ public class PaymentDAO {
         BookingView view = new BookingView();
         view.setBookingId(rs.getLong("booking_id"));
         view.setBookingCode(rs.getString("booking_code"));
+        view.setRecurringGroupId(getLongOrNull(rs, "recurring_group_id"));
+        view.setRepeatType(rs.getString("repeat_type"));
+        view.setRecurringCount(rs.getInt("recurring_count"));
         view.setCustomerId(rs.getLong("customer_id"));
         view.setFacilityId(rs.getLong("facility_id"));
         view.setFacilityName(rs.getString("facility_name"));
@@ -496,12 +607,52 @@ public class PaymentDAO {
                         rs.getLong("payment_id"),
                         rs.getLong("booking_id"),
                         rs.getLong("customer_id"),
+                        getLongOrNull(rs, "recurring_group_id"),
+                        rs.getInt("booking_count"),
                         rs.getString("payment_status"),
                         rs.getString("booking_status"),
                         rs.getInt("hold_valid") == 1
                 );
             }
         }
+    }
+
+    private List<Long> getScopedBookingIds(Connection conn, PaymentLock payment) throws SQLException {
+        String sql;
+        if (payment.recurringGroupId() == null) {
+            sql = """
+                    SELECT booking_id
+                    FROM bookings WITH (UPDLOCK, HOLDLOCK)
+                    WHERE booking_id = ?
+                      AND customer_id = ?
+                    ORDER BY start_time, booking_id
+                    """;
+        } else {
+            sql = """
+                    SELECT booking_id
+                    FROM bookings WITH (UPDLOCK, HOLDLOCK)
+                    WHERE recurring_group_id = ?
+                      AND customer_id = ?
+                    ORDER BY start_time, booking_id
+                    """;
+        }
+
+        List<Long> bookingIds = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (payment.recurringGroupId() == null) {
+                ps.setLong(1, payment.bookingId());
+            } else {
+                ps.setLong(1, payment.recurringGroupId());
+            }
+            ps.setLong(2, payment.customerId());
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    bookingIds.add(rs.getLong("booking_id"));
+                }
+            }
+        }
+        return bookingIds;
     }
 
     private void insertCallback(
@@ -545,10 +696,17 @@ public class PaymentDAO {
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 
+    private Long getLongOrNull(ResultSet rs, String column) throws SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
+    }
+
     private record PaymentLock(
             long paymentId,
             long bookingId,
             long customerId,
+            Long recurringGroupId,
+            int bookingCount,
             String paymentStatus,
             String bookingStatus,
             boolean holdValid

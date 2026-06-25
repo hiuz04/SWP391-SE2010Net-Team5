@@ -28,6 +28,40 @@
         if (value == null) return "";
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
+
+    private String timeOnly(LocalDateTime value) {
+        if (value == null) return "";
+        return value.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private String dayOfWeek(LocalDateTime value) {
+        if (value == null) return "";
+        switch (value.getDayOfWeek().getValue()) {
+            case 1:
+                return "Th&#7913; 2";
+            case 2:
+                return "Th&#7913; 3";
+            case 3:
+                return "Th&#7913; 4";
+            case 4:
+                return "Th&#7913; 5";
+            case 5:
+                return "Th&#7913; 6";
+            case 6:
+                return "Th&#7913; 7";
+            default:
+                return "Ch&#7911; nh&#7853;t";
+        }
+    }
+
+    private String bookingTimeLabel(BookingView booking) {
+        if (booking == null) return "";
+        if ("MONTHLY".equals(booking.getRepeatType())) {
+            return dayOfWeek(booking.getStartTime()) + ", "
+                    + timeOnly(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime());
+        }
+        return dateTime(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime());
+    }
 %>
 
 <%
@@ -47,6 +81,7 @@
     boolean holdValid = "HOLD".equals(booking.getStatus())
             && booking.getHoldExpiresAt() != null
             && booking.getHoldExpiresAt().isAfter(LocalDateTime.now());
+    boolean monthly = "MONTHLY".equals(booking.getRepeatType());
 %>
 
 <!DOCTYPE html>
@@ -96,7 +131,16 @@
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">Th&#7901;i gian</div>
-                            <div class="fw-semibold"><%= dateTime(booking.getStartTime()) %> - <%= dateTime(booking.getEndTime()) %></div>
+                            <div class="fw-semibold"><%= bookingTimeLabel(booking) %></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-muted small">Lo&#7841;i booking</div>
+                            <div class="fw-semibold">
+                                <%= monthly ? "Thu&#234; theo th&#225;ng" : "Thu&#234; &#273;&#417;n l&#7867;" %>
+                                <% if (monthly && booking.getRecurringCount() != null) { %>
+                                <span class="text-muted">(<%= booking.getRecurringCount() %> bu&#7893;i)</span>
+                                <% } %>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">Gi&#7919; ch&#7895; &#273;&#7871;n</div>
@@ -151,7 +195,7 @@
                     </div>
                     <hr>
                     <div class="d-flex justify-content-between fs-5">
-                        <span>Ti&#7873;n c&#7885;c</span>
+                        <span><%= monthly ? "Thanh to&#225;n to&#224;n b&#7897;" : "Ti&#7873;n c&#7885;c" %></span>
                         <strong class="text-success"><%= money(booking.getDepositAmount()) %></strong>
                     </div>
                     <p class="text-muted small mt-3 mb-0">S&#7889; ti&#7873;n &#273;&#432;&#7907;c l&#7845;y tr&#7921;c ti&#7871;p t&#7915; booking trong c&#417; s&#7903; d&#7919; li&#7879;u.</p>
