@@ -29,6 +29,8 @@ import java.util.List;
 public class BookingDAO {
 
     private static final String STATUS_CANCELLED = "CANCELLED";
+    private static final String HOLD_EXPIRED_CANCEL_REASON =
+            "Th\u1eddi gian gi\u1eef ch\u1ed7 \u0111\u00e3 h\u1ebft h\u1ea1n.";
     private static final int DEFAULT_CANCEL_BEFORE_HOURS = 24;
 
     public Long getFacilityIdByFieldId(Long fieldId) throws SQLException {
@@ -123,6 +125,8 @@ public class BookingDAO {
     }
 
     public List<Booking> getBookingsByFacilityAndDate(Long facilityId, LocalDate date) throws SQLException {
+        cancelExpiredHolds();
+
         String sql = """
                 SELECT booking_id,
                        booking_code,
@@ -525,6 +529,8 @@ public class BookingDAO {
     }
 
     public BookingView getBookingDetailByIdAndCustomerId(Long bookingId, Long customerId) throws SQLException {
+        cancelExpiredHolds(customerId);
+
         String sql = baseBookingViewSql() + """
                 WHERE b.booking_id = ?
                   AND b.customer_id = ?
@@ -834,6 +840,8 @@ public class BookingDAO {
     }
 
     public List<BookingView> getBookingHistoryByCustomerId(Long customerId) throws SQLException {
+        cancelExpiredHolds(customerId);
+
         String sql = baseBookingViewSql() + """
                 WHERE b.customer_id = ?
                 ORDER BY b.start_time DESC
@@ -857,6 +865,8 @@ public class BookingDAO {
     }
 
     public int getBookingCountByCustomerId(Long customerId) throws SQLException {
+        cancelExpiredHolds(customerId);
+
         String sql = """
                 SELECT COUNT(*)
                 FROM bookings
@@ -881,6 +891,7 @@ public class BookingDAO {
 
     private boolean isFieldAvailable(Connection conn, Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
             throws SQLException {
+        cancelExpiredHolds(conn, null);
 
         String sql = """
                 SELECT
@@ -956,9 +967,15 @@ public class BookingDAO {
                        b.updated_at,
                        b.cancellation_reason,
                        b.cancelled_at,
-                       lp.payment_status,
+                       CASE
+                           WHEN b.status = 'HOLD'
+                                AND b.hold_expires_at > GETDATE()
+                                AND (lp.payment_status IS NULL OR lp.payment_status = 'FAILED')
+                           THEN 'PENDING'
+                           ELSE lp.payment_status
+                       END AS payment_status,
                        lp.payment_method_name,
-                       lp.paid_amount,
+                       CASE WHEN lp.payment_status = 'SUCCESS' THEN lp.paid_amount ELSE NULL END AS paid_amount,
                        lp.paid_at
                 FROM bookings b
                 INNER JOIN users u ON b.customer_id = u.user_id
@@ -981,6 +998,88 @@ public class BookingDAO {
                         p.payment_id DESC
                 ) lp
                 """;
+    }
+
+    private int cancelExpiredHolds() throws SQLException {
+        return cancelExpiredHolds(null);
+    }
+
+    private int cancelExpiredHolds(Long customerId) throws SQLException {
+        Connection conn = null;
+        boolean originalAutoCommit = true;
+
+        try {
+            conn = DBContext.getConnection();
+            originalAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+
+            int updatedRows = cancelExpiredHolds(conn, customerId);
+            conn.commit();
+            return updatedRows;
+        } catch (SQLException e) {
+            if (conn != null) {
+                conn.rollback();
+            }
+            throw e;
+        } finally {
+            if (conn != null) {
+                conn.setAutoCommit(originalAutoCommit);
+                conn.close();
+            }
+        }
+    }
+
+    private int cancelExpiredHolds(Connection conn, Long customerId) throws SQLException {
+        String customerFilter = customerId == null ? "" : "                  AND b.customer_id = ?\n";
+        String sql = """
+                DECLARE @ExpiredBookings TABLE (
+                    booking_id BIGINT NOT NULL
+                );
+
+                UPDATE b
+                SET b.status = 'CANCELLED',
+                    b.cancellation_reason = ?,
+                    b.cancelled_at = GETDATE(),
+                    b.hold_expires_at = NULL,
+                    b.updated_at = GETDATE()
+                OUTPUT INSERTED.booking_id INTO @ExpiredBookings (booking_id)
+                FROM bookings b
+                WHERE b.status = 'HOLD'
+                  AND b.hold_expires_at IS NOT NULL
+                  AND b.hold_expires_at <= GETDATE()
+                """ + customerFilter + """
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM payments p
+                      WHERE p.booking_id = b.booking_id
+                        AND p.status = 'SUCCESS'
+                  )
+
+                INSERT INTO booking_status_logs (
+                    booking_id,
+                    old_status,
+                    new_status,
+                    changed_by,
+                    note,
+                    created_at
+                )
+                SELECT booking_id,
+                       'HOLD',
+                       'CANCELLED',
+                       CAST(NULL AS BIGINT),
+                       ?,
+                       GETDATE()
+                FROM @ExpiredBookings
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, HOLD_EXPIRED_CANCEL_REASON);
+            if (customerId != null) {
+                ps.setLong(2, customerId);
+            }
+            ps.setString(customerId == null ? 2 : 3, HOLD_EXPIRED_CANCEL_REASON);
+            return ps.executeUpdate();
+        }
     }
 
     private Booking mapBooking(ResultSet rs) throws SQLException {
