@@ -109,12 +109,17 @@
 
 <main class="py-5">
     <div class="container">
-        <div class="d-flex justify-content-between align-items-end mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
             <div>
                 <h1 class="section-title">L&#7883;ch s&#7917; &#273;&#7863;t s&#226;n</h1>
                 <p class="text-muted mb-0">Theo d&#245;i c&#225;c booking &#273;&#227;, &#273;ang v&#224; s&#7855;p di&#7877;n ra.</p>
             </div>
-            <a class="btn btn-sf-primary" href="<%= ctx %>/search">&#272;&#7863;t s&#226;n m&#7899;i</a>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-outline-success" href="<%= ctx %>/payment?action=history">
+                    <i class="bi bi-receipt me-1"></i>L&#7883;ch s&#7917; giao d&#7883;ch
+                </a>
+                <a class="btn btn-sf-primary" href="<%= ctx %>/search">&#272;&#7863;t s&#226;n m&#7899;i</a>
+            </div>
         </div>
 
         <% if (bookings.isEmpty()) { %>

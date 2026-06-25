@@ -9,7 +9,7 @@
 (function () {
   const pages = {
     customer: [
-      ['Trang chủ','index'], ['Tìm sân','search'], ['Tìm đối','#'], ['Lịch sử đặt sân','booking?action=history'], ['Lịch sử giao dịch','payment?action=history'], ['Hồ sơ','profile']
+      ['Trang chủ','index'], ['Tìm sân','search'], ['Tìm đối','#'], ['Lịch sử đặt sân','booking?action=history'], ['Hồ sơ','profile']
     ],
     staff: [
       ['Dashboard','staff/dashboard'], ['Lịch trong ngày','staff/schedule'], ['Check-in','staff/checkin'], ['Checkout','staff/checkout']
