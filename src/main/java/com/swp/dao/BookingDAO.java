@@ -6,6 +6,7 @@ import com.swp.model.FieldMaintenanceSchedule;
 import com.swp.model.dto.BookingView;
 import com.swp.util.DBContext;
 
+import java.awt.print.Book;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Connection;
@@ -877,6 +878,48 @@ public class BookingDAO {
         }
 
         return 0;
+    }
+
+    public int getBookingCountWithFacilityId(long id) {
+        String sql = """
+                    SELECT COUNT(*) AS total
+                    FROM bookings
+                    WHERE facility_id = ?
+                    """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total");
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e
+            );
+        }
+    }
+
+    public int getBookingCountWithFieldId(long id) {
+        String sql = """
+                    SELECT COUNT(*) AS total
+                    FROM bookings
+                    WHERE field_id = ?
+                    """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total");
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e
+            );
+        }
     }
 
     private boolean isFieldAvailable(Connection conn, Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
