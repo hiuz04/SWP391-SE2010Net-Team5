@@ -18,7 +18,7 @@
       ['Dashboard','owner'], ['Cơ sở','owner/facility'], ['Sân bóng','owner/field'], ['Bảng giá','']
     ],
     admin: [
-      ['Dashboard','admin/dashboard'], ['Người dùng','admin/users'], ['Duyệt chủ sân','admin/owner-approval'], ['Cài đặt','admin/settings']
+      ['Dashboard','admin/dashboard'], ['Người dùng','admin/users'], ['Cài đặt','admin/settings']
     ]
   };
 
@@ -40,7 +40,7 @@
     console.log(">>> roleLinks: ", roleLinks);
     const auth = role === 'guest'
       ? `<a class="btn btn-outline-success" href="${link(root, 'login')}">Đăng nhập</a><a class="btn btn-sf-primary" href="${link(root, 'register')}">Đăng ký</a>`
-      : `<a class="btn btn-light position-relative" href="${link(root, '#')}" title="Thông báo"><i class="bi bi-bell"></i><span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span></a>
+      : `<a class="btn btn-light position-relative" href="${link(root, 'notifications')}" title="Thông báo"><i class="bi bi-bell"></i><span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none; font-size: 0.6rem;">0</span></a>
          <div class="dropdown">
             <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-person-circle me-1"></i>${name}</button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
@@ -104,9 +104,37 @@
     });
   }
 
+  window.updateNotificationCount = function() {
+    const target = document.getElementById('navbar');
+    if (!target) return;
+    const root = target.dataset.root || '';
+    const role = target.dataset.role || 'guest';
+    
+    if (role === 'guest') return;
+
+    fetch(link(root, 'api/notifications/unread-count'))
+      .then(res => {
+          if (!res.ok) throw new Error('Not logged in');
+          return res.json();
+      })
+      .then(data => {
+        const badge = document.getElementById('notifBadge');
+        if (badge) {
+          if (data.count > 0) {
+            badge.textContent = data.count > 99 ? '99+' : data.count;
+            badge.style.display = 'inline-block';
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+      })
+      .catch(e => console.log('Could not fetch notification count', e));
+  };
+
   document.addEventListener('DOMContentLoaded', function () {
     renderNavbar();
     renderFooter();
     initDemoActions();
+    updateNotificationCount();
   });
 })();

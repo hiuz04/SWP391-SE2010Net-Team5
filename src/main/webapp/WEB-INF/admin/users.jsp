@@ -368,9 +368,18 @@
         document.getElementById('fullNameInput').value = name;
         document.getElementById('phoneInput').value = phone;
         document.getElementById('emailInput').value = email;
-        document.getElementById('roleNameSelect').value = role;
+        // Ensure case-insensitive match for roleNameSelect
+        var selectOptions = document.getElementById('roleNameSelect').options;
+        for (var i = 0; i < selectOptions.length; i++) {
+            if (selectOptions[i].value.toLowerCase() === role.toLowerCase()) {
+                document.getElementById('roleNameSelect').selectedIndex = i;
+                break;
+            }
+        }
         document.getElementById('statusSelect').value = status;
         document.getElementById('passwordInput').placeholder = 'Để trống nếu không muốn đổi';
+        
+        clearValidationErrors();
         
         var userModal = new bootstrap.Modal(document.getElementById('userModal'));
         userModal.show();
@@ -390,6 +399,97 @@
             document.getElementById('userFormAction').value = 'add';
             document.getElementById('userIdInput').value = '';
             document.getElementById('passwordInput').placeholder = 'Mật khẩu mặc định: 123456';
+            clearValidationErrors();
+        }
+    });
+
+    // Real-time validation
+    const fullNameInput = document.getElementById('fullNameInput');
+    const phoneInput = document.getElementById('phoneInput');
+    const emailInput = document.getElementById('emailInput');
+    const passwordInput = document.getElementById('passwordInput');
+
+    function createErrorMsg(inputElement, msg) {
+        let err = inputElement.nextElementSibling;
+        if (!err || !err.classList.contains('text-danger-msg')) {
+            err = document.createElement('div');
+            err.className = 'text-danger-msg text-danger small mt-1';
+            inputElement.parentNode.insertBefore(err, inputElement.nextSibling);
+        }
+        err.innerText = msg;
+        inputElement.classList.add('is-invalid');
+    }
+
+    function removeErrorMsg(inputElement) {
+        let err = inputElement.nextElementSibling;
+        if (err && err.classList.contains('text-danger-msg')) {
+            err.remove();
+        }
+        inputElement.classList.remove('is-invalid');
+    }
+
+    function clearValidationErrors() {
+        [fullNameInput, phoneInput, emailInput, passwordInput].forEach(removeErrorMsg);
+    }
+
+    function validateName() {
+        if (!fullNameInput.value.trim()) {
+            createErrorMsg(fullNameInput, 'Họ tên không được để trống');
+            return false;
+        } else {
+            removeErrorMsg(fullNameInput);
+            return true;
+        }
+    }
+
+    function validatePhone() {
+        const phoneRegex = /^[0-9]{10}$/;
+        if (!phoneRegex.test(phoneInput.value.trim())) {
+            createErrorMsg(phoneInput, 'Số điện thoại phải có 10 chữ số');
+            return false;
+        } else {
+            removeErrorMsg(phoneInput);
+            return true;
+        }
+    }
+
+    function validateEmail() {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailInput.value.trim())) {
+            createErrorMsg(emailInput, 'Email không hợp lệ');
+            return false;
+        } else {
+            removeErrorMsg(emailInput);
+            return true;
+        }
+    }
+
+    function validatePassword() {
+        const action = document.getElementById('userFormAction').value;
+        if (action === 'add' && passwordInput.value && passwordInput.value.length < 6) {
+            createErrorMsg(passwordInput, 'Mật khẩu phải có ít nhất 6 ký tự');
+            return false;
+        } else if (action === 'edit' && passwordInput.value && passwordInput.value.length < 6) {
+            createErrorMsg(passwordInput, 'Mật khẩu phải có ít nhất 6 ký tự');
+            return false;
+        } else {
+            removeErrorMsg(passwordInput);
+            return true;
+        }
+    }
+
+    fullNameInput.addEventListener('input', validateName);
+    phoneInput.addEventListener('input', validatePhone);
+    emailInput.addEventListener('input', validateEmail);
+    passwordInput.addEventListener('input', validatePassword);
+
+    document.getElementById('userForm').addEventListener('submit', function(e) {
+        const isNameValid = validateName();
+        const isPhoneValid = validatePhone();
+        const isEmailValid = validateEmail();
+        const isPasswordValid = validatePassword();
+        if (!isNameValid || !isPhoneValid || !isEmailValid || !isPasswordValid) {
+            e.preventDefault();
         }
     });
 </script>

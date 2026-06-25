@@ -185,14 +185,16 @@ public class FieldDAO {
             "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
             "  fac.facility_name, fac.address, fac.district, fac.city, " +
             "  COALESCE(ft.type_name, '') AS field_type_name, " +
-            "  COUNT(b.booking_id) AS booking_count " +
+            "  COUNT(b.booking_id) AS booking_count, " +
+            "  fi.image_url " +
             "FROM fields f " +
             "LEFT JOIN bookings b ON b.field_id = f.field_id " +
             "LEFT JOIN facilities fac ON fac.facility_id = f.facility_id " +
             "LEFT JOIN field_types ft ON ft.field_type_id = f.field_type_id " +
+            "OUTER APPLY (SELECT TOP 1 image_url FROM facility_images fi2 WHERE fi2.facility_id = f.facility_id ORDER BY thumbnail DESC, image_id DESC) fi " +
             "WHERE f.status <> 'MAINTENANCE' AND f.is_hot = 1 " +
             "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
-            "         fac.facility_name, fac.address, fac.district, fac.city, ft.type_name " +
+            "         fac.facility_name, fac.address, fac.district, fac.city, ft.type_name, fi.image_url " +
             "ORDER BY booking_count DESC";
 
         try (Connection conn = DBContext.getConnection();
@@ -212,7 +214,8 @@ public class FieldDAO {
                     rs.getString("address"),
                     rs.getString("district"),
                     rs.getString("city"),
-                    rs.getInt("booking_count")
+                    rs.getInt("booking_count"),
+                    rs.getString("image_url")
                 ));
             }
         } catch (SQLException e) {
@@ -233,14 +236,16 @@ public class FieldDAO {
             "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
             "  fac.facility_name, fac.address, fac.district, fac.city, " +
             "  COALESCE(ft.type_name, '') AS field_type_name, " +
-            "  COUNT(b.booking_id) AS booking_count " +
+            "  COUNT(b.booking_id) AS booking_count, " +
+            "  fi.image_url " +
             "FROM fields f " +
             "LEFT JOIN bookings b ON b.field_id = f.field_id " +
             "LEFT JOIN facilities fac ON fac.facility_id = f.facility_id " +
             "LEFT JOIN field_types ft ON ft.field_type_id = f.field_type_id " +
+            "OUTER APPLY (SELECT TOP 1 image_url FROM facility_images fi2 WHERE fi2.facility_id = f.facility_id ORDER BY thumbnail DESC, image_id DESC) fi " +
             "WHERE f.status <> 'MAINTENANCE' AND fac.city = ? " +
             "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
-            "         fac.facility_name, fac.address, fac.district, fac.city, ft.type_name " +
+            "         fac.facility_name, fac.address, fac.district, fac.city, ft.type_name, fi.image_url " +
             "ORDER BY booking_count DESC";
 
         try (Connection conn = DBContext.getConnection();
@@ -260,7 +265,8 @@ public class FieldDAO {
                         rs.getString("address"),
                         rs.getString("district"),
                         rs.getString("city"),
-                        rs.getInt("booking_count")
+                        rs.getInt("booking_count"),
+                        rs.getString("image_url")
                     ));
                 }
             }

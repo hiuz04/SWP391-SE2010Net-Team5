@@ -23,13 +23,14 @@ public class TopFieldSummary {
     private String city;
 
     private int bookingCount;
+    private String imageUrl;
 
     public TopFieldSummary() {
     }
 
     public TopFieldSummary(long fieldId, String fieldName, String description, String status,
                            String fieldTypeName, boolean isHot, long facilityId, String facilityName,
-                           String address, String district, String city, int bookingCount) {
+                           String address, String district, String city, int bookingCount, String imageUrl) {
         this.fieldId = fieldId;
         this.fieldName = fieldName;
         this.description = description;
@@ -42,6 +43,7 @@ public class TopFieldSummary {
         this.district = district;
         this.city = city;
         this.bookingCount = bookingCount;
+        this.imageUrl = imageUrl;
     }
 
     public long getFieldId() { return fieldId; }
@@ -79,6 +81,9 @@ public class TopFieldSummary {
 
     public int getBookingCount() { return bookingCount; }
     public void setBookingCount(int bookingCount) { this.bookingCount = bookingCount; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
     /** Trả về địa chỉ đầy đủ gồm district + city */
     public String getFullLocation() {

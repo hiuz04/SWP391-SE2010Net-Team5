@@ -183,16 +183,7 @@
                             <a href="<%= ctx %>/admin/bookings" class="btn btn-warning text-dark w-100">Xử lý ngay</a>
                         </div>
                     </div>
-                    <div class="card soft-card border-0 shadow-sm">
-                        <div class="card-body text-center p-4">
-                            <div class="display-1 text-success mb-2">
-                                <i class="bi bi-person-plus"></i>
-                            </div>
-                            <h5 class="fw-bold">Tài khoản cần xác minh</h5>
-                            <p class="text-muted mb-3">Có <strong><%= pendingUsers %></strong> người dùng chờ duyệt.</p>
-                            <a href="<%= ctx %>/admin/users" class="btn btn-outline-success w-100">Quản lý người dùng</a>
-                        </div>
-                    </div>
+
                 </div>
             </div>
         </div>

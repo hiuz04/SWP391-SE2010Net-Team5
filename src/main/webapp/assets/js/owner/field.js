@@ -65,7 +65,7 @@ function loadData(){
                             </button>
                         </td>
                         <td class="text-center">
-                            <button class="btn btn-sm ${item.hot ? 'text-warning' : 'text-secondary'}" onclick="toggleHotStatus(${item.fieldId}, ${item.hot})">
+                            <button class="btn btn-sm ${item.isHot ? 'text-warning' : 'text-secondary'}" onclick="toggleHotStatus(${item.fieldId}, ${item.isHot})">
                                 <i class="bi bi-star-fill fs-5"></i>
                             </button>
                         </td>

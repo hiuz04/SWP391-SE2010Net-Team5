@@ -47,7 +47,7 @@ async function loadFacilityData() {
                 document.getElementById("clsTime").value = data.facility.closingTime?.slice(0, 5);
                 document.getElementById("rule").value = data.facility.generalRules;
                 document.getElementById("status").value = data.facility.status;
-                // document.getElementById("feat").checked = !!data.featured;
+                document.getElementById("feat").checked = !!data.facility.featured;
 
                 data.img.forEach((img) => {
                     selectedImg.push({
@@ -163,7 +163,7 @@ function submitForm() {
         closingTime: document.getElementById("clsTime").value,
         generalRules: document.getElementById("rule").value,
         status: document.getElementById("status").value,
-        // featured: document.getElementById("feat").checked
+        featured: document.getElementById("feat").checked
     };
 
     let errors = [];
@@ -279,9 +279,10 @@ function renderPreview() {
             <div class="image-item" id="item-${index}">`
 
         if(image.isOld){
+            let srcUrl = image.imageUrl.startsWith('http') ? image.imageUrl : `${ctx}/${image.imageUrl.replace(/^\//, '')}`;
             html += `<img 
-                src="${image.imageUrl}" 
-                alt="img-${index}"
+                src="${srcUrl}" 
+                alt="img-${index}" 
                 id="image-${index}"
                 height="330"
                 width="550"
