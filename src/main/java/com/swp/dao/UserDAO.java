@@ -295,6 +295,92 @@ public class UserDAO {
         return users;
     }
 
+    public java.util.List<User> getUsersPaginated(String search, String role, String status, int offset, int limit) {
+        java.util.List<User> users = new java.util.ArrayList<>();
+        StringBuilder sql = new StringBuilder(USER_SELECT + " WHERE 1=1 ");
+        
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?) ");
+        }
+        if (role != null && !role.trim().isEmpty()) {
+            sql.append(" AND r.role_name = ? ");
+        }
+        if (status != null && !status.trim().isEmpty()) {
+            sql.append(" AND u.status = ? ");
+        }
+        sql.append(" ORDER BY u.created_at DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY ");
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+             
+            int paramIndex = 1;
+            if (search != null && !search.trim().isEmpty()) {
+                String likeSearch = "%" + search.trim() + "%";
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+            }
+            if (role != null && !role.trim().isEmpty()) {
+                ps.setString(paramIndex++, role.trim());
+            }
+            if (status != null && !status.trim().isEmpty()) {
+                ps.setString(paramIndex++, status.trim());
+            }
+            ps.setInt(paramIndex++, offset);
+            ps.setInt(paramIndex++, limit);
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    users.add(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi truy vấn danh sách người dùng phân trang: " + e.getMessage(), e);
+        }
+        return users;
+    }
+
+    public int countUsers(String search, String role, String status) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM users u INNER JOIN roles r ON u.role_id = r.role_id WHERE 1=1 ");
+        
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?) ");
+        }
+        if (role != null && !role.trim().isEmpty()) {
+            sql.append(" AND r.role_name = ? ");
+        }
+        if (status != null && !status.trim().isEmpty()) {
+            sql.append(" AND u.status = ? ");
+        }
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+             
+            int paramIndex = 1;
+            if (search != null && !search.trim().isEmpty()) {
+                String likeSearch = "%" + search.trim() + "%";
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+            }
+            if (role != null && !role.trim().isEmpty()) {
+                ps.setString(paramIndex++, role.trim());
+            }
+            if (status != null && !status.trim().isEmpty()) {
+                ps.setString(paramIndex++, status.trim());
+            }
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi đếm số lượng người dùng: " + e.getMessage(), e);
+        }
+        return 0;
+    }
+
     public Optional<User> getUserById(long userId) {
         String sql = USER_SELECT + " WHERE u.user_id = ?";
         try (Connection conn = DBContext.getConnection();

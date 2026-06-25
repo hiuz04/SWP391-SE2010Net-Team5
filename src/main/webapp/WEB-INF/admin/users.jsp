@@ -74,38 +74,66 @@
             </button>
         </div>
 
+<%
+    String successMessage = (String) session.getAttribute("successMessage");
+    String errorMessage = (String) session.getAttribute("errorMessage");
+    if (successMessage != null) {
+%>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <%= esc(successMessage) %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+<%
+        session.removeAttribute("successMessage");
+    }
+    if (errorMessage != null) {
+%>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <%= esc(errorMessage) %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+<%
+        session.removeAttribute("errorMessage");
+    }
+    
+    String searchVal = request.getAttribute("search") != null ? (String) request.getAttribute("search") : "";
+    String roleVal = request.getAttribute("role") != null ? (String) request.getAttribute("role") : "";
+    String statusVal = request.getAttribute("status") != null ? (String) request.getAttribute("status") : "";
+%>
+
         <!-- Filters & Toolbar -->
         <div class="card soft-card border-0 shadow-sm mb-4">
             <div class="card-body p-3">
+                <form method="GET" action="<%= ctx %>/admin/users">
                 <div class="row g-3">
                     <div class="col-md-4">
                         <div class="input-group">
                             <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" class="form-control border-start-0 ps-0" placeholder="Tìm theo tên, email, SĐT...">
+                            <input type="text" name="search" value="<%= esc(searchVal) %>" class="form-control border-start-0 ps-0" placeholder="Tìm theo tên, email, SĐT...">
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <select class="form-select">
+                        <select name="role" class="form-select">
                             <option value="">Tất cả vai trò</option>
-                            <option value="Admin">Admin</option>
-                            <option value="Manager">Quản lý (Manager)</option>
-                            <option value="Staff">Nhân viên (Staff)</option>
-                            <option value="Owner">Chủ sân (Owner)</option>
-                            <option value="Customer">Khách hàng (Customer)</option>
+                            <option value="Admin" <%= "Admin".equals(roleVal) ? "selected" : "" %>>Admin</option>
+                            <option value="Staff" <%= "Staff".equals(roleVal) ? "selected" : "" %>>Nhân viên (Staff)</option>
+                            <option value="Owner" <%= "Owner".equals(roleVal) ? "selected" : "" %>>Chủ sân (Owner)</option>
+                            <option value="Customer" <%= "Customer".equals(roleVal) ? "selected" : "" %>>Khách hàng (Customer)</option>
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <select class="form-select">
+                        <select name="status" class="form-select">
                             <option value="">Tất cả trạng thái</option>
-                            <option value="Active">Đang hoạt động</option>
-                            <option value="Pending">Chờ xác minh</option>
-                            <option value="Banned">Bị khóa</option>
+                            <option value="ACTIVE" <%= "ACTIVE".equals(statusVal) ? "selected" : "" %>>Đang hoạt động</option>
+                            <option value="PENDING" <%= "PENDING".equals(statusVal) ? "selected" : "" %>>Chờ xác minh</option>
+                            <option value="BANNED" <%= "BANNED".equals(statusVal) ? "selected" : "" %>>Bị khóa</option>
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <button class="btn btn-outline-secondary w-100"><i class="bi bi-funnel me-1"></i> Lọc</button>
+                        <button type="submit" class="btn btn-outline-secondary w-100"><i class="bi bi-funnel me-1"></i> Lọc</button>
                     </div>
                 </div>
+                </form>
             </div>
         </div>
 
@@ -213,16 +241,34 @@
             </div>
             
             <!-- Pagination -->
+<%
+    Integer currentPage = (Integer) request.getAttribute("currentPage");
+    if (currentPage == null) currentPage = 1;
+    Integer totalPages = (Integer) request.getAttribute("totalPages");
+    if (totalPages == null) totalPages = 1;
+    if (totalPages == 0) totalPages = 1; // display at least page 1
+    
+    String searchParam = searchVal != null && !searchVal.isEmpty() ? "&search=" + esc(searchVal) : "";
+    String roleParam = roleVal != null && !roleVal.isEmpty() ? "&role=" + esc(roleVal) : "";
+    String statusParam = statusVal != null && !statusVal.isEmpty() ? "&status=" + esc(statusVal) : "";
+    String queryParams = searchParam + roleParam + statusParam;
+%>
             <div class="card-footer bg-white border-top p-3">
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-muted small">Hiển thị dữ liệu trang 1</span>
+                    <span class="text-muted small">Hiển thị dữ liệu trang <%= currentPage %> / <%= totalPages %></span>
                     <nav>
                         <ul class="pagination pagination-sm mb-0">
-                            <li class="page-item disabled"><a class="page-link" href="#">Trước</a></li>
-                            <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                            <li class="page-item"><a class="page-link" href="#">2</a></li>
-                            <li class="page-item"><a class="page-link" href="#">3</a></li>
-                            <li class="page-item"><a class="page-link" href="#">Sau</a></li>
+                            <li class="page-item <%= currentPage <= 1 ? "disabled" : "" %>">
+                                <a class="page-link" href="?page=<%= currentPage - 1 %><%= queryParams %>">Trước</a>
+                            </li>
+                            <% for(int i = 1; i <= totalPages; i++) { %>
+                            <li class="page-item <%= i == currentPage ? "active" : "" %>">
+                                <a class="page-link" href="?page=<%= i %><%= queryParams %>"><%= i %></a>
+                            </li>
+                            <% } %>
+                            <li class="page-item <%= currentPage >= totalPages ? "disabled" : "" %>">
+                                <a class="page-link" href="?page=<%= currentPage + 1 %><%= queryParams %>">Sau</a>
+                            </li>
                         </ul>
                     </nav>
                 </div>
@@ -261,7 +307,6 @@
                             <select class="form-select" name="roleName" id="roleNameSelect">
                                 <option value="Customer">Khách hàng</option>
                                 <option value="Staff">Nhân viên</option>
-                                <option value="Manager">Quản lý</option>
                                 <option value="Owner">Chủ sân</option>
                                 <option value="Admin">Admin</option>
                             </select>
