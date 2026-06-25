@@ -100,6 +100,10 @@
     String qrText = booking.getQrCode() != null && !booking.getQrCode().isBlank()
             ? booking.getQrCode()
             : booking.getBookingCode();
+    boolean paymentSuccess = "SUCCESS".equals(booking.getPaymentStatus());
+    boolean holdActive = "HOLD".equals(booking.getStatus())
+            && booking.getHoldExpiresAt() != null
+            && booking.getHoldExpiresAt().isAfter(LocalDateTime.now());
 %>
 
 <!DOCTYPE html>
@@ -224,6 +228,18 @@
                     </div>
                     <% if (booking.getPaymentMethodName() != null) { %>
                     <div class="text-muted small mt-2"><%= esc(booking.getPaymentMethodName()) %></div>
+                    <% } %>
+                    <% if (paymentSuccess || "CONFIRMED".equals(booking.getStatus())) { %>
+                    <div class="alert alert-success mt-3 mb-0">
+                        <i class="bi bi-check-circle"></i> &#272;&#227; thanh to&#225;n / booking &#273;&#227; x&#225;c nh&#7853;n.
+                    </div>
+                    <% } else if (holdActive) { %>
+                    <a class="btn btn-sf-primary w-100 mt-3"
+                       href="<%= ctx %>/payment?action=method&bookingId=<%= booking.getBookingId() %>">
+                        <i class="bi bi-credit-card"></i> Thanh to&#225;n ngay
+                    </a>
+                    <% } else if ("HOLD".equals(booking.getStatus())) { %>
+                    <div class="alert alert-warning mt-3 mb-0">Th&#7901;i gian gi&#7919; ch&#7895; &#273;&#227; h&#7871;t h&#7841;n.</div>
                     <% } %>
                     <hr>
                     <% if (booking.isCanCancel()) { %>
