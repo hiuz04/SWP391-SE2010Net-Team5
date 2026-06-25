@@ -41,6 +41,7 @@ function loadData(){
                         <th style="width: 20%">Cơ sở</th>
                         <th style="width: 42%">Mô tả</th>
                         <th class="text-center">Trạng thái</th>
+                        <th class="text-center">Sân Hot</th>
                         <th class="text-center">Hành động</th>
                       </tr>
                     </thead>
@@ -61,6 +62,11 @@ function loadData(){
                         <td class="text-center">
                             <button class="badge ${statusBadgge} border-0" onclick="">
                                 ${statusDisplay}
+                            </button>
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm ${item.hot ? 'text-warning' : 'text-secondary'}" onclick="toggleHotStatus(${item.fieldId}, ${item.hot})">
+                                <i class="bi bi-star-fill fs-5"></i>
                             </button>
                         </td>
                         <td class="text-center">
@@ -278,3 +284,27 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 });
+
+// Toggle Sân Hot
+function toggleHotStatus(fieldId, currentStatus) {
+    const newStatus = !currentStatus;
+
+    fetch(`${ctx}/owner/field/toggle-hot`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: `fieldId=${fieldId}&isHot=${newStatus}`
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error("Cập nhật trạng thái thất bại");
+        }
+        return res.text();
+    })
+    .then(() => loadData()) // Reload data
+    .catch(err => {
+        console.error(err);
+        alert("Có lỗi xảy ra khi cập nhật trạng thái HOT!");
+    });
+}
