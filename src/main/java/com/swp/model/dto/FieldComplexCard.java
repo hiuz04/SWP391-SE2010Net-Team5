@@ -15,11 +15,12 @@ public class FieldComplexCard {
     private List<FieldType> fieldTypeList;
     private LocalTime openingTime;
     private LocalTime closingTime;
+    private String thumbnailUrl;
 
     public FieldComplexCard() {
     }
 
-    public FieldComplexCard(long facilityId, String thumbnail, String facilityName, String address, String city, String ward, List<FieldType> fieldTypeList, LocalTime openingTime, LocalTime closingTime) {
+    public FieldComplexCard(long facilityId, String thumbnail, String facilityName, String address, String city, String ward, List<FieldType> fieldTypeList, LocalTime openingTime, LocalTime closingTime, String thumbnailUrl) {
         this.facilityId = facilityId;
         this.thumbnail = thumbnail;
         this.facilityName = facilityName;
@@ -29,6 +30,7 @@ public class FieldComplexCard {
         this.fieldTypeList = fieldTypeList;
         this.openingTime = openingTime;
         this.closingTime = closingTime;
+        this.thumbnailUrl = thumbnailUrl;
     }
 
     public long getFacilityId() {
@@ -101,5 +103,13 @@ public class FieldComplexCard {
 
     public void setClosingTime(LocalTime closingTime) {
         this.closingTime = closingTime;
+    }
+
+    public String getThumbnailUrl() {
+        return thumbnailUrl;
+    }
+
+    public void setThumbnailUrl(String thumbnailUrl) {
+        this.thumbnailUrl = thumbnailUrl;
     }
 }

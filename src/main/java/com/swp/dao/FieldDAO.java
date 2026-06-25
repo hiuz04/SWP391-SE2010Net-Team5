@@ -150,6 +150,29 @@ public class FieldDAO {
         return list;
     }
 
+    public int getFieldCountWithFacilityId(long id) {
+        String sql = """
+                    SELECT COUNT(*) AS total
+                    FROM fields
+                    WHERE facility_id = ?
+                    """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total");
+            }
+            return 0;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e
+            );
+        }
+    }
+
     /**
      * Lấy các sân nổi bật (hot).
      * Loại trừ các sân đang bảo trì (status = MAINTENANCE) và phải được đánh dấu là hot (is_hot = 1).

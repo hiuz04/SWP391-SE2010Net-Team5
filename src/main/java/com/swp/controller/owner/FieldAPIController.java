@@ -1,6 +1,6 @@
 /**
  * Module: Field Management
- * File: FieldAPIServlet.java
+ * File: FieldAPIController.java
  * Description: Xử lý chức năng lấy toàn bộ thông tin sân bóng để hiển thị dữ liệu trên front-end.
  *
  * Author: Dương Hải Anh
@@ -11,13 +11,13 @@
 package com.swp.controller.owner;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializer;
 import com.swp.model.Facility;
 import com.swp.model.Field;
 import com.swp.model.FieldType;
 import com.swp.model.dto.FieldList;
+import com.swp.service.owner.FacilityService;
+import com.swp.service.owner.FieldService;
+import com.swp.service.owner.FieldTypeService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -32,17 +32,22 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @WebServlet("/api/fields")
-public class FieldAPIServlet extends HttpServlet {
+public class FieldAPIController extends HttpServlet {
+
+    private static final FieldService fieldService = new FieldService();
+    private static final FacilityService facilityService = new FacilityService();
+    private static final FieldTypeService fieldTypeService = new FieldTypeService();
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 
-        List<Field> fields = Constant.fieldDAO.getAllField();
+        List<Field> fields = fieldService.getAllField();
 
-        List<Facility> facilities = Constant.facilityDAO.getAllFacility();
+        List<Facility> facilities = facilityService.getListFacility();
         Map<Long, Facility> facilityMap = facilities.stream()
                 .collect(Collectors.toMap(Facility::getFacilityId, Function.identity()));
 
-        List<FieldType> fieldTypes = Constant.fieldTypeDAO.getAllFieldTypes();
+        List<FieldType> fieldTypes = fieldTypeService.getAllType();
         Map<Integer, FieldType> fieldTypeMap = fieldTypes.stream()
                 .collect(Collectors.toMap(FieldType::getFieldTypeId, Function.identity()));
         List<FieldList> lists = new ArrayList<>();

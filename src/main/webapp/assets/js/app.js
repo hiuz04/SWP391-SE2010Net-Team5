@@ -15,7 +15,7 @@
       ['Dashboard','staff/dashboard'], ['Lịch trong ngày','staff/schedule'], ['Check-in','staff/checkin'], ['Checkout','staff/checkout']
     ],
     owner: [
-      ['Dashboard',''], ['Cơ sở','/facility-list'], ['Sân bóng','/field-list'], ['Bảng giá','']
+      ['Dashboard','owner'], ['Cơ sở','owner/facility'], ['Sân bóng','owner/field'], ['Bảng giá','']
     ],
     admin: [
       ['Dashboard','admin/dashboard'], ['Người dùng','admin/users'], ['Duyệt chủ sân','admin/owner-approval'], ['Cài đặt','admin/settings']
@@ -34,7 +34,10 @@
     const role = target.dataset.role || 'guest';
     const name = target.dataset.name || 'Người dùng';
     const active = target.dataset.active || '';
+    console.log(">>> target: ", target );
+    console.log(">>> active: ", active);
     const roleLinks = pages[role] || pages.customer;
+    console.log(">>> roleLinks: ", roleLinks);
     const auth = role === 'guest'
       ? `<a class="btn btn-outline-success" href="${link(root, 'login')}">Đăng nhập</a><a class="btn btn-sf-primary" href="${link(root, 'register')}">Đăng ký</a>`
       : `<a class="btn btn-light position-relative" href="${link(root, '#')}" title="Thông báo"><i class="bi bi-bell"></i><span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span></a>
@@ -58,8 +61,11 @@
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"><span class="navbar-toggler-icon"></span></button>
           <div class="collapse navbar-collapse" id="mainNav">
             <ul class="navbar-nav ms-auto me-lg-3 mb-2 mb-lg-0">
-              ${roleLinks.map(([label, href]) => `<li class="nav-item"><a class="nav-link ${active === label ? 'active fw-semibold text-success' : ''}" href="${link(root, href)}">${label}</a></li>`).join('')}
-
+              ${roleLinks.map(([label, href]) => `
+                <li class="nav-item">
+                    <a class="nav-link ${active === label ? 'active fw-semibold text-success' : ''}" href="${link(root, href)}">${label}</a>
+                </li>`)
+              .join('')}
             </ul>
             <div class="d-flex gap-2 align-items-center">${auth}</div>
           </div>
