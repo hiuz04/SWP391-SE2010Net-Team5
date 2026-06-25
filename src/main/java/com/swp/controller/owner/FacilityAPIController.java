@@ -1,6 +1,6 @@
 /**
  * Module: Facility Management
- * File: FacilityAPIServlet.java
+ * File: FacilityAPIController.java
  * Description: Lấy toàn bộ thông tin cơ sở để hiển thị dữ liệu lên front-end.
  *
  * Author: Dương Hải Anh
@@ -18,6 +18,8 @@ import com.google.gson.JsonSerializer;
 import com.swp.model.dto.FacilityWithField;
 import com.swp.model.Facility;
 import com.swp.model.Field;
+import com.swp.service.owner.FacilityService;
+import com.swp.service.owner.FieldService;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,14 +32,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 @WebServlet("/api/facilities")
-public class FacilityAPIServlet extends HttpServlet {
+public class FacilityAPIController extends HttpServlet {
+
+    private static final FieldService fieldService = new FieldService();
+    private static final FacilityService facilityService = new FacilityService();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
         List<FacilityWithField> lists = new ArrayList<>();
-        List<Field> fields = Constant.fieldDAO.getAllField();
-        List<Facility> facilities = Constant.facilityDAO.getAllFacility();
+        List<Field> fields = fieldService.getAllField();
+        List<Facility> facilities = facilityService.getListFacility();
 
         for (Facility fac : facilities) {
             List<Field> facilityFields = fields.stream()

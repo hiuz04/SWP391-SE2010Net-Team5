@@ -23,7 +23,8 @@ public class CloudinaryConfig {
             cloudinary = new Cloudinary(Map.of(
                     "cloud_name", props.getProperty("cloudinary.cloud_name"),
                     "api_key", props.getProperty("cloudinary.api_key"),
-                    "api_secret", props.getProperty("cloudinary.api_secret")
+                    "api_secret", props.getProperty("cloudinary.api_secret"),
+                    "secure", true
             ));
         } catch (IOException e) {
             throw new RuntimeException("Failed to load Cloudinary config", e);

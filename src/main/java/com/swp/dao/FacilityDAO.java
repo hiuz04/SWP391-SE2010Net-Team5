@@ -1,18 +1,16 @@
 package com.swp.dao;
 
 import com.swp.model.Facility;
-import com.swp.model.dto.FieldComplexCard;
+import com.swp.model.FacilityImage;
 import com.swp.util.DBContext;
 
 import java.sql.*;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
 public class FacilityDAO {
 
-    public void addFacility(Facility facility) {
+    public long addFacility(Facility facility) {
         String sql = "INSERT INTO facilities (" +
                 "facility_name, " +
                 "description, " +
@@ -20,16 +18,18 @@ public class FacilityDAO {
                 "ward, " +
                 "district, " +
                 "city, " +
+                "latitude, " +
+                "longitude, " +
                 "hotline, " +
                 "opening_time, " +
                 "closing_time, " +
                 "general_rules, " +
                 "status, " +
                 "featured" +
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, facility.getFacilityName());
             ps.setString(2, facility.getDescription());
             ps.setString(3, facility.getAddress());
@@ -37,24 +37,38 @@ public class FacilityDAO {
             ps.setString(5, facility.getDistrict());
             ps.setString(6, facility.getCity());
 
-            ps.setString(7, facility.getHotline());
+            if(facility.getLatitude() != null) {
+                ps.setBigDecimal(7, facility.getLatitude());
+            } else {ps.setNull(7, Types.DECIMAL);}
 
-            ps.setTime(8,
+            if(facility.getLongitude() != null) {
+                ps.setBigDecimal(8, facility.getLongitude());
+            } else {ps.setNull(8, Types.DECIMAL);}
+
+            ps.setString(9, facility.getHotline());
+
+            ps.setTime(10,
                     facility.getOpeningTime() != null
                             ? Time.valueOf(facility.getOpeningTime())
                             : null
             );
 
-            ps.setTime(9,
+            ps.setTime(11,
                     facility.getClosingTime() != null
                             ? Time.valueOf(facility.getClosingTime())
                             : null
             );
 
-            ps.setString(10, facility.getGeneralRules());
-            ps.setString(11, facility.getStatus());
-            ps.setBoolean(12, facility.getFeatured());
+            ps.setString(12, facility.getGeneralRules());
+            ps.setString(13, facility.getStatus());
+            ps.setBoolean(14, facility.getFeatured());
             ps.executeUpdate();
+            ResultSet rs = ps.getGeneratedKeys();
+
+            if(rs.next()){
+                return rs.getLong(1);
+            }
+            throw new RuntimeException("Không lấy được facility_id");
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi tạo mới dữ liệu: " + e.getMessage(), e);
         }
@@ -68,6 +82,8 @@ public class FacilityDAO {
                 "ward=?, " +
                 "district=?, " +
                 "city=?, " +
+                "latitude=?, " +
+                "longitude=?, " +
                 "hotline=?, " +
                 "opening_time=?, " +
                 "closing_time=?, " +
@@ -85,24 +101,32 @@ public class FacilityDAO {
             ps.setString(5, facility.getDistrict());
             ps.setString(6, facility.getCity());
 
-            ps.setString(7, facility.getHotline());
+            if(facility.getLatitude() != null) {
+                ps.setBigDecimal(7, facility.getLatitude());
+            } else {ps.setNull(7, Types.DECIMAL);}
 
-            ps.setTime(8,
+            if(facility.getLongitude() != null) {
+                ps.setBigDecimal(8, facility.getLongitude());
+            } else {ps.setNull(8, Types.DECIMAL);}
+
+            ps.setString(9, facility.getHotline());
+
+            ps.setTime(10,
                     facility.getOpeningTime() != null
                             ? Time.valueOf(facility.getOpeningTime())
                             : null
             );
 
-            ps.setTime(9,
+            ps.setTime(11,
                     facility.getClosingTime() != null
                             ? Time.valueOf(facility.getClosingTime())
                             : null
             );
 
-            ps.setString(10, facility.getGeneralRules());
-            ps.setString(11, facility.getStatus());
-            ps.setBoolean(12, facility.getFeatured());
-            ps.setLong(13, facility.getFacilityId());
+            ps.setString(12, facility.getGeneralRules());
+            ps.setString(13, facility.getStatus());
+            ps.setBoolean(14, facility.getFeatured());
+            ps.setLong(15, facility.getFacilityId());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi cập nhật dữ liệu: " + e.getMessage(), e);
@@ -139,6 +163,8 @@ public class FacilityDAO {
                         rs.getString("ward"),
                         rs.getString("district"),
                         rs.getString("city"),
+                        rs.getBigDecimal("latitude"),
+                        rs.getBigDecimal("longitude"),
                         rs.getString("hotline"),
                         rs.getTime("opening_time") != null
                                 ? rs.getTime("opening_time").toLocalTime()
@@ -176,6 +202,8 @@ public class FacilityDAO {
                         rs.getString("ward"),
                         rs.getString("district"),
                         rs.getString("city"),
+                        rs.getBigDecimal("latitude"),
+                        rs.getBigDecimal("longitude"),
                         rs.getString("hotline"),
                         rs.getTime("opening_time") != null
                                 ? rs.getTime("opening_time").toLocalTime()
@@ -194,6 +222,145 @@ public class FacilityDAO {
             throw new RuntimeException("Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e);
         }
         return list;
+    }
+
+    public void addImage(FacilityImage img) {
+        String sql = "INSERT INTO facility_images(" +
+                "facility_id," +
+                "image_url," +
+                "thumbnail," +
+                "public_id" +
+                ") VALUES (?, ?, ?, ?)";
+
+        try(Connection conn = DBContext.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, img.getFacilityId());
+            ps.setString(2, img.getImageUrl());
+            ps.setBoolean(3, img.getThumbnail());
+            ps.setString(4, img.getPublicId());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi tạo mới dữ liệu: " + e.getMessage(), e);
+        }
+    }
+
+    public void updateImage(long id, boolean isThumbnail){
+        String sql = "UPDATE facility_images SET thumbnail=? WHERE image_id=?";
+
+        try(Connection conn = DBContext.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBoolean(1, isThumbnail);
+            ps.setLong(2, id);
+
+            ps.executeUpdate();
+        } catch (SQLException e){
+            throw new RuntimeException("Lỗi khi cập nhập dữ liệu: " + e.getMessage(), e);
+        }
+    }
+
+    public void deleteImage(long id) {
+        String sql = "DELETE FROM facility_images WHERE image_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cố gắng xóa dữ liệu: " + e.getMessage(), e);
+        }
+    }
+
+    public List<FacilityImage> getAllImage(long facilityId) {
+        List<FacilityImage> list = new ArrayList<>();
+        String sql = "SELECT * FROM facility_images WHERE facility_id = ?";
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, facilityId);
+            ResultSet rs = ps.executeQuery();
+
+            while(rs.next()) {
+                list.add(new FacilityImage(
+                        rs.getLong("image_id"),
+                        rs.getLong("facility_id"),
+                        rs.getString("image_url"),
+                        rs.getBoolean("thumbnail"),
+                        rs.getString("public_id"),
+                        rs.getTimestamp("created_at").toLocalDateTime()
+                ));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e);
+        }
+        return list;
+    }
+
+    public void deleteAllImageRelatedToFacility(long id) {
+        String sql = """
+            DELETE FROM facility_images
+            WHERE facility_id = ?
+            """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, id);
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Lỗi khi xóa toàn bộ ảnh của facility: " + e.getMessage(),
+                    e
+            );
+        }
+    }
+
+    public FacilityImage getThumbnail(long facilityId) {
+        String sql = "SELECT * FROM facility_images " +
+                              "WHERE facility_id = ? " +
+                              "AND thumbnail = 1";
+        try(Connection conn = DBContext.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setLong(1, facilityId);
+            ResultSet rs = ps.executeQuery();
+            if(rs.next()) {
+                return new FacilityImage(
+                        rs.getLong("image_id"),
+                        rs.getLong("facility_id"),
+                        rs.getString("image_url"),
+                        rs.getBoolean("thumbnail"),
+                        rs.getString("public_id"),
+                        rs.getTimestamp("created_at").toLocalDateTime()
+                    );
+            }
+
+            return null;
+        }catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e);
+        }
+    }
+
+    public FacilityImage getImgById(long imgId) {
+        String sql = "SELECT * FROM facility_images " +
+                              "WHERE image_id = ?";
+        try(Connection conn = DBContext.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setLong(1, imgId);
+            ResultSet rs = ps.executeQuery();
+            if(rs.next()) {
+                return new FacilityImage(
+                        rs.getLong("image_id"),
+                        rs.getLong("facility_id"),
+                        rs.getString("image_url"),
+                        rs.getBoolean("thumbnail"),
+                        rs.getString("public_id"),
+                        rs.getTimestamp("created_at").toLocalDateTime()
+                    );
+            }
+
+            return null;
+        }catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e);
+        }
     }
 
     public List<String> getAllCities() {

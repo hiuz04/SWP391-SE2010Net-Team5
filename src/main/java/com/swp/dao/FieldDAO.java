@@ -147,6 +147,29 @@ public class FieldDAO {
         return list;
     }
 
+    public int getFieldCountWithFacilityId(long id) {
+        String sql = """
+                    SELECT COUNT(*) AS total
+                    FROM fields
+                    WHERE facility_id = ?
+                    """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total");
+            }
+            return 0;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e
+            );
+        }
+    }
+
     /**
      * Lấy top 3 sân có lượt booking cao nhất.
      * Loại trừ các sân đang bảo trì (status = MAINTENANCE).

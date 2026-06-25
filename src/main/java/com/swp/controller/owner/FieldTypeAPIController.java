@@ -11,6 +11,7 @@ package com.swp.controller.owner;
 
 import com.google.gson.Gson;
 import com.swp.model.FieldType;
+import com.swp.service.owner.FieldTypeService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -21,11 +22,13 @@ import java.io.IOException;
 import java.util.List;
 
 @WebServlet("/api/field-type")
-public class FieldTypeAPIServlet extends HttpServlet {
+public class FieldTypeAPIController extends HttpServlet {
+
+    private static final FieldTypeService fieldTypeService = new FieldTypeService();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        List<FieldType> fieldTypes = Constant.fieldTypeDAO.getAllFieldTypes();
+        List<FieldType> fieldTypes = fieldTypeService.getAllType();
         resp.setContentType("application/json;charset=UTF-8");
 
         Gson gson = new Gson();

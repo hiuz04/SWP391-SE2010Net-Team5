@@ -40,7 +40,7 @@ function loadData(){
                         <th style="width: 7%">Loại sân</th>
                         <th style="width: 20%">Cơ sở</th>
                         <th style="width: 42%">Mô tả</th>
-                        <th>Trạng thái</th>
+                        <th class="text-center">Trạng thái</th>
                         <th class="text-center">Hành động</th>
                       </tr>
                     </thead>
@@ -58,7 +58,7 @@ function loadData(){
                         <td style="color: grey;">${item.type}</td>
                         <td>${item.facilityName} sân</td>
                         <td>${item.description}</td>
-                        <td>
+                        <td class="text-center">
                             <button class="badge ${statusBadgge} border-0" onclick="">
                                 ${statusDisplay}
                             </button>
@@ -120,7 +120,7 @@ function loadFacilityData() {
 
 // Lấy dữ liệu Sân
 function getFieldData(id) {
-    fetch(`${ctx}/field/edit?id=` + id)
+    fetch(`${ctx}/owner/field?action=get&id=` + id)
         .then(res => res.json())
         .then(data => {
             document.getElementById("fieldID").value =
@@ -196,8 +196,8 @@ function submitField() {
     const id = document.getElementById("fieldID").value;
 
     let url = !id
-        ? `${ctx}/field/add`
-        : `${ctx}/field/edit`;
+        ? `${ctx}/owner/field?action=add`
+        : `${ctx}/owner/field?action=edit`;
 
     const data = {
         fieldID: id,
@@ -245,19 +245,19 @@ function deleteField(id) {
 
     if(!confirmed) return;
 
-    fetch(`${ctx}/field/delete?id=${id}`, {
+    fetch(`${ctx}/owner/field?action=delete&id=${id}`, {
         method: "POST"
     })
-        .then(res => {
+        .then(async res => {
             if (!res.ok) {
-                throw new Error("Delete failed");
+                const message = await res.text();
+                throw new Error(message);
             }
-
             location.reload();
         })
         .catch(err => {
             console.error(err);
-            alert("Xóa thất bại");
+            alert(err.message);
         });
 }
 
