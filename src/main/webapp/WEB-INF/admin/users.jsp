@@ -116,7 +116,6 @@
                         <select name="role" class="form-select">
                             <option value="">Tất cả vai trò</option>
                             <option value="Admin" <%= "Admin".equals(roleVal) ? "selected" : "" %>>Admin</option>
-                            <option value="Manager" <%= "Manager".equals(roleVal) ? "selected" : "" %>>Quản lý (Manager)</option>
                             <option value="Staff" <%= "Staff".equals(roleVal) ? "selected" : "" %>>Nhân viên (Staff)</option>
                             <option value="Owner" <%= "Owner".equals(roleVal) ? "selected" : "" %>>Chủ sân (Owner)</option>
                             <option value="Customer" <%= "Customer".equals(roleVal) ? "selected" : "" %>>Khách hàng (Customer)</option>
@@ -308,7 +307,6 @@
                             <select class="form-select" name="roleName" id="roleNameSelect">
                                 <option value="Customer">Khách hàng</option>
                                 <option value="Staff">Nhân viên</option>
-                                <option value="Manager">Quản lý</option>
                                 <option value="Owner">Chủ sân</option>
                                 <option value="Admin">Admin</option>
                             </select>

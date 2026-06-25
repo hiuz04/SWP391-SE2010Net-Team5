@@ -32,7 +32,7 @@ public class AdminDashboardDAO {
         }
 
         // 2. Lượt đặt sân hôm nay
-        String bookSql = "SELECT COUNT(*) FROM bookings WHERE CAST(start_time AS DATE) = CAST(GETDATE() AS DATE) AND status NOT IN ('CANCELLED', 'HOLD')";
+        String bookSql = "SELECT COUNT(*) FROM bookings WHERE CAST(created_at AS DATE) = CAST(GETDATE() AS DATE) AND status NOT IN ('CANCELLED', 'HOLD')";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(bookSql);
              ResultSet rs = ps.executeQuery()) {

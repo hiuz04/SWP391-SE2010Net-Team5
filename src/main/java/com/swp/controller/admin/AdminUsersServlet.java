@@ -4,6 +4,8 @@ import com.swp.dao.RoleDAO;
 import com.swp.dao.UserDAO;
 import com.swp.model.User;
 import com.swp.util.PasswordUtil;
+import com.swp.util.RegisterValidator;
+import com.swp.util.ValidationResult;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -126,6 +128,15 @@ public class AdminUsersServlet extends HttpServlet {
         String status = request.getParameter("status");
         String password = request.getParameter("password");
         
+        ValidationResult vr = RegisterValidator.validate(fullName, phone, email, 
+                (password != null && !password.isEmpty()) ? password : "DefaultPassword1@",
+                (password != null && !password.isEmpty()) ? password : "DefaultPassword1@");
+        
+        if (!vr.isValid()) {
+            String errorMsg = vr.getFieldErrors().isEmpty() ? vr.getGeneralError() : vr.getFieldErrors().values().iterator().next();
+            throw new IllegalArgumentException(errorMsg);
+        }
+        
         if (userDAO.existsByEmail(email)) {
             throw new IllegalArgumentException("Email đã được sử dụng bới tài khoản khác.");
         }
@@ -166,6 +177,15 @@ public class AdminUsersServlet extends HttpServlet {
         String roleName = request.getParameter("roleName");
         String status = request.getParameter("status");
         String password = request.getParameter("password");
+        
+        ValidationResult vr = RegisterValidator.validate(fullName, phone, email, 
+                (password != null && !password.isEmpty()) ? password : "DefaultPassword1@",
+                (password != null && !password.isEmpty()) ? password : "DefaultPassword1@");
+        
+        if (!vr.isValid()) {
+            String errorMsg = vr.getFieldErrors().isEmpty() ? vr.getGeneralError() : vr.getFieldErrors().values().iterator().next();
+            throw new IllegalArgumentException(errorMsg);
+        }
         
         if (userDAO.existsByEmailExcludeUser(email, userId)) {
             throw new IllegalArgumentException("Email đã được sử dụng bới tài khoản khác.");
