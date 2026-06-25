@@ -67,6 +67,19 @@ public class AdminDashboardDAO {
             e.printStackTrace();
         }
 
+        // 5. Số yêu cầu đặt sân chờ xử lý
+        kpis.put("pendingBookings", 0);
+        String pendingBookingsSql = "SELECT COUNT(*) FROM bookings WHERE status = 'PENDING'";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(pendingBookingsSql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                kpis.put("pendingBookings", rs.getInt(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
         return kpis;
     }
 

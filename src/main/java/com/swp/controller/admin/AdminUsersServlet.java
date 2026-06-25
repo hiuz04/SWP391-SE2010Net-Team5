@@ -41,9 +41,33 @@ public class AdminUsersServlet extends HttpServlet {
             return;
         }
 
-        // Lấy danh sách người dùng
-        List<User> userList = userDAO.getAllUsers();
+        // Lấy tham số tìm kiếm và phân trang
+        String search = request.getParameter("search");
+        String role = request.getParameter("role");
+        String status = request.getParameter("status");
+        
+        int page = 1;
+        int limit = 10;
+        try {
+            if (request.getParameter("page") != null) {
+                page = Integer.parseInt(request.getParameter("page"));
+            }
+        } catch (NumberFormatException e) {
+            page = 1;
+        }
+        
+        int offset = (page - 1) * limit;
+        
+        List<User> userList = userDAO.getUsersPaginated(search, role, status, offset, limit);
+        int totalUsers = userDAO.countUsers(search, role, status);
+        int totalPages = (int) Math.ceil((double) totalUsers / limit);
+        
         request.setAttribute("userList", userList);
+        request.setAttribute("currentPage", page);
+        request.setAttribute("totalPages", totalPages);
+        request.setAttribute("search", search);
+        request.setAttribute("role", role);
+        request.setAttribute("status", status);
 
         // Forward to JSP
         request.getRequestDispatcher("/WEB-INF/admin/users.jsp").forward(request, response);
@@ -68,37 +92,46 @@ public class AdminUsersServlet extends HttpServlet {
         try {
             switch (action) {
                 case "add":
-                    addUser(request);
+                    addUser(request, session);
                     break;
                 case "edit":
-                    editUser(request);
+                    editUser(request, session);
                     break;
                 case "ban":
-                    changeStatus(request, "BANNED");
+                    changeStatus(request, session, currentUser.getUserId(), "BANNED");
                     break;
                 case "unban":
                 case "approve":
-                    changeStatus(request, "ACTIVE");
+                    changeStatus(request, session, currentUser.getUserId(), "ACTIVE");
                     break;
                 case "delete":
-                    deleteUser(request);
+                    deleteUser(request, session, currentUser.getUserId());
                     break;
             }
+        } catch (IllegalArgumentException e) {
+            session.setAttribute("errorMessage", e.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
-            // Handle error, maybe set session attribute for error message
+            session.setAttribute("errorMessage", "Đã xảy ra lỗi: " + e.getMessage());
         }
 
         response.sendRedirect(request.getContextPath() + "/admin/users");
     }
 
-    private void addUser(HttpServletRequest request) {
+    private void addUser(HttpServletRequest request, HttpSession session) throws IllegalArgumentException {
         String fullName = request.getParameter("fullName");
         String phone = request.getParameter("phone");
         String email = request.getParameter("email");
         String roleName = request.getParameter("roleName");
         String status = request.getParameter("status");
         String password = request.getParameter("password");
+        
+        if (userDAO.existsByEmail(email)) {
+            throw new IllegalArgumentException("Email đã được sử dụng bới tài khoản khác.");
+        }
+        if (userDAO.existsByPhone(phone)) {
+            throw new IllegalArgumentException("Số điện thoại đã được sử dụng bới tài khoản khác.");
+        }
 
         User user = new User();
         user.setFullName(fullName);
@@ -110,14 +143,22 @@ public class AdminUsersServlet extends HttpServlet {
             user.setPasswordHash(PasswordUtil.hashPassword(password));
         } else {
             user.setPasswordHash(PasswordUtil.hashPassword("123456")); // default password
+            session.setAttribute("successMessage", "Tạo tài khoản thành công! Mật khẩu mặc định là 123456.");
         }
 
-        roleDAO.findRoleIdByName(roleName).ifPresent(user::setRoleId);
+        int roleId = roleDAO.findRoleIdByName(roleName).orElse(-1);
+        if (roleId == -1) {
+            throw new IllegalArgumentException("Vai trò không hợp lệ.");
+        }
+        user.setRoleId(roleId);
 
         userDAO.insert(user);
+        if (session.getAttribute("successMessage") == null) {
+            session.setAttribute("successMessage", "Thêm người dùng thành công.");
+        }
     }
 
-    private void editUser(HttpServletRequest request) {
+    private void editUser(HttpServletRequest request, HttpSession session) throws IllegalArgumentException {
         long userId = Long.parseLong(request.getParameter("userId"));
         String fullName = request.getParameter("fullName");
         String phone = request.getParameter("phone");
@@ -125,6 +166,13 @@ public class AdminUsersServlet extends HttpServlet {
         String roleName = request.getParameter("roleName");
         String status = request.getParameter("status");
         String password = request.getParameter("password");
+        
+        if (userDAO.existsByEmailExcludeUser(email, userId)) {
+            throw new IllegalArgumentException("Email đã được sử dụng bới tài khoản khác.");
+        }
+        if (userDAO.existsByPhoneExcludeUser(phone, userId)) {
+            throw new IllegalArgumentException("Số điện thoại đã được sử dụng bới tài khoản khác.");
+        }
 
         User user = new User();
         user.setUserId(userId);
@@ -137,18 +185,31 @@ public class AdminUsersServlet extends HttpServlet {
             user.setPasswordHash(PasswordUtil.hashPassword(password));
         }
 
-        roleDAO.findRoleIdByName(roleName).ifPresent(user::setRoleId);
+        int roleId = roleDAO.findRoleIdByName(roleName).orElse(-1);
+        if (roleId == -1) {
+            throw new IllegalArgumentException("Vai trò không hợp lệ.");
+        }
+        user.setRoleId(roleId);
 
         userDAO.updateUserByAdmin(user);
+        session.setAttribute("successMessage", "Cập nhật người dùng thành công.");
     }
 
-    private void changeStatus(HttpServletRequest request, String status) {
+    private void changeStatus(HttpServletRequest request, HttpSession session, long currentAdminId, String status) throws IllegalArgumentException {
         long userId = Long.parseLong(request.getParameter("userId"));
+        if (userId == currentAdminId) {
+            throw new IllegalArgumentException("Bạn không thể khóa/mở khóa chính mình.");
+        }
         userDAO.updateUserStatus(userId, status);
+        session.setAttribute("successMessage", "Đã cập nhật trạng thái người dùng thành " + status);
     }
 
-    private void deleteUser(HttpServletRequest request) {
+    private void deleteUser(HttpServletRequest request, HttpSession session, long currentAdminId) throws IllegalArgumentException {
         long userId = Long.parseLong(request.getParameter("userId"));
+        if (userId == currentAdminId) {
+            throw new IllegalArgumentException("Bạn không thể xóa chính mình.");
+        }
         userDAO.deleteUser(userId);
+        session.setAttribute("successMessage", "Đã xóa người dùng thành công.");
     }
 }
