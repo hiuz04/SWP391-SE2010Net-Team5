@@ -134,7 +134,19 @@ public class PaymentController extends HttpServlet {
                     rawPayload,
                     signature
             );
-            if (!success) {
+            if (success) {
+                try {
+                    com.swp.dao.NotificationDAO notificationDAO = new com.swp.dao.NotificationDAO();
+                    com.swp.model.Notification notification = new com.swp.model.Notification();
+                    notification.setUserId(currentUser.getUserId());
+                    notification.setTitle("Đặt sân thành công");
+                    notification.setMessage("Bạn đã thanh toán thành công và đặt sân hoàn tất. Mã giao dịch: " + transactionRef);
+                    notification.setNotificationType("BOOKING");
+                    notification.setReferenceId(bookingId);
+                    notificationDAO.insertNotification(notification);
+                } catch (Exception ignored) {
+                }
+            } else {
                 paymentDAO.markPaymentFailed(
                         transactionRef,
                         rawPayload.replace("\"SUCCESS\"", "\"FAILED\""),

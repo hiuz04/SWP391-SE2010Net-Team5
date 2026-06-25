@@ -272,8 +272,12 @@ public class FacilityController extends HttpServlet {
             for (String id : deleted) {
                 long imgId = Long.parseLong(id);
                 FacilityImage img = facilityService.getImgById(imgId);
-                cloudinaryService.delete(img.getPublicId());
-                facilityService.deleteImg(imgId);
+                if (img != null) {
+                    if (img.getPublicId() != null && !img.getPublicId().trim().isEmpty()) {
+                        cloudinaryService.delete(img.getPublicId());
+                    }
+                    facilityService.deleteImg(imgId);
+                }
             }
         }
 
