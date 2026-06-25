@@ -215,8 +215,8 @@
                         <strong><%= money(booking.getOriginalPrice()) %></strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
-                        <span>T&#7893;ng ti&#7873;n</span>
-                        <strong><%= money(booking.getTotalAmount()) %></strong>
+                        <span>S&#7889; ti&#7873;n c&#7885;c ph&#7843;i &#273;&#243;ng</span>
+                        <strong><%= money(booking.getDepositAmount()) %></strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>&#272;&#227; thanh to&#225;n</span>

@@ -62,7 +62,7 @@
     <title>L&#7883;ch s&#7917; giao d&#7883;ch | Sport Field Booking</title>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/" data-role="customer" data-name="<%= esc(currentName) %>" data-active="L&#7883;ch s&#7917; giao d&#7883;ch"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="customer" data-name="<%= esc(currentName) %>" data-active="L&#7883;ch s&#7917; &#273;&#7863;t s&#226;n"></div>
 
 <main class="py-5">
     <div class="container">
@@ -71,7 +71,7 @@
                 <h1 class="section-title">L&#7883;ch s&#7917; giao d&#7883;ch</h1>
                 <p class="text-muted mb-0">C&#225;c giao d&#7883;ch thanh to&#225;n c&#7911;a t&#224;i kho&#7843;n hi&#7879;n t&#7841;i.</p>
             </div>
-            <a class="btn btn-outline-success" href="<%= ctx %>/booking?action=history">L&#7883;ch s&#7917; booking</a>
+            <a class="btn btn-outline-success" href="<%= ctx %>/booking?action=history">L&#7883;ch s&#7917; &#273;&#7863;t s&#226;n</a>
         </div>
 
         <% if (payments.isEmpty()) { %>
