@@ -142,6 +142,7 @@ function loadData() {
 
 // Xử lý form submit
 function submitForm() {
+    document.getElementById("submitBtn").disabled = true;
     const id = document.getElementById("facilityID").value;
 
     let url = !id
@@ -224,6 +225,7 @@ function submitForm() {
             console.error(err);
             alert("Không thêm/sửa được, kiểm tra server!");
         });
+    document.getElementById("submitBtn").disabled = true;
 }
 
 // Xử lý title thay đổi phụ thuộc vào thao tác
