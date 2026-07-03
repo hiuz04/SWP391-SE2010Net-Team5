@@ -9,8 +9,15 @@
 * Updated Date: 04/06/2026
 * Update Description: Thêm giao diện cho biểu mẫu quản lý cơ sở.
 -->
+<%@ page import="com.swp.model.User" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%
+    User sessionUser = (User) request.getAttribute("sessionUser");
+    if (sessionUser == null) sessionUser = (User) session.getAttribute("user");
+    String navRole = (String) request.getAttribute("navRole");
+    if (navRole == null) navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
+    if (navRole == null) navRole = "guest";
+    String displayName = sessionUser != null ? sessionUser.getFullName() : "";
     String ctx = request.getContextPath();
 %>
 <!DOCTYPE html>
@@ -38,11 +45,28 @@
         <div class="card shadow-sm facility-form-card">
             <div class="card-body p-4">
                 <h3 id="formTitle" class="mb-4 text-center"></h3>
-
                 <form>
                     <input type="hidden" id="facilityID">
 
                     <div class="row g-3">
+
+                        <input type="hidden" id="facilityID">
+
+                        <div class="col-12">
+                            <input type="file"
+                                   id="images"
+                                   name="images"
+                                   multiple
+                                   accept="image/*"
+                                   hidden>
+
+                            <label for="images" class="upload-btn">
+                                <img src="<%= ctx %>/assets/images/icon/uploadIcon.png" height="30px">
+                                Chọn ảnh
+                            </label>
+
+                            <div id="preview" class="mt-3"></div>
+                        </div>
 
                         <div class="col-md-8">
                             <label for="facName" class="form-label">Tên cơ sở <span class="text-danger">*</span></label>
@@ -81,6 +105,28 @@
                         </div>
 
                         <div class="col-md-6">
+                            <label for="lat">Vĩ độ (Latitude)</label>
+                            <input type="number"
+                                   class="form-control"
+                                   name="latitude"
+                                   step="0.0000001"
+                                   min="-90"
+                                   max="90"
+                                   id="lat">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="long">Kinh độ (Longitude)</label>
+                            <input type="number"
+                                   class="form-control"
+                                   name="longitude"
+                                   step="0.0000001"
+                                   min="-180"
+                                   max="180"
+                                   id="long">
+                        </div>
+
+                        <div class="col-md-6">
                             <label for="opTime" class="form-label">Giờ mở cửa</label>
                             <input type="time" class="form-control" id="opTime">
                         </div>
@@ -105,23 +151,23 @@
                             </select>
                         </div>
 
-<%--                        <div class="col-md-6 d-flex align-items-end">--%>
-<%--                            <div class="form-check mb-2">--%>
-<%--                                <input class="form-check-input"--%>
-<%--                                       type="checkbox"--%>
-<%--                                       id="feat">--%>
-<%--                                <label class="form-check-label" for="feat">--%>
-<%--                                    Cơ sở nổi bật--%>
-<%--                                </label>--%>
-<%--                            </div>--%>
-<%--                        </div>--%>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="feat">
+                                <label class="form-check-label" for="feat">
+                                    Cơ sở nổi bật
+                                </label>
+                            </div>
+                        </div>
 
                     </div>
 
                     <div class="mt-4 text-end">
                         <button type="button"
                                 class="btn btn-primary px-4"
-                                onclick="submitField()"
+                                onclick="submitForm()"
                                 id="submitBtn">
                             Thêm Facility
                         </button>
@@ -134,6 +180,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/owner/facility.js"></script>
-<script>dynamicLabel();</script>
+<script>dynamicLabel(); loadForm();</script>
 </body>
 </html>

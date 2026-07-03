@@ -9,6 +9,9 @@ public class BookingView implements Serializable {
 
     private Long bookingId;
     private String bookingCode;
+    private Long recurringGroupId;
+    private String repeatType;
+    private Integer recurringCount;
 
     private Long customerId;
     private String customerName;
@@ -64,6 +67,30 @@ public class BookingView implements Serializable {
 
     public void setBookingCode(String bookingCode) {
         this.bookingCode = bookingCode;
+    }
+
+    public Long getRecurringGroupId() {
+        return recurringGroupId;
+    }
+
+    public void setRecurringGroupId(Long recurringGroupId) {
+        this.recurringGroupId = recurringGroupId;
+    }
+
+    public String getRepeatType() {
+        return repeatType;
+    }
+
+    public void setRepeatType(String repeatType) {
+        this.repeatType = repeatType;
+    }
+
+    public Integer getRecurringCount() {
+        return recurringCount;
+    }
+
+    public void setRecurringCount(Integer recurringCount) {
+        this.recurringCount = recurringCount;
     }
 
     public Long getCustomerId() {

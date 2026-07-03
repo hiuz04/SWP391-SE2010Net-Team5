@@ -8,14 +8,16 @@ public class FieldList {
     private String facilityName;
     private String description;
     private String status;
+    private boolean isHot;
 
-    public FieldList(long fieldId, String fieldName, String type, String facilityName, String description, String status) {
+    public FieldList(long fieldId, String fieldName, String type, String facilityName, String description, String status, boolean isHot) {
         this.fieldId = fieldId;
         this.fieldName = fieldName;
         this.type = type;
         this.facilityName = facilityName;
         this.description = description;
         this.status = status;
+        this.isHot = isHot;
     }
 
     public long getFieldId() {
@@ -40,5 +42,9 @@ public class FieldList {
 
     public String getStatus() {
         return status;
+    }
+
+    public boolean isHot() {
+        return isHot;
     }
 }

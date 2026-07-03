@@ -15,10 +15,10 @@
       ['Dashboard','staff/dashboard'], ['Lịch trong ngày','staff/schedule'], ['Check-in','staff/checkin'], ['Checkout','staff/checkout']
     ],
     owner: [
-      ['Dashboard','owner'], ['Cơ sở','owner/facility-list'], ['Sân bóng','owner/field-list'], ['Quản lý ca trực','owner/work-shift'], ['Bảng giá','']
+      ['Dashboard','owner'], ['Cơ sở','owner/facility'], ['Sân bóng','owner/field'], ['Quản lý ca trực','owner/work-shift'], ['Bảng giá','']
     ],
     admin: [
-      ['Dashboard','UI/admin/dashboard.html'], ['Người dùng','#'], ['Duyệt chủ sân','#'], ['Cài đặt','#']
+      ['Dashboard','admin/dashboard'], ['Người dùng','admin/users'], ['Cài đặt','admin/settings']
     ]
   };
 
@@ -34,10 +34,13 @@
     const role = target.dataset.role || 'guest';
     const name = target.dataset.name || 'Người dùng';
     const active = target.dataset.active || '';
+    console.log(">>> target: ", target );
+    console.log(">>> active: ", active);
     const roleLinks = pages[role] || pages.customer;
+    console.log(">>> roleLinks: ", roleLinks);
     const auth = role === 'guest'
       ? `<a class="btn btn-outline-success" href="${link(root, 'login')}">Đăng nhập</a><a class="btn btn-sf-primary" href="${link(root, 'register')}">Đăng ký</a>`
-      : `<a class="btn btn-light position-relative" href="${link(root, '#')}" title="Thông báo"><i class="bi bi-bell"></i><span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span></a>
+      : `<a class="btn btn-light position-relative" href="${link(root, 'notifications')}" title="Thông báo"><i class="bi bi-bell"></i><span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none; font-size: 0.6rem;">0</span></a>
          <div class="dropdown">
             <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-person-circle me-1"></i>${name}</button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
@@ -58,8 +61,11 @@
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"><span class="navbar-toggler-icon"></span></button>
           <div class="collapse navbar-collapse" id="mainNav">
             <ul class="navbar-nav ms-auto me-lg-3 mb-2 mb-lg-0">
-              ${roleLinks.map(([label, href]) => `<li class="nav-item"><a class="nav-link ${active === label ? 'active fw-semibold text-success' : ''}" href="${link(root, href)}">${label}</a></li>`).join('')}
-
+              ${roleLinks.map(([label, href]) => `
+                <li class="nav-item">
+                    <a class="nav-link ${active === label ? 'active fw-semibold text-success' : ''}" href="${link(root, href)}">${label}</a>
+                </li>`)
+              .join('')}
             </ul>
             <div class="d-flex gap-2 align-items-center">${auth}</div>
           </div>
@@ -98,9 +104,37 @@
     });
   }
 
+  window.updateNotificationCount = function() {
+    const target = document.getElementById('navbar');
+    if (!target) return;
+    const root = target.dataset.root || '';
+    const role = target.dataset.role || 'guest';
+    
+    if (role === 'guest') return;
+
+    fetch(link(root, 'api/notifications/unread-count'))
+      .then(res => {
+          if (!res.ok) throw new Error('Not logged in');
+          return res.json();
+      })
+      .then(data => {
+        const badge = document.getElementById('notifBadge');
+        if (badge) {
+          if (data.count > 0) {
+            badge.textContent = data.count > 99 ? '99+' : data.count;
+            badge.style.display = 'inline-block';
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+      })
+      .catch(e => console.log('Could not fetch notification count', e));
+  };
+
   document.addEventListener('DOMContentLoaded', function () {
     renderNavbar();
     renderFooter();
     initDemoActions();
+    updateNotificationCount();
   });
 })();

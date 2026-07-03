@@ -40,7 +40,8 @@ function loadData(){
                         <th style="width: 7%">Loại sân</th>
                         <th style="width: 20%">Cơ sở</th>
                         <th style="width: 42%">Mô tả</th>
-                        <th>Trạng thái</th>
+                        <th class="text-center">Trạng thái</th>
+                        <th class="text-center">Sân Hot</th>
                         <th class="text-center">Hành động</th>
                       </tr>
                     </thead>
@@ -58,9 +59,14 @@ function loadData(){
                         <td style="color: grey;">${item.type}</td>
                         <td>${item.facilityName} sân</td>
                         <td>${item.description}</td>
-                        <td>
+                        <td class="text-center">
                             <button class="badge ${statusBadgge} border-0" onclick="">
                                 ${statusDisplay}
+                            </button>
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm ${item.isHot ? 'text-warning' : 'text-secondary'}" onclick="toggleHotStatus(${item.fieldId}, ${item.isHot})">
+                                <i class="bi bi-star-fill fs-5"></i>
                             </button>
                         </td>
                         <td class="text-center">
@@ -120,7 +126,7 @@ function loadFacilityData() {
 
 // Lấy dữ liệu Sân
 function getFieldData(id) {
-    fetch(`${ctx}/field/edit?id=` + id)
+    fetch(`${ctx}/owner/field?action=get&id=` + id)
         .then(res => res.json())
         .then(data => {
             document.getElementById("fieldID").value =
@@ -196,8 +202,8 @@ function submitField() {
     const id = document.getElementById("fieldID").value;
 
     let url = !id
-        ? `${ctx}/field/add`
-        : `${ctx}/field/edit`;
+        ? `${ctx}/owner/field?action=add`
+        : `${ctx}/owner/field?action=edit`;
 
     const data = {
         fieldID: id,
@@ -245,19 +251,19 @@ function deleteField(id) {
 
     if(!confirmed) return;
 
-    fetch(`${ctx}/field/delete?id=${id}`, {
+    fetch(`${ctx}/owner/field?action=delete&id=${id}`, {
         method: "POST"
     })
-        .then(res => {
+        .then(async res => {
             if (!res.ok) {
-                throw new Error("Delete failed");
+                const message = await res.text();
+                throw new Error(message);
             }
-
             location.reload();
         })
         .catch(err => {
             console.error(err);
-            alert("Xóa thất bại");
+            alert(err.message);
         });
 }
 
@@ -278,3 +284,27 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 });
+
+// Toggle Sân Hot
+function toggleHotStatus(fieldId, currentStatus) {
+    const newStatus = !currentStatus;
+
+    fetch(`${ctx}/owner/field/toggle-hot`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: `fieldId=${fieldId}&isHot=${newStatus}`
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error("Cập nhật trạng thái thất bại");
+        }
+        return res.text();
+    })
+    .then(() => loadData()) // Reload data
+    .catch(err => {
+        console.error(err);
+        alert("Có lỗi xảy ra khi cập nhật trạng thái HOT!");
+    });
+}

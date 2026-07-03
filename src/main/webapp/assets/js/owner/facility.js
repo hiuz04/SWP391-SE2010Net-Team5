@@ -21,32 +21,70 @@ const statusList = [
     {status: "CLOSED", display: "Đóng cửa", badge: "badge-soft-danger"}
 ]
 
+let selectedImg = [];
+let deletedImg = [];
+const imgInput = document.getElementById("images");
+const preview = document.getElementById("preview");
+
 // Lấy data của facility để edit
-function loadSelectionFacilityData() {
+async function loadFacilityData() {
     const params = new URLSearchParams(window.location.search);
     const id = params.get("id");
     if (!id) return;
-    fetch(`${ctx}/facility/edit?id=${id}`)
+    await fetch(`${ctx}/owner/facility?action=get&id=${id}`)
         .then(res => res.json())
         .then(data => {
-                document.getElementById("facilityID").value = data.facilityId;
-                document.getElementById("facName").value = data.facilityName;
-                document.getElementById("desc").value = data.description;
-                document.getElementById("adrs").value = data.address;
-                document.getElementById("ward").value = data.ward;
-                document.getElementById("dist").value = data.district;
-                document.getElementById("city").value = data.city;
-                document.getElementById("hotln").value = data.hotline;
-                document.getElementById("opTime").value = data.openingTime?.slice(0, 5);
-                document.getElementById("clsTime").value = data.closingTime?.slice(0, 5);
-                document.getElementById("rule").value = data.generalRules;
-                document.getElementById("status").value = data.status;
-                document.getElementById("feat").checked = !!data.featured;
+            console.log(">>> data",data);
+                document.getElementById("facilityID").value = data.facility.facilityId;
+                document.getElementById("facName").value = data.facility.facilityName;
+                document.getElementById("desc").value = data.facility.description;
+                document.getElementById("adrs").value = data.facility.address;
+                document.getElementById("ward").value = data.facility.ward;
+                document.getElementById("dist").value = data.facility.district;
+                document.getElementById("city").value = data.facility.city;
+                document.getElementById("hotln").value = data.facility.hotline;
+                document.getElementById("opTime").value = data.facility.openingTime?.slice(0, 5);
+                document.getElementById("clsTime").value = data.facility.closingTime?.slice(0, 5);
+                document.getElementById("rule").value = data.facility.generalRules;
+                document.getElementById("status").value = data.facility.status;
+                document.getElementById("feat").checked = !!data.facility.featured;
+
+                data.img.forEach((img) => {
+                    selectedImg.push({
+                        imageId: img.imageId,
+                        imageUrl: img.imageUrl,
+                        thumbnail: img.thumbnail,
+                        isOld: true
+                    })
+                })
             }
         )
 }
 
-loadSelectionFacilityData();
+async function loadForm() {
+    await loadFacilityData();
+    renderPreview();
+
+    // Click ra ngoài thì đóng menu
+    document.addEventListener("click", ()=>{
+        document.querySelectorAll(".menu-popup").forEach(menu=>{
+            menu.classList.remove("show");
+        });
+    });
+
+    imgInput.addEventListener("change", (e) => {
+        const newFiles = Array.from(e.target.files);
+        newFiles.forEach(file => {
+            selectedImg.push({
+                file: file,
+                thumbnail: selectedImg.length === 0,
+                isOld: false,
+            });
+        });
+        renderPreview();
+        e.target.value = "";
+    });
+}
 
 // Lấy danh sách thông tin của facility
 function loadData() {
@@ -103,12 +141,13 @@ function loadData() {
 }
 
 // Xử lý form submit
-function submitField() {
+function submitForm() {
+    document.getElementById("submitBtn").disabled = true;
     const id = document.getElementById("facilityID").value;
 
     let url = !id
-        ? `${ctx}/facility/add`
-        : `${ctx}/facility/edit`;
+        ? `${ctx}/owner/facility?action=add`
+        : `${ctx}/owner/facility?action=edit`;
 
     const data = {
         facilityID: id,
@@ -118,6 +157,8 @@ function submitField() {
         ward: document.getElementById("ward").value,
         district: document.getElementById("dist").value,
         city: document.getElementById("city").value,
+        latitude: document.getElementById("lat").value,
+        longitude: document.getElementById("long").value,
         hotline: document.getElementById("hotln").value,
         openingTime: document.getElementById("opTime").value,
         closingTime: document.getElementById("clsTime").value,
@@ -139,12 +180,37 @@ function submitField() {
         return;
     }
 
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+        formData.append(key, value);
+    });
+
+    // Upload ảnh mới
+    selectedImg
+        .filter(img => !img.isOld)
+        .forEach(img => {
+            formData.append("images", img.file);
+            formData.append("thumbnail", img.thumbnail);
+        });
+
+    // Update ảnh cũ
+    selectedImg
+        .filter(img => img.isOld)
+        .forEach(img => {
+            formData.append("imagesOld", img.imageId);
+            formData.append("thumbnailOld", img.thumbnail);
+        });
+
+    // Xóa ảnh cũ
+    if (deletedImg.length > 0) {
+        deletedImg.forEach(id => {
+            formData.append("deletedImg", id);
+        });
+    }
+
     fetch(url, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: new URLSearchParams(data)
+        body: formData
     })
         .then(res => {
             if (!res.ok) {
@@ -153,12 +219,13 @@ function submitField() {
             return res.text();
         })
         .then(() => {
-            location.href = `${ctx}/owner/facility-list`;
+            location.href = `${ctx}/owner/facility`;
         })
         .catch(err => {
             console.error(err);
             alert("Không thêm/sửa được, kiểm tra server!");
         });
+    document.getElementById("submitBtn").disabled = true;
 }
 
 // Xử lý title thay đổi phụ thuộc vào thao tác
@@ -191,18 +258,123 @@ function deleteFacility(id) {
 
     if (!confirmed) return;
 
-    fetch(`${ctx}/facility/delete?id=${id}`, {
+    fetch(`${ctx}/owner/facility?action=delete&id=${id}`, {
         method: "POST"
     })
-        .then(res => {
+        .then(async res => {
             if (!res.ok) {
-                throw new Error("Delete failed");
+                const message = await res.text();
+                throw new Error(message);
             }
-
             location.reload();
         })
         .catch(err => {
             console.error(err);
-            alert("Xóa thất bại");
+            alert(err.message);
         });
+}
+
+function renderPreview() {
+    let html = "";
+    selectedImg.forEach((image, index) => {
+        html += `
+            <div class="image-item" id="item-${index}">`
+
+        if(image.isOld){
+            let srcUrl = image.imageUrl.startsWith('http') ? image.imageUrl : `${ctx}/${image.imageUrl.replace(/^\//, '')}`;
+            html += `<img 
+                src="${srcUrl}" 
+                alt="img-${index}" 
+                id="image-${index}"
+                height="330"
+                width="550"
+                style="object-fit: cover"
+            >`
+        } else {
+            html += `<img
+                src="${URL.createObjectURL(image.file)}"
+                alt="img-${index}"
+                id="image-${index}"
+                height="330"
+                width="550"
+                style="object-fit: cover"
+            >`
+        }
+
+        html += `<button
+                    type="button"
+                    class="menu-btn hidden"
+                    id="img-menu-${index}"
+                    onclick="toggleMenu(event, ${index})"
+                >
+                    <svg viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M12 8a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4z"/>
+                    </svg>
+                </button>
+
+                <div class="menu-popup" id="menu-${index}">
+                    <button type="button" class="mt-0" onclick="setThumbnail(${index})" ${image.thumbnail ? "disabled" : ""}>
+                        <img alt="thumbnailIcon" src="${ctx}/assets/images/icon/thumbnailIcon.png" height="25" width="25">
+                        Đặt làm Thumbnail
+                    </button>
+                    <button type="button" class="mt-2" onclick="removeImage(${index})">
+                        <img alt="deleteIcon" src="${ctx}/assets/images/icon/deleteIcon.png" height="25" width="25">
+                        Xóa ảnh
+                    </button>
+                </div>
+        `;
+
+        if(image.thumbnail) {
+            html += `<div class="thumbnail-box">
+                        <img alt='thumbnail' src='${ctx}/assets/images/icon/thumbnailIcon.png' height="25" width="25">
+                    </div>`;
+        }
+
+        html +=
+            `</div>`;
+    });
+    preview.innerHTML = html;
+
+    selectedImg.forEach((image,index)=>{
+        const item = document.getElementById(`item-${index}`);
+        const menuItem = document.getElementById(`img-menu-${index}`);
+        item.addEventListener("mouseenter",()=>{
+            menuItem.classList.remove("hidden");
+        });
+        item.addEventListener("mouseleave",()=>{
+            menuItem.classList.add("hidden");
+        });
+    });
+}
+
+function setThumbnail(index) {
+    selectedImg.forEach((img) => {
+        img.thumbnail = false;
+    })
+    selectedImg[index].thumbnail = true;
+    renderPreview();
+}
+
+function removeImage(index) {
+    const wasThumbnail = selectedImg[index].thumbnail;
+    const isOld = selectedImg[index].isOld;
+    if(isOld) {
+        deletedImg.push(selectedImg[index].imageId)
+    }
+    selectedImg.splice(index, 1);
+    if (wasThumbnail && selectedImg.length > 0) {
+        selectedImg[0].thumbnail = true;
+    }
+    renderPreview();
+}
+
+function toggleMenu(event, index){
+    event.stopPropagation();
+
+    // Đóng tất cả menu khác
+    document.querySelectorAll(".menu-popup").forEach(menu=>{
+        menu.classList.remove("show");
+    });
+    document.getElementById(`menu-${index}`)
+        .classList.toggle("show");
 }

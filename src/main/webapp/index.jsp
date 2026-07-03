@@ -133,7 +133,7 @@
             <div class="d-flex justify-content-between align-items-end mb-4">
                 <div>
                     <h2 class="section-title">Sân bóng nổi bật</h2>
-                    <p class="text-muted mb-0">Top 3 sân được đặt nhiều nhất.</p>
+                    <p class="text-muted mb-0">Danh sách các sân nổi bật.</p>
                 </div>
             </div>
             <div class="row g-4">
@@ -146,7 +146,15 @@
                     <% for (TopFieldSummary field : topFields) { %>
                     <div class="col-md-6 col-xl-4">
                         <div class="card soft-card h-100 overflow-hidden">
-                            <img class="field-img" src="https://images.unsplash.com/photo-1529900681758-f4b84c32ddda?w=900&q=80" alt="Sân bóng">
+                            <% 
+                                String imgUrl = field.getImageUrl();
+                                if (imgUrl == null || imgUrl.isBlank()) {
+                                    imgUrl = request.getContextPath() + "/assets/images/icon/default_field.png"; // or any default
+                                } else if (!imgUrl.startsWith("http")) {
+                                    imgUrl = request.getContextPath() + (imgUrl.startsWith("/") ? "" : "/") + imgUrl;
+                                }
+                            %>
+                            <img class="field-img" src="<%= imgUrl %>" alt="Sân bóng" onerror="this.src='https://images.unsplash.com/photo-1529900681758-f4b84c32ddda?w=900&q=80'">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <h5 class="card-title mb-0"><%= field.getFieldName() %></h5>

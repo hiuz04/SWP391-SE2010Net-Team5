@@ -26,6 +26,48 @@
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
+    private String timeOnly(LocalDateTime value) {
+        if (value == null) return "";
+        return value.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private String dayOfWeek(LocalDateTime value) {
+        if (value == null) return "";
+        switch (value.getDayOfWeek().getValue()) {
+            case 1:
+                return "Th&#7913; 2";
+            case 2:
+                return "Th&#7913; 3";
+            case 3:
+                return "Th&#7913; 4";
+            case 4:
+                return "Th&#7913; 5";
+            case 5:
+                return "Th&#7913; 6";
+            case 6:
+                return "Th&#7913; 7";
+            default:
+                return "Ch&#7911; nh&#7853;t";
+        }
+    }
+
+    private boolean monthly(BookingView booking) {
+        return booking != null && "MONTHLY".equals(booking.getRepeatType());
+    }
+
+    private String bookingTimeLabel(BookingView booking) {
+        if (booking == null) return "";
+        if (monthly(booking)) {
+            String countText = booking.getRecurringCount() == null
+                    ? ""
+                    : " (" + booking.getRecurringCount() + " bu&#7893;i)";
+            return dayOfWeek(booking.getStartTime()) + ", "
+                    + timeOnly(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime())
+                    + countText;
+        }
+        return dateTime(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime());
+    }
+
     private String statusLabel(String status) {
         if (status == null) return "Kh&#244;ng r&#245;";
         switch (status) {
@@ -100,6 +142,10 @@
     String qrText = booking.getQrCode() != null && !booking.getQrCode().isBlank()
             ? booking.getQrCode()
             : booking.getBookingCode();
+    boolean paymentSuccess = "SUCCESS".equals(booking.getPaymentStatus());
+    boolean holdActive = "HOLD".equals(booking.getStatus())
+            && booking.getHoldExpiresAt() != null
+            && booking.getHoldExpiresAt().isAfter(LocalDateTime.now());
 %>
 
 <!DOCTYPE html>
@@ -157,8 +203,8 @@
 
                     <div class="row g-3 mt-3">
                         <div class="col-md-6">
-                            <div class="text-muted small">Gi&#7901; b&#7855;t &#273;&#7847;u / kick-off</div>
-                            <div class="fw-semibold"><%= dateTime(booking.getStartTime()) %> - <%= dateTime(booking.getEndTime()) %></div>
+                            <div class="text-muted small"><%= monthly(booking) ? "L&#7883;ch c&#7889; &#273;&#7883;nh" : "Gi&#7901; b&#7855;t &#273;&#7847;u / kick-off" %></div>
+                            <div class="fw-semibold"><%= bookingTimeLabel(booking) %></div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">Lo&#7841;i s&#226;n</div>
@@ -211,8 +257,8 @@
                         <strong><%= money(booking.getOriginalPrice()) %></strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
-                        <span>T&#7893;ng ti&#7873;n</span>
-                        <strong><%= money(booking.getTotalAmount()) %></strong>
+                        <span>S&#7889; ti&#7873;n c&#7885;c ph&#7843;i &#273;&#243;ng</span>
+                        <strong><%= money(booking.getDepositAmount()) %></strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>&#272;&#227; thanh to&#225;n</span>
@@ -224,6 +270,18 @@
                     </div>
                     <% if (booking.getPaymentMethodName() != null) { %>
                     <div class="text-muted small mt-2"><%= esc(booking.getPaymentMethodName()) %></div>
+                    <% } %>
+                    <% if (paymentSuccess || "CONFIRMED".equals(booking.getStatus())) { %>
+                    <div class="alert alert-success mt-3 mb-0">
+                        <i class="bi bi-check-circle"></i> &#272;&#227; thanh to&#225;n / booking &#273;&#227; x&#225;c nh&#7853;n.
+                    </div>
+                    <% } else if (holdActive) { %>
+                    <a class="btn btn-sf-primary w-100 mt-3"
+                       href="<%= ctx %>/payment?action=method&bookingId=<%= booking.getBookingId() %>">
+                        <i class="bi bi-credit-card"></i> Thanh to&#225;n ngay
+                    </a>
+                    <% } else if ("HOLD".equals(booking.getStatus())) { %>
+                    <div class="alert alert-warning mt-3 mb-0">Th&#7901;i gian gi&#7919; ch&#7895; &#273;&#227; h&#7871;t h&#7841;n.</div>
                     <% } %>
                     <hr>
                     <% if (booking.isCanCancel()) { %>

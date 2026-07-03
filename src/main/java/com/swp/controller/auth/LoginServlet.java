@@ -18,6 +18,7 @@ import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.UUID;
 
 @WebServlet("/login")
 public class LoginServlet extends HttpServlet {
@@ -32,7 +33,8 @@ public class LoginServlet extends HttpServlet {
             throws ServletException, IOException {
         HttpSession session = request.getSession(false);
         if (session != null && session.getAttribute("user") != null) {
-            response.sendRedirect(request.getContextPath() + "/");
+            User loggedIn = (User) session.getAttribute("user");
+            response.sendRedirect(request.getContextPath() + AuthUtil.dashboardPath(loggedIn.getRoleName()));
             return;
         }
         prepareLoginPage(request);
@@ -50,6 +52,14 @@ public class LoginServlet extends HttpServlet {
             throws ServletException, IOException {
 
         request.setCharacterEncoding("UTF-8");
+
+        HttpSession currentSession = request.getSession(false);
+        String sessionCsrf = currentSession != null ? (String) currentSession.getAttribute("csrfToken") : null;
+        String requestCsrf = request.getParameter("csrfToken");
+        if (sessionCsrf == null || !sessionCsrf.equals(requestCsrf)) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid CSRF Token");
+            return;
+        }
 
         String login = trim(request.getParameter("login"));
         String password = request.getParameter("password");
@@ -81,7 +91,12 @@ public class LoginServlet extends HttpServlet {
                 User loggedIn = user.get();
                 session.setAttribute("user", loggedIn);
                 session.setAttribute("navRole", AuthUtil.toNavRole(loggedIn.getRoleName()));
-                response.sendRedirect(request.getContextPath() + "/");
+                
+                if (request.getParameter("remember") != null) {
+                    com.swp.util.RememberMeUtil.setRememberMeCookie(response, loggedIn);
+                }
+                
+                response.sendRedirect(request.getContextPath() + AuthUtil.dashboardPath(loggedIn.getRoleName()));
                 return;
             }
 
@@ -119,6 +134,11 @@ public class LoginServlet extends HttpServlet {
             }
         }
         request.setAttribute("googleEnabled", GoogleConfig.isConfigured());
+        
+        HttpSession session = request.getSession(true);
+        if (session.getAttribute("csrfToken") == null) {
+            session.setAttribute("csrfToken", UUID.randomUUID().toString());
+        }
     }
 
     /**

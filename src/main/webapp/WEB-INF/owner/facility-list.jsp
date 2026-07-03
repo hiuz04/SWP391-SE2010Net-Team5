@@ -1,3 +1,4 @@
+<%@ page import="com.swp.model.User" %>
 <!--
 * Module: Facility Management
 * File: facility-list.html
@@ -10,6 +11,12 @@
 -->
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%
+  User sessionUser = (User) request.getAttribute("sessionUser");
+  if (sessionUser == null) sessionUser = (User) session.getAttribute("user");
+  String navRole = (String) request.getAttribute("navRole");
+  if (navRole == null) navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
+  if (navRole == null) navRole = "guest";
+  String displayName = sessionUser != null ? sessionUser.getFullName() : "";
   String ctx = request.getContextPath();
 %>
 <!DOCTYPE html>
@@ -24,7 +31,7 @@
   <title>Quản lý cơ sở | Sport Field Booking</title>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/" data-role="owner" data-name="Owner A" data-active="Cơ sở"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Cơ sở"></div>
 <main class="py-5 main-wrapper">
   <div class="container">
     <div class="d-flex justify-content-between mb-4">

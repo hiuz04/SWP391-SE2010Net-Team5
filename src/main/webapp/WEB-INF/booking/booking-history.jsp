@@ -27,6 +27,52 @@
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
+    private String timeOnly(LocalDateTime value) {
+        if (value == null) return "";
+        return value.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private String dayOfWeek(LocalDateTime value) {
+        if (value == null) return "";
+        switch (value.getDayOfWeek().getValue()) {
+            case 1:
+                return "Th&#7913; 2";
+            case 2:
+                return "Th&#7913; 3";
+            case 3:
+                return "Th&#7913; 4";
+            case 4:
+                return "Th&#7913; 5";
+            case 5:
+                return "Th&#7913; 6";
+            case 6:
+                return "Th&#7913; 7";
+            default:
+                return "Ch&#7911; nh&#7853;t";
+        }
+    }
+
+    private boolean monthly(BookingView booking) {
+        return booking != null && "MONTHLY".equals(booking.getRepeatType());
+    }
+
+    private String bookingTypeLabel(BookingView booking) {
+        if (monthly(booking)) {
+            int count = booking.getRecurringCount() == null ? 0 : booking.getRecurringCount();
+            return "Theo th&#225;ng" + (count > 1 ? " (" + count + " bu&#7893;i)" : "");
+        }
+        return "&#272;&#417;n l&#7867;";
+    }
+
+    private String bookingTimeLabel(BookingView booking) {
+        if (booking == null) return "";
+        if (monthly(booking)) {
+            return dayOfWeek(booking.getStartTime()) + ", "
+                    + timeOnly(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime());
+        }
+        return dateTime(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime());
+    }
+
     private String statusLabel(String status) {
         if (status == null) return "Kh&#244;ng r&#245;";
         switch (status) {
@@ -109,12 +155,17 @@
 
 <main class="py-5">
     <div class="container">
-        <div class="d-flex justify-content-between align-items-end mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
             <div>
                 <h1 class="section-title">L&#7883;ch s&#7917; &#273;&#7863;t s&#226;n</h1>
                 <p class="text-muted mb-0">Theo d&#245;i c&#225;c booking &#273;&#227;, &#273;ang v&#224; s&#7855;p di&#7877;n ra.</p>
             </div>
-            <a class="btn btn-sf-primary" href="<%= ctx %>/search">&#272;&#7863;t s&#226;n m&#7899;i</a>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-outline-success" href="<%= ctx %>/payment?action=history">
+                    <i class="bi bi-receipt me-1"></i>L&#7883;ch s&#7917; giao d&#7883;ch
+                </a>
+                <a class="btn btn-sf-primary" href="<%= ctx %>/search">&#272;&#7863;t s&#226;n m&#7899;i</a>
+            </div>
         </div>
 
         <% if (bookings.isEmpty()) { %>
@@ -132,6 +183,7 @@
                         <th>M&#227;</th>
                         <th>C&#417; s&#7903; / s&#226;n</th>
                         <th>Th&#7901;i gian</th>
+                        <th>Lo&#7841;i booking</th>
                         <th>Tr&#7841;ng th&#225;i</th>
                         <th>Thanh to&#225;n</th>
                         <th>T&#7893;ng ti&#7873;n</th>
@@ -146,7 +198,8 @@
                             <div class="fw-semibold"><%= esc(booking.getFacilityName()) %></div>
                             <div class="text-muted small"><%= esc(booking.getFieldName()) %></div>
                         </td>
-                        <td><%= dateTime(booking.getStartTime()) %> - <%= dateTime(booking.getEndTime()) %></td>
+                        <td><%= bookingTimeLabel(booking) %></td>
+                        <td><%= bookingTypeLabel(booking) %></td>
                         <td><span class="badge <%= statusBadgeClass(booking.getStatus()) %>"><%= statusLabel(booking.getStatus()) %></span></td>
                         <td><%= paymentLabel(booking.getPaymentStatus()) %></td>
                         <td><%= money(booking.getTotalAmount()) %></td>

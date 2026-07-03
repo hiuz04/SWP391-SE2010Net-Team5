@@ -23,9 +23,7 @@ public class UserDAO {
             INNER JOIN roles r ON u.role_id = r.role_id
             """;
 
-    private static final String FIND_BY_LOGIN_AND_PASSWORD = USER_SELECT + """
-            WHERE (u.email = ? OR u.phone = ?) AND u.password_hash = ? AND u.status = 'ACTIVE'
-            """;
+
 
     private static final String FIND_BY_GOOGLE_ID = USER_SELECT + """
             WHERE u.google_id = ? AND u.status = 'ACTIVE'
@@ -280,6 +278,169 @@ public class UserDAO {
         user.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
         user.setRoleName(rs.getString("role_name"));
         return user;
+    }
+
+    //lay danh sach user trong admindashboard
+    public java.util.List<User> getAllUsers() {
+        java.util.List<User> users = new java.util.ArrayList<>();
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(USER_SELECT + " ORDER BY u.created_at DESC");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                users.add(mapRow(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi truy vấn danh sách người dùng: " + e.getMessage(), e);
+        }
+        return users;
+    }
+
+    public java.util.List<User> getUsersPaginated(String search, String role, String status, int offset, int limit) {
+        java.util.List<User> users = new java.util.ArrayList<>();
+        StringBuilder sql = new StringBuilder(USER_SELECT + " WHERE 1=1 ");
+        
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?) ");
+        }
+        if (role != null && !role.trim().isEmpty()) {
+            sql.append(" AND r.role_name = ? ");
+        }
+        if (status != null && !status.trim().isEmpty()) {
+            sql.append(" AND u.status = ? ");
+        }
+        sql.append(" ORDER BY u.created_at DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY ");
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+             
+            int paramIndex = 1;
+            if (search != null && !search.trim().isEmpty()) {
+                String likeSearch = "%" + search.trim() + "%";
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+            }
+            if (role != null && !role.trim().isEmpty()) {
+                ps.setString(paramIndex++, role.trim());
+            }
+            if (status != null && !status.trim().isEmpty()) {
+                ps.setString(paramIndex++, status.trim());
+            }
+            ps.setInt(paramIndex++, offset);
+            ps.setInt(paramIndex++, limit);
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    users.add(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi truy vấn danh sách người dùng phân trang: " + e.getMessage(), e);
+        }
+        return users;
+    }
+
+    public int countUsers(String search, String role, String status) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM users u INNER JOIN roles r ON u.role_id = r.role_id WHERE 1=1 ");
+        
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?) ");
+        }
+        if (role != null && !role.trim().isEmpty()) {
+            sql.append(" AND r.role_name = ? ");
+        }
+        if (status != null && !status.trim().isEmpty()) {
+            sql.append(" AND u.status = ? ");
+        }
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+             
+            int paramIndex = 1;
+            if (search != null && !search.trim().isEmpty()) {
+                String likeSearch = "%" + search.trim() + "%";
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+            }
+            if (role != null && !role.trim().isEmpty()) {
+                ps.setString(paramIndex++, role.trim());
+            }
+            if (status != null && !status.trim().isEmpty()) {
+                ps.setString(paramIndex++, status.trim());
+            }
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi đếm số lượng người dùng: " + e.getMessage(), e);
+        }
+        return 0;
+    }
+
+    public Optional<User> getUserById(long userId) {
+        String sql = USER_SELECT + " WHERE u.user_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi truy vấn người dùng theo ID: " + e.getMessage(), e);
+        }
+        return Optional.empty();
+    }
+
+    public void updateUserStatus(long userId, String status) {
+        String sql = "UPDATE users SET status = ?, updated_at = GETDATE() WHERE user_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, status);
+            ps.setLong(2, userId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật trạng thái người dùng: " + e.getMessage(), e);
+        }
+    }
+
+    public void deleteUser(long userId) {
+        String sql = "DELETE FROM users WHERE user_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi xóa người dùng: " + e.getMessage(), e);
+        }
+    }
+
+    public void updateUserByAdmin(User user) {
+        String sql = """
+                UPDATE users
+                SET full_name = ?, phone = ?, email = ?, role_id = ?, status = ?,
+                    password_hash = COALESCE(NULLIF(?, ''), password_hash),
+                    updated_at = GETDATE()
+                WHERE user_id = ?
+                """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, user.getFullName());
+            ps.setString(2, user.getPhone());
+            ps.setString(3, user.getEmail());
+            ps.setInt(4, user.getRoleId());
+            ps.setString(5, user.getStatus());
+            ps.setString(6, user.getPasswordHash());
+            ps.setLong(7, user.getUserId());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật thông tin người dùng bởi admin: " + e.getMessage(), e);
+        }
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {

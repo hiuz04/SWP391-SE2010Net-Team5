@@ -3,7 +3,7 @@ package com.swp.model;
 import java.io.Serializable;
 
 public class FieldType implements Serializable {
-    private static final long serialVersionUID = 1L;
+//    private static final long serialVersionUID = 1L;
     private Integer fieldTypeId;
     private String typeName;
     private Integer numberOfPlayers;
