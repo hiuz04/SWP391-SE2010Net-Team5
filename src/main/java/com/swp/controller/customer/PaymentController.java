@@ -144,6 +144,9 @@ public class PaymentController extends HttpServlet {
                     notification.setNotificationType("BOOKING");
                     notification.setReferenceId(bookingId);
                     notificationDAO.insertNotification(notification);
+                    
+                    notificationDAO.notifyRole("OWNER", "Có khách hàng đặt sân mới", "Một khách hàng vừa đặt sân và thanh toán thành công. Mã giao dịch: " + transactionRef, "BOOKING", bookingId);
+                    notificationDAO.notifyRole("STAFF", "Có khách hàng đặt sân mới", "Một khách hàng vừa đặt sân và thanh toán thành công. Mã giao dịch: " + transactionRef, "BOOKING", bookingId);
                 } catch (Exception ignored) {
                 }
             } else {

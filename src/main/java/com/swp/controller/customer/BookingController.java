@@ -386,6 +386,14 @@ public class BookingController extends HttpServlet {
 
         // Cap nhat trang thai booking va ghi log trong DAO.
         bookingDAO.cancelBooking(bookingId, currentUser.getUserId(), reason, currentUser.getUserId());
+        
+        try {
+            com.swp.dao.NotificationDAO notificationDAO = new com.swp.dao.NotificationDAO();
+            String msg = "Khách hàng " + currentUser.getFullName() + " đã hủy lịch đặt sân (Mã đặt: " + bookingId + "). Lý do: " + reason;
+            notificationDAO.notifyRole("OWNER", "Khách hàng hủy đặt sân", msg, "BOOKING", bookingId);
+            notificationDAO.notifyRole("STAFF", "Khách hàng hủy đặt sân", msg, "BOOKING", bookingId);
+        } catch (Exception ignored) {}
+
         response.sendRedirect(request.getContextPath()
                 + "/booking?action=detail&id=" + bookingId + "&success=cancelled");
     }

@@ -34,7 +34,7 @@ public class OwnerAuthFilter implements Filter {
         User user = (User) session.getAttribute("user");
 
         // Không phải Owner
-        if (!OWNER_ROLE_NAME.equals(user.getRoleName())) {
+        if (!OWNER_ROLE_NAME.equalsIgnoreCase(user.getRoleName())) {
             resp.sendRedirect(req.getContextPath() + "/error/403.jsp");
             return;
         }

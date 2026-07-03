@@ -135,6 +135,7 @@
                     <h2 class="section-title">Sân bóng nổi bật</h2>
                     <p class="text-muted mb-0">Danh sách các sân nổi bật.</p>
                 </div>
+                <a href="<%= ctx %>/search" class="btn btn-outline-success">Xem thêm <i class="bi bi-arrow-right"></i></a>
             </div>
             <div class="row g-4">
                 <% if (topFields.isEmpty()) { %>
