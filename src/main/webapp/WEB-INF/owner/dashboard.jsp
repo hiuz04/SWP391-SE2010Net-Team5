@@ -93,7 +93,7 @@
                     <div class="d-grid gap-2">
                         <a class="btn btn-outline-success" href="<%= ctx %>/owner/facility">Cơ sở</a>
                         <a class="btn btn-outline-success" href="<%= ctx %>/owner/field">Sân bóng</a>
-                        <a class="btn btn-outline-success" href="<%= ctx %>/owner/price-rules">Bảng giá</a>
+                        <a class="btn btn-outline-success" href="<%= ctx %>/owner/dashboard">Bảng giá</a>
                     </div>
                 </div>
             </div>

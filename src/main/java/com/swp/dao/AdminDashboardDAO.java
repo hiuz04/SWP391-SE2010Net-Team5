@@ -14,18 +14,18 @@ public class AdminDashboardDAO {
     public Map<String, Object> getDashboardKPIs() {
         Map<String, Object> kpis = new HashMap<>();
         
-        kpis.put("revenue7Days", BigDecimal.ZERO);
+        kpis.put("todayRevenue", BigDecimal.ZERO);
         kpis.put("todayBookings", 0);
         kpis.put("newCustomers", 0);
         kpis.put("pendingUsers", 0);
 
-        // 1. Doanh thu 7 ngày qua
-        String revSql = "SELECT ISNULL(SUM(total_amount), 0) FROM invoices WHERE status = 'PAID' AND issued_at >= DATEADD(day, -7, GETDATE())";
+        // 1. Doanh thu hôm nay
+        String revSql = "SELECT ISNULL(SUM(total_amount), 0) FROM invoices WHERE status = 'PAID' AND CAST(issued_at AS DATE) = CAST(GETDATE() AS DATE)";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(revSql);
              ResultSet rs = ps.executeQuery()) {
             if (rs.next()) {
-                kpis.put("revenue7Days", rs.getBigDecimal(1));
+                kpis.put("todayRevenue", rs.getBigDecimal(1));
             }
         } catch (SQLException e) {
             e.printStackTrace();

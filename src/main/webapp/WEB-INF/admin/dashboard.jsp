@@ -22,7 +22,7 @@
 
     NumberFormat currencyFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
 
-    BigDecimal revenue7Days = kpis != null && kpis.get("revenue7Days") != null ? new BigDecimal(kpis.get("revenue7Days").toString()) : BigDecimal.ZERO;
+    BigDecimal todayRevenue = kpis != null && kpis.get("todayRevenue") != null ? new BigDecimal(kpis.get("todayRevenue").toString()) : BigDecimal.ZERO;
     int todayBookings = kpis != null && kpis.get("todayBookings") != null ? ((Number) kpis.get("todayBookings")).intValue() : 0;
     int newCustomers = kpis != null && kpis.get("newCustomers") != null ? ((Number) kpis.get("newCustomers")).intValue() : 0;
     int pendingUsers = kpis != null && kpis.get("pendingUsers") != null ? ((Number) kpis.get("pendingUsers")).intValue() : 0;
@@ -58,8 +58,8 @@
                 <div class="col-md-3">
                     <div class="stat-card p-4 position-relative h-100">
                         <i class="bi bi-currency-dollar stat-icon"></i>
-                        <div class="text-muted fw-semibold">Doanh thu 7 ngày qua</div>
-                        <h3 class="fw-bold mt-2"><%= currencyFormat.format(revenue7Days) %>₫</h3>
+                        <div class="text-muted fw-semibold">Doanh thu hôm nay</div>
+                        <h3 class="fw-bold mt-2"><%= currencyFormat.format(todayRevenue) %>₫</h3>
                     </div>
                 </div>
                 <div class="col-md-3">
