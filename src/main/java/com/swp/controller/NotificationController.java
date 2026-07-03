@@ -13,7 +13,7 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.List;
 
-@WebServlet("/notifications")
+@WebServlet("/noti")
 public class NotificationController extends HttpServlet {
 
     private final NotificationDAO notificationDAO = new NotificationDAO();
