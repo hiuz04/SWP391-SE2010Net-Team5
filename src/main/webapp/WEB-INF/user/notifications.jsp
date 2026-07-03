@@ -1,14 +1,17 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="com.swp.model.User" %>
-<%@ page import="com.swp.model.Notification" %>
 <%@ page import="java.util.List" %>
-<%@ page import="java.time.format.DateTimeFormatter" %>
+<%@ page import="com.swp.model.Notification" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%
+    User sessionUser = (User) request.getAttribute("sessionUser");
+    if (sessionUser == null) sessionUser = (User) session.getAttribute("user");
+    String navRole = (String) request.getAttribute("navRole");
+    if (navRole == null) navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
+    if (navRole == null) navRole = "guest";
+    String displayName = sessionUser != null ? sessionUser.getFullName() : "";
     String ctx = request.getContextPath();
-    User currentUser = (User) session.getAttribute("user");
-    String currentName = currentUser != null && currentUser.getFullName() != null ? currentUser.getFullName() : "Người dùng";
+    
     List<Notification> notifications = (List<Notification>) request.getAttribute("notifications");
-    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -19,152 +22,61 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
     <title>Thông báo của bạn | Sport Field Booking</title>
-    <style>
-        .notification-item {
-            transition: all 0.2s ease;
-            border-left: 4px solid transparent;
-        }
-        .notification-item:hover {
-            background-color: #f8f9fa;
-        }
-        .notification-item.unread {
-            background-color: #f0f7ff;
-            border-left-color: #0d6efd;
-        }
-        .notification-icon {
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            font-size: 1.5rem;
-        }
-        .icon-BOOKING { background-color: #e8f5e9; color: #198754; }
-        .icon-MATCHING { background-color: #fff3cd; color: #ffc107; }
-        .icon-SYSTEM { background-color: #e2e3e5; color: #6c757d; }
-    </style>
 </head>
 <body class="bg-light">
-    <!-- Component Navbar sẽ được load qua app.js -->
-    <div id="navbar" data-root="<%= ctx %>/" data-role="<%= currentUser != null && currentUser.getRoleName() != null ? currentUser.getRoleName().toLowerCase() : "customer" %>" data-name="<%= currentName %>" data-active="Notifications"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active=""></div>
 
-    <main class="container py-4">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
-                        <h4 class="fw-bold m-0"><i class="bi bi-bell text-primary me-2"></i>Thông báo của bạn</h4>
-                        <button id="btnMarkAllRead" class="btn btn-sm btn-outline-secondary">Đánh dấu tất cả đã đọc</button>
-                    </div>
-                    <div class="card-body p-0 mt-3">
-                        <div class="list-group list-group-flush" id="notificationList">
-                            <% if (notifications != null && !notifications.isEmpty()) { %>
-                                <% for (Notification n : notifications) { 
-                                    String iconClass = "bi-bell";
-                                    String bgClass = "icon-SYSTEM";
-                                    if ("BOOKING".equals(n.getNotificationType())) {
-                                        iconClass = "bi-calendar-check";
-                                        bgClass = "icon-BOOKING";
-                                    } else if ("MATCHING".equals(n.getNotificationType())) {
-                                        iconClass = "bi-people";
-                                        bgClass = "icon-MATCHING";
-                                    }
+<main class="py-5">
+    <div class="container" style="max-width: 800px;">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold mb-0">Thông báo của bạn</h2>
+            <% if (notifications != null && !notifications.isEmpty()) { %>
+            <form action="<%= ctx %>/notifications" method="POST" class="m-0">
+                <input type="hidden" name="action" value="mark_all">
+                <button type="submit" class="btn btn-outline-success btn-sm"><i class="bi bi-check2-all me-1"></i>Đánh dấu tất cả đã đọc</button>
+            </form>
+            <% } %>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush rounded-4">
+                    <% if (notifications != null && !notifications.isEmpty()) {
+                        for (Notification notif : notifications) {
+                            String bgClass = notif.getIsRead() ? "bg-white" : "bg-light";
+                    %>
+                    <li class="list-group-item p-4 <%= bgClass %>" id="notif-<%= notif.getNotificationId() %>">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1 fw-bold <%= notif.getIsRead() ? "text-secondary" : "text-dark" %>">
+                                <% if (!notif.getIsRead()) { %><span class="text-danger me-1">●</span><% } %>
+                                <%= notif.getTitle() %>
+                            </h6>
+                            <small class="text-muted">
+                                <% 
+                                    java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM");
+                                    out.print(notif.getCreatedAt() != null ? notif.getCreatedAt().format(formatter) : "");
                                 %>
-                                <div class="list-group-item notification-item <%= (n.getIsRead() != null && !n.getIsRead()) ? "unread" : "" %> p-4" data-id="<%= n.getNotificationId() %>">
-                                    <div class="d-flex align-items-start">
-                                        <div class="notification-icon <%= bgClass %> flex-shrink-0 me-3">
-                                            <i class="bi <%= iconClass %>"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <h6 class="fw-bold mb-1 <%= (n.getIsRead() != null && !n.getIsRead()) ? "text-dark" : "text-muted" %>"><%= n.getTitle() %></h6>
-                                                <small class="text-muted text-nowrap ms-2"><%= n.getCreatedAt().format(formatter) %></small>
-                                            </div>
-                                            <p class="mb-2 text-secondary"><%= n.getMessage() %></p>
-                                            <% if (n.getIsRead() != null && !n.getIsRead()) { %>
-                                                <button class="btn btn-sm btn-link text-decoration-none p-0 mark-read-btn" data-id="<%= n.getNotificationId() %>">Đánh dấu đã đọc</button>
-                                            <% } %>
-                                        </div>
-                                    </div>
-                                </div>
-                                <% } %>
-                            <% } else { %>
-                                <div class="p-5 text-center text-muted">
-                                    <i class="bi bi-bell-slash display-1 text-light mb-3"></i>
-                                    <h5>Bạn chưa có thông báo nào</h5>
-                                    <p>Các thông báo mới từ hệ thống sẽ xuất hiện ở đây.</p>
-                                </div>
-                            <% } %>
+                            </small>
                         </div>
-                    </div>
-                </div>
+                        <p class="mb-1 mt-2 <%= notif.getIsRead() ? "text-muted" : "text-dark" %>" style="font-size: 0.95rem;">
+                            <%= notif.getMessage() %>
+                        </p>
+                    </li>
+                    <% } } else { %>
+                    <li class="list-group-item p-5 text-center text-muted">
+                        <i class="bi bi-bell-slash fs-1 text-light mb-3 d-block" style="font-size: 3rem;"></i>
+                        Bạn không có thông báo nào.
+                    </li>
+                    <% } %>
+                </ul>
             </div>
         </div>
-    </main>
+    </div>
+</main>
 
-    <!-- Component Footer -->
-    <div id="footer" data-root="<%= ctx %>/"></div>
+<div id="footer" data-root="<%= ctx %>/"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="<%= ctx %>/assets/js/app.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Xử lý đánh dấu 1 thông báo đã đọc
-            const readBtns = document.querySelectorAll('.mark-read-btn');
-            readBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const notifId = this.getAttribute('data-id');
-                    const item = this.closest('.notification-item');
-                    
-                    fetch('<%= ctx %>/api/notifications/mark-read', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: 'id=' + notifId
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            item.classList.remove('unread');
-                            this.remove();
-                            item.querySelector('h6').classList.remove('text-dark');
-                            item.querySelector('h6').classList.add('text-muted');
-                            // Cập nhật lại số đếm ở navbar nếu có hàm updateNotificationCount trong app.js
-                            if(typeof updateNotificationCount === 'function') {
-                                updateNotificationCount();
-                            }
-                        }
-                    });
-                });
-            });
-
-            // Xử lý đánh dấu tất cả đã đọc
-            const btnMarkAll = document.getElementById('btnMarkAllRead');
-            if (btnMarkAll) {
-                btnMarkAll.addEventListener('click', function() {
-                    fetch('<%= ctx %>/api/notifications/mark-all-read', {
-                        method: 'POST'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            document.querySelectorAll('.notification-item.unread').forEach(item => {
-                                item.classList.remove('unread');
-                                const btn = item.querySelector('.mark-read-btn');
-                                if (btn) btn.remove();
-                                item.querySelector('h6').classList.remove('text-dark');
-                                item.querySelector('h6').classList.add('text-muted');
-                            });
-                            if(typeof updateNotificationCount === 'function') {
-                                updateNotificationCount();
-                            }
-                        }
-                    });
-                });
-            }
-        });
-    </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<%= ctx %>/assets/js/app.js"></script>
 </body>
 </html>

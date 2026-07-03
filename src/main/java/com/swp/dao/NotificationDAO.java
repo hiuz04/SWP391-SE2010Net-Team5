@@ -100,6 +100,28 @@ public class NotificationDAO {
         return false;
     }
 
+    public void notifyRole(String roleName, String title, String message, String type, Long referenceId) {
+        String sql = "INSERT INTO notifications (user_id, title, message, notification_type, reference_id, is_read, created_at) " +
+                     "SELECT u.user_id, ?, ?, ?, ?, 0, GETDATE() " +
+                     "FROM users u JOIN roles r ON u.role_id = r.role_id " +
+                     "WHERE UPPER(r.role_name) = UPPER(?)";
+        try (Connection conn = DBContext.getConnection(); 
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, title);
+            ps.setString(2, message);
+            ps.setString(3, type);
+            if (referenceId != null) {
+                ps.setLong(4, referenceId);
+            } else {
+                ps.setNull(4, Types.BIGINT);
+            }
+            ps.setString(5, roleName);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void sendBookingReminders() {
         String sql = "INSERT INTO notifications (user_id, title, message, notification_type, reference_id, is_read, created_at) " +
                      "SELECT b.customer_id, N'Sắp đến giờ đá!', " +

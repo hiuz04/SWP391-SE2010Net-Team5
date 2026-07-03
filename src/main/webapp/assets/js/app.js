@@ -15,7 +15,9 @@
       ['Dashboard','staff/dashboard'], ['Lịch trong ngày','staff/schedule'], ['Check-in','staff/checkin'], ['Checkout','staff/checkout']
     ],
     owner: [
-      ['Dashboard','owner'], ['Cơ sở','owner/facility'], ['Sân bóng','owner/field'], ['Quản lý ca trực','owner/work-shift'], ['Bảng giá','']
+
+      ['Dashboard','owner'], ['Cơ sở','owner/facility'], ['Sân bóng','owner/field'], ['Quản lý ca trực','owner/work-shift'], ['Bảng giá','owner/price-rules']
+
     ],
     admin: [
       ['Dashboard','admin/dashboard'], ['Người dùng','admin/users'], ['Cài đặt','admin/settings']
@@ -40,7 +42,23 @@
     console.log(">>> roleLinks: ", roleLinks);
     const auth = role === 'guest'
       ? `<a class="btn btn-outline-success" href="${link(root, 'login')}">Đăng nhập</a><a class="btn btn-sf-primary" href="${link(root, 'register')}">Đăng ký</a>`
-      : `<a class="btn btn-light position-relative" href="${link(root, 'notifications')}" title="Thông báo"><i class="bi bi-bell"></i><span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none; font-size: 0.6rem;">0</span></a>
+      : `<div class="dropdown me-2">
+            <button class="btn btn-light position-relative dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Thông báo">
+               <i class="bi bi-bell"></i>
+               <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none; font-size: 0.6rem;">0</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow" id="notifDropdown" style="width: 300px; max-height: 400px; overflow-y: auto;">
+               <li><h6 class="dropdown-header d-flex justify-content-between align-items-center">
+                   <span>Thông báo</span>
+                   <button class="btn btn-sm text-primary p-0" onclick="markAllAsRead(event)" style="font-size: 0.8rem;">Đánh dấu đã đọc</button>
+               </h6></li>
+               <div id="notifList">
+                   <li><span class="dropdown-item text-center text-muted py-3">Đang tải...</span></li>
+               </div>
+               <li><hr class="dropdown-divider"></li>
+               <li><a class="dropdown-item text-center text-primary" href="${link(root, 'notifications')}">Xem tất cả</a></li>
+            </ul>
+         </div>
          <div class="dropdown">
             <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-person-circle me-1"></i>${name}</button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
@@ -104,6 +122,35 @@
     });
   }
 
+  window.markAllAsRead = function(e) {
+      if(e) e.stopPropagation();
+      const target = document.getElementById('navbar');
+      const root = target ? (target.dataset.root || '') : '';
+      fetch(link(root, 'api/notifications'), {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: 'action=mark_all_read'
+      }).then(res => res.json()).then(data => {
+          if(data.success) {
+              updateNotificationCount();
+          }
+      });
+  };
+
+  window.markAsRead = function(id) {
+      const target = document.getElementById('navbar');
+      const root = target ? (target.dataset.root || '') : '';
+      fetch(link(root, 'api/notifications'), {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: 'action=mark_read&id=' + id
+      }).then(res => res.json()).then(data => {
+          if(data.success) {
+              updateNotificationCount();
+          }
+      });
+  };
+
   window.updateNotificationCount = function() {
     const target = document.getElementById('navbar');
     if (!target) return;
@@ -112,7 +159,7 @@
     
     if (role === 'guest') return;
 
-    fetch(link(root, 'api/notifications/unread-count'))
+    fetch(link(root, 'api/notifications'))
       .then(res => {
           if (!res.ok) throw new Error('Not logged in');
           return res.json();
@@ -120,15 +167,34 @@
       .then(data => {
         const badge = document.getElementById('notifBadge');
         if (badge) {
-          if (data.count > 0) {
-            badge.textContent = data.count > 99 ? '99+' : data.count;
+          if (data.unreadCount > 0) {
+            badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
             badge.style.display = 'inline-block';
           } else {
             badge.style.display = 'none';
           }
         }
+        
+        const list = document.getElementById('notifList');
+        if (list) {
+            if (!data.notifications || data.notifications.length === 0) {
+                list.innerHTML = '<li><span class="dropdown-item text-center text-muted py-3">Không có thông báo mới</span></li>';
+            } else {
+                let html = '';
+                data.notifications.forEach(n => {
+                    const bg = n.isRead ? '' : 'bg-light';
+                    html += `<li>
+                        <a class="dropdown-item border-bottom py-2 ${bg}" href="#" onclick="markAsRead(${n.notificationId})">
+                            <div class="fw-bold" style="font-size:0.85rem">${n.title}</div>
+                            <div class="text-wrap text-muted" style="font-size:0.8rem; line-height: 1.2;">${n.message}</div>
+                        </a>
+                    </li>`;
+                });
+                list.innerHTML = html;
+            }
+        }
       })
-      .catch(e => console.log('Could not fetch notification count', e));
+      .catch(e => console.log('Could not fetch notifications', e));
   };
 
   document.addEventListener('DOMContentLoaded', function () {
