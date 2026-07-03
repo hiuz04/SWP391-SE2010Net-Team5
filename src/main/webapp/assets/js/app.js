@@ -15,7 +15,7 @@
       ['Dashboard','staff/dashboard'], ['Lịch trong ngày','staff/schedule'], ['Check-in','staff/checkin'], ['Checkout','staff/checkout']
     ],
     owner: [
-      ['Dashboard',''], ['Cơ sở','/facility-list'], ['Sân bóng','/field-list'], ['Bảng giá','']
+      ['Dashboard','owner'], ['Cơ sở','owner/facility-list'], ['Sân bóng','owner/field-list'], ['Quản lý ca trực','owner/work-shift'], ['Bảng giá','']
     ],
     admin: [
       ['Dashboard','UI/admin/dashboard.html'], ['Người dùng','#'], ['Duyệt chủ sân','#'], ['Cài đặt','#']

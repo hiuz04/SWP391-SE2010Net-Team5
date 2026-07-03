@@ -30,11 +30,12 @@ public class StaffDashboardDAO {
                   AND ws.shift_date = CAST(GETDATE() AS DATE)
                 ORDER BY ws.start_time
                 """;
+        List<Map<String, Object>> shifts = new ArrayList<>();
         try (Connection conn = DBContext.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, staffId);
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
+                while (rs.next()) {
                     Map<String, Object> shift = new LinkedHashMap<>();
                     shift.put("shiftId", rs.getLong("shift_id"));
                     shift.put("shiftName", rs.getString("shift_name"));
@@ -44,13 +45,82 @@ public class StaffDashboardDAO {
                     shift.put("facilityId", rs.getLong("facility_id"));
                     shift.put("facilityName", rs.getString("facility_name"));
                     shift.put("assignmentStatus", rs.getString("assignment_status"));
-                    return shift;
+                    shifts.add(shift);
                 }
             }
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi truy vấn ca làm việc: " + e.getMessage(), e);
         }
-        return Collections.emptyMap();
+        return selectBestShift(shifts);
+    }
+
+    private static LocalTime parseTime(String s) {
+        if (s == null) return LocalTime.MIDNIGHT;
+        if (s.contains(" ")) {
+            s = s.split(" ")[1];
+        }
+        if (s.contains(".")) s = s.substring(0, s.indexOf('.'));
+        String[] parts = s.split(":");
+        int h = Integer.parseInt(parts[0]);
+        int m = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+        return LocalTime.of(h, m);
+    }
+
+    private static Map<String, Object> selectBestShift(List<Map<String, Object>> shifts) {
+        if (shifts == null || shifts.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        if (shifts.size() == 1) {
+            return shifts.get(0);
+        }
+
+        LocalTime now = LocalTime.now();
+
+        // 1. Check if there is an active/ongoing shift
+        for (Map<String, Object> shift : shifts) {
+            LocalTime start = parseTime((String) shift.get("startTime"));
+            LocalTime end = parseTime((String) shift.get("endTime"));
+            if (isTimeInShift(now, start, end)) {
+                return shift;
+            }
+        }
+
+        // 2. Check if there is an upcoming shift
+        Map<String, Object> bestUpcoming = null;
+        LocalTime minUpcomingStart = null;
+        for (Map<String, Object> shift : shifts) {
+            LocalTime start = parseTime((String) shift.get("startTime"));
+            if (now.isBefore(start)) {
+                if (minUpcomingStart == null || start.isBefore(minUpcomingStart)) {
+                    minUpcomingStart = start;
+                    bestUpcoming = shift;
+                }
+            }
+        }
+        if (bestUpcoming != null) {
+            return bestUpcoming;
+        }
+
+        // 3. Check if there is a completed shift
+        Map<String, Object> bestCompleted = null;
+        LocalTime maxCompletedEnd = null;
+        for (Map<String, Object> shift : shifts) {
+            LocalTime end = parseTime((String) shift.get("endTime"));
+            if (maxCompletedEnd == null || end.isAfter(maxCompletedEnd)) {
+                maxCompletedEnd = end;
+                bestCompleted = shift;
+            }
+        }
+
+        return bestCompleted != null ? bestCompleted : shifts.get(0);
+    }
+
+    private static boolean isTimeInShift(LocalTime time, LocalTime start, LocalTime end) {
+        if (start.isBefore(end)) {
+            return !time.isBefore(start) && time.isBefore(end);
+        } else {
+            return !time.isBefore(start) || time.isBefore(end);
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -369,7 +439,8 @@ public class StaffDashboardDAO {
     public Map<String, Object> getBookingDetailForCheckout(long bookingId) {
         String sql = """
             SELECT b.booking_id, b.booking_code, b.total_amount, b.deposit_amount,
-                   u.full_name AS customer_name, f.field_name, fac.facility_name
+                   u.full_name AS customer_name, u.phone AS customer_phone,
+                   b.start_time, b.end_time, f.field_name, fac.facility_name
             FROM bookings b
             JOIN users u ON b.customer_id = u.user_id
             JOIN fields f ON b.field_id = f.field_id
@@ -387,6 +458,9 @@ public class StaffDashboardDAO {
                     map.put("totalAmount", rs.getBigDecimal("total_amount"));
                     map.put("depositAmount", rs.getBigDecimal("deposit_amount"));
                     map.put("customerName", rs.getString("customer_name"));
+                    map.put("customerPhone", rs.getString("customer_phone"));
+                    map.put("startTime", rs.getString("start_time"));
+                    map.put("endTime", rs.getString("end_time"));
                     map.put("fieldName", rs.getString("field_name"));
                     map.put("facilityName", rs.getString("facility_name"));
                     return map;
@@ -502,6 +576,57 @@ public class StaffDashboardDAO {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi truy vấn danh sách sân: " + e.getMessage(), e);
+        }
+        return list;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 15. Search CONFIRMED bookings by code, customer name, or phone number
+    // ──────────────────────────────────────────────────────────────────────────
+    public List<Map<String, Object>> searchConfirmedBookings(long facilityId, String query) {
+        String sql = """
+                SELECT b.booking_id, b.booking_code,
+                       b.start_time, b.end_time,
+                       b.status, b.total_amount,
+                       u.full_name AS customer_name, u.phone AS customer_phone,
+                       fi.field_name
+                FROM bookings b
+                JOIN users u  ON b.customer_id = u.user_id
+                JOIN fields fi ON b.field_id   = fi.field_id
+                WHERE b.facility_id = ?
+                  AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'COMPLETED')
+                  AND (
+                      b.booking_code LIKE ?
+                      OR u.full_name LIKE ?
+                      OR u.phone LIKE ?
+                  )
+                ORDER BY b.start_time
+                """;
+        List<Map<String, Object>> list = new ArrayList<>();
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            String likePattern = "%" + query + "%";
+            ps.setLong(1, facilityId);
+            ps.setString(2, likePattern);
+            ps.setString(3, likePattern);
+            ps.setString(4, likePattern);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("bookingId", rs.getLong("booking_id"));
+                    row.put("bookingCode", rs.getString("booking_code"));
+                    row.put("startTime", rs.getString("start_time"));
+                    row.put("endTime", rs.getString("end_time"));
+                    row.put("status", rs.getString("status"));
+                    row.put("totalAmount", rs.getBigDecimal("total_amount"));
+                    row.put("customerName", rs.getString("customer_name"));
+                    row.put("customerPhone", rs.getString("customer_phone"));
+                    row.put("fieldName", rs.getString("field_name"));
+                    list.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tìm kiếm booking: " + e.getMessage(), e);
         }
         return list;
     }

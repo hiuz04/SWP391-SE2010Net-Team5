@@ -23,7 +23,7 @@
     <title>Owner Dashboard | Sport Field Booking</title>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/owner" data-role="owner" data-name="Owner A" data-active="Dashboard"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="owner" data-name="Owner A" data-active="Dashboard"></div>
 <main class="dashboard-shell">
     <div class="container"><h1 class="section-title">Owner Dashboard</h1>
         <p class="text-muted">Theo dõi hiệu quả kinh doanh cơ sở sân.</p>

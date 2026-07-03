@@ -24,7 +24,7 @@
   <title>Quản lý cơ sở | Sport Field Booking</title>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/owner" data-role="owner" data-name="Owner A" data-active="Cơ sở"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="owner" data-name="Owner A" data-active="Cơ sở"></div>
 <main class="py-5 main-wrapper">
   <div class="container">
     <div class="d-flex justify-content-between mb-4">
