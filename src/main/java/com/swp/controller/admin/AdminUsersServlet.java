@@ -58,6 +58,10 @@ public class AdminUsersServlet extends HttpServlet {
             page = 1;
         }
         
+        if (page < 1) {
+            page = 1;
+        }
+        
         int offset = (page - 1) * limit;
         
         List<User> userList = userDAO.getUsersPaginated(search, role, status, offset, limit);
@@ -124,6 +128,10 @@ public class AdminUsersServlet extends HttpServlet {
         String fullName = request.getParameter("fullName");
         String phone = request.getParameter("phone");
         String email = request.getParameter("email");
+        
+        if (fullName != null) fullName = fullName.trim();
+        if (phone != null) phone = phone.trim();
+        if (email != null) email = email.trim();
         String roleName = request.getParameter("roleName");
         String status = request.getParameter("status");
         String password = request.getParameter("password");
@@ -174,6 +182,10 @@ public class AdminUsersServlet extends HttpServlet {
         String fullName = request.getParameter("fullName");
         String phone = request.getParameter("phone");
         String email = request.getParameter("email");
+        
+        if (fullName != null) fullName = fullName.trim();
+        if (phone != null) phone = phone.trim();
+        if (email != null) email = email.trim();
         String roleName = request.getParameter("roleName");
         String status = request.getParameter("status");
         String password = request.getParameter("password");
