@@ -45,6 +45,28 @@ public class StaffPagesServlet extends HttpServlet {
         String contextPath = req.getContextPath();
         String path = uri.substring(contextPath.length());
 
+        // Redirect checkin/checkout requests if staff has no active shift
+        if (path.startsWith("/staff/checkin") || path.startsWith("/staff/checkout")) {
+            if (user.getRoleId() == ROLE_STAFF) {
+                Map<String, Object> shift = staffDAO.getCurrentShift(user.getUserId());
+                if (shift.isEmpty()) {
+                    resp.sendRedirect(req.getContextPath() + "/staff/dashboard?error=not_in_shift");
+                    return;
+                }
+                
+                String startStr = (String) shift.get("startTime");
+                String endStr = (String) shift.get("endTime");
+                java.time.LocalTime start = parseTime(startStr);
+                java.time.LocalTime end = parseTime(endStr);
+                java.time.LocalTime now = java.time.LocalTime.now();
+                
+                if (now.isBefore(start) || now.isAfter(end)) {
+                    resp.sendRedirect(req.getContextPath() + "/staff/dashboard?error=not_in_shift");
+                    return;
+                }
+            }
+        }
+
         if (path.startsWith("/staff/dashboard")) {
             req.getRequestDispatcher("/WEB-INF/staff/dashboard.jsp").forward(req, resp);
             
@@ -65,6 +87,8 @@ public class StaffPagesServlet extends HttpServlet {
                 req.setAttribute("fields", fields);
                 req.setAttribute("bookings", bookings);
                 req.setAttribute("hasShift", true);
+                req.setAttribute("shiftStartTime", shift.get("startTime"));
+                req.setAttribute("shiftEndTime", shift.get("endTime"));
             } else {
                 req.setAttribute("hasShift", false);
             }
@@ -106,5 +130,37 @@ public class StaffPagesServlet extends HttpServlet {
             }
             req.getRequestDispatcher("/WEB-INF/staff/invoice.jsp").forward(req, resp);
         }
+    }
+
+    private static java.time.LocalTime parseTime(String timeStr) {
+        if (timeStr == null || timeStr.trim().isEmpty()) {
+            return null;
+        }
+        timeStr = timeStr.trim().toUpperCase();
+        
+        boolean pm = false;
+        if (timeStr.contains("CH") || timeStr.contains("PM")) {
+            pm = true;
+        }
+        
+        // Handle standard space delimiters
+        if (timeStr.contains(" ")) timeStr = timeStr.split(" ")[1];
+        if (timeStr.contains(".")) timeStr = timeStr.split("\\.")[0];
+        
+        String clean = timeStr.replaceAll("[^0-9:]", "").trim();
+        if (clean.isEmpty()) return null;
+        
+        String[] parts = clean.split(":");
+        int hour = Integer.parseInt(parts[0]);
+        int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+        int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+        
+        if (pm) {
+            if (hour < 12) hour += 12;
+        } else {
+            if (hour == 12) hour = 0;
+        }
+        
+        return java.time.LocalTime.of(hour, min, sec);
     }
 }

@@ -96,14 +96,15 @@
             // Step 2: Insert work shifts
             long shift1Id = 0;
             long shift2Id = 0;
+            long shift3Id = 0;
             String insertShiftSql = "INSERT INTO work_shifts (facility_id, shift_name, shift_date, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, GETDATE())";
             try (PreparedStatement ps = conn.prepareStatement(insertShiftSql, Statement.RETURN_GENERATED_KEYS)) {
                 // Shift 1
                 ps.setLong(1, 1);
                 ps.setString(2, "Ca sáng Mỹ Đình");
                 ps.setString(3, todayStr);
-                ps.setString(4, "06:00:00");
-                ps.setString(5, "14:00:00");
+                ps.setString(4, "00:00:00");
+                ps.setString(5, "08:00:00");
                 ps.executeUpdate();
                 try (ResultSet rs = ps.getGeneratedKeys()) {
                     if (rs.next()) shift1Id = rs.getLong(1);
@@ -113,14 +114,25 @@
                 ps.setLong(1, 1);
                 ps.setString(2, "Ca chiều Mỹ Đình");
                 ps.setString(3, todayStr);
-                ps.setString(4, "14:00:00");
-                ps.setString(5, "22:00:00");
+                ps.setString(4, "08:00:00");
+                ps.setString(5, "16:00:00");
                 ps.executeUpdate();
                 try (ResultSet rs = ps.getGeneratedKeys()) {
                     if (rs.next()) shift2Id = rs.getLong(1);
                 }
+
+                // Shift 3
+                ps.setLong(1, 1);
+                ps.setString(2, "Ca tối Mỹ Đình");
+                ps.setString(3, todayStr);
+                ps.setString(4, "16:00:00");
+                ps.setString(5, "22:00:00");
+                ps.executeUpdate();
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) shift3Id = rs.getLong(1);
+                }
             }
-            out.println("<div class='status-step success'><i class='bi bi-check-circle-fill me-2'></i>Đã tạo 2 ca làm việc hôm nay (Shift 1 ID: " + shift1Id + ", Shift 2 ID: " + shift2Id + ")</div>");
+            out.println("<div class='status-step success'><i class='bi bi-check-circle-fill me-2'></i>Đã tạo 3 ca làm việc hôm nay (Shift 1: " + shift1Id + ", Shift 2: " + shift2Id + ", Shift 3: " + shift3Id + ")</div>");
 
             // Step 3: Insert assignments
             String insertAssignSql = "INSERT INTO shift_assignments (shift_id, staff_id, status) VALUES (?, ?, ?)";
@@ -136,6 +148,12 @@
                 ps.setLong(2, 5); // Đỗ Anh Staff (role_id = 3)
                 ps.setString(3, "ASSIGNED");
                 ps.executeUpdate();
+
+                // Assign staff 5 to Shift 3
+                ps.setLong(1, shift3Id);
+                ps.setLong(2, 5); // Đỗ Anh Staff (role_id = 3)
+                ps.setString(3, "ASSIGNED");
+                ps.executeUpdate();
             }
             out.println("<div class='status-step success'><i class='bi bi-check-circle-fill me-2'></i>Đã phân ca cho Phạm Minh Staff (ID: 4) và Đỗ Anh Staff (ID: 5).</div>");
 
@@ -145,6 +163,10 @@
             long booking3Id = 0;
             long booking4Id = 0;
             long booking5Id = 0;
+            long booking6Id = 0;
+            long booking7Id = 0;
+            long booking8Id = 0;
+            long booking9Id = 0;
 
             String insertBookingSql = "INSERT INTO bookings (" +
                 " booking_code, customer_id, facility_id, field_id, start_time, end_time," +
@@ -230,25 +252,108 @@
                 ps.setBigDecimal(7, new java.math.BigDecimal("500000"));
                 ps.setBigDecimal(8, java.math.BigDecimal.ZERO);
                 ps.setBigDecimal(9, new java.math.BigDecimal("500000"));
-                ps.setBigDecimal(10, java.math.BigDecimal.ZERO);
+                ps.setBigDecimal(10, new java.math.BigDecimal("100000"));
                 ps.setString(11, "CONFIRMED");
                 ps.executeUpdate();
                 try (ResultSet rs = ps.getGeneratedKeys()) {
                     if (rs.next()) booking5Id = rs.getLong(1);
                 }
+
+                // Booking 6: CONFIRMED (Test Checkin at 19:00 today)
+                ps.setString(1, "BK" + System.currentTimeMillis() % 100000000L + "6");
+                ps.setLong(2, 8);
+                ps.setLong(3, 1);
+                ps.setLong(4, 1);
+                ps.setString(5, todayStr + " 19:00:00");
+                ps.setString(6, todayStr + " 20:30:00");
+                ps.setBigDecimal(7, new java.math.BigDecimal("400000"));
+                ps.setBigDecimal(8, java.math.BigDecimal.ZERO);
+                ps.setBigDecimal(9, new java.math.BigDecimal("400000"));
+                ps.setBigDecimal(10, new java.math.BigDecimal("200000"));
+                ps.setString(11, "CONFIRMED");
+                ps.executeUpdate();
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) booking6Id = rs.getLong(1);
+                }
+
+                // Booking 7: CHECKED_IN (Test Checkout at 17:30 - 19:00 today)
+                ps.setString(1, "BK" + System.currentTimeMillis() % 100000000L + "7");
+                ps.setLong(2, 9);
+                ps.setLong(3, 1);
+                ps.setLong(4, 2);
+                ps.setString(5, todayStr + " 17:30:00");
+                ps.setString(6, todayStr + " 19:00:00");
+                ps.setBigDecimal(7, new java.math.BigDecimal("500000"));
+                ps.setBigDecimal(8, java.math.BigDecimal.ZERO);
+                ps.setBigDecimal(9, new java.math.BigDecimal("500000"));
+                ps.setBigDecimal(10, new java.math.BigDecimal("150000"));
+                ps.setString(11, "CHECKED_IN");
+                ps.executeUpdate();
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) booking7Id = rs.getLong(1);
+                }
+
+                // Booking 8: CONFIRMED (Another Test Checkin at 19:30 today)
+                ps.setString(1, "BK" + System.currentTimeMillis() % 100000000L + "8");
+                ps.setLong(2, 6);
+                ps.setLong(3, 1);
+                ps.setLong(4, 3);
+                ps.setString(5, todayStr + " 19:30:00");
+                ps.setString(6, todayStr + " 21:00:00");
+                ps.setBigDecimal(7, new java.math.BigDecimal("600000"));
+                ps.setBigDecimal(8, java.math.BigDecimal.ZERO);
+                ps.setBigDecimal(9, new java.math.BigDecimal("600000"));
+                ps.setBigDecimal(10, new java.math.BigDecimal("200000"));
+                ps.setString(11, "CONFIRMED");
+                ps.executeUpdate();
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) booking8Id = rs.getLong(1);
+                }
+
+                // Booking 9: CHECKED_IN (Another Test Checkout at 18:00 - 19:30 today)
+                ps.setString(1, "BK" + System.currentTimeMillis() % 100000000L + "9");
+                ps.setLong(2, 7);
+                ps.setLong(3, 1);
+                ps.setLong(4, 1);
+                ps.setString(5, todayStr + " 18:00:00");
+                ps.setString(6, todayStr + " 19:30:00");
+                ps.setBigDecimal(7, new java.math.BigDecimal("400000"));
+                ps.setBigDecimal(8, java.math.BigDecimal.ZERO);
+                ps.setBigDecimal(9, new java.math.BigDecimal("400000"));
+                ps.setBigDecimal(10, new java.math.BigDecimal("100000"));
+                ps.setString(11, "CHECKED_IN");
+                ps.executeUpdate();
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) booking9Id = rs.getLong(1);
+                }
             }
-            out.println("<div class='status-step success'><i class='bi bi-check-circle-fill me-2'></i>Đã tạo thành công 5 lịch đặt sân (bookings) cho ngày hôm nay.</div>");
+            out.println("<div class='status-step success'><i class='bi bi-check-circle-fill me-2'></i>Đã tạo thành công các lịch đặt sân (bookings) cho hôm nay.</div>");
 
             // Step 5: Checkins
             String insertCheckinSql = "INSERT INTO checkins (booking_id, staff_id, checkin_time, note) VALUES (?, ?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(insertCheckinSql)) {
+                // Checkin for Booking 2
                 ps.setLong(1, booking2Id);
                 ps.setLong(2, 4);
                 ps.setString(3, todayStr + " 09:05:00");
                 ps.setString(4, "Đến đúng giờ");
                 ps.executeUpdate();
+
+                // Checkin for Booking 7 (Đỗ Anh Staff check-in)
+                ps.setLong(1, booking7Id);
+                ps.setLong(2, 5);
+                ps.setString(3, todayStr + " 17:35:00");
+                ps.setString(4, "Khách đến đúng giờ");
+                ps.executeUpdate();
+
+                // Checkin for Booking 9 (Đỗ Anh Staff check-in)
+                ps.setLong(1, booking9Id);
+                ps.setLong(2, 5);
+                ps.setString(3, todayStr + " 18:05:00");
+                ps.setString(4, "Khách đến đúng giờ");
+                ps.executeUpdate();
             }
-            out.println("<div class='status-step success'><i class='bi bi-check-circle-fill me-2'></i>Đã check-in cho Booking 2.</div>");
+            out.println("<div class='status-step success'><i class='bi bi-check-circle-fill me-2'></i>Đã thực hiện check-in mẫu.</div>");
 
             // Step 6: Invoices
             String insertInvoiceSql = "INSERT INTO invoices (invoice_code, booking_id, customer_id, staff_id, subtotal, discount_amount, total_amount, paid_amount, status, issued_at)" +

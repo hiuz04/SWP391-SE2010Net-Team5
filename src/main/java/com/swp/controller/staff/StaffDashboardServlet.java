@@ -83,20 +83,25 @@ public class StaffDashboardServlet extends HttpServlet {
 
             double progressPct = 0.0;
             String remainStr   = "—";
+            String shiftStatus = "ONGOING";
             if (now.isBefore(start)) {
                 progressPct = 0.0;
                 remainStr   = formatDuration(start, end);   // full duration remaining
+                shiftStatus = "UPCOMING";
             } else if (now.isAfter(end)) {
                 progressPct = 100.0;
                 remainStr   = "Đã kết thúc";
+                shiftStatus = "COMPLETED";
             } else {
                 long totalSec   = toSeconds(start, end);
                 long elapsedSec = toSeconds(start, now);
                 progressPct     = totalSec == 0 ? 0 : (elapsedSec * 100.0 / totalSec);
                 remainStr       = formatDuration(now, end);
+                shiftStatus = "ONGOING";
             }
             shift.put("progressPct", Math.round(progressPct * 10) / 10.0);
             shift.put("remaining",   remainStr);
+            shift.put("status",      shiftStatus);
 
             long facilityId = (Long) shift.get("facilityId");
             String dateStr  = LocalDate.now().toString();
