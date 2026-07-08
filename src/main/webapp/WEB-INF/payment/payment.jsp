@@ -47,6 +47,13 @@
     boolean holdValid = "HOLD".equals(booking.getStatus())
             && booking.getHoldExpiresAt() != null
             && booking.getHoldExpiresAt().isAfter(LocalDateTime.now());
+    Integer vnpayMethodId = null;
+    for (PaymentMethod method : paymentMethods) {
+        if ("VNPAY".equalsIgnoreCase(method.getMethodCode())) {
+            vnpayMethodId = method.getPaymentMethodId();
+            break;
+        }
+    }
 %>
 
 <!DOCTYPE html>
@@ -127,6 +134,12 @@
                         </div>
 
                         <div class="d-flex flex-wrap gap-2 mt-4">
+                            <button class="btn btn-outline-primary" type="submit" name="paymentMode" value="VNPAY"
+                                    id="vnpayButton"
+                                    data-vnpay-method-id="<%= vnpayMethodId == null ? "" : vnpayMethodId %>"
+                                    <%= holdValid && vnpayMethodId != null ? "" : "disabled" %>>
+                                <i class="bi bi-bank"></i> Thanh to&#225;n qua VNPay
+                            </button>
                             <button class="btn btn-sf-primary" type="submit" name="simulateStatus" value="SUCCESS"
                                     <%= holdValid ? "" : "disabled" %>>
                                 <i class="bi bi-shield-check"></i> Thanh to&#225;n th&#224;nh c&#244;ng
@@ -137,6 +150,7 @@
                             </button>
                         </div>
                         <div class="text-muted small mt-2">Ch&#7871; &#273;&#7897; m&#244; ph&#7887;ng d&#224;nh cho demo Inter 2.</div>
+                        <div class="text-muted small mt-1">VNPay Sandbox y&#234;u c&#7847;u return/ipn URL public HTTPS; khi ch&#7841;y local c&#243; th&#7875; d&#249;ng ngrok.</div>
                     </form>
                     <% } %>
                 </div>
@@ -164,5 +178,17 @@
 <div id="footer" data-root="<%= ctx %>/"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
+<script>
+    const vnpayButton = document.getElementById('vnpayButton');
+    if (vnpayButton) {
+        vnpayButton.addEventListener('click', () => {
+            const methodId = vnpayButton.dataset.vnpayMethodId;
+            const radio = document.querySelector('input[name="paymentMethodId"][value="' + methodId + '"]');
+            if (radio) {
+                radio.checked = true;
+            }
+        });
+    }
+</script>
 </body>
 </html>

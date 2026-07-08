@@ -318,7 +318,7 @@
                   } else if ("COMPLETED".equals(bStatus)) {
                     statusBadge = "<span class='badge badge-soft-success'><i class='bi bi-check-circle me-1'></i>Đã xong</span>";
                     if (hasInvoice) {
-                      actionButton = "<a href='" + ctx + "/staff/invoice?id=" + bId + "' class='btn btn-sm btn-outline-secondary px-3'><i class='bi bi-printer me-1'></i>Hóa đơn</a>";
+                      actionButton = "<a href='" + ctx + "/staff/invoice?id=" + bId + "' class='btn btn-sm btn-outline-secondary px-3'><i class='bi bi-file-earmark-text me-1'></i>Hóa đơn</a>";
                     }
                   }
               %>

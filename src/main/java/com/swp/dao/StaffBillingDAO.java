@@ -11,6 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -41,32 +42,28 @@ public class StaffBillingDAO {
     }
 
     public InvoiceView getInvoiceByBookingId(long bookingId) throws SQLException {
-        String sql = """
-                SELECT TOP 1
-                       i.invoice_id, i.invoice_code, i.status AS invoice_status, i.issued_at,
-                       i.subtotal, i.discount_amount, i.total_amount, i.paid_amount,
-                       b.booking_id, b.booking_code, b.start_time, b.end_time,
-                       b.total_amount AS field_fee, b.deposit_amount,
-                       u.full_name AS customer_name, u.phone AS customer_phone,
-                       fi.field_name,
-                       fac.facility_id, fac.facility_name, fac.address, fac.ward, fac.district, fac.city,
-                       staff.full_name AS staff_name
-                FROM invoices i
-                JOIN bookings b ON i.booking_id = b.booking_id
-                JOIN users u ON i.customer_id = u.user_id
-                JOIN fields fi ON b.field_id = fi.field_id
-                JOIN facilities fac ON b.facility_id = fac.facility_id
-                LEFT JOIN users staff ON i.staff_id = staff.user_id
-                WHERE i.booking_id = ?
-                  AND i.status IN ('PAID', 'ACTIVE')
-                ORDER BY i.issued_at DESC, i.invoice_id DESC
-                """;
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(invoiceViewSql("i.booking_id = ?"))) {
             ps.setLong(1, bookingId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? mapInvoiceView(rs) : null;
             }
+        }
+    }
+
+    public InvoiceView getInvoiceByInvoiceId(long invoiceId) throws SQLException {
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(invoiceViewSql("i.invoice_id = ?"))) {
+            ps.setLong(1, invoiceId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapInvoiceView(rs) : null;
+            }
+        }
+    }
+
+    public boolean hasPaidInvoice(long bookingId) throws SQLException {
+        try (Connection conn = DBContext.getConnection()) {
+            return findPaidInvoiceForUpdate(conn, bookingId) != null;
         }
     }
 
@@ -82,45 +79,34 @@ public class StaffBillingDAO {
         }
     }
 
-    public CheckoutResult completeCheckout(
-            long bookingId,
-            long actorId,
-            boolean staffRole,
-            BigDecimal surchargeAmount,
-            BigDecimal discountAmount,
-            String surchargeReason,
-            String note
-    ) throws SQLException {
+    public CheckoutResult completeCheckout(long bookingId, long actorId, boolean staffRole) throws SQLException {
         try (Connection conn = DBContext.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 BookingLock booking = lockBooking(conn, bookingId);
                 if (booking == null) {
-                    throw new IllegalArgumentException("Không tìm thấy lịch đặt sân");
-                }
-                if (!"CHECKED_IN".equals(booking.status())) {
-                    throw new IllegalArgumentException("Chỉ booking đã check-in mới được checkout");
-                }
-                if (staffRole && !hasActiveShiftForFacility(conn, actorId, booking.facilityId())) {
-                    throw new SecurityException("Bạn không có ca làm việc đang hoạt động tại cơ sở của booking này");
-                }
-                if (hasPaidOrActiveInvoice(conn, bookingId)) {
-                    throw new IllegalArgumentException("Booking này đã có hóa đơn thanh toán");
+                    throw new IllegalArgumentException("Không tìm thấy lịch đặt sân.");
                 }
 
-                BigDecimal fieldFee = safe(booking.fieldFee());
-                BigDecimal deposit = safe(booking.depositAmount());
-                BigDecimal surcharge = safe(surchargeAmount);
-                BigDecimal discount = safe(discountAmount);
-                BigDecimal subtotal = fieldFee.add(surcharge);
-                BigDecimal totalAmount = subtotal.subtract(deposit).subtract(discount);
-                if (totalAmount.signum() < 0) {
-                    totalAmount = BigDecimal.ZERO;
+                InvoiceSummary existingInvoice = findPaidInvoiceForUpdate(conn, bookingId);
+                if (existingInvoice != null) {
+                    conn.commit();
+                    return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode());
                 }
-                BigDecimal paidAmount = totalAmount;
+
+                if (!"CHECKED_IN".equals(booking.status())) {
+                    throw new IllegalArgumentException("Chỉ lịch đã nhận sân mới được trả sân.");
+                }
+                if (staffRole && !hasActiveShiftForFacility(conn, actorId, booking.facilityId())) {
+                    throw new SecurityException("Bạn không có ca làm việc đang hoạt động tại cơ sở này.");
+                }
+
+                BigDecimal fieldTotal = safe(booking.fieldFee());
+                BigDecimal remainingAmount = calculateRemaining(fieldTotal, booking.depositAmount());
 
                 updateBookingCompleted(conn, bookingId);
                 releaseField(conn, booking.fieldId());
+                insertBookingStatusLog(conn, booking, actorId, "Trả sân hoàn tất.");
 
                 String invoiceCode = generateInvoiceCode(bookingId);
                 long invoiceId = insertInvoice(
@@ -128,10 +114,9 @@ public class StaffBillingDAO {
                         invoiceCode,
                         booking,
                         actorId,
-                        subtotal,
-                        discount,
-                        totalAmount,
-                        paidAmount
+                        fieldTotal,
+                        remainingAmount,
+                        remainingAmount
                 );
 
                 conn.commit();
@@ -141,6 +126,29 @@ public class StaffBillingDAO {
                 throw e;
             }
         }
+    }
+
+    private String invoiceViewSql(String predicate) {
+        return """
+                SELECT TOP 1
+                       i.invoice_id, i.invoice_code, i.status AS invoice_status, i.issued_at,
+                       i.subtotal, i.total_amount, i.paid_amount,
+                       b.booking_id, b.booking_code, b.start_time, b.end_time,
+                       b.total_amount AS field_fee, b.deposit_amount,
+                       u.full_name AS customer_name, u.phone AS customer_phone,
+                       fi.field_name,
+                       fac.facility_id, fac.facility_name, fac.address, fac.ward, fac.district, fac.city,
+                       staff.full_name AS staff_name
+                FROM invoices i
+                JOIN bookings b ON i.booking_id = b.booking_id
+                JOIN users u ON i.customer_id = u.user_id
+                JOIN fields fi ON b.field_id = fi.field_id
+                JOIN facilities fac ON b.facility_id = fac.facility_id
+                LEFT JOIN users staff ON i.staff_id = staff.user_id
+                WHERE %s
+                  AND i.status IN ('PAID', 'ACTIVE')
+                ORDER BY i.issued_at DESC, i.invoice_id DESC
+                """.formatted(predicate);
     }
 
     private BookingLock lockBooking(Connection conn, long bookingId) throws SQLException {
@@ -170,17 +178,21 @@ public class StaffBillingDAO {
         }
     }
 
-    private boolean hasPaidOrActiveInvoice(Connection conn, long bookingId) throws SQLException {
+    private InvoiceSummary findPaidInvoiceForUpdate(Connection conn, long bookingId) throws SQLException {
         String sql = """
-                SELECT TOP 1 invoice_id
+                SELECT TOP 1 invoice_id, invoice_code
                 FROM invoices WITH (UPDLOCK, HOLDLOCK)
                 WHERE booking_id = ?
                   AND status IN ('PAID', 'ACTIVE')
+                ORDER BY issued_at DESC, invoice_id DESC
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, bookingId);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
+                if (!rs.next()) {
+                    return null;
+                }
+                return new InvoiceSummary(rs.getLong("invoice_id"), rs.getString("invoice_code"));
             }
         }
     }
@@ -196,7 +208,7 @@ public class StaffBillingDAO {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, bookingId);
             if (ps.executeUpdate() != 1) {
-                throw new IllegalArgumentException("Booking không còn hợp lệ để checkout");
+                throw new IllegalArgumentException("Lịch đặt sân không còn hợp lệ để trả sân.");
             }
         }
     }
@@ -219,9 +231,8 @@ public class StaffBillingDAO {
             Connection conn,
             String invoiceCode,
             BookingLock booking,
-            long staffId,
+            Long staffId,
             BigDecimal subtotal,
-            BigDecimal discountAmount,
             BigDecimal totalAmount,
             BigDecimal paidAmount
     ) throws SQLException {
@@ -239,23 +250,46 @@ public class StaffBillingDAO {
                     issued_at
                 )
                 OUTPUT INSERTED.invoice_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PAID', GETDATE())
+                VALUES (?, ?, ?, ?, ?, 0, ?, ?, 'PAID', GETDATE())
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, invoiceCode);
             ps.setLong(2, booking.bookingId());
             ps.setLong(3, booking.customerId());
-            ps.setLong(4, staffId);
+            if (staffId == null) {
+                ps.setNull(4, Types.BIGINT);
+            } else {
+                ps.setLong(4, staffId);
+            }
             ps.setBigDecimal(5, subtotal);
-            ps.setBigDecimal(6, discountAmount);
-            ps.setBigDecimal(7, totalAmount);
-            ps.setBigDecimal(8, paidAmount);
+            ps.setBigDecimal(6, totalAmount);
+            ps.setBigDecimal(7, paidAmount);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
-                    throw new SQLException("Không tạo được hóa đơn");
+                    throw new SQLException("Không thể tạo hóa đơn.");
                 }
                 return rs.getLong(1);
             }
+        }
+    }
+
+    private void insertBookingStatusLog(Connection conn, BookingLock booking, Long changedBy, String note)
+            throws SQLException {
+        String sql = """
+                INSERT INTO booking_status_logs (
+                    booking_id, old_status, new_status, changed_by, note, created_at
+                )
+                VALUES (?, 'CHECKED_IN', 'COMPLETED', ?, ?, GETDATE())
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, booking.bookingId());
+            if (changedBy == null) {
+                ps.setNull(2, Types.BIGINT);
+            } else {
+                ps.setLong(2, changedBy);
+            }
+            ps.setString(3, note);
+            ps.executeUpdate();
         }
     }
 
@@ -334,13 +368,6 @@ public class StaffBillingDAO {
 
     private InvoiceView mapInvoiceView(ResultSet rs) throws SQLException {
         InvoiceView view = new InvoiceView();
-        BigDecimal fieldFee = safe(rs.getBigDecimal("field_fee"));
-        BigDecimal subtotal = safe(rs.getBigDecimal("subtotal"));
-        BigDecimal surcharge = subtotal.subtract(fieldFee);
-        if (surcharge.signum() < 0) {
-            surcharge = BigDecimal.ZERO;
-        }
-
         view.setInvoiceId(rs.getLong("invoice_id"));
         view.setInvoiceCode(rs.getString("invoice_code"));
         view.setInvoiceStatus(rs.getString("invoice_status"));
@@ -355,11 +382,9 @@ public class StaffBillingDAO {
         view.setFieldName(rs.getString("field_name"));
         view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
-        view.setFieldFee(fieldFee);
-        view.setSurchargeAmount(surcharge);
-        view.setDiscountAmount(rs.getBigDecimal("discount_amount"));
+        view.setFieldFee(rs.getBigDecimal("field_fee"));
         view.setDepositAmount(rs.getBigDecimal("deposit_amount"));
-        view.setSubtotal(subtotal);
+        view.setSubtotal(rs.getBigDecimal("subtotal"));
         view.setTotalAmount(rs.getBigDecimal("total_amount"));
         view.setPaidAmount(rs.getBigDecimal("paid_amount"));
         view.setStaffName(rs.getString("staff_name"));
@@ -379,6 +404,11 @@ public class StaffBillingDAO {
         if (value != null && !value.trim().isEmpty()) {
             parts.add(value.trim());
         }
+    }
+
+    private BigDecimal calculateRemaining(BigDecimal fieldTotal, BigDecimal deposit) {
+        BigDecimal remaining = safe(fieldTotal).subtract(safe(deposit));
+        return remaining.signum() < 0 ? BigDecimal.ZERO : remaining;
     }
 
     private BigDecimal safe(BigDecimal value) {
@@ -411,5 +441,8 @@ public class StaffBillingDAO {
             BigDecimal fieldFee,
             BigDecimal depositAmount
     ) {
+    }
+
+    private record InvoiceSummary(long invoiceId, String invoiceCode) {
     }
 }

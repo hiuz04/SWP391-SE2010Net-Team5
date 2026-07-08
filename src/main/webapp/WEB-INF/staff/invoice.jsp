@@ -17,11 +17,19 @@
 
   private String money(BigDecimal amount) {
     if (amount == null) amount = BigDecimal.ZERO;
-    return String.format("%,d ₫", amount.longValue());
+    return String.format("%,d VND", amount.longValue());
   }
 
   private String dateTime(LocalDateTime value) {
     return value == null ? "" : value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+  }
+
+  private String date(LocalDateTime value) {
+    return value == null ? "" : value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+  }
+
+  private String time(LocalDateTime value) {
+    return value == null ? "" : value.format(DateTimeFormatter.ofPattern("HH:mm"));
   }
 %>
 <%
@@ -46,11 +54,11 @@
   <style>
     body { background: #f8fafc; font-family: 'Inter', sans-serif; }
     .invoice-card {
-      max-width: 880px;
+      max-width: 920px;
       margin: 0 auto;
       background: #fff;
       border: 1px solid #e2e8f0;
-      border-radius: 20px;
+      border-radius: 12px;
       box-shadow: 0 8px 24px rgba(15,23,42,.04);
       padding: 42px;
     }
@@ -58,28 +66,15 @@
     .ledger-row { display: flex; justify-content: space-between; gap: 20px; padding: 10px 0; }
     .btn-sf-primary { background-color: #16a34a; color: #fff; }
     .btn-sf-primary:hover { background-color: #15803d; color: #fff; }
-    @media print {
-      body { background: #fff !important; }
-      #navbar, #footer, .no-print { display: none !important; }
-      main { padding: 0 !important; }
-      .container { max-width: none !important; padding: 0 !important; margin: 0 !important; }
-      .invoice-card {
-        border: 0 !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-        max-width: none !important;
-        padding: 0 !important;
-      }
-    }
   </style>
 </head>
 <body>
-<div id="navbar" class="no-print" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= esc(displayName) %>" data-active="Lịch trong ngày"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= esc(displayName) %>" data-active="Lịch trong ngày"></div>
 
 <main class="py-5">
   <div class="container">
     <% if (error != null || invoice == null) { %>
-      <div class="invoice-card text-center no-print">
+      <div class="invoice-card text-center">
         <i class="bi bi-receipt display-4 text-muted"></i>
         <h4 class="fw-bold mt-3">Không tìm thấy hóa đơn</h4>
         <p class="text-muted mb-4"><%= esc(error != null ? error : "Không tìm thấy hóa đơn") %></p>
@@ -89,8 +84,8 @@
       <div class="invoice-card" id="invoice-card">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
           <div>
-            <h2 class="fw-bold mb-1"><span class="text-success">⚽</span> Sport Field Booking</h2>
-            <div class="text-muted">Phiếu thanh toán dịch vụ sân bóng</div>
+            <h2 class="fw-bold mb-1">Sport Field Booking</h2>
+            <div class="text-muted">Hóa đơn thanh toán dịch vụ sân bóng</div>
           </div>
           <div class="text-end">
             <div class="text-muted small fw-bold">HÓA ĐƠN</div>
@@ -103,27 +98,30 @@
 
         <div class="row g-4 mb-4">
           <div class="col-md-6">
-            <div class="text-muted small fw-bold mb-1">CƠ SỞ</div>
-            <div class="fw-bold"><%= esc(invoice.getFacilityName()) %></div>
-            <div class="text-muted small"><%= esc(invoice.getFacilityAddress()) %></div>
-          </div>
-          <div class="col-md-6 text-md-end">
             <div class="text-muted small fw-bold mb-1">KHÁCH HÀNG</div>
             <div class="fw-bold"><%= esc(invoice.getCustomerName()) %></div>
             <div class="text-muted small"><%= esc(invoice.getCustomerPhone()) %></div>
           </div>
+          <div class="col-md-6 text-md-end">
+            <div class="text-muted small fw-bold mb-1">CƠ SỞ</div>
+            <div class="fw-bold"><%= esc(invoice.getFacilityName()) %></div>
+            <div class="text-muted small"><%= esc(invoice.getFacilityAddress()) %></div>
+          </div>
         </div>
 
         <div class="row g-4 mb-4">
-          <div class="col-md-6">
-            <div class="text-muted small fw-bold mb-1">BOOKING</div>
+          <div class="col-md-4">
+            <div class="text-muted small fw-bold mb-1">MÃ ĐẶT SÂN</div>
             <div class="fw-bold">#<%= esc(invoice.getBookingCode()) %></div>
-            <div class="text-muted small"><%= esc(invoice.getFieldName()) %></div>
           </div>
-          <div class="col-md-6 text-md-end">
-            <div class="text-muted small fw-bold mb-1">THỜI GIAN</div>
-            <div class="fw-bold"><%= esc(dateTime(invoice.getStartTime())) %></div>
-            <div class="text-muted small">Đến <%= esc(dateTime(invoice.getEndTime())) %></div>
+          <div class="col-md-4">
+            <div class="text-muted small fw-bold mb-1">SÂN</div>
+            <div class="fw-bold"><%= esc(invoice.getFieldName()) %></div>
+          </div>
+          <div class="col-md-4 text-md-end">
+            <div class="text-muted small fw-bold mb-1">NGÀY ĐẶT SÂN</div>
+            <div class="fw-bold"><%= esc(date(invoice.getStartTime())) %></div>
+            <div class="text-muted small"><%= esc(time(invoice.getStartTime())) %> - <%= esc(time(invoice.getEndTime())) %></div>
           </div>
         </div>
 
@@ -131,34 +129,26 @@
           <table class="table align-middle">
             <thead class="table-light">
               <tr>
-                <th>Nội dung</th>
+                <th>Tổng kết thanh toán</th>
                 <th class="text-end">Số tiền</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td>
-                  <strong>Tiền thuê sân</strong>
+                  <strong>Tổng tiền sân</strong>
                   <div class="text-muted small"><%= esc(invoice.getFieldName()) %></div>
                 </td>
                 <td class="text-end fw-bold"><%= money(invoice.getFieldFee()) %></td>
               </tr>
-              <% if (invoice.getSurchargeAmount().compareTo(BigDecimal.ZERO) > 0) { %>
-                <tr>
-                  <td><strong>Phụ phí / dịch vụ phát sinh</strong></td>
-                  <td class="text-end fw-bold"><%= money(invoice.getSurchargeAmount()) %></td>
-                </tr>
-              <% } %>
               <tr class="text-success">
-                <td>Tiền cọc đã nhận</td>
+                <td>Tiền cọc đã thanh toán</td>
                 <td class="text-end fw-bold">- <%= money(invoice.getDepositAmount()) %></td>
               </tr>
-              <% if (invoice.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) { %>
-                <tr class="text-success">
-                  <td>Giảm giá</td>
-                  <td class="text-end fw-bold">- <%= money(invoice.getDiscountAmount()) %></td>
-                </tr>
-              <% } %>
+              <tr>
+                <td>Số tiền còn lại</td>
+                <td class="text-end fw-bold"><%= money(invoice.getPaidAmount()) %></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -166,15 +156,15 @@
         <div class="row justify-content-end">
           <div class="col-md-6 col-lg-5">
             <div class="ledger-row">
-              <span class="text-muted">Tạm tính</span>
-              <strong><%= money(invoice.getSubtotal()) %></strong>
+              <span class="text-muted">Tổng tiền sân</span>
+              <strong><%= money(invoice.getFieldFee()) %></strong>
             </div>
             <div class="ledger-row text-success">
-              <span>Cọc + giảm giá</span>
-              <strong>- <%= money(invoice.getDepositAmount().add(invoice.getDiscountAmount())) %></strong>
+              <span>Tiền cọc đã thanh toán</span>
+              <strong>- <%= money(invoice.getDepositAmount()) %></strong>
             </div>
             <div class="ledger-row fs-5 fw-bold border-top mt-2 pt-3">
-              <span>Đã thanh toán</span>
+              <span>Đã thanh toán khi trả sân</span>
               <span class="text-success"><%= money(invoice.getPaidAmount()) %></span>
             </div>
           </div>
@@ -187,10 +177,10 @@
           <div>Nhân viên: <strong class="text-dark"><%= esc(invoice.getStaffName()) %></strong></div>
         </div>
 
-        <div class="text-center mt-5 no-print d-flex justify-content-center gap-2 flex-wrap">
-          <button type="button" class="btn btn-sf-primary btn-lg px-4" onclick="window.print()">
-            <i class="bi bi-printer me-2"></i>In hóa đơn
-          </button>
+        <div class="text-center mt-5 d-flex justify-content-center gap-2 flex-wrap">
+          <a href="<%= ctx %>/staff/invoice/export?id=<%= invoice.getBookingId() %>" class="btn btn-sf-primary btn-lg px-4">
+            <i class="bi bi-file-earmark-arrow-down me-2"></i>Xuất hóa đơn
+          </a>
           <a href="<%= ctx %>/staff/schedule" class="btn btn-outline-secondary btn-lg px-4">Quay lại lịch</a>
           <a href="<%= ctx %>/staff/dashboard" class="btn btn-outline-secondary btn-lg px-4">Dashboard</a>
         </div>
@@ -199,7 +189,7 @@
   </div>
 </main>
 
-<div id="footer" class="no-print" data-root="<%= ctx %>/"></div>
+<div id="footer" data-root="<%= ctx %>/"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>

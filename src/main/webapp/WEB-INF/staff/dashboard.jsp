@@ -488,7 +488,7 @@ function actionBtn(status, bookingId, isExpired, hasInvoice) {
     return `<a href="<%= ctx %>/staff/checkin?id=${bookingId}" class="btn btn-sm btn-success">Check-in</a>`;
   }
   if (status === 'CHECKED_IN') return `<a href="<%= ctx %>/staff/checkout?id=${bookingId}" class="btn btn-sm btn-outline-success">Checkout</a>`;
-  if (status === 'COMPLETED' && hasInvoice) return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-printer me-1"></i>Hóa đơn</a>`;
+  if (status === 'COMPLETED' && hasInvoice) return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-file-earmark-text me-1"></i>Hóa đơn</a>`;
   return '';
 }
 

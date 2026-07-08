@@ -19,8 +19,6 @@ public class InvoiceView {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private BigDecimal fieldFee = BigDecimal.ZERO;
-    private BigDecimal surchargeAmount = BigDecimal.ZERO;
-    private BigDecimal discountAmount = BigDecimal.ZERO;
     private BigDecimal depositAmount = BigDecimal.ZERO;
     private BigDecimal subtotal = BigDecimal.ZERO;
     private BigDecimal totalAmount = BigDecimal.ZERO;
@@ -145,22 +143,6 @@ public class InvoiceView {
 
     public void setFieldFee(BigDecimal fieldFee) {
         this.fieldFee = fieldFee != null ? fieldFee : BigDecimal.ZERO;
-    }
-
-    public BigDecimal getSurchargeAmount() {
-        return surchargeAmount;
-    }
-
-    public void setSurchargeAmount(BigDecimal surchargeAmount) {
-        this.surchargeAmount = surchargeAmount != null ? surchargeAmount : BigDecimal.ZERO;
-    }
-
-    public BigDecimal getDiscountAmount() {
-        return discountAmount;
-    }
-
-    public void setDiscountAmount(BigDecimal discountAmount) {
-        this.discountAmount = discountAmount != null ? discountAmount : BigDecimal.ZERO;
     }
 
     public BigDecimal getDepositAmount() {
