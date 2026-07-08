@@ -119,11 +119,11 @@
                     </div>
                     <div class="mb-3">
                         <label for="newTitle" class="form-label">Tiêu đề <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="newTitle" name="title" placeholder="Ví dụ: Tìm đối mềm sân Cầu Giấy tối nay" required>
+                        <input type="text" class="form-control" id="newTitle" name="title" placeholder="Ví dụ: Tìm đối mềm sân Cầu Giấy tối nay" maxlength="100" required>
                     </div>
                     <div class="mb-3">
                         <label for="newDescription" class="form-label">Mô tả chi tiết</label>
-                        <textarea class="form-control" id="newDescription" name="description" rows="3" placeholder="Nhập khung giờ cụ thể, loại sân, cá cược nước nôi, màu áo..."></textarea>
+                        <textarea class="form-control" id="newDescription" name="description" rows="3" placeholder="Nhập khung giờ cụ thể, loại sân, cá cược nước nôi, màu áo..." maxlength="500"></textarea>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -148,11 +148,11 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="newContactName" class="form-label">Tên liên hệ <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="newContactName" name="contactName" value="<%= displayName %>" required>
+                            <input type="text" class="form-control" id="newContactName" name="contactName" value="<%= displayName %>" maxlength="50" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="newContactPhone" class="form-label">Số điện thoại <span class="text-danger">*</span></label>
-                            <input type="tel" class="form-control" id="newContactPhone" name="contactPhone" required>
+                            <input type="tel" class="form-control" id="newContactPhone" name="contactPhone" maxlength="10" required>
                         </div>
                     </div>
                 </div>
@@ -180,12 +180,12 @@
                     <p id="respondPostTitle" class="fw-semibold text-success"></p>
                     <div class="mb-3">
                         <label for="respondMessage" class="form-label">Lời nhắn / Lời chào <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="respondMessage" name="message" rows="4" placeholder="Ví dụ: Team mình trình độ tương đương, có thể đá 19h sân Mỹ Đình nhé..." required></textarea>
+                        <textarea class="form-control" id="respondMessage" name="message" rows="4" placeholder="Ví dụ: Team mình trình độ tương đương, có thể đá 19h sân Mỹ Đình nhé..." maxlength="500" required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-sf-primary">Gửi lời nhắn</button>
+                    <button type="submit" class="btn btn-sf-primary" id="respondSubmitBtn">Gửi lời nhắn</button>
                 </div>
             </form>
         </div>

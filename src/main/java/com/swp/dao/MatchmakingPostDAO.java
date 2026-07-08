@@ -16,6 +16,7 @@ import java.util.List;
 public class MatchmakingPostDAO {
 
     public List<MatchmakingPostDTO> getAllPosts(String postType, String skillLevel, Long facilityId, Long authorId) {
+        autoCloseExpiredPosts();
         List<MatchmakingPostDTO> list = new ArrayList<>();
         
         StringBuilder sql = new StringBuilder(
@@ -97,6 +98,7 @@ public class MatchmakingPostDAO {
     }
 
     public MatchmakingPostDTO getPostById(long postId) {
+        autoCloseExpiredPosts();
         String sql = "SELECT mp.*, u.full_name AS author_name, f.facility_name " +
                      "FROM matchmaking_posts mp " +
                      "LEFT JOIN users u ON mp.author_id = u.user_id " +
@@ -176,6 +178,64 @@ public class MatchmakingPostDAO {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi cập nhật trạng thái bài đăng: " + e.getMessage(), e);
+        }
+    }
+
+    public void updatePost(MatchmakingPost post) {
+        String sql = "UPDATE matchmaking_posts SET title = ?, description = ?, skill_level = ?, expected_time = ?, facility_id = ?, contact_name = ?, contact_phone = ?, updated_at = GETDATE() WHERE post_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setString(1, post.getTitle());
+            ps.setString(2, post.getDescription());
+            ps.setString(3, post.getSkillLevel());
+            ps.setTimestamp(4, post.getExpectedTime() != null ? Timestamp.valueOf(post.getExpectedTime()) : null);
+            if (post.getFacilityId() != null) {
+                ps.setLong(5, post.getFacilityId());
+            } else {
+                ps.setNull(5, java.sql.Types.BIGINT);
+            }
+            ps.setString(6, post.getContactName());
+            ps.setString(7, post.getContactPhone());
+            ps.setLong(8, post.getPostId());
+            
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cập nhật bài đăng tìm đối: " + e.getMessage(), e);
+        }
+    }
+
+    public void deletePost(long postId) {
+        String deleteResponsesSql = "DELETE FROM matchmaking_post_responses WHERE post_id = ?";
+        String deletePostSql = "DELETE FROM matchmaking_posts WHERE post_id = ?";
+        try (Connection conn = DBContext.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps1 = conn.prepareStatement(deleteResponsesSql);
+                 PreparedStatement ps2 = conn.prepareStatement(deletePostSql)) {
+                
+                ps1.setLong(1, postId);
+                ps1.executeUpdate();
+                
+                ps2.setLong(1, postId);
+                ps2.executeUpdate();
+                
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi xóa bài đăng tìm đối: " + e.getMessage(), e);
+        }
+    }
+
+    private void autoCloseExpiredPosts() {
+        String sql = "UPDATE matchmaking_posts SET status = 'CLOSED' WHERE expected_time < GETDATE() AND status = 'OPEN'";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi tự động đóng các bài đăng hết hạn: " + e.getMessage());
         }
     }
 }
