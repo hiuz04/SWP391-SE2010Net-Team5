@@ -1,6 +1,7 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="java.util.Collections" %>
 <%@ page import="java.util.Map" %>
+<%@ page import="com.swp.util.RecaptchaConfig" %>
 <%
     if (request.getAttribute("googleEnabled") == null) {
         response.sendRedirect(request.getContextPath() + "/register");
@@ -32,6 +33,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
     <title>Đăng ký | Sport Field Booking</title>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
 <div id="navbar" data-root="<%= ctx %>/" data-role="guest" data-name="" data-active=""></div>
@@ -112,6 +114,12 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Google reCAPTCHA -->
+                        <div class="mt-4 d-flex justify-content-center">
+                            <div class="g-recaptcha" data-sitekey="<%= RecaptchaConfig.getSiteKey() %>"></div>
+                        </div>
+
                         <button type="submit" class="btn btn-sf-primary btn-lg w-100 mt-4">Tạo tài khoản</button>
                     </form>
 

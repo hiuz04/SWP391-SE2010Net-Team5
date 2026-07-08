@@ -73,6 +73,25 @@ a { text-decoration: none; }
   border-radius: 22px;
   box-shadow: 0 12px 36px rgba(15, 23, 42, .06);
   background: #fff;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.soft-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+}
+.hover-scale {
+  transition: transform 0.3s ease;
+}
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+.floating-badge {
+  animation: float 3s ease-in-out infinite;
 }
 .stat-card {
   border-radius: 22px;
