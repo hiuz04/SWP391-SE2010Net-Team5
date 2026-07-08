@@ -142,35 +142,4 @@ public class StaffPagesServlet extends HttpServlet {
         return java.time.LocalTime.of(hour, min, sec);
     }
 
-    private static java.time.LocalTime parseTime(String timeStr) {
-        if (timeStr == null || timeStr.trim().isEmpty()) {
-            return null;
-        }
-        timeStr = timeStr.trim().toUpperCase();
-        
-        boolean pm = false;
-        if (timeStr.contains("CH") || timeStr.contains("PM")) {
-            pm = true;
-        }
-        
-        // Handle standard space delimiters
-        if (timeStr.contains(" ")) timeStr = timeStr.split(" ")[1];
-        if (timeStr.contains(".")) timeStr = timeStr.split("\\.")[0];
-        
-        String clean = timeStr.replaceAll("[^0-9:]", "").trim();
-        if (clean.isEmpty()) return null;
-        
-        String[] parts = clean.split(":");
-        int hour = Integer.parseInt(parts[0]);
-        int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
-        int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
-        
-        if (pm) {
-            if (hour < 12) hour += 12;
-        } else {
-            if (hour == 12) hour = 0;
-        }
-        
-        return java.time.LocalTime.of(hour, min, sec);
-    }
 }

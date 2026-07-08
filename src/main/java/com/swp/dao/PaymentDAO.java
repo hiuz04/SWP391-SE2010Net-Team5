@@ -479,7 +479,7 @@ public class PaymentDAO {
                 List<Long> bookingIds = getScopedBookingIds(conn, payment);
                 if (bookingIds.isEmpty() || bookingIds.size() != payment.bookingCount()) {
                     conn.commit();
-                    return false;
+                    return PaymentUpdateResult.INVALID_STATE;
                 }
 
                 for (Long bookingId : bookingIds) {
@@ -753,6 +753,48 @@ public class PaymentDAO {
                 );
             }
         }
+    }
+
+    private List<Long> getScopedBookingIds(Connection conn, PaymentLock payment) throws SQLException {
+        String sql;
+        if (payment.recurringGroupId() == null) {
+            sql = """
+                    SELECT booking_id
+                    FROM bookings WITH (UPDLOCK, HOLDLOCK)
+                    WHERE booking_id = ?
+                      AND customer_id = ?
+                      AND status = 'HOLD'
+                      AND hold_expires_at > GETDATE()
+                    ORDER BY booking_id
+                    """;
+        } else {
+            sql = """
+                    SELECT booking_id
+                    FROM bookings WITH (UPDLOCK, HOLDLOCK)
+                    WHERE customer_id = ?
+                      AND recurring_group_id = ?
+                      AND status = 'HOLD'
+                      AND hold_expires_at > GETDATE()
+                    ORDER BY booking_id
+                    """;
+        }
+
+        List<Long> bookingIds = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (payment.recurringGroupId() == null) {
+                ps.setLong(1, payment.bookingId());
+                ps.setLong(2, payment.customerId());
+            } else {
+                ps.setLong(1, payment.customerId());
+                ps.setLong(2, payment.recurringGroupId());
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    bookingIds.add(rs.getLong("booking_id"));
+                }
+            }
+        }
+        return bookingIds;
     }
 
     private Long findPaymentIdByTransactionRef(Connection conn, String transactionRef) throws SQLException {
