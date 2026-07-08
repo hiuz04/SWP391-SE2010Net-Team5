@@ -229,7 +229,7 @@ public class PaymentController extends HttpServlet {
                 try {
                     com.swp.dao.NotificationDAO notificationDAO = new com.swp.dao.NotificationDAO();
                     com.swp.model.Notification notification = new com.swp.model.Notification();
-                    notification.setUserId(currentUser.getUserId());
+                    notification.setUserId(customerId);
                     notification.setTitle("Đặt sân thành công");
                     notification.setMessage("Bạn đã thanh toán thành công và đặt sân hoàn tất. Mã giao dịch: " + transactionRef);
                     notification.setNotificationType("BOOKING");
