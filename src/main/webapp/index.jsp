@@ -104,24 +104,64 @@
         <div class="container">
             <div class="row g-4 text-center">
                 <div class="col-md-4">
-                    <div class="soft-card p-4 h-100">
-                        <i class="bi bi-search display-5 text-sf-primary"></i>
-                        <h5 class="mt-3">Tìm kiếm dễ dàng</h5>
-                        <p class="text-muted mb-0">Lọc theo vị trí, loại sân, khung giờ và mức giá.</p>
-                    </div>
+                    <a href="<%= ctx %>/search" class="text-decoration-none text-dark d-block h-100">
+                        <div class="soft-card p-4 h-100 hover-scale">
+                            <i class="bi bi-search display-5 text-sf-primary"></i>
+                            <h5 class="mt-3">Tìm kiếm dễ dàng</h5>
+                            <p class="text-muted mb-0">Lọc theo vị trí, loại sân, khung giờ và mức giá.</p>
+                        </div>
+                    </a>
                 </div>
                 <div class="col-md-4">
-                    <div class="soft-card p-4 h-100">
-                        <i class="bi bi-calendar-check display-5 text-sf-primary"></i>
-                        <h5 class="mt-3">Đặt sân nhanh</h5>
-                        <p class="text-muted mb-0">Xem lịch trống và xác nhận booking trực tuyến.</p>
-                    </div>
+                    <a href="<%= ctx %>/booking?action=history" class="text-decoration-none text-dark d-block h-100">
+                        <div class="soft-card p-4 h-100 hover-scale">
+                            <i class="bi bi-clock-history display-5 text-sf-primary"></i>
+                            <h5 class="mt-3">Lịch sử đặt sân</h5>
+                            <p class="text-muted mb-0">Theo dõi, quản lý danh sách các sân bạn đã đặt.</p>
+                        </div>
+                    </a>
                 </div>
                 <div class="col-md-4">
-                    <div class="soft-card p-4 h-100">
-                        <i class="bi bi-credit-card display-5 text-sf-primary"></i>
-                        <h5 class="mt-3">Thanh toán linh hoạt</h5>
-                        <p class="text-muted mb-0">Hỗ trợ chuyển khoản, ví điện tử và thanh toán tại sân.</p>
+                    <a href="<%= ctx %>/matchmaking" class="text-decoration-none text-dark d-block h-100">
+                        <div class="soft-card p-4 h-100 hover-scale">
+                            <i class="bi bi-people display-5 text-sf-primary"></i>
+                            <h5 class="mt-3">Tìm đối</h5>
+                            <p class="text-muted mb-0">Kết nối và giao lưu với các đội bóng khác.</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-5 bg-light overflow-hidden">
+        <div class="container">
+            <div class="row align-items-center g-5">
+                <div class="col-lg-6">
+                    <span class="badge text-bg-success mb-3 px-3 py-2">Dịch vụ chuẩn 5 sao</span>
+                    <h2 class="fw-bold mb-4">Trải nghiệm tiện ích đẳng cấp</h2>
+                    <p class="lead text-muted mb-4">Cơ sở vật chất hiện đại, mặt sân đạt chuẩn cùng hệ thống chiếu sáng chuyên nghiệp. Nâng tầm mọi trận đấu của bạn với những trải nghiệm tuyệt vời nhất.</p>
+                    <ul class="list-unstyled mb-4">
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Mặt cỏ nhân tạo chất lượng FIFA</li>
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Hệ thống đèn chiếu sáng ban đêm chống chói</li>
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Khu vực nghỉ ngơi, phòng thay đồ tiện nghi, sạch sẽ</li>
+                    </ul>
+                    <a href="<%= ctx %>/search" class="btn btn-sf-accent btn-lg">Khám phá sân ngay <i class="bi bi-arrow-right ms-1"></i></a>
+                </div>
+                <div class="col-lg-6">
+                    <div class="position-relative p-3">
+                        <img src="https://res.cloudinary.com/du02dvkx7/image/upload/v1783528000/san-bong-da-chat-luong-dat-tieu-chuan_kqbdez.jpg" alt="Tiện ích sân bóng" class="img-fluid rounded-4 shadow-lg hover-scale w-100" style="object-fit: cover; height: 450px;">
+                        
+                        <!-- Floating badge -->
+                        <div class="position-absolute bottom-0 start-0 ms-0 ms-md-4 mb-4 p-3 bg-white rounded-3 shadow-sm d-flex align-items-center gap-3 floating-badge border border-success border-opacity-25">
+                            <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px;">
+                                <i class="bi bi-star-fill fs-5"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">4.9/5 Điểm</h6>
+                                <small class="text-muted">Đánh giá từ khách hàng</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -150,7 +190,7 @@
                             <% 
                                 String imgUrl = field.getImageUrl();
                                 if (imgUrl == null || imgUrl.isBlank()) {
-                                    imgUrl = request.getContextPath() + "/assets/images/icon/default_field.png"; // or any default
+                                    imgUrl = request.getContextPath() + "/assets/images/icon/default_field.png";
                                 } else if (!imgUrl.startsWith("http")) {
                                     imgUrl = request.getContextPath() + (imgUrl.startsWith("/") ? "" : "/") + imgUrl;
                                 }

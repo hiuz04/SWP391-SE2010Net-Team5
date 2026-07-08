@@ -99,13 +99,22 @@
       <footer class="footer pt-5 pb-4 mt-5">
         <div class="container">
           <div class="row g-4">
-            <div class="col-lg-4">
+            <div class="col-lg-3">
               <div class="d-flex align-items-center gap-2 mb-3"><span class="logo-box">⚽</span><h5 class="mb-0 text-white">Sport Field Booking</h5></div>
-              <p>Phiên bản chuyển đổi sang HTML, CSS, Bootstrap. Dữ liệu hiện là mock data để phục vụ demo giao diện.</p>
+              <p>Nền tảng kết nối đam mê, mang đến trải nghiệm đặt sân bóng nhanh chóng, tiện lợi và chuyên nghiệp nhất.</p>
             </div>
-            <div class="col-6 col-lg-2"><h6 class="text-white">Khách hàng</h6><a class="d-block mb-2" href="${link(root, 'index')}">Trang chủ</a><a class="d-block mb-2" href="${link(root, 'register')}">Đăng ký</a></div>
-            <div class="col-6 col-lg-2"><h6 class="text-white">Tài khoản</h6><a class="d-block mb-2" href="${link(root, 'login')}">Đăng nhập</a></div>
-            <div class="col-lg-4"><h6 class="text-white">Liên hệ</h6><p class="mb-1"><i class="bi bi-geo-alt me-2"></i>Hoà Lạc, Việt Nam</p><p class="mb-1"><i class="bi bi-envelope me-2"></i>tranbaolong.280904@gmail.com</p></div>
+            <div class="col-6 col-lg-2">
+              <h6 class="text-white">Khám phá</h6>
+              <a class="d-block mb-2" href="${link(root, 'explore/about.jsp')}">Giới thiệu</a>
+              <a class="d-block mb-2" href="${link(root, 'explore/security-policy.jsp')}">Chính sách bảo mật</a>
+              <a class="d-block mb-2" href="${link(root, 'explore/terms-of-use.jsp')}">Điều khoản sử dụng</a>
+              <a class="d-block mb-2" href="${link(root, 'explore/user-guide.jsp')}">Hướng dẫn sử dụng</a>
+              <a class="d-block mb-2" href="${link(root, 'explore/privacy-policy.jsp')}">Chính sách quyền riêng tư</a>
+              <a class="d-block mb-2" href="${link(root, 'explore/contact.jsp')}">Liên Hệ</a>
+            </div>
+            <div class="col-6 col-lg-2"><h6 class="text-white">Khách hàng</h6><a class="d-block mb-2" href="${link(root, 'index.jsp')}">Trang chủ</a><a class="d-block mb-2" href="${link(root, 'register.jsp')}">Đăng ký</a></div>
+            <div class="col-6 col-lg-2"><h6 class="text-white">Tài khoản</h6><a class="d-block mb-2" href="${link(root, 'login.jsp')}">Đăng nhập</a></div>
+            <div class="col-lg-3"><h6 class="text-white">Liên hệ</h6><p class="mb-1"><i class="bi bi-geo-alt me-2"></i>Hoà Lạc, Việt Nam</p><p class="mb-1"><i class="bi bi-envelope me-2"></i>tranbaolong.280904@gmail.com</p><p class="mb-1"><i class="bi bi-telephone me-2"></i>0385028924</p></div>
           </div>
           <hr class="border-secondary my-4"><p class="small mb-0">© 2026 Sport Field Booking. Static Bootstrap UI prototype.</p>
         </div>
