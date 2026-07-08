@@ -415,7 +415,7 @@
                 </a>
               </div>
               <div class="col-6">
-                <a href="<%= ctx %>/staff/checkout" class="shortcut-btn w-100" id="sc-checkout">
+                <a href="<%= ctx %>/staff/schedule" class="shortcut-btn w-100" id="sc-checkout">
                   <div class="sc-icon" style="background:#e0f2fe;color:#0284c7;"><i class="bi bi-receipt-cutoff"></i></div>Checkout
                 </a>
               </div>
@@ -425,7 +425,7 @@
                 </a>
               </div>
               <div class="col-6">
-                <a href="<%= ctx %>/staff/invoice" class="shortcut-btn w-100" id="sc-invoice">
+                <a href="<%= ctx %>/staff/schedule" class="shortcut-btn w-100" id="sc-invoice">
                   <div class="sc-icon" style="background:#f5f3ff;color:#7c3aed;"><i class="bi bi-file-earmark-text-fill"></i></div>Hóa đơn
                 </a>
               </div>
@@ -474,8 +474,7 @@ function isBookingExpired(endTimeStr) {
   try {
     const isoStr = endTimeStr.replace(' ', 'T').substring(0, 19);
     const endDt = new Date(isoStr);
-    const now = new Date();
-    return endDt < now;
+    return endDt < new Date();
   } catch (e) {
     return false;
   }
@@ -497,7 +496,7 @@ function statusBadge(status, nowPlaying, isExpired) {
 
 let currentShiftStatus = 'ONGOING';
 
-function actionBtn(status, bookingId, isExpired) {
+function actionBtn(status, bookingId, isExpired, hasInvoice) {
   if (currentShiftStatus === 'UPCOMING') {
     if (status === 'CONFIRMED' || status === 'CHECKED_IN') {
       return `<button class="btn btn-sm btn-secondary px-3" disabled title="Chưa đến giờ làm việc"><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>`;
@@ -515,7 +514,7 @@ function actionBtn(status, bookingId, isExpired) {
     return `<a href="<%= ctx %>/staff/checkin?id=${bookingId}" class="btn btn-sm btn-success">Check-in</a>`;
   }
   if (status === 'CHECKED_IN') return `<a href="<%= ctx %>/staff/checkout?id=${bookingId}" class="btn btn-sm btn-outline-success">Checkout</a>`;
-  if (status === 'COMPLETED') return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-printer me-1"></i>Hóa đơn</a>`;
+  if (status === 'COMPLETED' && hasInvoice) return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-file-earmark-text me-1"></i>Hóa đơn</a>`;
   return '';
 }
 
@@ -653,7 +652,7 @@ async function loadDashboard() {
     } else {
       tbody.innerHTML = bookings.map(b => {
         const nowPlaying = b.nowPlaying && b.status === 'CHECKED_IN';
-        const isExpired  = isBookingExpired(b.endTime);
+        const isExpired = isBookingExpired(b.endTime);
         const rowClass   = nowPlaying ? 'booking-row now-playing' : 'booking-row';
         const timeBgStyle = nowPlaying ? 'background:#dcfce7;color:#15803d;' : '';
         return `<tr class="${rowClass}">
@@ -662,7 +661,7 @@ async function loadDashboard() {
           <td style="white-space: nowrap;"><strong>${b.fieldName || '—'}</strong></td>
           <td style="white-space: nowrap;">${b.customerName || '—'}</td>
           <td style="white-space: nowrap;">${statusBadge(b.status, nowPlaying, isExpired)}</td>
-          <td style="white-space: nowrap;">${actionBtn(b.status, b.bookingId, isExpired)}</td>
+          <td style="white-space: nowrap;">${actionBtn(b.status, b.bookingId, isExpired, b.hasInvoice)}</td>
         </tr>`;
       }).join('');
     }

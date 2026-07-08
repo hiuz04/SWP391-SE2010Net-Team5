@@ -25,6 +25,7 @@ public class PaymentDAO {
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String STATUS_FAILED = "FAILED";
+    private static final String GATEWAY_SIMULATED = "SIMULATED";
 
     public BookingView getBookingForPayment(long bookingId, long customerId) throws SQLException {
         String sql = """
@@ -144,16 +145,27 @@ public class PaymentDAO {
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                PaymentMethod method = new PaymentMethod();
-                method.setPaymentMethodId(rs.getInt("payment_method_id"));
-                method.setMethodCode(rs.getString("method_code"));
-                method.setMethodName(rs.getString("method_name"));
-                method.setStatus(rs.getString("status"));
-                methods.add(method);
+                methods.add(mapPaymentMethod(rs));
             }
         }
 
         return methods;
+    }
+
+    public PaymentMethod getPaymentMethodById(int paymentMethodId) throws SQLException {
+        String sql = """
+                SELECT payment_method_id, method_code, method_name, status
+                FROM payment_methods
+                WHERE payment_method_id = ?
+                """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, paymentMethodId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapPaymentMethod(rs) : null;
+            }
+        }
     }
 
     public Payment createPendingDepositPayment(long bookingId, long customerId, int paymentMethodId)
@@ -294,11 +306,98 @@ public class PaymentDAO {
         }
     }
 
+    public GatewayPaymentView findPaymentByTransactionRef(String transactionRef) throws SQLException {
+        if (transactionRef == null || transactionRef.isBlank()) {
+            return null;
+        }
+
+        String sql = """
+                SELECT p.payment_id,
+                       p.booking_id,
+                       p.customer_id,
+                       p.amount,
+                       p.status,
+                       p.transaction_ref,
+                       p.gateway_transaction_id,
+                       b.status AS booking_status
+                FROM payments p
+                INNER JOIN bookings b ON p.booking_id = b.booking_id
+                WHERE p.transaction_ref = ?
+                """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, transactionRef);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                return new GatewayPaymentView(
+                        rs.getLong("payment_id"),
+                        rs.getLong("booking_id"),
+                        rs.getLong("customer_id"),
+                        rs.getBigDecimal("amount"),
+                        rs.getString("status"),
+                        rs.getString("transaction_ref"),
+                        rs.getString("gateway_transaction_id"),
+                        rs.getString("booking_status")
+                );
+            }
+        }
+    }
+
+    public boolean savePaymentCallbackByTransactionRef(
+            String transactionRef,
+            String gatewayCode,
+            String rawPayload,
+            String signature,
+            boolean valid
+    ) throws SQLException {
+        if (transactionRef == null || transactionRef.isBlank()) {
+            return false;
+        }
+
+        try (Connection conn = DBContext.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                Long paymentId = findPaymentIdByTransactionRef(conn, transactionRef);
+                if (paymentId == null) {
+                    conn.commit();
+                    return false;
+                }
+                insertCallback(conn, paymentId, rawPayload, signature, valid, gatewayCode);
+                conn.commit();
+                return true;
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e);
+                throw e;
+            }
+        }
+    }
+
     public boolean markPaymentSuccessAndConfirmBooking(
             String transactionRef,
             String gatewayTransactionId,
             String rawPayload,
             String signature
+    ) throws SQLException {
+        PaymentUpdateResult result = markPaymentSuccessAndConfirmBooking(
+                transactionRef,
+                gatewayTransactionId,
+                rawPayload,
+                signature,
+                GATEWAY_SIMULATED
+        );
+        return result == PaymentUpdateResult.UPDATED_SUCCESS
+                || result == PaymentUpdateResult.ALREADY_SUCCESS;
+    }
+
+    public PaymentUpdateResult markPaymentSuccessAndConfirmBooking(
+            String transactionRef,
+            String gatewayTransactionId,
+            String rawPayload,
+            String signature,
+            String gatewayCode
     ) throws SQLException {
         String selectPayment = """
                 SELECT p.payment_id,
@@ -357,17 +456,24 @@ public class PaymentDAO {
                 PaymentLock payment = getPaymentLock(conn, selectPayment, transactionRef);
                 if (payment == null) {
                     conn.commit();
-                    return false;
+                    return PaymentUpdateResult.NOT_FOUND;
                 }
                 if (STATUS_SUCCESS.equals(payment.paymentStatus())) {
+                    insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
                     conn.commit();
-                    return true;
+                    return PaymentUpdateResult.ALREADY_SUCCESS;
+                }
+                if (STATUS_FAILED.equals(payment.paymentStatus())) {
+                    insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
+                    conn.commit();
+                    return PaymentUpdateResult.ALREADY_FAILED;
                 }
                 if (!STATUS_PENDING.equals(payment.paymentStatus())
                         || !STATUS_HOLD.equals(payment.bookingStatus())
                         || !payment.holdValid()) {
+                    insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
                     conn.commit();
-                    return false;
+                    return PaymentUpdateResult.INVALID_STATE;
                 }
 
                 List<Long> bookingIds = getScopedBookingIds(conn, payment);
@@ -399,10 +505,10 @@ public class PaymentDAO {
                         ps.executeUpdate();
                     }
                 }
-                insertCallback(conn, payment.paymentId(), rawPayload, signature, true);
+                insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
 
                 conn.commit();
-                return true;
+                return PaymentUpdateResult.UPDATED_SUCCESS;
             } catch (SQLException | RuntimeException e) {
                 rollback(conn, e);
                 throw e;
@@ -412,6 +518,22 @@ public class PaymentDAO {
 
     public boolean markPaymentFailed(String transactionRef, String rawPayload, String signature)
             throws SQLException {
+        PaymentUpdateResult result = markPaymentFailed(
+                transactionRef,
+                rawPayload,
+                signature,
+                GATEWAY_SIMULATED
+        );
+        return result == PaymentUpdateResult.UPDATED_FAILED
+                || result == PaymentUpdateResult.ALREADY_FAILED;
+    }
+
+    public PaymentUpdateResult markPaymentFailed(
+            String transactionRef,
+            String rawPayload,
+            String signature,
+            String gatewayCode
+    ) throws SQLException {
         String selectPayment = """
                 SELECT p.payment_id,
                        p.booking_id,
@@ -438,15 +560,22 @@ public class PaymentDAO {
                 PaymentLock payment = getPaymentLock(conn, selectPayment, transactionRef);
                 if (payment == null) {
                     conn.commit();
-                    return false;
+                    return PaymentUpdateResult.NOT_FOUND;
                 }
                 if (STATUS_FAILED.equals(payment.paymentStatus())) {
+                    insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
                     conn.commit();
-                    return true;
+                    return PaymentUpdateResult.ALREADY_FAILED;
+                }
+                if (STATUS_SUCCESS.equals(payment.paymentStatus())) {
+                    insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
+                    conn.commit();
+                    return PaymentUpdateResult.ALREADY_SUCCESS;
                 }
                 if (!STATUS_PENDING.equals(payment.paymentStatus())) {
+                    insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
                     conn.commit();
-                    return false;
+                    return PaymentUpdateResult.INVALID_STATE;
                 }
 
                 try (PreparedStatement ps = conn.prepareStatement(updatePayment)) {
@@ -455,15 +584,24 @@ public class PaymentDAO {
                         throw new SQLException("Khong cap nhat duoc giao dich that bai.");
                     }
                 }
-                insertCallback(conn, payment.paymentId(), rawPayload, signature, true);
+                insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
 
                 conn.commit();
-                return true;
+                return PaymentUpdateResult.UPDATED_FAILED;
             } catch (SQLException | RuntimeException e) {
                 rollback(conn, e);
                 throw e;
             }
         }
+    }
+
+    private PaymentMethod mapPaymentMethod(ResultSet rs) throws SQLException {
+        PaymentMethod method = new PaymentMethod();
+        method.setPaymentMethodId(rs.getInt("payment_method_id"));
+        method.setMethodCode(rs.getString("method_code"));
+        method.setMethodName(rs.getString("method_name"));
+        method.setStatus(rs.getString("status"));
+        return method;
     }
 
     public PaymentView getPaymentResult(String transactionRef, long customerId) throws SQLException {
@@ -617,42 +755,18 @@ public class PaymentDAO {
         }
     }
 
-    private List<Long> getScopedBookingIds(Connection conn, PaymentLock payment) throws SQLException {
-        String sql;
-        if (payment.recurringGroupId() == null) {
-            sql = """
-                    SELECT booking_id
-                    FROM bookings WITH (UPDLOCK, HOLDLOCK)
-                    WHERE booking_id = ?
-                      AND customer_id = ?
-                    ORDER BY start_time, booking_id
-                    """;
-        } else {
-            sql = """
-                    SELECT booking_id
-                    FROM bookings WITH (UPDLOCK, HOLDLOCK)
-                    WHERE recurring_group_id = ?
-                      AND customer_id = ?
-                    ORDER BY start_time, booking_id
-                    """;
-        }
-
-        List<Long> bookingIds = new ArrayList<>();
+    private Long findPaymentIdByTransactionRef(Connection conn, String transactionRef) throws SQLException {
+        String sql = """
+                SELECT payment_id
+                FROM payments
+                WHERE transaction_ref = ?
+                """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            if (payment.recurringGroupId() == null) {
-                ps.setLong(1, payment.bookingId());
-            } else {
-                ps.setLong(1, payment.recurringGroupId());
-            }
-            ps.setLong(2, payment.customerId());
-
+            ps.setString(1, transactionRef);
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    bookingIds.add(rs.getLong("booking_id"));
-                }
+                return rs.next() ? rs.getLong("payment_id") : null;
             }
         }
-        return bookingIds;
     }
 
     private void insertCallback(
@@ -662,19 +776,35 @@ public class PaymentDAO {
             String signature,
             boolean valid
     ) throws SQLException {
+        insertCallback(conn, paymentId, rawPayload, signature, valid, GATEWAY_SIMULATED);
+    }
+
+    private void insertCallback(
+            Connection conn,
+            long paymentId,
+            String rawPayload,
+            String signature,
+            boolean valid,
+            String gatewayCode
+    ) throws SQLException {
         String sql = """
                 INSERT INTO payment_callbacks (
                     payment_id, gateway_code, raw_payload, signature, valid, received_at
                 )
-                VALUES (?, 'SIMULATED', ?, ?, ?, GETDATE())
+                VALUES (?, ?, ?, ?, ?, GETDATE())
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, paymentId);
-            ps.setString(2, rawPayload);
-            ps.setString(3, signature);
-            ps.setBoolean(4, valid);
+            ps.setString(2, normalizeGatewayCode(gatewayCode));
+            ps.setString(3, rawPayload == null ? "" : rawPayload);
+            ps.setString(4, signature == null ? "" : signature);
+            ps.setBoolean(5, valid);
             ps.executeUpdate();
         }
+    }
+
+    private String normalizeGatewayCode(String gatewayCode) {
+        return gatewayCode == null || gatewayCode.isBlank() ? GATEWAY_SIMULATED : gatewayCode.trim();
     }
 
     private void rollback(Connection conn, Exception original) {
@@ -711,5 +841,26 @@ public class PaymentDAO {
             String bookingStatus,
             boolean holdValid
     ) {
+    }
+
+    public record GatewayPaymentView(
+            long paymentId,
+            long bookingId,
+            long customerId,
+            BigDecimal amount,
+            String status,
+            String transactionRef,
+            String gatewayTransactionId,
+            String bookingStatus
+    ) {
+    }
+
+    public enum PaymentUpdateResult {
+        UPDATED_SUCCESS,
+        ALREADY_SUCCESS,
+        UPDATED_FAILED,
+        ALREADY_FAILED,
+        NOT_FOUND,
+        INVALID_STATE
     }
 }

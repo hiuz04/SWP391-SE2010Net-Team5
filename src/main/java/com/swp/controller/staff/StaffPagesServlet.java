@@ -14,7 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-@WebServlet({"/staff/dashboard", "/staff/schedule", "/staff/checkin", "/staff/checkout", "/staff/invoice"})
+@WebServlet({"/staff/dashboard", "/staff/schedule", "/staff/checkin"})
 public class StaffPagesServlet extends HttpServlet {
 
     private final StaffDashboardDAO staffDAO = new StaffDashboardDAO();
@@ -45,21 +45,21 @@ public class StaffPagesServlet extends HttpServlet {
         String contextPath = req.getContextPath();
         String path = uri.substring(contextPath.length());
 
-        // Redirect checkin/checkout requests if staff has no active shift
-        if (path.startsWith("/staff/checkin") || path.startsWith("/staff/checkout")) {
+        // Redirect check-in requests if staff has no active shift
+        if (path.startsWith("/staff/checkin")) {
             if (user.getRoleId() == ROLE_STAFF) {
                 Map<String, Object> shift = staffDAO.getCurrentShift(user.getUserId());
                 if (shift.isEmpty()) {
                     resp.sendRedirect(req.getContextPath() + "/staff/dashboard?error=not_in_shift");
                     return;
                 }
-                
+
                 String startStr = (String) shift.get("startTime");
                 String endStr = (String) shift.get("endTime");
                 java.time.LocalTime start = parseTime(startStr);
                 java.time.LocalTime end = parseTime(endStr);
                 java.time.LocalTime now = java.time.LocalTime.now();
-                
+
                 if (now.isBefore(start) || now.isAfter(end)) {
                     resp.sendRedirect(req.getContextPath() + "/staff/dashboard?error=not_in_shift");
                     return;
@@ -100,36 +100,46 @@ public class StaffPagesServlet extends HttpServlet {
             if (bookingIdParam != null && !bookingIdParam.isEmpty()) {
                 try {
                     long bookingId = Long.parseLong(bookingIdParam);
-                    Map<String, Object> booking = staffDAO.getBookingDetailForCheckout(bookingId);
+                    Map<String, Object> booking = staffDAO.getBookingDetailForCheckin(bookingId);
                     req.setAttribute("booking", booking);
                 } catch (NumberFormatException ignored) {}
             }
             req.getRequestDispatcher("/WEB-INF/staff/checkin.jsp").forward(req, resp);
-
-        } else if (path.startsWith("/staff/checkout")) {
-            String bookingIdParam = req.getParameter("id");
-            if (bookingIdParam != null && !bookingIdParam.isEmpty()) {
-                try {
-                    long bookingId = Long.parseLong(bookingIdParam);
-                    Map<String, Object> booking = staffDAO.getBookingDetailForCheckout(bookingId);
-                    req.setAttribute("booking", booking);
-                } catch (NumberFormatException ignored) {
-                    req.setAttribute("error", "Mã đặt sân không hợp lệ.");
-                }
-            }
-            req.getRequestDispatcher("/WEB-INF/staff/checkout.jsp").forward(req, resp);
-
-        } else if (path.startsWith("/staff/invoice")) {
-            String bookingIdParam = req.getParameter("id");
-            if (bookingIdParam != null && !bookingIdParam.isEmpty()) {
-                try {
-                    long bookingId = Long.parseLong(bookingIdParam);
-                    Map<String, Object> invoice = staffDAO.getInvoiceDetail(bookingId);
-                    req.setAttribute("invoice", invoice);
-                } catch (NumberFormatException ignored) {}
-            }
-            req.getRequestDispatcher("/WEB-INF/staff/invoice.jsp").forward(req, resp);
         }
+    }
+
+    private static java.time.LocalTime parseTime(String timeStr) {
+        if (timeStr == null || timeStr.trim().isEmpty()) {
+            return null;
+        }
+        timeStr = timeStr.trim().toUpperCase();
+
+        boolean pm = timeStr.contains("CH") || timeStr.contains("PM");
+
+        if (timeStr.contains(" ")) {
+            timeStr = timeStr.split(" ")[1];
+        }
+        if (timeStr.contains(".")) {
+            timeStr = timeStr.split("\\.")[0];
+        }
+
+        String clean = timeStr.replaceAll("[^0-9:]", "").trim();
+        if (clean.isEmpty()) {
+            return null;
+        }
+
+        String[] parts = clean.split(":");
+        int hour = Integer.parseInt(parts[0]);
+        int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+        int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+
+        if (pm && hour < 12) {
+            hour += 12;
+        } else if (!pm && hour == 12) {
+            hour = 0;
+        }
+
+        return java.time.LocalTime.of(hour, min, sec);
     }
 
     private static java.time.LocalTime parseTime(String timeStr) {

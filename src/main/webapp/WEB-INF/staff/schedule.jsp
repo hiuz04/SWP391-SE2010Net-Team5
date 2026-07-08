@@ -259,6 +259,7 @@
                         long bId = (Long) foundBooking.get("bookingId");
                         String custName = (String) foundBooking.get("customerName");
                         String bCode = (String) foundBooking.get("bookingCode");
+                        boolean hasInvoice = Boolean.TRUE.equals(foundBooking.get("hasInvoice"));
                         
                         if ("CONFIRMED".equals(bStatus)) {
                           cellClass = "status-booked-confirmed";
@@ -275,7 +276,9 @@
                         } else if ("COMPLETED".equals(bStatus)) {
                           cellClass = "status-booked-completed";
                           cellText = bCode + " - Xong";
-                          cellOnclick = "location.href='" + ctx + "/staff/invoice?id=" + bId + "'";
+                          if (hasInvoice) {
+                            cellOnclick = "location.href='" + ctx + "/staff/invoice?id=" + bId + "'";
+                          }
                         }
                       }
                   %>
@@ -326,6 +329,7 @@
                   String customerName = (String) b.get("customerName");
                   String customerPhone = (String) b.get("customerPhone");
                   java.math.BigDecimal total = (java.math.BigDecimal) b.get("totalAmount");
+                  boolean hasInvoice = Boolean.TRUE.equals(b.get("hasInvoice"));
 
                   String sTimeVal = bStart != null ? bStart : "00:00:00";
                   if (sTimeVal.contains(" ")) sTimeVal = sTimeVal.split(" ")[1];
@@ -375,7 +379,9 @@
                         : "<a href='" + ctx + "/staff/checkout?id=" + bId + "' class='btn btn-sm btn-outline-success px-3'>Checkout</a>");
                   } else if ("COMPLETED".equals(bStatus)) {
                     statusBadge = "<span class='badge badge-soft-success'><i class='bi bi-check-circle me-1'></i>Đã xong</span>";
-                    actionButton = "<a href='" + ctx + "/staff/invoice?id=" + bId + "' class='btn btn-sm btn-outline-secondary px-3'><i class='bi bi-printer me-1'></i>Hóa đơn</a>";
+                    if (hasInvoice) {
+                      actionButton = "<a href='" + ctx + "/staff/invoice?id=" + bId + "' class='btn btn-sm btn-outline-secondary px-3'><i class='bi bi-file-earmark-text me-1'></i>Hóa đơn</a>";
+                    }
                   }
               %>
                 <tr>

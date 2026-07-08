@@ -3,20 +3,19 @@ package com.swp.dao;
 import com.swp.util.DBContext;
 
 import java.math.BigDecimal;
-import java.sql.*;
-import java.time.LocalDate;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
-/**
- * DAO for the Staff Dashboard – returns raw data maps/lists that the servlet
- * serialises to JSON. All queries target SQL Server syntax.
- */
 public class StaffDashboardDAO {
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 1. Current shift assigned to this staff today
-    // ──────────────────────────────────────────────────────────────────────────
     public Map<String, Object> getCurrentShift(long staffId) {
         String sql = """
                 SELECT ws.shift_id, ws.shift_name, ws.shift_date,
@@ -32,7 +31,7 @@ public class StaffDashboardDAO {
                 """;
         List<Map<String, Object>> shifts = new ArrayList<>();
         try (Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, staffId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -54,85 +53,19 @@ public class StaffDashboardDAO {
         return selectBestShift(shifts);
     }
 
-    private static LocalTime parseTime(String s) {
-        if (s == null) return LocalTime.MIDNIGHT;
-        if (s.contains(" ")) {
-            s = s.split(" ")[1];
-        }
-        if (s.contains(".")) s = s.substring(0, s.indexOf('.'));
-        String[] parts = s.split(":");
-        int h = Integer.parseInt(parts[0]);
-        int m = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
-        return LocalTime.of(h, m);
-    }
-
-    private static Map<String, Object> selectBestShift(List<Map<String, Object>> shifts) {
-        if (shifts == null || shifts.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        if (shifts.size() == 1) {
-            return shifts.get(0);
-        }
-
-        LocalTime now = LocalTime.now();
-
-        // 1. Check if there is an active/ongoing shift
-        for (Map<String, Object> shift : shifts) {
-            LocalTime start = parseTime((String) shift.get("startTime"));
-            LocalTime end = parseTime((String) shift.get("endTime"));
-            if (isTimeInShift(now, start, end)) {
-                return shift;
-            }
-        }
-
-        // 2. Check if there is an upcoming shift
-        Map<String, Object> bestUpcoming = null;
-        LocalTime minUpcomingStart = null;
-        for (Map<String, Object> shift : shifts) {
-            LocalTime start = parseTime((String) shift.get("startTime"));
-            if (now.isBefore(start)) {
-                if (minUpcomingStart == null || start.isBefore(minUpcomingStart)) {
-                    minUpcomingStart = start;
-                    bestUpcoming = shift;
-                }
-            }
-        }
-        if (bestUpcoming != null) {
-            return bestUpcoming;
-        }
-
-        // 3. Check if there is a completed shift
-        Map<String, Object> bestCompleted = null;
-        LocalTime maxCompletedEnd = null;
-        for (Map<String, Object> shift : shifts) {
-            LocalTime end = parseTime((String) shift.get("endTime"));
-            if (maxCompletedEnd == null || end.isAfter(maxCompletedEnd)) {
-                maxCompletedEnd = end;
-                bestCompleted = shift;
-            }
-        }
-
-        return bestCompleted != null ? bestCompleted : shifts.get(0);
-    }
-
-    private static boolean isTimeInShift(LocalTime time, LocalTime start, LocalTime end) {
-        if (start.isBefore(end)) {
-            return !time.isBefore(start) && time.isBefore(end);
-        } else {
-            return !time.isBefore(start) || time.isBefore(end);
-        }
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // 2. Bookings for today at the staff's facility, ordered by start_time
-    // ──────────────────────────────────────────────────────────────────────────
     public List<Map<String, Object>> getTodayBookings(long facilityId) {
         String sql = """
                 SELECT b.booking_id, b.booking_code,
                        b.start_time, b.end_time,
                        b.status, b.total_amount,
                        u.full_name AS customer_name,
-                       fi.field_name
+                       fi.field_name,
+                       CASE WHEN EXISTS (
+                           SELECT 1
+                           FROM invoices i
+                           WHERE i.booking_id = b.booking_id
+                             AND i.status IN ('PAID', 'ACTIVE')
+                       ) THEN 1 ELSE 0 END AS has_invoice
                 FROM bookings b
                 JOIN users u  ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id   = fi.field_id
@@ -143,7 +76,7 @@ public class StaffDashboardDAO {
                 """;
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, facilityId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -156,6 +89,7 @@ public class StaffDashboardDAO {
                     row.put("totalAmount", rs.getBigDecimal("total_amount"));
                     row.put("customerName", rs.getString("customer_name"));
                     row.put("fieldName", rs.getString("field_name"));
+                    row.put("hasInvoice", rs.getInt("has_invoice") == 1);
                     list.add(row);
                 }
             }
@@ -165,11 +99,8 @@ public class StaffDashboardDAO {
         return list;
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 3. KPI: total cash collected by this staff during their shift window
-    // ──────────────────────────────────────────────────────────────────────────
     public Map<String, Object> getCashKpi(long staffId, String shiftDateStr,
-            String startTimeStr, String endTimeStr) {
+                                          String startTimeStr, String endTimeStr) {
         String sql = """
                 SELECT
                     COALESCE(SUM(i.total_amount), 0) AS total_cash,
@@ -184,7 +115,7 @@ public class StaffDashboardDAO {
         kpi.put("totalCash", BigDecimal.ZERO);
         kpi.put("txCount", 0);
         try (Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, staffId);
             ps.setString(2, shiftDateStr);
             ps.setString(3, startTimeStr);
@@ -201,9 +132,6 @@ public class StaffDashboardDAO {
         return kpi;
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 4. KPI: completed bookings count & total bookings today
-    // ──────────────────────────────────────────────────────────────────────────
     public Map<String, Object> getBookingKpi(long facilityId) {
         String sql = """
                 SELECT
@@ -218,7 +146,7 @@ public class StaffDashboardDAO {
         kpi.put("totalBookings", 0);
         kpi.put("completed", 0);
         try (Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, facilityId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -232,9 +160,6 @@ public class StaffDashboardDAO {
         return kpi;
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 5. KPI: number of customers waiting for check-in right now
-    // ──────────────────────────────────────────────────────────────────────────
     public int getPendingCheckinCount(long facilityId) {
         String sql = """
                 SELECT COUNT(*) AS cnt
@@ -245,11 +170,12 @@ public class StaffDashboardDAO {
                   AND start_time <= GETDATE()
                 """;
         try (Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, facilityId);
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next())
+                if (rs.next()) {
                     return rs.getInt("cnt");
+                }
             }
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi đếm check-in chờ: " + e.getMessage(), e);
@@ -257,61 +183,49 @@ public class StaffDashboardDAO {
         return 0;
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 6. Average rating today (from a reviews / ratings table if it exists)
-    // Falls back to NULL if the table doesn't exist yet.
-    // ──────────────────────────────────────────────────────────────────────────
     public Double getAverageRatingToday(long facilityId) {
-        // If you have a reviews table, swap the query here.
-        // For now we return null to let the UI show "N/A".
         return null;
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 7. Recent activity: last 5 events (check-ins + invoices) at the facility
-    // ──────────────────────────────────────────────────────────────────────────
     public List<Map<String, Object>> getRecentActivity(long facilityId) {
-        // Union of checkins and invoices, most recent first
         String sql = """
                 SELECT TOP 5 *
                 FROM (
-                    -- Check-in events
                     SELECT
-                        'CHECKIN'                        AS activity_type,
-                        b.booking_code                   AS ref_code,
-                        fi.field_name                    AS field_name,
-                        u.full_name                      AS customer_name,
-                        ci.checkin_time                  AS event_time,
-                        NULL                             AS amount
-                    FROM checkins ci
-                    JOIN bookings b  ON ci.booking_id   = b.booking_id
-                    JOIN fields fi   ON b.field_id      = fi.field_id
-                    JOIN users u     ON b.customer_id   = u.user_id
+                        'CHECKIN' AS activity_type,
+                        b.booking_code AS ref_code,
+                        fi.field_name,
+                        u.full_name AS customer_name,
+                        c.checkin_time AS event_time,
+                        CAST(0 AS DECIMAL(18,2)) AS amount
+                    FROM checkins c
+                    JOIN bookings b ON c.booking_id = b.booking_id
+                    JOIN users u ON b.customer_id = u.user_id
+                    JOIN fields fi ON b.field_id = fi.field_id
                     WHERE b.facility_id = ?
-                      AND CAST(ci.checkin_time AS DATE) = CAST(GETDATE() AS DATE)
 
                     UNION ALL
 
-                    -- Invoice (checkout/payment) events
                     SELECT
-                        'INVOICE'                        AS activity_type,
-                        i.invoice_code                   AS ref_code,
-                        fi.field_name                    AS field_name,
-                        u.full_name                      AS customer_name,
-                        i.issued_at                      AS event_time,
-                        i.total_amount                   AS amount
+                        'INVOICE' AS activity_type,
+                        i.invoice_code AS ref_code,
+                        fi.field_name,
+                        u.full_name AS customer_name,
+                        i.issued_at AS event_time,
+                        i.total_amount AS amount
                     FROM invoices i
-                    JOIN bookings b  ON i.booking_id    = b.booking_id
-                    JOIN fields fi   ON b.field_id      = fi.field_id
-                    JOIN users u     ON i.customer_id   = u.user_id
+                    JOIN bookings b ON i.booking_id = b.booking_id
+                    JOIN users u ON i.customer_id = u.user_id
+                    JOIN fields fi ON b.field_id = fi.field_id
                     WHERE b.facility_id = ?
-                      AND CAST(i.issued_at AS DATE) = CAST(GETDATE() AS DATE)
-                ) combined
-                ORDER BY event_time DESC
+                      AND i.status = 'PAID'
+                ) activity
+                WHERE CAST(activity.event_time AS DATE) = CAST(GETDATE() AS DATE)
+                ORDER BY activity.event_time DESC
                 """;
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, facilityId);
             ps.setLong(2, facilityId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -322,8 +236,8 @@ public class StaffDashboardDAO {
                     row.put("fieldName", rs.getString("field_name"));
                     row.put("customerName", rs.getString("customer_name"));
                     row.put("eventTime", rs.getString("event_time"));
-                    BigDecimal amt = rs.getBigDecimal("amount");
-                    row.put("amount", amt != null ? amt : BigDecimal.ZERO);
+                    BigDecimal amount = rs.getBigDecimal("amount");
+                    row.put("amount", amount != null ? amount : BigDecimal.ZERO);
                     list.add(row);
                 }
             }
@@ -333,11 +247,13 @@ public class StaffDashboardDAO {
         return list;
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 8. Handle guest check-in
-    // ──────────────────────────────────────────────────────────────────────────
     public boolean checkinBooking(long bookingId, long staffId, String note) {
-        String updateSql = "UPDATE bookings SET status = 'CHECKED_IN', updated_at = GETDATE() WHERE booking_id = ?";
+        String updateSql = """
+                UPDATE bookings
+                SET status = 'CHECKED_IN', updated_at = GETDATE()
+                WHERE booking_id = ?
+                  AND status = 'CONFIRMED'
+                """;
         String insertSql = "INSERT INTO checkins (booking_id, staff_id, checkin_time, note) VALUES (?, ?, GETDATE(), ?)";
         try (Connection conn = DBContext.getConnection()) {
             conn.setAutoCommit(false);
@@ -364,63 +280,6 @@ public class StaffDashboardDAO {
         }
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 9. Handle guest checkout and invoice generation
-    // ──────────────────────────────────────────────────────────────────────────
-    public boolean checkoutBooking(long bookingId, long staffId, BigDecimal subtotal, BigDecimal discountAmount, BigDecimal totalAmount, BigDecimal paidAmount, String note) {
-        String getCustomerSql = "SELECT customer_id FROM bookings WHERE booking_id = ?";
-        String updateSql = "UPDATE bookings SET status = 'COMPLETED', updated_at = GETDATE() WHERE booking_id = ?";
-        String insertInvoiceSql = """
-            INSERT INTO invoices (invoice_code, booking_id, customer_id, staff_id, subtotal, discount_amount, total_amount, paid_amount, status, issued_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PAID', GETDATE())
-        """;
-        try (Connection conn = DBContext.getConnection()) {
-            conn.setAutoCommit(false);
-            long customerId = 0;
-            try (PreparedStatement psGet = conn.prepareStatement(getCustomerSql)) {
-                psGet.setLong(1, bookingId);
-                try (ResultSet rs = psGet.executeQuery()) {
-                    if (rs.next()) {
-                        customerId = rs.getLong("customer_id");
-                    } else {
-                        conn.rollback();
-                        return false;
-                    }
-                }
-            }
-            try (PreparedStatement ps1 = conn.prepareStatement(updateSql);
-                 PreparedStatement ps2 = conn.prepareStatement(insertInvoiceSql)) {
-                ps1.setLong(1, bookingId);
-                int updated = ps1.executeUpdate();
-                if (updated == 0) {
-                    conn.rollback();
-                    return false;
-                }
-                String invoiceCode = "INV" + System.currentTimeMillis() % 100000000L;
-                ps2.setString(1, invoiceCode);
-                ps2.setLong(2, bookingId);
-                ps2.setLong(3, customerId);
-                ps2.setLong(4, staffId);
-                ps2.setBigDecimal(5, subtotal);
-                ps2.setBigDecimal(6, discountAmount);
-                ps2.setBigDecimal(7, totalAmount);
-                ps2.setBigDecimal(8, paidAmount);
-                ps2.executeUpdate();
-                
-                conn.commit();
-                return true;
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Lỗi checkout: " + e.getMessage(), e);
-        }
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // 10. Update field operational status
-    // ──────────────────────────────────────────────────────────────────────────
     public boolean updateFieldStatus(long fieldId, String status) {
         String sql = "UPDATE fields SET status = ?, updated_at = GETDATE() WHERE field_id = ?";
         try (Connection conn = DBContext.getConnection();
@@ -433,20 +292,18 @@ public class StaffDashboardDAO {
         }
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 11. Fetch booking details for checkout page
-    // ──────────────────────────────────────────────────────────────────────────
-    public Map<String, Object> getBookingDetailForCheckout(long bookingId) {
+    public Map<String, Object> getBookingDetailForCheckin(long bookingId) {
         String sql = """
-            SELECT b.booking_id, b.booking_code, b.total_amount, b.deposit_amount,
-                   u.full_name AS customer_name, u.phone AS customer_phone,
-                   b.start_time, b.end_time, f.field_name, fac.facility_name
-            FROM bookings b
-            JOIN users u ON b.customer_id = u.user_id
-            JOIN fields f ON b.field_id = f.field_id
-            JOIN facilities fac ON b.facility_id = fac.facility_id
-            WHERE b.booking_id = ?
-        """;
+                SELECT b.booking_id, b.booking_code, b.total_amount, b.deposit_amount,
+                       b.status,
+                       u.full_name AS customer_name, u.phone AS customer_phone,
+                       b.start_time, b.end_time, f.field_name, fac.facility_name
+                FROM bookings b
+                JOIN users u ON b.customer_id = u.user_id
+                JOIN fields f ON b.field_id = f.field_id
+                JOIN facilities fac ON b.facility_id = fac.facility_id
+                WHERE b.booking_id = ?
+                """;
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, bookingId);
@@ -457,6 +314,7 @@ public class StaffDashboardDAO {
                     map.put("bookingCode", rs.getString("booking_code"));
                     map.put("totalAmount", rs.getBigDecimal("total_amount"));
                     map.put("depositAmount", rs.getBigDecimal("deposit_amount"));
+                    map.put("status", rs.getString("status"));
                     map.put("customerName", rs.getString("customer_name"));
                     map.put("customerPhone", rs.getString("customer_phone"));
                     map.put("startTime", rs.getString("start_time"));
@@ -467,67 +325,30 @@ public class StaffDashboardDAO {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Lỗi lấy thông tin checkout: " + e.getMessage(), e);
+            throw new RuntimeException("Lỗi lấy thông tin check-in: " + e.getMessage(), e);
         }
         return Collections.emptyMap();
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 12. Fetch invoice details for invoice display/receipt printing
-    // ──────────────────────────────────────────────────────────────────────────
-    public Map<String, Object> getInvoiceDetail(long bookingId) {
-        String sql = """
-            SELECT i.invoice_id, i.invoice_code, i.issued_at, i.subtotal, i.discount_amount, i.total_amount, i.paid_amount, i.status,
-                   u.full_name AS customer_name, f.field_name, fac.facility_name
-            FROM invoices i
-            JOIN bookings b ON i.booking_id = b.booking_id
-            JOIN users u ON i.customer_id = u.user_id
-            JOIN fields f ON b.field_id = f.field_id
-            JOIN facilities fac ON b.facility_id = fac.facility_id
-            WHERE i.booking_id = ?
-        """;
-        try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, bookingId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    Map<String, Object> map = new LinkedHashMap<>();
-                    map.put("invoiceId", rs.getLong("invoice_id"));
-                    map.put("invoiceCode", rs.getString("invoice_code"));
-                    map.put("issuedAt", rs.getString("issued_at"));
-                    map.put("subtotal", rs.getBigDecimal("subtotal"));
-                    map.put("discountAmount", rs.getBigDecimal("discount_amount"));
-                    map.put("totalAmount", rs.getBigDecimal("total_amount"));
-                    map.put("paidAmount", rs.getBigDecimal("paid_amount"));
-                    map.put("status", rs.getString("status"));
-                    map.put("customerName", rs.getString("customer_name"));
-                    map.put("fieldName", rs.getString("field_name"));
-                    map.put("facilityName", rs.getString("facility_name"));
-                    return map;
-                }
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Lỗi lấy thông tin hóa đơn: " + e.getMessage(), e);
-        }
-        return Collections.emptyMap();
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // 13. Fetch all bookings for a facility on a specific date
-    // ──────────────────────────────────────────────────────────────────────────
     public List<Map<String, Object>> getBookingsForDate(long facilityId, String dateStr) {
         String sql = """
-            SELECT b.booking_id, b.booking_code, b.start_time, b.end_time, b.status, b.total_amount,
-                   u.full_name AS customer_name, u.phone AS customer_phone,
-                   fi.field_id, fi.field_name
-            FROM bookings b
-            JOIN users u ON b.customer_id = u.user_id
-            JOIN fields fi ON b.field_id = fi.field_id
-            WHERE b.facility_id = ?
-              AND CAST(b.start_time AS DATE) = ?
-              AND b.status NOT IN ('CANCELLED','HOLD')
-            ORDER BY b.start_time
-        """;
+                SELECT b.booking_id, b.booking_code, b.start_time, b.end_time, b.status, b.total_amount,
+                       u.full_name AS customer_name, u.phone AS customer_phone,
+                       fi.field_id, fi.field_name,
+                       CASE WHEN EXISTS (
+                           SELECT 1
+                           FROM invoices i
+                           WHERE i.booking_id = b.booking_id
+                             AND i.status IN ('PAID', 'ACTIVE')
+                       ) THEN 1 ELSE 0 END AS has_invoice
+                FROM bookings b
+                JOIN users u ON b.customer_id = u.user_id
+                JOIN fields fi ON b.field_id = fi.field_id
+                WHERE b.facility_id = ?
+                  AND CAST(b.start_time AS DATE) = ?
+                  AND b.status NOT IN ('CANCELLED','HOLD')
+                ORDER BY b.start_time
+                """;
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -546,6 +367,7 @@ public class StaffDashboardDAO {
                     row.put("customerPhone", rs.getString("customer_phone"));
                     row.put("fieldId", rs.getLong("field_id"));
                     row.put("fieldName", rs.getString("field_name"));
+                    row.put("hasInvoice", rs.getInt("has_invoice") == 1);
                     list.add(row);
                 }
             }
@@ -555,9 +377,6 @@ public class StaffDashboardDAO {
         return list;
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 14. Fetch fields for facility
-    // ──────────────────────────────────────────────────────────────────────────
     public List<Map<String, Object>> getFieldsForFacility(long facilityId) {
         String sql = "SELECT field_id, field_name, status, description FROM fields WHERE facility_id = ? ORDER BY field_name";
         List<Map<String, Object>> list = new ArrayList<>();
@@ -580,9 +399,6 @@ public class StaffDashboardDAO {
         return list;
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 15. Search CONFIRMED bookings by code, customer name, or phone number
-    // ──────────────────────────────────────────────────────────────────────────
     public List<Map<String, Object>> searchConfirmedBookings(long facilityId, String query) {
         String sql = """
                 SELECT b.booking_id, b.booking_code,
@@ -630,5 +446,74 @@ public class StaffDashboardDAO {
         }
         return list;
     }
-}
 
+    private static Map<String, Object> selectBestShift(List<Map<String, Object>> shifts) {
+        if (shifts == null || shifts.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        if (shifts.size() == 1) {
+            return shifts.get(0);
+        }
+
+        LocalTime now = LocalTime.now();
+
+        for (Map<String, Object> shift : shifts) {
+            LocalTime start = parseTime((String) shift.get("startTime"));
+            LocalTime end = parseTime((String) shift.get("endTime"));
+            if (isTimeInShift(now, start, end)) {
+                return shift;
+            }
+        }
+
+        Map<String, Object> bestUpcoming = null;
+        LocalTime minUpcomingStart = null;
+        for (Map<String, Object> shift : shifts) {
+            LocalTime start = parseTime((String) shift.get("startTime"));
+            if (now.isBefore(start) && (minUpcomingStart == null || start.isBefore(minUpcomingStart))) {
+                minUpcomingStart = start;
+                bestUpcoming = shift;
+            }
+        }
+        if (bestUpcoming != null) {
+            return bestUpcoming;
+        }
+
+        Map<String, Object> bestCompleted = null;
+        LocalTime maxCompletedEnd = null;
+        for (Map<String, Object> shift : shifts) {
+            LocalTime end = parseTime((String) shift.get("endTime"));
+            if (maxCompletedEnd == null || end.isAfter(maxCompletedEnd)) {
+                maxCompletedEnd = end;
+                bestCompleted = shift;
+            }
+        }
+        return bestCompleted != null ? bestCompleted : shifts.get(0);
+    }
+
+    private static boolean isTimeInShift(LocalTime time, LocalTime start, LocalTime end) {
+        if (start == null || end == null) {
+            return false;
+        }
+        if (start.isBefore(end)) {
+            return !time.isBefore(start) && time.isBefore(end);
+        }
+        return !time.isBefore(start) || time.isBefore(end);
+    }
+
+    private static LocalTime parseTime(String s) {
+        if (s == null || s.trim().isEmpty()) {
+            return LocalTime.MIDNIGHT;
+        }
+        s = s.trim();
+        if (s.contains(" ")) {
+            s = s.split(" ")[1];
+        }
+        if (s.contains(".")) {
+            s = s.substring(0, s.indexOf('.'));
+        }
+        String[] parts = s.split(":");
+        int h = Integer.parseInt(parts[0]);
+        int m = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+        return LocalTime.of(h, m);
+    }
+}
