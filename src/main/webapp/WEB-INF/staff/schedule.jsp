@@ -17,6 +17,38 @@
     
     List<Map<String, Object>> fields = (List<Map<String, Object>>) request.getAttribute("fields");
     List<Map<String, Object>> bookings = (List<Map<String, Object>>) request.getAttribute("bookings");
+
+    boolean isUpcomingShift = false;
+    boolean isEndedShift = false;
+    if (hasShift) {
+        String sStart = (String) request.getAttribute("shiftStartTime");
+        String sEnd = (String) request.getAttribute("shiftEndTime");
+        if (sStart != null && sEnd != null) {
+            try {
+                String cleanStart = sStart.contains(" ") ? sStart.split(" ")[1] : sStart;
+                if (cleanStart.contains(".")) cleanStart = cleanStart.split("\\.")[0];
+                if (cleanStart.length() > 5) cleanStart = cleanStart.substring(0, 5);
+                
+                java.time.LocalTime start = java.time.LocalTime.parse(cleanStart);
+                
+                String cleanEnd = sEnd.contains(" ") ? sEnd.split(" ")[1] : sEnd;
+                if (cleanEnd.contains(".")) cleanEnd = cleanEnd.split("\\.")[0];
+                if (cleanEnd.length() > 5) cleanEnd = cleanEnd.substring(0, 5);
+                
+                java.time.LocalTime end = java.time.LocalTime.parse(cleanEnd);
+                
+                java.time.LocalTime now = java.time.LocalTime.now();
+                java.time.LocalDate today = java.time.LocalDate.now();
+                if (selectedDate.equals(today.toString())) {
+                    if (now.isBefore(start)) {
+                        isUpcomingShift = true;
+                    } else if (now.isAfter(end)) {
+                        isEndedShift = true;
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+    }
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -170,7 +202,7 @@
                       <span><%= fieldName %></span>
                       <span class="badge <%= fieldBadgeClass %> field-badge align-self-start mt-1" 
                             style="font-size:0.65rem;"
-                            onclick="openFieldStatusModal('<%= fieldId %>', '<%= fieldName %>', '<%= fieldStatus %>')">
+                            onclick="<%= isUpcomingShift ? "alert('Ca trực chưa bắt đầu. Bạn không thể thay đổi trạng thái sân.')" : (isEndedShift ? "alert('Ca trực đã kết thúc. Bạn không thể thay đổi trạng thái sân.')" : "openFieldStatusModal('" + fieldId + "', '" + fieldName + "', '" + fieldStatus + "')") %>">
                         <%= fieldBadgeText %> <i class="bi bi-pencil-square ms-1"></i>
                       </span>
                     </div>
@@ -231,12 +263,16 @@
                         
                         if ("CONFIRMED".equals(bStatus)) {
                           cellClass = "status-booked-confirmed";
-                          cellText = custName;
-                          cellOnclick = "location.href='" + ctx + "/staff/checkin?id=" + bId + "'";
+                          cellText = bCode + " - " + custName;
+                          cellOnclick = isUpcomingShift 
+                             ? "alert('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.')" 
+                             : (isEndedShift ? "alert('Ca trực đã kết thúc. Bạn không thể thao tác.')" : "location.href='" + ctx + "/staff/checkin?id=" + bId + "'");
                         } else if ("CHECKED_IN".equals(bStatus)) {
                           cellClass = "status-booked-checkedin";
-                          cellText = custName;
-                          cellOnclick = "location.href='" + ctx + "/staff/checkout?id=" + bId + "'";
+                          cellText = bCode + " - " + custName;
+                          cellOnclick = isUpcomingShift 
+                             ? "alert('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.')" 
+                             : (isEndedShift ? "alert('Ca trực đã kết thúc. Bạn không thể thao tác.')" : "location.href='" + ctx + "/staff/checkout?id=" + bId + "'");
                         } else if ("COMPLETED".equals(bStatus)) {
                           cellClass = "status-booked-completed";
                           cellText = bCode + " - Xong";
@@ -268,6 +304,7 @@
             <thead class="table-light">
               <tr>
                 <th>Giờ</th>
+                <th>Mã đặt sân</th>
                 <th>Sân bóng</th>
                 <th>Khách hàng</th>
                 <th>Số điện thoại</th>
@@ -279,7 +316,7 @@
             <tbody>
               <% if (bookings == null || bookings.isEmpty()) { %>
                 <tr>
-                  <td colspan="7" class="text-center text-muted py-4">Không có trận đấu nào trong ngày này.</td>
+                  <td colspan="8" class="text-center text-muted py-4">Không có trận đấu nào trong ngày này.</td>
                 </tr>
               <% } else {
                 for (Map<String, Object> b : bookings) {
@@ -309,12 +346,37 @@
                   String statusBadge = "";
                   String actionButton = "";
                   
+                  boolean isExpired = false;
+                  if ("CONFIRMED".equals(bStatus) && bEnd != null) {
+                    try {
+                      String isoEnd = bEnd.replace(" ", "T");
+                      if (isoEnd.contains(".")) {
+                        isoEnd = isoEnd.substring(0, isoEnd.indexOf("."));
+                      }
+                      java.time.LocalDateTime endDt = java.time.LocalDateTime.parse(isoEnd);
+                      isExpired = endDt.isBefore(java.time.LocalDateTime.now());
+                    } catch (Exception ignored) {}
+                  }
+
                   if ("CONFIRMED".equals(bStatus)) {
-                    statusBadge = "<span class='badge badge-soft-warning'><i class='bi bi-hourglass-split me-1'></i>Chờ check-in</span>";
-                    actionButton = "<a href='" + ctx + "/staff/checkin?id=" + bId + "' class='btn btn-sm btn-sf-primary px-3'>Check-in</a>";
+                    if (isExpired) {
+                      statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-exclamation-triangle me-1'></i>Quá giờ</span>";
+                      actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-exclamation-circle me-1'></i>Quá giờ nhận</button>";
+                    } else {
+                      statusBadge = "<span class='badge badge-soft-warning'><i class='bi bi-hourglass-split me-1'></i>Chờ check-in</span>";
+                      actionButton = isUpcomingShift 
+                        ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Chưa đến giờ làm việc'><i class='bi bi-lock-fill me-1'></i>Chờ ca trực</button>"
+                        : (isEndedShift 
+                          ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Ca trực đã kết thúc'><i class='bi bi-lock-fill me-1'></i>Hết ca trực</button>"
+                          : "<a href='" + ctx + "/staff/checkin?id=" + bId + "' class='btn btn-sm btn-sf-primary px-3'>Check-in</a>");
+                    }
                   } else if ("CHECKED_IN".equals(bStatus)) {
                     statusBadge = "<span class='badge badge-soft-info'><i class='pulse-playing me-1'></i>Đang đá</span>";
-                    actionButton = "<a href='" + ctx + "/staff/checkout?id=" + bId + "' class='btn btn-sm btn-outline-success px-3'>Checkout</a>";
+                    actionButton = isUpcomingShift 
+                      ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Chưa đến giờ làm việc'><i class='bi bi-lock-fill me-1'></i>Chờ ca trực</button>"
+                      : (isEndedShift 
+                        ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Ca trực đã kết thúc'><i class='bi bi-lock-fill me-1'></i>Hết ca trực</button>"
+                        : "<a href='" + ctx + "/staff/checkout?id=" + bId + "' class='btn btn-sm btn-outline-success px-3'>Checkout</a>");
                   } else if ("COMPLETED".equals(bStatus)) {
                     statusBadge = "<span class='badge badge-soft-success'><i class='bi bi-check-circle me-1'></i>Đã xong</span>";
                     if (hasInvoice) {
@@ -323,13 +385,14 @@
                   }
               %>
                 <tr>
-                  <td><strong class="text-dark"><%= formattedTime %></strong></td>
-                  <td><strong><%= fieldName %></strong></td>
-                  <td><%= customerName %></td>
-                  <td><%= customerPhone %></td>
-                  <td class="text-success fw-bold"><%= String.format("%,d ₫", total.longValue()) %></td>
-                  <td><%= statusBadge %></td>
-                  <td><%= actionButton %></td>
+                  <td style="white-space: nowrap;"><strong class="text-dark"><%= formattedTime %></strong></td>
+                  <td style="white-space: nowrap;"><strong class="text-success"><%= bCode %></strong></td>
+                  <td style="white-space: nowrap;"><strong><%= fieldName %></strong></td>
+                  <td style="white-space: nowrap;"><%= customerName %></td>
+                  <td style="white-space: nowrap;"><%= customerPhone %></td>
+                  <td class="text-success fw-bold" style="white-space: nowrap;"><%= String.format("%,d ₫", total.longValue()) %></td>
+                  <td style="white-space: nowrap;"><%= statusBadge %></td>
+                  <td style="white-space: nowrap;"><%= actionButton %></td>
                 </tr>
               <% }
               } %>

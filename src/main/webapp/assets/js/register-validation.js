@@ -2,8 +2,8 @@
   const form = document.getElementById('registerForm');
   if (!form) return;
 
-  const emailPattern = /^[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}$/;
-  const phonePattern = /^0\d{9,10}$/;
+  const emailPattern = /^[a-zA-Z0-9.]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const phonePattern = /^0[35789]\d{8}$/;
   const fullNamePattern = /^[\p{L}][\p{L}\s'.]{0,98}[\p{L}.]$|^[\p{L}]{2,}$/u;
 
   const fields = {
@@ -18,7 +18,7 @@
     phone: {
       validate: (v) => {
         if (!v) return 'Số điện thoại không được để trống.';
-        if (!phonePattern.test(v)) return 'Số điện thoại phải bắt đầu bằng 0 và có 10–11 chữ số.';
+        if (!phonePattern.test(v)) return 'Số điện thoại không đúng định dạng (10 số, mạng VN).';
         return '';
       }
     },

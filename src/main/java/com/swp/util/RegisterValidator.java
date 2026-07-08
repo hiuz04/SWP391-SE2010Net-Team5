@@ -7,8 +7,8 @@ public final class RegisterValidator {
     public static final String DEFAULT_ROLE = "CUSTOMER";
 
     private static final Pattern EMAIL_PATTERN =
-            Pattern.compile("^[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}$");
-    private static final Pattern PHONE_PATTERN = Pattern.compile("^0\\d{9,10}$");
+            Pattern.compile("^[a-zA-Z0-9.]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    private static final Pattern PHONE_PATTERN = Pattern.compile("^0[35789]\\d{8}$");
     private static final Pattern FULL_NAME_PATTERN =
             Pattern.compile("^[\\p{L}][\\p{L}\\s'.]{1,98}[\\p{L}.]$|^[\\p{L}]{2,}$");
 
@@ -38,7 +38,7 @@ public final class RegisterValidator {
         if (phone == null || phone.isBlank()) {
             result.addFieldError("phone", "Số điện thoại không được để trống.");
         } else if (!PHONE_PATTERN.matcher(phone).matches()) {
-            result.addFieldError("phone", "Số điện thoại phải bắt đầu bằng 0 và có 10–11 chữ số.");
+            result.addFieldError("phone", "Số điện thoại không đúng định dạng (10 số, mạng VN).");
         }
 
         String passwordError = PasswordUtil.validatePassword(password);

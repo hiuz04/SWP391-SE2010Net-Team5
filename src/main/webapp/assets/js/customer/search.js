@@ -10,7 +10,7 @@ function renderData(data) {
 
                     <div class="col-md-4">
                         <img
-                            src="https://res.cloudinary.com/du02dvkx7/image/upload/v1780892069/court_a6at9n.webp"
+                            src="${item.thumbnailUrl}"
                             class="img-fluid w-100 object-fit-cover"
                             alt="Sân bóng">
                     </div>

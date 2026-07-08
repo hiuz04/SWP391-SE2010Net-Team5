@@ -18,6 +18,7 @@
 
     Long facilityId = (Long) request.getAttribute("facilityId");
     LocalDate selectedDate = (LocalDate) request.getAttribute("selectedDate");
+    LocalDate maxBookingDate = (LocalDate) request.getAttribute("maxBookingDate");
     String error = (String) request.getAttribute("error");
 
     List<Field> fields = (List<Field>) request.getAttribute("fields");
@@ -28,7 +29,10 @@
     if (selectedDate == null) {
         selectedDate = LocalDate.now();
     }
-    LocalDate maxBookingDate = LocalDate.now().plusMonths(1);
+    if (maxBookingDate == null) {
+        LocalDate nextMonth = LocalDate.now().plusMonths(1);
+        maxBookingDate = nextMonth.withDayOfMonth(nextMonth.lengthOfMonth());
+    }
 
     if (fields == null) {
         fields = new ArrayList<>();
@@ -483,7 +487,7 @@
 
     function updateSelectedInfo() {
         const repeatNote = repeatTypeInput.value === 'MONTHLY'
-            ? ' | Thuê theo tháng: hệ thống sẽ tự chọn các tuần tiếp theo trong vòng 1 tháng và kiểm tra trùng lịch.'
+            ? ' | Thuê theo tháng: hệ thống sẽ tự chọn các tuần tiếp theo trong tháng này và tháng sau, rồi kiểm tra trùng lịch.'
             : ' | Thuê đơn lẻ';
 
         selectedInfo.innerHTML =

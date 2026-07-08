@@ -1,3 +1,4 @@
+<%@ page import="com.swp.model.User" %>
 <!--
 * Module: Owner Dashboard
 * File: dashboard.html
@@ -19,11 +20,13 @@
     }
 %>
 <%
+    User sessionUser = (User) request.getAttribute("sessionUser");
+    if (sessionUser == null) sessionUser = (User) session.getAttribute("user");
+    String navRole = (String) request.getAttribute("navRole");
+    if (navRole == null) navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
+    if (navRole == null) navRole = "guest";
+    String displayName = sessionUser != null ? sessionUser.getFullName() : "";
     String ctx = request.getContextPath();
-    User currentUser = (User) session.getAttribute("user");
-    String currentName = currentUser != null && currentUser.getFullName() != null
-            ? currentUser.getFullName()
-            : "Owner";
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -36,51 +39,60 @@
     <title>Owner Dashboard | Sport Field Booking</title>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/owner" data-role="owner" data-name="<%= esc(currentName) %>" data-active="Dashboard"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Dashboard"></div>
 <main class="dashboard-shell">
     <div class="container"><h1 class="section-title">Owner Dashboard</h1>
         <p class="text-muted">Theo dõi hiệu quả kinh doanh cơ sở sân.</p>
         <div class="row g-4 mb-4">
-            <div class="col-md-3">
+
+            <div class="col-md-4">
                 <div class="stat-card p-4">
                     <div class="text-muted">Booking hôm nay</div>
-                    <h3 class="fw-bold">24</h3><span class="text-success small">+12%</span></div>
+                    <h3 id="todayBooking" class="fw-bold">0</h3>
+                    <span id="bookingDifference" class="text-success small">+0</span>
+                </div>
             </div>
-            <div class="col-md-3">
+
+            <div class="col-md-4">
                 <div class="stat-card p-4">
-                    <div class="text-muted">Doanh thu</div>
-                    <h3 class="fw-bold">8.4M</h3><span class="text-success small">+8%</span></div>
+                    <div class="text-muted">
+                        Doanh thu tháng này
+                    </div>
+                    <h3 id="monthRevenue" class="fw-bold">0</h3>
+                    <span id="revenueGrowth" class="text-success small">+0%</span>
+                </div>
             </div>
-            <div class="col-md-3">
+
+            <div class="col-md-4">
                 <div class="stat-card p-4">
-                    <div class="text-muted">Sân hoạt động</div>
-                    <h3 class="fw-bold">12</h3><span class="text-muted small">/15 sân</span></div>
+                    <div class="text-muted">
+                        Sân hoạt động
+                    </div>
+                    <h3 id="activeFields" class="fw-bold">0</h3>
+                    <span id="totalFields" class="text-muted small">/0 sân</span>
+                </div>
             </div>
-            <div class="col-md-3">
-                <div class="stat-card p-4">
-                    <div class="text-muted">Đánh giá</div>
-                    <h3 class="fw-bold">4.8</h3><span class="text-warning small">★★★★★</span></div>
-            </div>
+
+<%--            <div class="col-md-3">--%>
+<%--                <div class="stat-card p-4">--%>
+<%--                    <div class="text-muted">Đánh giá</div>--%>
+<%--                    <h3 class="fw-bold">4.8</h3><span class="text-warning small">★★★★★</span></div>--%>
+<%--            </div>--%>
         </div>
         <div class="row g-4">
             <div class="col-lg-8">
                 <div class="card soft-card p-4"><h5>Doanh thu 7 ngày</h5>
-                    <div class="d-flex align-items-end gap-3" style="height:220px">
-                        <div class="bg-sf-primary rounded-top flex-fill" style="height:35%"></div>
-                        <div class="bg-sf-primary rounded-top flex-fill" style="height:55%"></div>
-                        <div class="bg-sf-primary rounded-top flex-fill" style="height:45%"></div>
-                        <div class="bg-sf-primary rounded-top flex-fill" style="height:75%"></div>
-                        <div class="bg-sf-primary rounded-top flex-fill" style="height:62%"></div>
-                        <div class="bg-sf-primary rounded-top flex-fill" style="height:85%"></div>
-                        <div class="bg-sf-primary rounded-top flex-fill" style="height:70%"></div>
+                    <div id="revenueChart">
+                        <div class="d-flex align-items-end gap-3" style="height:220px">
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-lg-4">
                 <div class="card soft-card p-4"><h5>Quản lý nhanh</h5>
                     <div class="d-grid gap-2">
-                        <a class="btn btn-outline-success" href="<%= ctx %>/owner/facility-list">Cơ sở</a>
-                        <a class="btn btn-outline-success" href="<%= ctx %>/owner/field-list">Sân bóng</a>
+                        <a class="btn btn-outline-success" href="<%= ctx %>/owner/facility">Cơ sở</a>
+                        <a class="btn btn-outline-success" href="<%= ctx %>/owner/field">Sân bóng</a>
                         <a class="btn btn-outline-success" href="<%= ctx %>/owner/dashboard">Bảng giá</a>
                     </div>
                 </div>
@@ -92,5 +104,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
+<script src="<%= ctx %>/assets/js/owner/dashboard.js"></script>
+<script>loadData();</script>
 </body>
 </html>

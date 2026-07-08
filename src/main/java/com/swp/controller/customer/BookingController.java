@@ -45,7 +45,7 @@ public class BookingController extends HttpServlet {
     private static final LocalTime GRID_LAST_SLOT_START = LocalTime.of(20, 30);
     private static final int SLOT_MINUTES = 30;
     private static final int HOLD_MINUTES = 15;
-    private static final int MAX_RECURRING_BOOKINGS = 6;
+    private static final int MAX_RECURRING_BOOKINGS = 10;
     private static final int MAX_BOOKING_ADVANCE_MONTHS = 1;
     private static final BigDecimal DEPOSIT_RATE = new BigDecimal("0.30");
     private static final String STATUS_HOLD = "HOLD";
@@ -122,10 +122,10 @@ public class BookingController extends HttpServlet {
 
         LocalDate selectedDate = parseBookingDate(request.getParameter("date"));
         LocalDate today = LocalDate.now();
-        LocalDate maxBookingDate = today.plusMonths(MAX_BOOKING_ADVANCE_MONTHS);
+        LocalDate maxBookingDate = getMaxBookingDate();
         if (selectedDate.isBefore(today) || selectedDate.isAfter(maxBookingDate)) {
             selectedDate = today;
-            request.setAttribute("error", "Chỉ cho phép đặt sân trước trong vòng 1 tháng.");
+            request.setAttribute("error", "Chỉ cho phép đặt sân trong tháng này và tháng sau.");
         }
 
         List<Field> fields = bookingDAO.getFieldsByFacility(facilityId);
@@ -143,6 +143,7 @@ public class BookingController extends HttpServlet {
 
         request.setAttribute("facilityId", facilityId);
         request.setAttribute("selectedDate", selectedDate);
+        request.setAttribute("maxBookingDate", maxBookingDate);
         request.setAttribute("fields", fields);
         request.setAttribute("timeHeaders", timeHeaders);
         request.setAttribute("scheduleMap", scheduleMap);
@@ -385,6 +386,14 @@ public class BookingController extends HttpServlet {
 
         // Cap nhat trang thai booking va ghi log trong DAO.
         bookingDAO.cancelBooking(bookingId, currentUser.getUserId(), reason, currentUser.getUserId());
+        
+        try {
+            com.swp.dao.NotificationDAO notificationDAO = new com.swp.dao.NotificationDAO();
+            String msg = "Khách hàng " + currentUser.getFullName() + " đã hủy lịch đặt sân (Mã đặt: " + bookingId + "). Lý do: " + reason;
+            notificationDAO.notifyRole("OWNER", "Khách hàng hủy đặt sân", msg, "BOOKING", bookingId);
+            notificationDAO.notifyRole("STAFF", "Khách hàng hủy đặt sân", msg, "BOOKING", bookingId);
+        } catch (Exception ignored) {}
+
         response.sendRedirect(request.getContextPath()
                 + "/booking?action=detail&id=" + bookingId + "&success=cancelled");
     }
@@ -434,12 +443,7 @@ public class BookingController extends HttpServlet {
             return new RepeatRequest(REPEAT_NONE, null);
         }
 
-        LocalDate maxBookingDate = LocalDate.now().plusMonths(MAX_BOOKING_ADVANCE_MONTHS);
-        LocalDate repeatUntil = bookingDate.plusMonths(1);
-        // Khong cho ngay lap vuot qua gioi han dat truoc cua he thong.
-        if (repeatUntil.isAfter(maxBookingDate)) {
-            repeatUntil = maxBookingDate;
-        }
+        LocalDate repeatUntil = getMaxBookingDate();
 
         return new RepeatRequest(repeatType, repeatUntil);
     }
@@ -450,11 +454,26 @@ public class BookingController extends HttpServlet {
             RepeatRequest repeatRequest
     ) {
         List<BookingSlot> slots = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDate maxBookingDate = getMaxBookingDate();
         LocalDateTime currentStart = startTime;
         LocalDateTime currentEnd = endTime;
 
         while (true) {
-            slots.add(new BookingSlot(currentStart, currentEnd));
+            if (currentStart.toLocalDate().isAfter(maxBookingDate)) {
+                break;
+            }
+            if (repeatRequest.repeatUntil() != null
+                    && currentStart.toLocalDate().isAfter(repeatRequest.repeatUntil())) {
+                break;
+            }
+
+            if (currentStart.isAfter(now)) {
+                slots.add(new BookingSlot(currentStart, currentEnd));
+            } else if (REPEAT_NONE.equals(repeatRequest.repeatType())) {
+                throw new IllegalArgumentException("Kh\u00f4ng th\u1ec3 \u0111\u1eb7t s\u00e2n tr\u01b0\u1edbc gi\u1edd hi\u1ec7n t\u1ea1i.");
+            }
+
             // Thue don thi chi can mot slot.
             if (REPEAT_NONE.equals(repeatRequest.repeatType())) {
                 break;
@@ -466,11 +485,10 @@ public class BookingController extends HttpServlet {
 
             currentStart = currentStart.plusWeeks(1);
             currentEnd = currentEnd.plusWeeks(1);
+        }
 
-            // Dung khi slot ke tiep vuot qua ngay ket thuc lap.
-            if (currentStart.toLocalDate().isAfter(repeatRequest.repeatUntil())) {
-                break;
-            }
+        if (slots.isEmpty()) {
+            throw new IllegalArgumentException("Kh\u00f4ng c\u00f3 khung gi\u1edd n\u00e0o trong t\u01b0\u01a1ng lai \u0111\u1ec3 t\u1ea1o booking.");
         }
 
         return slots;
@@ -586,6 +604,11 @@ public class BookingController extends HttpServlet {
         } catch (Exception e) {
             return LocalDate.now();
         }
+    }
+
+    private LocalDate getMaxBookingDate() {
+        LocalDate lastAllowedMonth = LocalDate.now().plusMonths(MAX_BOOKING_ADVANCE_MONTHS);
+        return lastAllowedMonth.withDayOfMonth(lastAllowedMonth.lengthOfMonth());
     }
 
     private List<String> buildTimeHeaders() {
@@ -715,14 +738,14 @@ public class BookingController extends HttpServlet {
         }
 
         LocalDate today = LocalDate.now();
-        LocalDate maxBookingDate = today.plusMonths(MAX_BOOKING_ADVANCE_MONTHS);
+        LocalDate maxBookingDate = getMaxBookingDate();
         LocalDate bookingDate = startTime.toLocalDate();
 
         if (bookingDate.isBefore(today)) {
             throw new IllegalArgumentException("Không thể đặt sân cho ngày đã qua.");
         }
         if (bookingDate.isAfter(maxBookingDate)) {
-            throw new IllegalArgumentException("Chỉ cho phép đặt sân trước trong vòng 1 tháng.");
+            throw new IllegalArgumentException("Chỉ cho phép đặt sân trong tháng này và tháng sau.");
         }
     }
 

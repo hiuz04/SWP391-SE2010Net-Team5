@@ -6,6 +6,7 @@ import com.swp.model.FieldMaintenanceSchedule;
 import com.swp.model.dto.BookingView;
 import com.swp.util.DBContext;
 
+import java.awt.print.Book;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Connection;
@@ -231,6 +232,9 @@ public class BookingDAO {
         String sql = """
                 SELECT NULL AS booking_id,
                        NULL AS booking_code,
+                       NULL AS recurring_group_id,
+                       'NONE' AS repeat_type,
+                       1 AS recurring_count,
                        u.user_id AS customer_id,
                        u.full_name AS customer_name,
                        u.phone AS customer_phone,
@@ -844,7 +848,16 @@ public class BookingDAO {
 
         String sql = baseBookingViewSql() + """
                 WHERE b.customer_id = ?
-                ORDER BY b.start_time DESC
+                  AND (
+                      b.recurring_group_id IS NULL
+                      OR b.booking_id = (
+                          SELECT MIN(representative.booking_id)
+                          FROM bookings representative
+                          WHERE representative.recurring_group_id = b.recurring_group_id
+                      )
+                  )
+                ORDER BY b.created_at DESC,
+                         b.booking_id DESC
                 """;
 
         List<BookingView> bookings = new ArrayList<>();
@@ -887,6 +900,48 @@ public class BookingDAO {
         }
 
         return 0;
+    }
+
+    public int getBookingCountWithFacilityId(long id) {
+        String sql = """
+                    SELECT COUNT(*) AS total
+                    FROM bookings
+                    WHERE facility_id = ?
+                    """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total");
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e
+            );
+        }
+    }
+
+    public int getBookingCountWithFieldId(long id) {
+        String sql = """
+                    SELECT COUNT(*) AS total
+                    FROM bookings
+                    WHERE field_id = ?
+                    """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total");
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e
+            );
+        }
     }
 
     private boolean isFieldAvailable(Connection conn, Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
@@ -942,6 +997,9 @@ public class BookingDAO {
         return """
                 SELECT b.booking_id,
                        b.booking_code,
+                       b.recurring_group_id,
+                       COALESCE(rg.repeat_type, 'NONE') AS repeat_type,
+                       grp.recurring_count,
                        b.customer_id,
                        u.full_name AS customer_name,
                        u.phone AS customer_phone,
@@ -956,10 +1014,10 @@ public class BookingDAO {
                        ft.number_of_players,
                        b.start_time,
                        b.end_time,
-                       b.original_price,
-                       b.discount_amount,
-                       b.total_amount,
-                       b.deposit_amount,
+                       grp.original_price,
+                       grp.discount_amount,
+                       grp.total_amount,
+                       grp.deposit_amount,
                        b.status,
                        b.hold_expires_at,
                        b.qr_code,
@@ -978,10 +1036,24 @@ public class BookingDAO {
                        CASE WHEN lp.payment_status = 'SUCCESS' THEN lp.paid_amount ELSE NULL END AS paid_amount,
                        lp.paid_at
                 FROM bookings b
+                LEFT JOIN booking_recurring_groups rg ON b.recurring_group_id = rg.recurring_group_id
                 INNER JOIN users u ON b.customer_id = u.user_id
                 INNER JOIN facilities fa ON b.facility_id = fa.facility_id
                 INNER JOIN fields f ON b.field_id = f.field_id
                 INNER JOIN field_types ft ON f.field_type_id = ft.field_type_id
+                OUTER APPLY (
+                    SELECT COUNT(*) AS recurring_count,
+                           SUM(sb.original_price) AS original_price,
+                           SUM(sb.discount_amount) AS discount_amount,
+                           SUM(sb.total_amount) AS total_amount,
+                           SUM(sb.deposit_amount) AS deposit_amount
+                    FROM bookings sb
+                    WHERE sb.customer_id = b.customer_id
+                      AND (
+                          (b.recurring_group_id IS NOT NULL AND sb.recurring_group_id = b.recurring_group_id)
+                          OR (b.recurring_group_id IS NULL AND sb.booking_id = b.booking_id)
+                      )
+                ) grp
                 OUTER APPLY (
                     SELECT TOP 1
                            p.status AS payment_status,
@@ -990,7 +1062,16 @@ public class BookingDAO {
                            p.paid_at
                     FROM payments p
                     LEFT JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
-                    WHERE p.booking_id = b.booking_id
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM bookings paid_booking
+                        WHERE paid_booking.booking_id = p.booking_id
+                          AND paid_booking.customer_id = b.customer_id
+                          AND (
+                              (b.recurring_group_id IS NOT NULL AND paid_booking.recurring_group_id = b.recurring_group_id)
+                              OR (b.recurring_group_id IS NULL AND paid_booking.booking_id = b.booking_id)
+                          )
+                    )
                     ORDER BY
                         CASE WHEN p.status = 'SUCCESS' THEN 0 ELSE 1 END,
                         p.paid_at DESC,
@@ -1118,6 +1199,9 @@ public class BookingDAO {
 
         view.setBookingId(getLongOrNull(rs, "booking_id"));
         view.setBookingCode(rs.getString("booking_code"));
+        view.setRecurringGroupId(getLongOrNull(rs, "recurring_group_id"));
+        view.setRepeatType(rs.getString("repeat_type"));
+        view.setRecurringCount(getIntegerOrNull(rs, "recurring_count"));
         view.setCustomerId(getLongOrNull(rs, "customer_id"));
         view.setCustomerName(rs.getString("customer_name"));
         view.setCustomerPhone(rs.getString("customer_phone"));

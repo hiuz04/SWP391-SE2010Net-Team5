@@ -115,7 +115,7 @@
                     <div class="alert alert-info py-2 small">
                         <strong>Lo&#7841;i thu&#234;:</strong>
                         <%= "MONTHLY".equals(repeatType) ? "Thu&#234; theo th&#225;ng" : "Thu&#234; &#273;&#417;n l&#7867;" %>.
-                        H&#7879; th&#7889;ng s&#7869; t&#7841;o <%= recurringCount %> booking trong v&#242;ng 1 th&#225;ng n&#7871;u c&#225;c khung gi&#7901; &#273;&#7873;u c&#242;n tr&#7889;ng.
+                        H&#7879; th&#7889;ng s&#7869; t&#7841;o <%= recurringCount %> booking trong th&#225;ng n&#224;y v&#224; th&#225;ng sau n&#7871;u c&#225;c khung gi&#7901; &#273;&#7873;u c&#242;n tr&#7889;ng.
                     </div>
 
                     <form method="post" action="<%= ctx %>/booking">

@@ -26,6 +26,48 @@
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
+    private String timeOnly(LocalDateTime value) {
+        if (value == null) return "";
+        return value.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private String dayOfWeek(LocalDateTime value) {
+        if (value == null) return "";
+        switch (value.getDayOfWeek().getValue()) {
+            case 1:
+                return "Th&#7913; 2";
+            case 2:
+                return "Th&#7913; 3";
+            case 3:
+                return "Th&#7913; 4";
+            case 4:
+                return "Th&#7913; 5";
+            case 5:
+                return "Th&#7913; 6";
+            case 6:
+                return "Th&#7913; 7";
+            default:
+                return "Ch&#7911; nh&#7853;t";
+        }
+    }
+
+    private boolean monthly(BookingView booking) {
+        return booking != null && "MONTHLY".equals(booking.getRepeatType());
+    }
+
+    private String bookingTimeLabel(BookingView booking) {
+        if (booking == null) return "";
+        if (monthly(booking)) {
+            String countText = booking.getRecurringCount() == null
+                    ? ""
+                    : " (" + booking.getRecurringCount() + " bu&#7893;i)";
+            return dayOfWeek(booking.getStartTime()) + ", "
+                    + timeOnly(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime())
+                    + countText;
+        }
+        return dateTime(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime());
+    }
+
     private String statusLabel(String status) {
         if (status == null) return "Kh&#244;ng r&#245;";
         switch (status) {
@@ -161,8 +203,8 @@
 
                     <div class="row g-3 mt-3">
                         <div class="col-md-6">
-                            <div class="text-muted small">Gi&#7901; b&#7855;t &#273;&#7847;u / kick-off</div>
-                            <div class="fw-semibold"><%= dateTime(booking.getStartTime()) %> - <%= dateTime(booking.getEndTime()) %></div>
+                            <div class="text-muted small"><%= monthly(booking) ? "L&#7883;ch c&#7889; &#273;&#7883;nh" : "Gi&#7901; b&#7855;t &#273;&#7847;u / kick-off" %></div>
+                            <div class="fw-semibold"><%= bookingTimeLabel(booking) %></div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">Lo&#7841;i s&#226;n</div>

@@ -84,6 +84,7 @@ public class FieldDAO {
                 field.setFieldTypeId(rs.getInt("field_type_id"));
                 field.setFacilityId(rs.getLong("facility_id"));
                 field.setStatus(rs.getString("status"));
+                field.setHot(rs.getBoolean("is_hot"));
             }
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi truy cập dữ liệu: " + e.getMessage(), e);
@@ -109,6 +110,7 @@ public class FieldDAO {
                         rs.getString("field_name"),
                         rs.getString("description"),
                         rs.getString("status"),
+                        rs.getBoolean("is_hot"),
                         rs.getTimestamp("created_at").toLocalDateTime(),
                         rs.getTimestamp("updated_at").toLocalDateTime()
                 ));
@@ -135,6 +137,7 @@ public class FieldDAO {
                         rs.getString("field_name"),
                         rs.getString("description"),
                         rs.getString("status"),
+                        rs.getBoolean("is_hot"),
                         rs.getTimestamp("created_at").toLocalDateTime(),
                         rs.getTimestamp("updated_at").toLocalDateTime()
                 ));
@@ -147,26 +150,51 @@ public class FieldDAO {
         return list;
     }
 
+    public int getFieldCountWithFacilityId(long id) {
+        String sql = """
+                    SELECT COUNT(*) AS total
+                    FROM fields
+                    WHERE facility_id = ?
+                    """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total");
+            }
+            return 0;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e
+            );
+        }
+    }
+
     /**
-     * Lấy top 3 sân có lượt booking cao nhất.
-     * Loại trừ các sân đang bảo trì (status = MAINTENANCE).
+     * Lấy các sân nổi bật (hot).
+     * Loại trừ các sân đang bảo trì (status = MAINTENANCE) và phải được đánh dấu là hot (is_hot = 1).
      * Join với bảng bookings để đếm, facility để lấy địa chỉ, field_types để lấy tên loại sân.
      */
-    public List<TopFieldSummary> getTop3FieldsByBooking() {
+    public List<TopFieldSummary> getHotFields() {
         List<TopFieldSummary> list = new ArrayList<>();
         String sql =
-            "SELECT TOP 3 " +
-            "  f.field_id, f.field_name, f.description, f.status, f.facility_id, " +
+            "SELECT " +
+            "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
             "  fac.facility_name, fac.address, fac.district, fac.city, " +
             "  COALESCE(ft.type_name, '') AS field_type_name, " +
-            "  COUNT(b.booking_id) AS booking_count " +
+            "  COUNT(b.booking_id) AS booking_count, " +
+            "  fi.image_url " +
             "FROM fields f " +
             "LEFT JOIN bookings b ON b.field_id = f.field_id " +
             "LEFT JOIN facilities fac ON fac.facility_id = f.facility_id " +
             "LEFT JOIN field_types ft ON ft.field_type_id = f.field_type_id " +
-            "WHERE f.status <> 'MAINTENANCE' " +
-            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.facility_id, " +
-            "         fac.facility_name, fac.address, fac.district, fac.city, ft.type_name " +
+            "OUTER APPLY (SELECT TOP 1 image_url FROM facility_images fi2 WHERE fi2.facility_id = f.facility_id ORDER BY thumbnail DESC, image_id DESC) fi " +
+            "WHERE f.status <> 'MAINTENANCE' AND f.is_hot = 1 " +
+            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
+            "         fac.facility_name, fac.address, fac.district, fac.city, ft.type_name, fi.image_url " +
             "ORDER BY booking_count DESC";
 
         try (Connection conn = DBContext.getConnection();
@@ -180,12 +208,14 @@ public class FieldDAO {
                     rs.getString("description"),
                     rs.getString("status"),
                     rs.getString("field_type_name"),
+                    rs.getBoolean("is_hot"),
                     rs.getLong("facility_id"),
                     rs.getString("facility_name"),
                     rs.getString("address"),
                     rs.getString("district"),
                     rs.getString("city"),
-                    rs.getInt("booking_count")
+                    rs.getInt("booking_count"),
+                    rs.getString("image_url")
                 ));
             }
         } catch (SQLException e) {
@@ -203,17 +233,19 @@ public class FieldDAO {
         List<TopFieldSummary> list = new ArrayList<>();
         String sql =
             "SELECT " +
-            "  f.field_id, f.field_name, f.description, f.status, f.facility_id, " +
+            "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
             "  fac.facility_name, fac.address, fac.district, fac.city, " +
             "  COALESCE(ft.type_name, '') AS field_type_name, " +
-            "  COUNT(b.booking_id) AS booking_count " +
+            "  COUNT(b.booking_id) AS booking_count, " +
+            "  fi.image_url " +
             "FROM fields f " +
             "LEFT JOIN bookings b ON b.field_id = f.field_id " +
             "LEFT JOIN facilities fac ON fac.facility_id = f.facility_id " +
             "LEFT JOIN field_types ft ON ft.field_type_id = f.field_type_id " +
+            "OUTER APPLY (SELECT TOP 1 image_url FROM facility_images fi2 WHERE fi2.facility_id = f.facility_id ORDER BY thumbnail DESC, image_id DESC) fi " +
             "WHERE f.status <> 'MAINTENANCE' AND fac.city = ? " +
-            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.facility_id, " +
-            "         fac.facility_name, fac.address, fac.district, fac.city, ft.type_name " +
+            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
+            "         fac.facility_name, fac.address, fac.district, fac.city, ft.type_name, fi.image_url " +
             "ORDER BY booking_count DESC";
 
         try (Connection conn = DBContext.getConnection();
@@ -227,12 +259,14 @@ public class FieldDAO {
                         rs.getString("description"),
                         rs.getString("status"),
                         rs.getString("field_type_name"),
+                        rs.getBoolean("is_hot"),
                         rs.getLong("facility_id"),
                         rs.getString("facility_name"),
                         rs.getString("address"),
                         rs.getString("district"),
                         rs.getString("city"),
-                        rs.getInt("booking_count")
+                        rs.getInt("booking_count"),
+                        rs.getString("image_url")
                     ));
                 }
             }
@@ -241,5 +275,17 @@ public class FieldDAO {
         }
 
         return list;
+    }
+
+    public void updateFieldHotStatus(long fieldId, boolean isHot) {
+        String sql = "UPDATE fields SET is_hot = ? WHERE field_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBoolean(1, isHot);
+            ps.setLong(2, fieldId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cập nhật trạng thái HOT của sân: " + e.getMessage(), e);
+        }
     }
 }

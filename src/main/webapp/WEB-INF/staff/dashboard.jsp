@@ -65,9 +65,21 @@
       display: inline-block; 
       animation: pulse-dot 1.4s ease-in-out infinite; 
     }
+    .live-dot.upcoming { 
+      background: #3b82f6; 
+      animation: pulse-blue 1.4s ease-in-out infinite; 
+    }
+    .live-dot.completed { 
+      background: #94a3b8; 
+      animation: none; 
+    }
     @keyframes pulse-dot { 
       0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,.6) } 
       50% { box-shadow: 0 0 0 6px rgba(74,222,128,0) } 
+    }
+    @keyframes pulse-blue { 
+      0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,.6) } 
+      50% { box-shadow: 0 0 0 6px rgba(59,130,246,0) } 
     }
     .ring-wrap { 
       position: relative; 
@@ -223,6 +235,20 @@
       </div>
     </div>
 
+    <!-- Alert message for shift restriction -->
+    <div id="shift-restriction-alert" class="alert alert-warning alert-dismissible fade show d-none rounded-4 border-0 shadow-sm p-4 mb-4" role="alert" style="background-color: #fffbeb; border-left: 5px solid #f59e0b !important;">
+      <div class="d-flex align-items-center gap-3">
+        <div class="p-2 rounded-3 bg-warning text-white" style="font-size: 1.2rem; background-color: #f59e0b !important; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <div>
+          <h6 class="fw-bold mb-1" style="color: #92400e;">Tính năng bị giới hạn</h6>
+          <p class="mb-0 small" style="color: #b45309;">Bạn chỉ được phép thực hiện check-in/checkout trong khung giờ ca làm việc được phân công của ngày hôm nay. Vui lòng quay lại khi đến giờ trực!</p>
+        </div>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="top: 1.5rem;"></button>
+    </div>
+
     <!-- Loading state -->
     <div id="loading-state" class="text-center py-5">
       <div class="spinner-border text-success" role="status"></div>
@@ -257,8 +283,8 @@
           </div>
           <div class="flex-grow-1">
             <div class="d-flex align-items-center gap-2 mb-1">
-              <span class="live-dot"></span>
-              <span class="fw-semibold" style="color:#a3e635;">Ca đang diễn ra</span>
+              <span class="live-dot" id="shift-status-dot"></span>
+              <span class="fw-semibold" style="color:#a3e635;" id="shift-status-lbl">Ca đang diễn ra</span>
             </div>
             <h4 class="fw-bold mb-1">
               <span id="shift-name">—</span>&nbsp;
@@ -544,6 +570,50 @@ async function loadDashboard() {
     document.getElementById('shift-remaining').textContent = s.remaining || '';
     document.getElementById('cash-shift-name').textContent = s.shiftName || 'Ca này';
 
+    const statusDot = document.getElementById('shift-status-dot');
+    const statusLbl = document.getElementById('shift-status-lbl');
+    currentShiftStatus = s.status || 'ONGOING';
+    
+    if (statusDot && statusLbl) {
+      statusDot.className = 'live-dot'; // reset
+      if (currentShiftStatus === 'UPCOMING') {
+        statusDot.classList.add('upcoming');
+        statusLbl.textContent = 'Ca trực chưa diễn ra';
+        statusLbl.style.color = '#3b82f6';
+      } else if (currentShiftStatus === 'COMPLETED') {
+        statusDot.classList.add('completed');
+        statusLbl.textContent = 'Ca trực đã kết thúc';
+        statusLbl.style.color = '#94a3b8';
+      } else {
+        statusLbl.textContent = 'Ca đang diễn ra';
+        statusLbl.style.color = '#a3e635';
+      }
+    }
+
+    if (currentShiftStatus === 'UPCOMING' || currentShiftStatus === 'COMPLETED') {
+      const blockClick = (e) => {
+        e.preventDefault();
+        if (currentShiftStatus === 'UPCOMING') {
+          alert('Ca trực của bạn chưa bắt đầu (Ca làm việc: ' + timeOnly(s.startTime) + ' - ' + timeOnly(s.endTime) + '). Bạn chỉ được xem dữ liệu, không thể thực hiện thao tác này.');
+        } else {
+          alert('Ca trực của bạn đã kết thúc. Bạn không thể thực hiện thao tác này.');
+        }
+      };
+      
+      const checkinBtn = document.getElementById('sc-checkin');
+      const checkoutBtn = document.getElementById('sc-checkout');
+      if (checkinBtn) {
+        checkinBtn.addEventListener('click', blockClick);
+        checkinBtn.style.opacity = '0.6';
+        checkinBtn.style.cursor = 'not-allowed';
+      }
+      if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', blockClick);
+        checkoutBtn.style.opacity = '0.6';
+        checkoutBtn.style.cursor = 'not-allowed';
+      }
+    }
+
     const pct = s.progressPct || 0;
     document.getElementById('shift-pct').textContent = Math.round(pct) + '%';
     document.getElementById('shiftBar').style.width  = pct + '%';
@@ -620,10 +690,25 @@ async function loadDashboard() {
   }
 }
 
+function checkShiftError() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('error') === 'not_in_shift') {
+    const alertEl = document.getElementById('shift-restriction-alert');
+    if (alertEl) {
+      alertEl.classList.remove('d-none');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', loadDashboard);
+  document.addEventListener('DOMContentLoaded', () => {
+    loadDashboard();
+    checkShiftError();
+  });
 } else {
   loadDashboard();
+  checkShiftError();
 }
 </script>
 </body>

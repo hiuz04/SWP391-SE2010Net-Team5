@@ -8,6 +8,7 @@ import com.swp.dao.FacilityDAO;
 import com.swp.dao.FieldDAO;
 import com.swp.dao.FieldTypeDAO;
 import com.swp.model.Facility;
+import com.swp.model.FacilityImage;
 import com.swp.model.Field;
 import com.swp.model.FieldType;
 import com.swp.model.dto.FieldComplexCard;
@@ -18,7 +19,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.function.Function;
@@ -54,6 +54,7 @@ public class GetFieldList extends HttpServlet {
                 ));
 
         for (Facility fac : facilities) {
+            FacilityImage thumbnail = facilityDao.getThumbnail(fac.getFacilityId());
 
             List<FieldType> typeOfFac = fields.stream()
                     .filter(f -> f.getFacilityId() == fac.getFacilityId())
@@ -114,6 +115,7 @@ public class GetFieldList extends HttpServlet {
             card.setFieldTypeList(typeOfFac);
             card.setOpeningTime(fac.getOpeningTime());
             card.setClosingTime(fac.getClosingTime());
+            card.setThumbnailUrl(thumbnail.getImageUrl());
 
             lists.add(card);
         }
