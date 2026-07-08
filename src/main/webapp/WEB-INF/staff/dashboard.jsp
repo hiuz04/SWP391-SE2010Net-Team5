@@ -341,6 +341,7 @@
                 <thead style="background:#f8fafc;">
                   <tr>
                     <th class="text-muted" style="font-weight:500;">Giờ</th>
+                    <th class="text-muted" style="font-weight:500;">Mã đặt sân</th>
                     <th class="text-muted" style="font-weight:500;">Sân</th>
                     <th class="text-muted" style="font-weight:500;">Khách</th>
                     <th class="text-muted" style="font-weight:500;">Trạng thái</th>
@@ -348,7 +349,7 @@
                   </tr>
                 </thead>
                 <tbody id="booking-tbody">
-                  <tr><td colspan="5" class="text-center text-muted py-4">Không có booking nào hôm nay</td></tr>
+                  <tr><td colspan="6" class="text-center text-muted py-4">Không có booking nào hôm nay</td></tr>
                 </tbody>
               </table>
             </div>
@@ -388,7 +389,7 @@
                 </a>
               </div>
               <div class="col-6">
-                <a href="<%= ctx %>/staff/checkout" class="shortcut-btn w-100" id="sc-checkout">
+                <a href="<%= ctx %>/staff/schedule" class="shortcut-btn w-100" id="sc-checkout">
                   <div class="sc-icon" style="background:#e0f2fe;color:#0284c7;"><i class="bi bi-receipt-cutoff"></i></div>Checkout
                 </a>
               </div>
@@ -398,7 +399,7 @@
                 </a>
               </div>
               <div class="col-6">
-                <a href="<%= ctx %>/staff/invoice" class="shortcut-btn w-100" id="sc-invoice">
+                <a href="<%= ctx %>/staff/schedule" class="shortcut-btn w-100" id="sc-invoice">
                   <div class="sc-icon" style="background:#f5f3ff;color:#7c3aed;"><i class="bi bi-file-earmark-text-fill"></i></div>Hóa đơn
                 </a>
               </div>
@@ -442,19 +443,52 @@ function fmt(amount) {
   return Number(amount).toLocaleString('vi-VN') + ' ₫';
 }
 
-function statusBadge(status, nowPlaying) {
+function isBookingExpired(endTimeStr) {
+  if (!endTimeStr) return false;
+  try {
+    const isoStr = endTimeStr.replace(' ', 'T').substring(0, 19);
+    const endDt = new Date(isoStr);
+    return endDt < new Date();
+  } catch (e) {
+    return false;
+  }
+}
+
+function statusBadge(status, nowPlaying, isExpired) {
   if (nowPlaying) return '<span class="badge badge-soft-info"><i class="bi bi-play-circle me-1"></i>Đang chơi</span>';
   switch (status) {
     case 'COMPLETED':  return '<span class="badge badge-soft-success"><i class="bi bi-check-circle me-1"></i>Đã xong</span>';
     case 'CHECKED_IN': return '<span class="badge badge-soft-info"><i class="bi bi-play-circle me-1"></i>Đang chơi</span>';
-    case 'CONFIRMED':  return '<span class="badge badge-soft-warning"><i class="bi bi-hourglass-split me-1"></i>Chờ check-in</span>';
+    case 'CONFIRMED':
+      if (isExpired) {
+        return '<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Quá giờ</span>';
+      }
+      return '<span class="badge badge-soft-warning"><i class="bi bi-hourglass-split me-1"></i>Chờ check-in</span>';
     default:           return '<span class="badge" style="background:#f1f5f9;color:#64748b;">Sắp tới</span>';
   }
 }
 
-function actionBtn(status, bookingId) {
-  if (status === 'CONFIRMED') return `<a href="<%= ctx %>/staff/checkin?id=${bookingId}" class="btn btn-sm btn-success">Check-in</a>`;
+let currentShiftStatus = 'ONGOING';
+
+function actionBtn(status, bookingId, isExpired, hasInvoice) {
+  if (currentShiftStatus === 'UPCOMING') {
+    if (status === 'CONFIRMED' || status === 'CHECKED_IN') {
+      return `<button class="btn btn-sm btn-secondary px-3" disabled title="Chưa đến giờ làm việc"><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>`;
+    }
+  }
+  if (currentShiftStatus === 'COMPLETED') {
+    if (status === 'CONFIRMED' || status === 'CHECKED_IN') {
+      return `<button class="btn btn-sm btn-secondary px-3" disabled title="Ca trực đã kết thúc"><i class="bi bi-lock-fill me-1"></i>Hết ca trực</button>`;
+    }
+  }
+  if (status === 'CONFIRMED') {
+    if (isExpired) {
+      return `<button class="btn btn-sm btn-secondary px-3" disabled><i class="bi bi-exclamation-circle me-1"></i>Quá giờ nhận</button>`;
+    }
+    return `<a href="<%= ctx %>/staff/checkin?id=${bookingId}" class="btn btn-sm btn-success">Check-in</a>`;
+  }
   if (status === 'CHECKED_IN') return `<a href="<%= ctx %>/staff/checkout?id=${bookingId}" class="btn btn-sm btn-outline-success">Checkout</a>`;
+  if (status === 'COMPLETED' && hasInvoice) return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-printer me-1"></i>Hóa đơn</a>`;
   return '';
 }
 
@@ -544,18 +578,20 @@ async function loadDashboard() {
     const tbody = document.getElementById('booking-tbody');
     const bookings = data.bookings || [];
     if (bookings.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Không có booking nào hôm nay</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Không có booking nào hôm nay</td></tr>';
     } else {
       tbody.innerHTML = bookings.map(b => {
         const nowPlaying = b.nowPlaying && b.status === 'CHECKED_IN';
+        const isExpired = isBookingExpired(b.endTime);
         const rowClass   = nowPlaying ? 'booking-row now-playing' : 'booking-row';
         const timeBgStyle = nowPlaying ? 'background:#dcfce7;color:#15803d;' : '';
         return `<tr class="${rowClass}">
-          <td><span class="time-badge" style="${timeBgStyle}">${timeOnly(b.startTime)}–${timeOnly(b.endTime)}</span></td>
-          <td><strong>${b.fieldName || '—'}</strong></td>
-          <td>${b.customerName || '—'}</td>
-          <td>${statusBadge(b.status, nowPlaying)}</td>
-          <td>${actionBtn(b.status, b.bookingId)}</td>
+          <td style="white-space: nowrap;"><span class="time-badge" style="${timeBgStyle}">${timeOnly(b.startTime)}–${timeOnly(b.endTime)}</span></td>
+          <td style="white-space: nowrap;"><strong>${b.bookingCode || '—'}</strong></td>
+          <td style="white-space: nowrap;"><strong>${b.fieldName || '—'}</strong></td>
+          <td style="white-space: nowrap;">${b.customerName || '—'}</td>
+          <td style="white-space: nowrap;">${statusBadge(b.status, nowPlaying, isExpired)}</td>
+          <td style="white-space: nowrap;">${actionBtn(b.status, b.bookingId, isExpired, b.hasInvoice)}</td>
         </tr>`;
       }).join('');
     }

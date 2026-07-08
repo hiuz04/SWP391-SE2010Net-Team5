@@ -1,0 +1,415 @@
+package com.swp.dao;
+
+import com.swp.model.dto.CheckoutResult;
+import com.swp.model.dto.CheckoutView;
+import com.swp.model.dto.InvoiceView;
+import com.swp.util.DBContext;
+
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+
+public class StaffBillingDAO {
+
+    public CheckoutView getCheckoutView(long bookingId) throws SQLException {
+        String sql = """
+                SELECT b.booking_id, b.booking_code, b.customer_id, b.facility_id, b.field_id,
+                       b.status, b.start_time, b.end_time, b.total_amount, b.deposit_amount,
+                       u.full_name AS customer_name, u.phone AS customer_phone,
+                       fi.field_name,
+                       fac.facility_name, fac.address, fac.ward, fac.district, fac.city
+                FROM bookings b
+                JOIN users u ON b.customer_id = u.user_id
+                JOIN fields fi ON b.field_id = fi.field_id
+                JOIN facilities fac ON b.facility_id = fac.facility_id
+                WHERE b.booking_id = ?
+                """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapCheckoutView(rs) : null;
+            }
+        }
+    }
+
+    public InvoiceView getInvoiceByBookingId(long bookingId) throws SQLException {
+        String sql = """
+                SELECT TOP 1
+                       i.invoice_id, i.invoice_code, i.status AS invoice_status, i.issued_at,
+                       i.subtotal, i.discount_amount, i.total_amount, i.paid_amount,
+                       b.booking_id, b.booking_code, b.start_time, b.end_time,
+                       b.total_amount AS field_fee, b.deposit_amount,
+                       u.full_name AS customer_name, u.phone AS customer_phone,
+                       fi.field_name,
+                       fac.facility_id, fac.facility_name, fac.address, fac.ward, fac.district, fac.city,
+                       staff.full_name AS staff_name
+                FROM invoices i
+                JOIN bookings b ON i.booking_id = b.booking_id
+                JOIN users u ON i.customer_id = u.user_id
+                JOIN fields fi ON b.field_id = fi.field_id
+                JOIN facilities fac ON b.facility_id = fac.facility_id
+                LEFT JOIN users staff ON i.staff_id = staff.user_id
+                WHERE i.booking_id = ?
+                  AND i.status IN ('PAID', 'ACTIVE')
+                ORDER BY i.issued_at DESC, i.invoice_id DESC
+                """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapInvoiceView(rs) : null;
+            }
+        }
+    }
+
+    public boolean canStaffCheckoutFacility(long staffId, long facilityId) throws SQLException {
+        try (Connection conn = DBContext.getConnection()) {
+            return hasActiveShiftForFacility(conn, staffId, facilityId);
+        }
+    }
+
+    public boolean canStaffViewFacilityToday(long staffId, long facilityId) throws SQLException {
+        try (Connection conn = DBContext.getConnection()) {
+            return hasAssignedShiftForFacilityToday(conn, staffId, facilityId);
+        }
+    }
+
+    public CheckoutResult completeCheckout(
+            long bookingId,
+            long actorId,
+            boolean staffRole,
+            BigDecimal surchargeAmount,
+            BigDecimal discountAmount,
+            String surchargeReason,
+            String note
+    ) throws SQLException {
+        try (Connection conn = DBContext.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                BookingLock booking = lockBooking(conn, bookingId);
+                if (booking == null) {
+                    throw new IllegalArgumentException("Không tìm thấy lịch đặt sân");
+                }
+                if (!"CHECKED_IN".equals(booking.status())) {
+                    throw new IllegalArgumentException("Chỉ booking đã check-in mới được checkout");
+                }
+                if (staffRole && !hasActiveShiftForFacility(conn, actorId, booking.facilityId())) {
+                    throw new SecurityException("Bạn không có ca làm việc đang hoạt động tại cơ sở của booking này");
+                }
+                if (hasPaidOrActiveInvoice(conn, bookingId)) {
+                    throw new IllegalArgumentException("Booking này đã có hóa đơn thanh toán");
+                }
+
+                BigDecimal fieldFee = safe(booking.fieldFee());
+                BigDecimal deposit = safe(booking.depositAmount());
+                BigDecimal surcharge = safe(surchargeAmount);
+                BigDecimal discount = safe(discountAmount);
+                BigDecimal subtotal = fieldFee.add(surcharge);
+                BigDecimal totalAmount = subtotal.subtract(deposit).subtract(discount);
+                if (totalAmount.signum() < 0) {
+                    totalAmount = BigDecimal.ZERO;
+                }
+                BigDecimal paidAmount = totalAmount;
+
+                updateBookingCompleted(conn, bookingId);
+                releaseField(conn, booking.fieldId());
+
+                String invoiceCode = generateInvoiceCode(bookingId);
+                long invoiceId = insertInvoice(
+                        conn,
+                        invoiceCode,
+                        booking,
+                        actorId,
+                        subtotal,
+                        discount,
+                        totalAmount,
+                        paidAmount
+                );
+
+                conn.commit();
+                return new CheckoutResult(invoiceId, bookingId, invoiceCode);
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e);
+                throw e;
+            }
+        }
+    }
+
+    private BookingLock lockBooking(Connection conn, long bookingId) throws SQLException {
+        String sql = """
+                SELECT booking_id, booking_code, customer_id, facility_id, field_id,
+                       status, total_amount, deposit_amount
+                FROM bookings WITH (UPDLOCK, HOLDLOCK)
+                WHERE booking_id = ?
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                return new BookingLock(
+                        rs.getLong("booking_id"),
+                        rs.getString("booking_code"),
+                        rs.getLong("customer_id"),
+                        rs.getLong("facility_id"),
+                        rs.getLong("field_id"),
+                        rs.getString("status"),
+                        rs.getBigDecimal("total_amount"),
+                        rs.getBigDecimal("deposit_amount")
+                );
+            }
+        }
+    }
+
+    private boolean hasPaidOrActiveInvoice(Connection conn, long bookingId) throws SQLException {
+        String sql = """
+                SELECT TOP 1 invoice_id
+                FROM invoices WITH (UPDLOCK, HOLDLOCK)
+                WHERE booking_id = ?
+                  AND status IN ('PAID', 'ACTIVE')
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private void updateBookingCompleted(Connection conn, long bookingId) throws SQLException {
+        String sql = """
+                UPDATE bookings
+                SET status = 'COMPLETED',
+                    updated_at = GETDATE()
+                WHERE booking_id = ?
+                  AND status = 'CHECKED_IN'
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            if (ps.executeUpdate() != 1) {
+                throw new IllegalArgumentException("Booking không còn hợp lệ để checkout");
+            }
+        }
+    }
+
+    private void releaseField(Connection conn, long fieldId) throws SQLException {
+        String sql = """
+                UPDATE fields
+                SET status = 'AVAILABLE',
+                    updated_at = GETDATE()
+                WHERE field_id = ?
+                  AND status NOT IN ('MAINTENANCE', 'DISABLED')
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, fieldId);
+            ps.executeUpdate();
+        }
+    }
+
+    private long insertInvoice(
+            Connection conn,
+            String invoiceCode,
+            BookingLock booking,
+            long staffId,
+            BigDecimal subtotal,
+            BigDecimal discountAmount,
+            BigDecimal totalAmount,
+            BigDecimal paidAmount
+    ) throws SQLException {
+        String sql = """
+                INSERT INTO invoices (
+                    invoice_code,
+                    booking_id,
+                    customer_id,
+                    staff_id,
+                    subtotal,
+                    discount_amount,
+                    total_amount,
+                    paid_amount,
+                    status,
+                    issued_at
+                )
+                OUTPUT INSERTED.invoice_id
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PAID', GETDATE())
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, invoiceCode);
+            ps.setLong(2, booking.bookingId());
+            ps.setLong(3, booking.customerId());
+            ps.setLong(4, staffId);
+            ps.setBigDecimal(5, subtotal);
+            ps.setBigDecimal(6, discountAmount);
+            ps.setBigDecimal(7, totalAmount);
+            ps.setBigDecimal(8, paidAmount);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("Không tạo được hóa đơn");
+                }
+                return rs.getLong(1);
+            }
+        }
+    }
+
+    private boolean hasActiveShiftForFacility(Connection conn, long staffId, long facilityId) throws SQLException {
+        String sql = """
+                SELECT TOP 1 1
+                FROM work_shifts ws
+                JOIN shift_assignments sa ON ws.shift_id = sa.shift_id
+                WHERE sa.staff_id = ?
+                  AND ws.facility_id = ?
+                  AND ws.shift_date = CAST(GETDATE() AS DATE)
+                  AND (sa.status IS NULL OR sa.status <> 'CANCELLED')
+                  AND (
+                      (
+                          CAST(ws.start_time AS TIME) <= CAST(ws.end_time AS TIME)
+                          AND CAST(GETDATE() AS TIME) >= CAST(ws.start_time AS TIME)
+                          AND CAST(GETDATE() AS TIME) <= CAST(ws.end_time AS TIME)
+                      )
+                      OR
+                      (
+                          CAST(ws.start_time AS TIME) > CAST(ws.end_time AS TIME)
+                          AND (
+                              CAST(GETDATE() AS TIME) >= CAST(ws.start_time AS TIME)
+                              OR CAST(GETDATE() AS TIME) <= CAST(ws.end_time AS TIME)
+                          )
+                      )
+                  )
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, staffId);
+            ps.setLong(2, facilityId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private boolean hasAssignedShiftForFacilityToday(Connection conn, long staffId, long facilityId) throws SQLException {
+        String sql = """
+                SELECT TOP 1 1
+                FROM work_shifts ws
+                JOIN shift_assignments sa ON ws.shift_id = sa.shift_id
+                WHERE sa.staff_id = ?
+                  AND ws.facility_id = ?
+                  AND ws.shift_date = CAST(GETDATE() AS DATE)
+                  AND (sa.status IS NULL OR sa.status <> 'CANCELLED')
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, staffId);
+            ps.setLong(2, facilityId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private CheckoutView mapCheckoutView(ResultSet rs) throws SQLException {
+        CheckoutView view = new CheckoutView();
+        view.setBookingId(rs.getLong("booking_id"));
+        view.setBookingCode(rs.getString("booking_code"));
+        view.setCustomerId(rs.getLong("customer_id"));
+        view.setFacilityId(rs.getLong("facility_id"));
+        view.setFieldId(rs.getLong("field_id"));
+        view.setStatus(rs.getString("status"));
+        view.setCustomerName(rs.getString("customer_name"));
+        view.setCustomerPhone(rs.getString("customer_phone"));
+        view.setFacilityName(rs.getString("facility_name"));
+        view.setFacilityAddress(joinAddress(rs));
+        view.setFieldName(rs.getString("field_name"));
+        view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
+        view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
+        view.setFieldFee(rs.getBigDecimal("total_amount"));
+        view.setDepositAmount(rs.getBigDecimal("deposit_amount"));
+        return view;
+    }
+
+    private InvoiceView mapInvoiceView(ResultSet rs) throws SQLException {
+        InvoiceView view = new InvoiceView();
+        BigDecimal fieldFee = safe(rs.getBigDecimal("field_fee"));
+        BigDecimal subtotal = safe(rs.getBigDecimal("subtotal"));
+        BigDecimal surcharge = subtotal.subtract(fieldFee);
+        if (surcharge.signum() < 0) {
+            surcharge = BigDecimal.ZERO;
+        }
+
+        view.setInvoiceId(rs.getLong("invoice_id"));
+        view.setInvoiceCode(rs.getString("invoice_code"));
+        view.setInvoiceStatus(rs.getString("invoice_status"));
+        view.setIssuedAt(toLocalDateTime(rs.getTimestamp("issued_at")));
+        view.setBookingId(rs.getLong("booking_id"));
+        view.setBookingCode(rs.getString("booking_code"));
+        view.setFacilityId(rs.getLong("facility_id"));
+        view.setCustomerName(rs.getString("customer_name"));
+        view.setCustomerPhone(rs.getString("customer_phone"));
+        view.setFacilityName(rs.getString("facility_name"));
+        view.setFacilityAddress(joinAddress(rs));
+        view.setFieldName(rs.getString("field_name"));
+        view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
+        view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
+        view.setFieldFee(fieldFee);
+        view.setSurchargeAmount(surcharge);
+        view.setDiscountAmount(rs.getBigDecimal("discount_amount"));
+        view.setDepositAmount(rs.getBigDecimal("deposit_amount"));
+        view.setSubtotal(subtotal);
+        view.setTotalAmount(rs.getBigDecimal("total_amount"));
+        view.setPaidAmount(rs.getBigDecimal("paid_amount"));
+        view.setStaffName(rs.getString("staff_name"));
+        return view;
+    }
+
+    private String joinAddress(ResultSet rs) throws SQLException {
+        List<String> parts = new ArrayList<>();
+        addPart(parts, rs.getString("address"));
+        addPart(parts, rs.getString("ward"));
+        addPart(parts, rs.getString("district"));
+        addPart(parts, rs.getString("city"));
+        return String.join(", ", parts);
+    }
+
+    private void addPart(List<String> parts, String value) {
+        if (value != null && !value.trim().isEmpty()) {
+            parts.add(value.trim());
+        }
+    }
+
+    private BigDecimal safe(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private LocalDateTime toLocalDateTime(Timestamp timestamp) {
+        return timestamp == null ? null : timestamp.toLocalDateTime();
+    }
+
+    private String generateInvoiceCode(long bookingId) {
+        return "INV" + DateTimeFormatter.ofPattern("yyyyMMddHHmmss").format(LocalDateTime.now()) + bookingId;
+    }
+
+    private void rollback(Connection conn, Exception original) {
+        try {
+            conn.rollback();
+        } catch (SQLException rollbackError) {
+            original.addSuppressed(rollbackError);
+        }
+    }
+
+    private record BookingLock(
+            long bookingId,
+            String bookingCode,
+            long customerId,
+            long facilityId,
+            long fieldId,
+            String status,
+            BigDecimal fieldFee,
+            BigDecimal depositAmount
+    ) {
+    }
+}
