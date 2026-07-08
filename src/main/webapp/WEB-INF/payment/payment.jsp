@@ -54,9 +54,13 @@
         }
     }
 
+    private boolean isMonthlyBooking(BookingView booking) {
+        return booking != null && "MONTHLY".equals(booking.getRepeatType());
+    }
+
     private String bookingTimeLabel(BookingView booking) {
         if (booking == null) return "";
-        if ("MONTHLY".equals(booking.getRepeatType())) {
+        if (isMonthlyBooking(booking)) {
             return dayOfWeek(booking.getStartTime()) + ", "
                     + timeOnly(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime());
         }
@@ -81,6 +85,7 @@
     boolean holdValid = "HOLD".equals(booking.getStatus())
             && booking.getHoldExpiresAt() != null
             && booking.getHoldExpiresAt().isAfter(LocalDateTime.now());
+    boolean monthly = isMonthlyBooking(booking);
     Integer vnpayMethodId = null;
     for (PaymentMethod method : paymentMethods) {
         if ("VNPAY".equalsIgnoreCase(method.getMethodCode())) {
