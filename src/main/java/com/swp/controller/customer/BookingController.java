@@ -20,6 +20,7 @@ import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -41,12 +42,15 @@ public class BookingController extends HttpServlet {
 
     private final BookingDAO bookingDAO = new BookingDAO();
 
+    private static final int SLOT_MINUTES = 30;
     private static final LocalTime GRID_START_TIME = LocalTime.of(5, 0);
     private static final LocalTime GRID_LAST_SLOT_START = LocalTime.of(20, 30);
-    private static final int SLOT_MINUTES = 30;
+    private static final LocalTime GRID_END_TIME = GRID_LAST_SLOT_START.plusMinutes(SLOT_MINUTES);
     private static final int HOLD_MINUTES = 15;
     private static final int MAX_RECURRING_BOOKINGS = 10;
     private static final int MAX_BOOKING_ADVANCE_MONTHS = 1;
+    private static final int MIN_BOOKING_MINUTES = 60;
+    private static final int MAX_BOOKING_MINUTES = 180;
     private static final BigDecimal DEPOSIT_RATE = new BigDecimal("0.30");
     private static final String STATUS_HOLD = "HOLD";
     private static final String STATUS_CANCELLED = "CANCELLED";
@@ -75,7 +79,11 @@ public class BookingController extends HttpServlet {
         } catch (SQLException e) {
             handleError(response, e);
         } catch (IllegalArgumentException e) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+            if ("confirm".equals(action)) {
+                redirectWithError(request, response, "create", e.getMessage());
+            } else {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+            }
         }
     }
 
@@ -166,8 +174,7 @@ public class BookingController extends HttpServlet {
         LocalDateTime startTime = parseLocalDateTime(request.getParameter("startTime"), "Giờ bắt đầu không hợp lệ.");
         LocalDateTime endTime = parseLocalDateTime(request.getParameter("endTime"), "Giờ kết thúc không hợp lệ.");
         //Validate giờ
-        validateTimeRange(startTime, endTime);
-        validateBookingAdvanceWindow(startTime);
+        validateBookingTimeOrThrow(startTime, endTime);
         //Parse loại thuê
         RepeatRequest repeatRequest = parseRepeatRequest(
                 request.getParameter("repeatType"),
@@ -246,8 +253,7 @@ public class BookingController extends HttpServlet {
         Long fieldId = parseLong(request.getParameter("fieldId"), "fieldId không hợp lệ.");
         LocalDateTime startTime = parseLocalDateTime(request.getParameter("startTime"), "Giờ bắt đầu không hợp lệ.");
         LocalDateTime endTime = parseLocalDateTime(request.getParameter("endTime"), "Giờ kết thúc không hợp lệ.");
-        validateTimeRange(startTime, endTime);
-        validateBookingAdvanceWindow(startTime);
+        validateBookingTimeOrThrow(startTime, endTime);
         RepeatRequest repeatRequest = parseRepeatRequest(
                 request.getParameter("repeatType"),
                 startTime.toLocalDate()
@@ -454,7 +460,6 @@ public class BookingController extends HttpServlet {
             RepeatRequest repeatRequest
     ) {
         List<BookingSlot> slots = new ArrayList<>();
-        LocalDateTime now = LocalDateTime.now();
         LocalDate maxBookingDate = getMaxBookingDate();
         LocalDateTime currentStart = startTime;
         LocalDateTime currentEnd = endTime;
@@ -468,11 +473,9 @@ public class BookingController extends HttpServlet {
                 break;
             }
 
-            if (currentStart.isAfter(now)) {
-                slots.add(new BookingSlot(currentStart, currentEnd));
-            } else if (REPEAT_NONE.equals(repeatRequest.repeatType())) {
-                throw new IllegalArgumentException("Kh\u00f4ng th\u1ec3 \u0111\u1eb7t s\u00e2n tr\u01b0\u1edbc gi\u1edd hi\u1ec7n t\u1ea1i.");
-            }
+            // Validate each generated occurrence before any booking is inserted.
+            validateBookingTimeOrThrow(currentStart, currentEnd);
+            slots.add(new BookingSlot(currentStart, currentEnd));
 
             // Thue don thi chi can mot slot.
             if (REPEAT_NONE.equals(repeatRequest.repeatType())) {
@@ -726,27 +729,67 @@ public class BookingController extends HttpServlet {
         }
     }
 
-    private void validateTimeRange(LocalDateTime startTime, LocalDateTime endTime) {
-        if (startTime == null || endTime == null || !startTime.isBefore(endTime)) {
-            throw new IllegalArgumentException("Giờ bắt đầu phải trước giờ kết thúc.");
+    private void validateBookingTimeOrThrow(LocalDateTime startTime, LocalDateTime endTime) {
+        String errorMessage = validateBookingTime(startTime, endTime);
+        if (errorMessage != null) {
+            throw new IllegalArgumentException(errorMessage);
         }
     }
 
-    private void validateBookingAdvanceWindow(LocalDateTime startTime) {
+    private String validateBookingTime(LocalDateTime startTime, LocalDateTime endTime) {
+        if (startTime == null || endTime == null || !startTime.isBefore(endTime)) {
+            return "Gi\u1edd b\u1eaft \u0111\u1ea7u ph\u1ea3i nh\u1ecf h\u01a1n gi\u1edd k\u1ebft th\u00fac.";
+        }
+
         if (startTime.isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Kh\u00f4ng th\u1ec3 \u0111\u1eb7t s\u00e2n tr\u01b0\u1edbc gi\u1edd hi\u1ec7n t\u1ea1i.");
+            return "Kh\u00f4ng th\u1ec3 \u0111\u1eb7t s\u00e2n trong qu\u00e1 kh\u1ee9.";
         }
 
         LocalDate today = LocalDate.now();
         LocalDate maxBookingDate = getMaxBookingDate();
         LocalDate bookingDate = startTime.toLocalDate();
-
         if (bookingDate.isBefore(today)) {
-            throw new IllegalArgumentException("Không thể đặt sân cho ngày đã qua.");
+            return "Kh\u00f4ng th\u1ec3 \u0111\u1eb7t s\u00e2n trong qu\u00e1 kh\u1ee9.";
         }
         if (bookingDate.isAfter(maxBookingDate)) {
-            throw new IllegalArgumentException("Chỉ cho phép đặt sân trong tháng này và tháng sau.");
+            return "Ch\u1ec9 cho ph\u00e9p \u0111\u1eb7t s\u00e2n trong th\u00e1ng n\u00e0y v\u00e0 th\u00e1ng sau.";
         }
+
+        if (!startTime.toLocalDate().equals(endTime.toLocalDate())) {
+            return "Th\u1eddi gian \u0111\u1eb7t s\u00e2n ph\u1ea3i trong c\u00f9ng m\u1ed9t ng\u00e0y.";
+        }
+
+        if (!isOnThirtyMinuteBlock(startTime) || !isOnThirtyMinuteBlock(endTime)) {
+            return "Th\u1eddi gian \u0111\u1eb7t s\u00e2n ph\u1ea3i theo block 30 ph\u00fat.";
+        }
+
+        LocalTime start = startTime.toLocalTime();
+        LocalTime end = endTime.toLocalTime();
+        if (start.isBefore(GRID_START_TIME) || end.isAfter(GRID_END_TIME)) {
+            return "Th\u1eddi gian \u0111\u1eb7t s\u00e2n ph\u1ea3i n\u1eb1m trong gi\u1edd ho\u1ea1t \u0111\u1ed9ng t\u1eeb 05:00 \u0111\u1ebfn 21:00.";
+        }
+
+        // Duration is checked after grid and operating-hour rules for clearer errors.
+        long durationMinutes = Duration.between(startTime, endTime).toMinutes();
+        if (durationMinutes < MIN_BOOKING_MINUTES) {
+            return "Th\u1eddi l\u01b0\u1ee3ng \u0111\u1eb7t s\u00e2n t\u1ed1i thi\u1ec3u l\u00e0 60 ph\u00fat.";
+        }
+        if (durationMinutes > MAX_BOOKING_MINUTES) {
+            return "Th\u1eddi l\u01b0\u1ee3ng \u0111\u1eb7t s\u00e2n t\u1ed1i \u0111a l\u00e0 180 ph\u00fat.";
+        }
+
+        return null;
+    }
+
+    private boolean isOnThirtyMinuteBlock(LocalDateTime dateTime) {
+        if (dateTime == null) {
+            return false;
+        }
+
+        int minute = dateTime.getMinute();
+        return dateTime.getSecond() == 0
+                && dateTime.getNano() == 0
+                && (minute == 0 || minute == 30);
     }
 
     private BookingAmounts calculateBookingAmounts(Long fieldId, LocalDateTime startTime, LocalDateTime endTime)

@@ -189,6 +189,7 @@ public class PaymentDAO {
                                SELECT 1
                                FROM payments p
                                WHERE p.status = 'SUCCESS'
+                                 AND p.payment_type = 'DEPOSIT'
                                  AND EXISTS (
                                      SELECT 1
                                      FROM bookings paid_booking
@@ -223,6 +224,36 @@ public class PaymentDAO {
                 FROM payment_methods
                 WHERE payment_method_id = ?
                   AND status = 'ACTIVE'
+                """;
+        String selectExistingDepositPayment = """
+                SELECT TOP 1 p.payment_id,
+                       p.booking_id,
+                       p.customer_id,
+                       p.payment_method_id,
+                       p.amount,
+                       p.payment_type,
+                       p.status,
+                       p.transaction_ref,
+                       p.gateway_transaction_id,
+                       p.paid_at,
+                       p.created_at
+                FROM payments p WITH (UPDLOCK, HOLDLOCK)
+                WHERE p.customer_id = ?
+                  AND p.payment_type = 'DEPOSIT'
+                  AND p.status = 'PENDING'
+                  AND EXISTS (
+                      SELECT 1
+                      FROM bookings source_booking
+                      INNER JOIN bookings paid_booking ON paid_booking.booking_id = p.booking_id
+                      WHERE source_booking.booking_id = ?
+                        AND source_booking.customer_id = ?
+                        AND paid_booking.customer_id = source_booking.customer_id
+                        AND (
+                            (source_booking.recurring_group_id IS NOT NULL AND paid_booking.recurring_group_id = source_booking.recurring_group_id)
+                            OR (source_booking.recurring_group_id IS NULL AND paid_booking.booking_id = source_booking.booking_id)
+                        )
+                  )
+                ORDER BY p.created_at DESC, p.payment_id DESC
                 """;
         String insertPayment = """
                 INSERT INTO payments (
@@ -282,6 +313,20 @@ public class PaymentDAO {
                     try (ResultSet rs = ps.executeQuery()) {
                         if (!rs.next()) {
                             throw new IllegalArgumentException("Ph\u01b0\u01a1ng th\u1ee9c thanh to\u00e1n kh\u00f4ng h\u1ee3p l\u1ec7.");
+                        }
+                    }
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(selectExistingDepositPayment)) {
+                    ps.setLong(1, customerId);
+                    ps.setLong(2, bookingId);
+                    ps.setLong(3, customerId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            // Reuse the live deposit payment for this booking/group instead of inserting a duplicate.
+                            Payment existing = mapPayment(rs);
+                            conn.commit();
+                            return existing;
                         }
                     }
                 }
