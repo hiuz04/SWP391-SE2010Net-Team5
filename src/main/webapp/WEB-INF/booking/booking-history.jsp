@@ -82,6 +82,8 @@
                 return "&#272;&#227; x&#225;c nh&#7853;n";
             case "CHECKED_IN":
                 return "&#272;&#227; check-in";
+            case "PENDING_CHECKOUT_PAYMENT":
+                return "Ch&#7901; thanh to&#225;n h&#243;a &#273;&#417;n";
             case "COMPLETED":
                 return "Ho&#224;n t&#7845;t";
             case "CANCELLED":
@@ -102,6 +104,8 @@
             case "COMPLETED":
             case "CHECKED_IN":
                 return "badge-soft-success";
+            case "PENDING_CHECKOUT_PAYMENT":
+                return "badge-soft-warning";
             case "HOLD":
                 return "badge-soft-warning";
             case "CANCELLED":

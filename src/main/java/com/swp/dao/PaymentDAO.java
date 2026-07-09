@@ -3,6 +3,7 @@ package com.swp.dao;
 import com.swp.model.Payment;
 import com.swp.model.PaymentMethod;
 import com.swp.model.dto.BookingView;
+import com.swp.model.dto.InvoiceView;
 import com.swp.model.dto.PaymentView;
 import com.swp.util.DBContext;
 
@@ -25,6 +26,10 @@ public class PaymentDAO {
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String STATUS_FAILED = "FAILED";
+    private static final String STATUS_COMPLETED = "COMPLETED";
+    private static final String STATUS_PENDING_CHECKOUT_PAYMENT = "PENDING_CHECKOUT_PAYMENT";
+    private static final String PAYMENT_TYPE_DEPOSIT = "DEPOSIT";
+    private static final String PAYMENT_TYPE_CHECKOUT = "CHECKOUT";
     private static final String GATEWAY_SIMULATED = "SIMULATED";
 
     public BookingView getBookingForPayment(long bookingId, long customerId) throws SQLException {
@@ -306,6 +311,191 @@ public class PaymentDAO {
         }
     }
 
+    public InvoiceView getCheckoutInvoiceForPayment(long invoiceId, long customerId) throws SQLException {
+        String sql = """
+                SELECT TOP 1
+                       i.invoice_id, i.invoice_code, i.customer_id, i.status AS invoice_status, i.issued_at,
+                       i.subtotal, i.total_amount, i.paid_amount,
+                       i.overtime_minutes, i.overtime_fee,
+                       b.booking_id, b.booking_code, b.status AS booking_status, b.start_time, b.end_time,
+                       b.field_id, b.total_amount AS field_fee, b.deposit_amount,
+                       u.full_name AS customer_name, u.phone AS customer_phone,
+                       fi.field_name,
+                       fac.facility_id, fac.facility_name, fac.address, fac.ward, fac.district, fac.city,
+                       lp.payment_status,
+                       lp.payment_method_name
+                FROM invoices i
+                JOIN bookings b ON i.booking_id = b.booking_id
+                JOIN users u ON i.customer_id = u.user_id
+                JOIN fields fi ON b.field_id = fi.field_id
+                JOIN facilities fac ON b.facility_id = fac.facility_id
+                OUTER APPLY (
+                    SELECT TOP 1 p.status AS payment_status,
+                           pm.method_name AS payment_method_name
+                    FROM payments p
+                    LEFT JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
+                    WHERE p.booking_id = i.booking_id
+                      AND p.customer_id = i.customer_id
+                      AND p.payment_type = 'CHECKOUT'
+                    ORDER BY p.created_at DESC, p.payment_id DESC
+                ) lp
+                WHERE i.invoice_id = ?
+                  AND i.customer_id = ?
+                  AND i.status IN ('PENDING', 'PAID')
+                ORDER BY i.issued_at DESC, i.invoice_id DESC
+                """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, invoiceId);
+            ps.setLong(2, customerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapCheckoutInvoiceView(rs) : null;
+            }
+        }
+    }
+
+    public Payment createPendingCheckoutPayment(long invoiceId, long customerId, int paymentMethodId)
+            throws SQLException {
+        String selectInvoice = """
+                SELECT i.invoice_id,
+                       i.booking_id,
+                       i.customer_id,
+                       i.total_amount,
+                       i.status AS invoice_status,
+                       b.status AS booking_status
+                FROM invoices i WITH (UPDLOCK, HOLDLOCK)
+                JOIN bookings b WITH (UPDLOCK, HOLDLOCK) ON i.booking_id = b.booking_id
+                WHERE i.invoice_id = ?
+                  AND i.customer_id = ?
+                """;
+        String selectMethod = """
+                SELECT payment_method_id
+                FROM payment_methods
+                WHERE payment_method_id = ?
+                  AND status = 'ACTIVE'
+                """;
+        String selectExistingPayment = """
+                SELECT TOP 1 p.payment_id,
+                       p.booking_id,
+                       p.customer_id,
+                       p.payment_method_id,
+                       p.amount,
+                       p.payment_type,
+                       p.status,
+                       p.transaction_ref,
+                       p.gateway_transaction_id,
+                       p.paid_at,
+                       p.created_at
+                FROM payments p WITH (UPDLOCK, HOLDLOCK)
+                WHERE p.booking_id = ?
+                  AND p.customer_id = ?
+                  AND p.payment_type = 'CHECKOUT'
+                  AND p.status IN ('PENDING', 'SUCCESS')
+                ORDER BY p.created_at DESC, p.payment_id DESC
+                """;
+        String insertPayment = """
+                INSERT INTO payments (
+                    booking_id,
+                    customer_id,
+                    payment_method_id,
+                    amount,
+                    payment_type,
+                    status,
+                    transaction_ref,
+                    created_at
+                )
+                OUTPUT INSERTED.payment_id,
+                       INSERTED.booking_id,
+                       INSERTED.customer_id,
+                       INSERTED.payment_method_id,
+                       INSERTED.amount,
+                       INSERTED.payment_type,
+                       INSERTED.status,
+                       INSERTED.transaction_ref,
+                       INSERTED.gateway_transaction_id,
+                       INSERTED.paid_at,
+                       INSERTED.created_at
+                VALUES (?, ?, ?, ?, 'CHECKOUT', 'PENDING', ?, GETDATE())
+                """;
+
+        try (Connection conn = DBContext.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                long bookingId;
+                BigDecimal amount;
+                try (PreparedStatement ps = conn.prepareStatement(selectInvoice)) {
+                    ps.setLong(1, invoiceId);
+                    ps.setLong(2, customerId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new IllegalArgumentException("Khong tim thay hoa don checkout hop le.");
+                        }
+                        if (!STATUS_PENDING.equals(rs.getString("invoice_status"))) {
+                            throw new IllegalArgumentException("Hoa don nay khong con o trang thai cho thanh toan.");
+                        }
+                        String bookingStatus = rs.getString("booking_status");
+                        if (!STATUS_PENDING_CHECKOUT_PAYMENT.equals(bookingStatus)
+                                && !"CHECKED_IN".equals(bookingStatus)) {
+                            throw new IllegalArgumentException("Booking khong con hop le de thanh toan checkout.");
+                        }
+                        bookingId = rs.getLong("booking_id");
+                        amount = rs.getBigDecimal("total_amount");
+                    }
+                }
+
+                if (amount == null || amount.signum() <= 0) {
+                    throw new IllegalArgumentException("So tien hoa don checkout khong hop le.");
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(selectMethod)) {
+                    ps.setInt(1, paymentMethodId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
+                        }
+                    }
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(selectExistingPayment)) {
+                    ps.setLong(1, bookingId);
+                    ps.setLong(2, customerId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            Payment existing = mapPayment(rs);
+                            if (STATUS_SUCCESS.equals(existing.getStatus())) {
+                                throw new IllegalArgumentException("Hoa don checkout da duoc thanh toan.");
+                            }
+                            conn.commit();
+                            return existing;
+                        }
+                    }
+                }
+
+                String transactionRef = generateTransactionRef();
+                Payment payment;
+                try (PreparedStatement ps = conn.prepareStatement(insertPayment)) {
+                    ps.setLong(1, bookingId);
+                    ps.setLong(2, customerId);
+                    ps.setInt(3, paymentMethodId);
+                    ps.setBigDecimal(4, amount);
+                    ps.setString(5, transactionRef);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new SQLException("Khong tao duoc giao dich thanh toan checkout.");
+                        }
+                        payment = mapPayment(rs);
+                    }
+                }
+
+                conn.commit();
+                return payment;
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e);
+                throw e;
+            }
+        }
+    }
+
     public GatewayPaymentView findPaymentByTransactionRef(String transactionRef) throws SQLException {
         if (transactionRef == null || transactionRef.isBlank()) {
             return null;
@@ -403,9 +593,14 @@ public class PaymentDAO {
                 SELECT p.payment_id,
                        p.booking_id,
                        p.customer_id,
+                       p.amount,
+                       p.payment_type,
                        p.status AS payment_status,
                        b.status AS booking_status,
+                       b.field_id,
                        b.recurring_group_id,
+                       ci.invoice_id,
+                       ci.invoice_status,
                        scope.booking_count,
                        CASE
                            WHEN scope.invalid_booking_count = 0
@@ -415,6 +610,15 @@ public class PaymentDAO {
                        END AS hold_valid
                 FROM payments p WITH (UPDLOCK, HOLDLOCK)
                 INNER JOIN bookings b WITH (UPDLOCK, HOLDLOCK) ON p.booking_id = b.booking_id
+                OUTER APPLY (
+                    SELECT TOP 1 i.invoice_id,
+                           i.status AS invoice_status
+                    FROM invoices i WITH (UPDLOCK, HOLDLOCK)
+                    WHERE i.booking_id = p.booking_id
+                      AND i.customer_id = p.customer_id
+                      AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
+                    ORDER BY i.issued_at DESC, i.invoice_id DESC
+                ) ci
                 OUTER APPLY (
                     SELECT COUNT(*) AS booking_count,
                            SUM(CASE WHEN sb.status <> 'HOLD' THEN 1 ELSE 0 END) AS invalid_booking_count,
@@ -468,6 +672,19 @@ public class PaymentDAO {
                     conn.commit();
                     return PaymentUpdateResult.ALREADY_FAILED;
                 }
+                if (PAYMENT_TYPE_CHECKOUT.equals(payment.paymentType())) {
+                    PaymentUpdateResult result = markCheckoutPaymentSuccess(
+                            conn,
+                            payment,
+                            transactionRef,
+                            gatewayTransactionId,
+                            rawPayload,
+                            signature,
+                            gatewayCode
+                    );
+                    conn.commit();
+                    return result;
+                }
                 if (!STATUS_PENDING.equals(payment.paymentStatus())
                         || !STATUS_HOLD.equals(payment.bookingStatus())
                         || !payment.holdValid()) {
@@ -516,6 +733,105 @@ public class PaymentDAO {
         }
     }
 
+    private PaymentUpdateResult markCheckoutPaymentSuccess(
+            Connection conn,
+            PaymentLock payment,
+            String transactionRef,
+            String gatewayTransactionId,
+            String rawPayload,
+            String signature,
+            String gatewayCode
+    ) throws SQLException {
+        if (!STATUS_PENDING.equals(payment.paymentStatus())
+                || payment.invoiceId() == null
+                || !STATUS_PENDING.equals(payment.invoiceStatus())
+                || (!STATUS_PENDING_CHECKOUT_PAYMENT.equals(payment.bookingStatus())
+                    && !"CHECKED_IN".equals(payment.bookingStatus()))) {
+            insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
+            return PaymentUpdateResult.INVALID_STATE;
+        }
+
+        String updatePayment = """
+                UPDATE payments
+                SET status = 'SUCCESS',
+                    gateway_transaction_id = ?,
+                    paid_at = GETDATE()
+                WHERE payment_id = ?
+                  AND status = 'PENDING'
+                """;
+        String updateInvoice = """
+                UPDATE invoices
+                SET status = 'PAID',
+                    paid_amount = ?,
+                    total_amount = ?,
+                    issued_at = COALESCE(issued_at, GETDATE())
+                WHERE invoice_id = ?
+                  AND status = 'PENDING'
+                """;
+        String updateBooking = """
+                UPDATE bookings
+                SET status = 'COMPLETED',
+                    updated_at = GETDATE()
+                WHERE booking_id = ?
+                  AND status IN ('PENDING_CHECKOUT_PAYMENT', 'CHECKED_IN')
+                """;
+        String releaseField = """
+                UPDATE fields
+                SET status = 'AVAILABLE',
+                    updated_at = GETDATE()
+                WHERE field_id = ?
+                  AND status NOT IN ('MAINTENANCE', 'DISABLED')
+                """;
+        String insertStatusLog = """
+                INSERT INTO booking_status_logs (
+                    booking_id, old_status, new_status, changed_by, note, created_at
+                )
+                VALUES (?, ?, 'COMPLETED', ?, ?, GETDATE())
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(updatePayment)) {
+            ps.setString(1, gatewayTransactionId);
+            ps.setLong(2, payment.paymentId());
+            if (ps.executeUpdate() != 1) {
+                throw new SQLException("Khong cap nhat duoc checkout payment.");
+            }
+        }
+        try (PreparedStatement ps = conn.prepareStatement(updateInvoice)) {
+            ps.setBigDecimal(1, payment.amount());
+            ps.setBigDecimal(2, payment.amount());
+            ps.setLong(3, payment.invoiceId());
+            if (ps.executeUpdate() != 1) {
+                throw new SQLException("Khong cap nhat duoc hoa don checkout.");
+            }
+        }
+        try (PreparedStatement ps = conn.prepareStatement(updateBooking)) {
+            ps.setLong(1, payment.bookingId());
+            if (ps.executeUpdate() != 1) {
+                throw new SQLException("Khong cap nhat duoc booking sau checkout payment.");
+            }
+        }
+        try (PreparedStatement ps = conn.prepareStatement(releaseField)) {
+            ps.setLong(1, payment.fieldId());
+            ps.executeUpdate();
+        }
+        try (PreparedStatement ps = conn.prepareStatement(insertStatusLog)) {
+            ps.setLong(1, payment.bookingId());
+            ps.setString(2, payment.bookingStatus());
+            ps.setLong(3, payment.customerId());
+            ps.setString(4, "Checkout payment completed: " + transactionRef);
+            ps.executeUpdate();
+        }
+
+        insertNotification(conn,
+                payment.customerId(),
+                "Thanh toan hoa don thanh cong",
+                "Hoa don checkout cua booking da duoc thanh toan thanh cong. Ma giao dich: " + transactionRef,
+                "CHECKOUT_PAYMENT_SUCCESS",
+                payment.invoiceId());
+        insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
+        return PaymentUpdateResult.UPDATED_SUCCESS;
+    }
+
     public boolean markPaymentFailed(String transactionRef, String rawPayload, String signature)
             throws SQLException {
         PaymentUpdateResult result = markPaymentFailed(
@@ -538,9 +854,14 @@ public class PaymentDAO {
                 SELECT p.payment_id,
                        p.booking_id,
                        p.customer_id,
+                       p.amount,
+                       p.payment_type,
                        p.status AS payment_status,
                        b.status AS booking_status,
+                       b.field_id,
                        b.recurring_group_id,
+                       CAST(NULL AS BIGINT) AS invoice_id,
+                       CAST(NULL AS VARCHAR(50)) AS invoice_status,
                        1 AS booking_count,
                        CASE WHEN b.hold_expires_at > GETDATE() THEN 1 ELSE 0 END AS hold_valid
                 FROM payments p WITH (UPDLOCK, HOLDLOCK)
@@ -652,6 +973,7 @@ public class PaymentDAO {
                        p.gateway_transaction_id,
                        p.paid_at,
                        p.created_at,
+                       ci.invoice_id,
                        pm.method_name AS payment_method_name,
                        b.booking_code,
                        b.status AS booking_status,
@@ -665,6 +987,15 @@ public class PaymentDAO {
                 INNER JOIN bookings b ON p.booking_id = b.booking_id
                 INNER JOIN facilities fa ON b.facility_id = fa.facility_id
                 INNER JOIN fields f ON b.field_id = f.field_id
+                OUTER APPLY (
+                    SELECT TOP 1 i.invoice_id
+                    FROM invoices i
+                    WHERE i.booking_id = p.booking_id
+                      AND i.customer_id = p.customer_id
+                      AND p.payment_type = 'CHECKOUT'
+                      AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
+                    ORDER BY i.issued_at DESC, i.invoice_id DESC
+                ) ci
                 """;
     }
 
@@ -713,6 +1044,7 @@ public class PaymentDAO {
     private PaymentView mapPaymentView(ResultSet rs) throws SQLException {
         PaymentView view = new PaymentView();
         view.setPaymentId(rs.getLong("payment_id"));
+        view.setInvoiceId(getLongOrNull(rs, "invoice_id"));
         view.setBookingId(rs.getLong("booking_id"));
         view.setCustomerId(rs.getLong("customer_id"));
         view.setAmount(rs.getBigDecimal("amount"));
@@ -733,6 +1065,37 @@ public class PaymentDAO {
         return view;
     }
 
+    private InvoiceView mapCheckoutInvoiceView(ResultSet rs) throws SQLException {
+        InvoiceView view = new InvoiceView();
+        view.setInvoiceId(rs.getLong("invoice_id"));
+        view.setInvoiceCode(rs.getString("invoice_code"));
+        view.setInvoiceStatus(rs.getString("invoice_status"));
+        view.setIssuedAt(toLocalDateTime(rs.getTimestamp("issued_at")));
+        view.setBookingId(rs.getLong("booking_id"));
+        view.setBookingCode(rs.getString("booking_code"));
+        view.setCustomerId(rs.getLong("customer_id"));
+        view.setFacilityId(rs.getLong("facility_id"));
+        view.setFieldId(rs.getLong("field_id"));
+        view.setCustomerName(rs.getString("customer_name"));
+        view.setCustomerPhone(rs.getString("customer_phone"));
+        view.setFacilityName(rs.getString("facility_name"));
+        view.setFacilityAddress(joinAddress(rs));
+        view.setFieldName(rs.getString("field_name"));
+        view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
+        view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
+        view.setFieldFee(rs.getBigDecimal("field_fee"));
+        view.setDepositAmount(rs.getBigDecimal("deposit_amount"));
+        view.setOvertimeMinutes(rs.getLong("overtime_minutes"));
+        view.setOvertimeFee(rs.getBigDecimal("overtime_fee"));
+        view.setSubtotal(rs.getBigDecimal("subtotal"));
+        view.setTotalAmount(rs.getBigDecimal("total_amount"));
+        view.setPaidAmount(rs.getBigDecimal("paid_amount"));
+        view.setBookingStatus(rs.getString("booking_status"));
+        view.setPaymentStatus(rs.getString("payment_status"));
+        view.setPaymentMethodName(rs.getString("payment_method_name"));
+        return view;
+    }
+
     private PaymentLock getPaymentLock(Connection conn, String sql, String transactionRef)
             throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -745,6 +1108,11 @@ public class PaymentDAO {
                         rs.getLong("payment_id"),
                         rs.getLong("booking_id"),
                         rs.getLong("customer_id"),
+                        rs.getBigDecimal("amount"),
+                        rs.getString("payment_type"),
+                        rs.getLong("field_id"),
+                        getLongOrNull(rs, "invoice_id"),
+                        rs.getString("invoice_status"),
                         getLongOrNull(rs, "recurring_group_id"),
                         rs.getInt("booking_count"),
                         rs.getString("payment_status"),
@@ -845,6 +1213,34 @@ public class PaymentDAO {
         }
     }
 
+    private void insertNotification(
+            Connection conn,
+            long userId,
+            String title,
+            String message,
+            String type,
+            Long referenceId
+    ) throws SQLException {
+        String sql = """
+                INSERT INTO notifications (
+                    user_id, title, message, notification_type, reference_id, is_read, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, 0, GETDATE())
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            ps.setString(2, title);
+            ps.setString(3, message);
+            ps.setString(4, type);
+            if (referenceId == null) {
+                ps.setNull(5, java.sql.Types.BIGINT);
+            } else {
+                ps.setLong(5, referenceId);
+            }
+            ps.executeUpdate();
+        }
+    }
+
     private String normalizeGatewayCode(String gatewayCode) {
         return gatewayCode == null || gatewayCode.isBlank() ? GATEWAY_SIMULATED : gatewayCode.trim();
     }
@@ -868,6 +1264,21 @@ public class PaymentDAO {
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 
+    private String joinAddress(ResultSet rs) throws SQLException {
+        List<String> parts = new ArrayList<>();
+        addPart(parts, rs.getString("address"));
+        addPart(parts, rs.getString("ward"));
+        addPart(parts, rs.getString("district"));
+        addPart(parts, rs.getString("city"));
+        return String.join(", ", parts);
+    }
+
+    private void addPart(List<String> parts, String value) {
+        if (value != null && !value.trim().isEmpty()) {
+            parts.add(value.trim());
+        }
+    }
+
     private Long getLongOrNull(ResultSet rs, String column) throws SQLException {
         long value = rs.getLong(column);
         return rs.wasNull() ? null : value;
@@ -877,6 +1288,11 @@ public class PaymentDAO {
             long paymentId,
             long bookingId,
             long customerId,
+            BigDecimal amount,
+            String paymentType,
+            long fieldId,
+            Long invoiceId,
+            String invoiceStatus,
             Long recurringGroupId,
             int bookingCount,
             String paymentStatus,

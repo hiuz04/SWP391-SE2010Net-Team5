@@ -73,6 +73,7 @@
     .status-available { background-color: #f8fafc; color: #94a3b8; }
     .status-booked-confirmed { background-color: #fef3c7; color: #d97706; font-weight: 600; border: 1px solid #fde68a; }
     .status-booked-checkedin { background-color: #e0f2fe; color: #0284c7; font-weight: 600; border: 1px solid #bae6fd; }
+    .status-booked-pending-payment { background-color: #fae8ff; color: #a21caf; font-weight: 600; border: 1px solid #f5d0fe; }
     .status-booked-completed { background-color: #dcfce7; color: #16a34a; font-weight: 600; border: 1px solid #bbf7d0; }
     .status-field-maintenance { background-color: #f1f5f9; color: #64748b; font-weight: 500; cursor: not-allowed; }
     .status-field-disabled { background-color: #e2e8f0; color: #94a3b8; font-weight: 500; cursor: not-allowed; }
@@ -260,6 +261,7 @@
                         String custName = (String) foundBooking.get("customerName");
                         String bCode = (String) foundBooking.get("bookingCode");
                         boolean hasInvoice = Boolean.TRUE.equals(foundBooking.get("hasInvoice"));
+                        boolean checkoutDue = Boolean.TRUE.equals(foundBooking.get("checkoutDue"));
                         
                         if ("CONFIRMED".equals(bStatus)) {
                           cellClass = "status-booked-confirmed";
@@ -273,6 +275,15 @@
                           cellOnclick = isUpcomingShift 
                              ? "alert('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.')" 
                              : (isEndedShift ? "alert('Ca trực đã kết thúc. Bạn không thể thao tác.')" : "location.href='" + ctx + "/staff/checkout?id=" + bId + "'");
+                          if (!checkoutDue) {
+                            cellOnclick = "";
+                          }
+                        } else if ("PENDING_CHECKOUT_PAYMENT".equals(bStatus)) {
+                          cellClass = "status-booked-pending-payment";
+                          cellText = bCode + " - Cho thanh toan";
+                          if (hasInvoice) {
+                            cellOnclick = "location.href='" + ctx + "/staff/invoice?id=" + bId + "'";
+                          }
                         } else if ("COMPLETED".equals(bStatus)) {
                           cellClass = "status-booked-completed";
                           cellText = bCode + " - Xong";
@@ -330,6 +341,8 @@
                   String customerPhone = (String) b.get("customerPhone");
                   java.math.BigDecimal total = (java.math.BigDecimal) b.get("totalAmount");
                   boolean hasInvoice = Boolean.TRUE.equals(b.get("hasInvoice"));
+                  boolean checkoutDue = Boolean.TRUE.equals(b.get("checkoutDue"));
+                  boolean lateNoShowEligible = Boolean.TRUE.equals(b.get("lateNoShowEligible"));
 
                   String sTimeVal = bStart != null ? bStart : "00:00:00";
                   if (sTimeVal.contains(" ")) sTimeVal = sTimeVal.split(" ")[1];
@@ -359,7 +372,14 @@
                   }
 
                   if ("CONFIRMED".equals(bStatus)) {
-                    if (isExpired) {
+                    if (lateNoShowEligible) {
+                      statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-person-x me-1'></i>No-show</span>";
+                      actionButton = isUpcomingShift
+                        ? "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-lock-fill me-1'></i>Cho ca truc</button>"
+                        : (isEndedShift
+                          ? "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-lock-fill me-1'></i>Het ca truc</button>"
+                          : "<button type='button' class='btn btn-sm btn-outline-danger px-3' onclick='cancelNoShow(" + bId + ")'><i class='bi bi-person-x me-1'></i>Huy do khach den muon</button>");
+                    } else if (isExpired) {
                       statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-exclamation-triangle me-1'></i>Quá giờ</span>";
                       actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-exclamation-circle me-1'></i>Quá giờ nhận</button>";
                     } else {
@@ -377,6 +397,14 @@
                       : (isEndedShift 
                         ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Ca trực đã kết thúc'><i class='bi bi-lock-fill me-1'></i>Hết ca trực</button>"
                         : "<a href='" + ctx + "/staff/checkout?id=" + bId + "' class='btn btn-sm btn-outline-success px-3'>Checkout</a>");
+                    if (!checkoutDue && !isUpcomingShift && !isEndedShift) {
+                      actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled>Dang su dung</button>";
+                    }
+                  } else if ("PENDING_CHECKOUT_PAYMENT".equals(bStatus)) {
+                    statusBadge = "<span class='badge fw-bold' style='background:#fae8ff;color:#a21caf;'><i class='bi bi-credit-card me-1'></i>Cho khach thanh toan</span>";
+                    if (hasInvoice) {
+                      actionButton = "<a href='" + ctx + "/staff/invoice?id=" + bId + "' class='btn btn-sm btn-outline-secondary px-3'><i class='bi bi-file-earmark-text me-1'></i>Hoa don</a>";
+                    }
                   } else if ("COMPLETED".equals(bStatus)) {
                     statusBadge = "<span class='badge badge-soft-success'><i class='bi bi-check-circle me-1'></i>Đã xong</span>";
                     if (hasInvoice) {
@@ -487,6 +515,29 @@
       }
     } catch (err) {
       alert('Không thể cập nhật trạng thái sân: ' + err.message);
+    }
+  }
+
+  async function cancelNoShow(bookingId) {
+    if (!confirm('Huy booking nay do khach den muon qua 30 phut?')) {
+      return;
+    }
+    try {
+      const params = new URLSearchParams();
+      params.append('bookingId', bookingId);
+      const res = await fetch('<%= ctx %>/api/staff/no-show-cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+        credentials: 'include'
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Khong the huy booking no-show.');
+      }
+      window.location.reload();
+    } catch (err) {
+      alert(err.message || 'Khong the huy booking no-show.');
     }
   }
 </script>

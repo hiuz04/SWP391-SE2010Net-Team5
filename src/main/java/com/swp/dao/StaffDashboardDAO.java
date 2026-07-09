@@ -64,8 +64,10 @@ public class StaffDashboardDAO {
                            SELECT 1
                            FROM invoices i
                            WHERE i.booking_id = b.booking_id
-                             AND i.status IN ('PAID', 'ACTIVE')
-                       ) THEN 1 ELSE 0 END AS has_invoice
+                             AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
+                       ) THEN 1 ELSE 0 END AS has_invoice,
+                       CASE WHEN b.status = 'CHECKED_IN' AND GETDATE() >= b.end_time THEN 1 ELSE 0 END AS checkout_due,
+                       CASE WHEN b.status = 'CONFIRMED' AND GETDATE() >= DATEADD(MINUTE, 30, b.start_time) THEN 1 ELSE 0 END AS late_no_show_eligible
                 FROM bookings b
                 JOIN users u  ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id   = fi.field_id
@@ -90,6 +92,8 @@ public class StaffDashboardDAO {
                     row.put("customerName", rs.getString("customer_name"));
                     row.put("fieldName", rs.getString("field_name"));
                     row.put("hasInvoice", rs.getInt("has_invoice") == 1);
+                    row.put("checkoutDue", rs.getInt("checkout_due") == 1);
+                    row.put("lateNoShowEligible", rs.getInt("late_no_show_eligible") == 1);
                     list.add(row);
                 }
             }
@@ -339,8 +343,10 @@ public class StaffDashboardDAO {
                            SELECT 1
                            FROM invoices i
                            WHERE i.booking_id = b.booking_id
-                             AND i.status IN ('PAID', 'ACTIVE')
-                       ) THEN 1 ELSE 0 END AS has_invoice
+                             AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
+                       ) THEN 1 ELSE 0 END AS has_invoice,
+                       CASE WHEN b.status = 'CHECKED_IN' AND GETDATE() >= b.end_time THEN 1 ELSE 0 END AS checkout_due,
+                       CASE WHEN b.status = 'CONFIRMED' AND GETDATE() >= DATEADD(MINUTE, 30, b.start_time) THEN 1 ELSE 0 END AS late_no_show_eligible
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id = fi.field_id
@@ -368,6 +374,8 @@ public class StaffDashboardDAO {
                     row.put("fieldId", rs.getLong("field_id"));
                     row.put("fieldName", rs.getString("field_name"));
                     row.put("hasInvoice", rs.getInt("has_invoice") == 1);
+                    row.put("checkoutDue", rs.getInt("checkout_due") == 1);
+                    row.put("lateNoShowEligible", rs.getInt("late_no_show_eligible") == 1);
                     list.add(row);
                 }
             }

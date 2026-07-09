@@ -4,11 +4,17 @@ public class CheckoutResult {
     private final long invoiceId;
     private final long bookingId;
     private final String invoiceCode;
+    private final String message;
 
     public CheckoutResult(long invoiceId, long bookingId, String invoiceCode) {
+        this(invoiceId, bookingId, invoiceCode, "Da gui yeu cau thanh toan cho khach.");
+    }
+
+    public CheckoutResult(long invoiceId, long bookingId, String invoiceCode, String message) {
         this.invoiceId = invoiceId;
         this.bookingId = bookingId;
         this.invoiceCode = invoiceCode;
+        this.message = message;
     }
 
     public long getInvoiceId() {
@@ -21,5 +27,9 @@ public class CheckoutResult {
 
     public String getInvoiceCode() {
         return invoiceCode;
+    }
+
+    public String getMessage() {
+        return message;
     }
 }
