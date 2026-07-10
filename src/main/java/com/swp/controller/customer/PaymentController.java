@@ -7,6 +7,7 @@ import com.swp.model.Payment;
 import com.swp.model.PaymentMethod;
 import com.swp.model.User;
 import com.swp.model.dto.BookingView;
+import com.swp.model.dto.InvoiceView;
 import com.swp.model.dto.PaymentView;
 import com.swp.util.VNPayConfig;
 import com.swp.util.VNPayUtil;
@@ -36,6 +37,7 @@ public class PaymentController extends HttpServlet {
     private static final String GATEWAY_VNPAY = "VNPAY";
     private static final String MODE_VNPAY = "VNPAY";
     private static final String MODE_SIMULATED = "SIMULATED";
+    private static final String PAYMENT_TYPE_CHECKOUT = "CHECKOUT";
 
     private final PaymentDAO paymentDAO = new PaymentDAO();
 
@@ -115,6 +117,12 @@ public class PaymentController extends HttpServlet {
             return;
         }
 
+        String type = trim(request.getParameter("type"));
+        if (PAYMENT_TYPE_CHECKOUT.equalsIgnoreCase(type)) {
+            showCheckoutPaymentMethod(request, response, currentUser);
+            return;
+        }
+
         long bookingId = parsePositiveLong(firstNonBlank(
                 request.getParameter("bookingId"),
                 request.getParameter("id")
@@ -128,6 +136,27 @@ public class PaymentController extends HttpServlet {
 
         List<PaymentMethod> methods = paymentDAO.getActivePaymentMethods();
         request.setAttribute("booking", booking);
+        request.setAttribute("paymentContext", "DEPOSIT");
+        request.setAttribute("paymentMethods", methods);
+        request.setAttribute("error", request.getParameter("error"));
+        request.getRequestDispatcher("/WEB-INF/payment/payment.jsp").forward(request, response);
+    }
+
+    private void showCheckoutPaymentMethod(HttpServletRequest request, HttpServletResponse response, User currentUser)
+            throws IOException, ServletException, SQLException {
+        long invoiceId = parsePositiveLong(request.getParameter("invoiceId"),
+                "invoiceId khong hop le.");
+        InvoiceView invoice = paymentDAO.getCheckoutInvoiceForPayment(invoiceId, currentUser.getUserId());
+        if (invoice == null || !"PENDING".equals(invoice.getInvoiceStatus())) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND,
+                    "Khong tim thay hoa don checkout dang cho thanh toan.");
+            return;
+        }
+
+        List<PaymentMethod> methods = paymentDAO.getActivePaymentMethods();
+        request.setAttribute("paymentContext", PAYMENT_TYPE_CHECKOUT);
+        request.setAttribute("invoice", invoice);
+        request.setAttribute("amountToPay", invoice.getTotalAmount());
         request.setAttribute("paymentMethods", methods);
         request.setAttribute("error", request.getParameter("error"));
         request.getRequestDispatcher("/WEB-INF/payment/payment.jsp").forward(request, response);
@@ -137,6 +166,12 @@ public class PaymentController extends HttpServlet {
             throws IOException, SQLException {
         User currentUser = requireLogin(request, response);
         if (currentUser == null) {
+            return;
+        }
+
+        String paymentType = trim(request.getParameter("paymentType"));
+        if (PAYMENT_TYPE_CHECKOUT.equalsIgnoreCase(paymentType)) {
+            processCheckoutPayment(request, response, currentUser);
             return;
         }
 
@@ -168,6 +203,101 @@ public class PaymentController extends HttpServlet {
         }
 
         processSimulatedPayment(request, response, bookingId, currentUser.getUserId(), paymentMethodId, simulateStatus);
+    }
+
+    private void processCheckoutPayment(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            User currentUser
+    ) throws IOException, SQLException {
+        long invoiceId = parsePositiveLong(request.getParameter("invoiceId"),
+                "invoiceId khong hop le.");
+        int paymentMethodId = parsePositiveInt(request.getParameter("paymentMethodId"),
+                "Vui long chon phuong thuc thanh toan.");
+
+        PaymentMethod selectedMethod = paymentDAO.getPaymentMethodById(paymentMethodId);
+        if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
+            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
+        }
+
+        String paymentMode = trim(request.getParameter("paymentMode"));
+        String simulateStatus = trim(request.getParameter("simulateStatus"));
+        boolean explicitSimulated = MODE_SIMULATED.equalsIgnoreCase(paymentMode)
+                || (simulateStatus != null && !simulateStatus.isBlank());
+        boolean selectedVNPayMethod = GATEWAY_VNPAY.equalsIgnoreCase(selectedMethod.getMethodCode());
+        boolean useVNPay = !explicitSimulated
+                && (MODE_VNPAY.equalsIgnoreCase(paymentMode) || selectedVNPayMethod);
+
+        if (MODE_VNPAY.equalsIgnoreCase(paymentMode) && !selectedVNPayMethod) {
+            throw new IllegalArgumentException("Vui long chon phuong thuc VNPay Sandbox.");
+        }
+
+        if (useVNPay) {
+            processCheckoutVNPayPayment(request, response, invoiceId, currentUser.getUserId(), paymentMethodId);
+            return;
+        }
+
+        processCheckoutSimulatedPayment(request, response, invoiceId, currentUser.getUserId(), paymentMethodId, simulateStatus);
+    }
+
+    private void processCheckoutVNPayPayment(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            long invoiceId,
+            long customerId,
+            int paymentMethodId
+    ) throws IOException, SQLException {
+        try {
+            VNPayConfig.validateRequired();
+        } catch (IllegalStateException e) {
+            throw new IllegalArgumentException("VNPay chua duoc cau hinh day du trong vnpay.properties.", e);
+        }
+
+        Payment payment = paymentDAO.createPendingCheckoutPayment(
+                invoiceId,
+                customerId,
+                paymentMethodId
+        );
+        VNPayUtil.PaymentUrlDebug paymentUrlDebug = VNPayUtil.buildPaymentUrlDebug(payment, payment.getBookingId(), request);
+        logVNPayPaymentUrl(payment, payment.getBookingId(), paymentUrlDebug);
+        response.sendRedirect(paymentUrlDebug.paymentUrl());
+    }
+
+    private void processCheckoutSimulatedPayment(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            long invoiceId,
+            long customerId,
+            int paymentMethodId,
+            String simulateStatus
+    ) throws IOException, SQLException {
+        boolean simulateFailure = "FAILED".equalsIgnoreCase(simulateStatus);
+
+        Payment payment = paymentDAO.createPendingCheckoutPayment(
+                invoiceId,
+                customerId,
+                paymentMethodId
+        );
+        String transactionRef = payment.getTransactionRef();
+        String resultStatus = simulateFailure ? "FAILED" : "SUCCESS";
+        String rawPayload = "{\"gateway\":\"SIMULATED\",\"paymentType\":\"CHECKOUT\",\"status\":\"" + resultStatus
+                + "\",\"transactionRef\":\"" + transactionRef + "\"}";
+        String signature = "SIM-" + transactionRef;
+
+        if (simulateFailure) {
+            paymentDAO.markPaymentFailed(transactionRef, rawPayload, signature);
+        } else {
+            String gatewayTransactionId = "SIM"
+                    + DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS").format(LocalDateTime.now());
+            paymentDAO.markPaymentSuccessAndConfirmBooking(
+                    transactionRef,
+                    gatewayTransactionId,
+                    rawPayload,
+                    signature
+            );
+        }
+
+        redirectToPaymentResult(request, response, transactionRef);
     }
 
     private void processVNPayPayment(
@@ -426,6 +556,19 @@ public class PaymentController extends HttpServlet {
             HttpServletResponse response,
             String message
     ) throws IOException {
+        String paymentType = trim(request.getParameter("paymentType"));
+        if (PAYMENT_TYPE_CHECKOUT.equalsIgnoreCase(paymentType)) {
+            String rawInvoiceId = trim(request.getParameter("invoiceId"));
+            if (rawInvoiceId == null || !rawInvoiceId.matches("\\d+")) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, message);
+                return;
+            }
+            response.sendRedirect(request.getContextPath()
+                    + "/payment?action=method&type=checkout&invoiceId=" + rawInvoiceId
+                    + "&error=" + URLEncoder.encode(message, StandardCharsets.UTF_8));
+            return;
+        }
+
         String rawBookingId = trim(request.getParameter("bookingId"));
         if (rawBookingId == null || !rawBookingId.matches("\\d+")) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, message);

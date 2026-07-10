@@ -44,4 +44,25 @@ public class NotificationServlet extends HttpServlet {
             }
         }
     }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        User user = (User) request.getSession().getAttribute("user");
+        if (user == null) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+
+        String action = request.getParameter("action");
+        if ("mark_all".equals(action)) {
+            notificationDAO.markAllAsRead(user.getUserId());
+        } else if ("mark_read".equals(action)) {
+            try {
+                long notificationId = Long.parseLong(request.getParameter("id"));
+                notificationDAO.markAsRead(notificationId, user.getUserId());
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        response.sendRedirect(request.getContextPath() + "/notifications");
+    }
 }

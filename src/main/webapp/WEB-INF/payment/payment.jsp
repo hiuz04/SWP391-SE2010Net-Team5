@@ -2,6 +2,7 @@
 <%@ page import="com.swp.model.PaymentMethod" %>
 <%@ page import="com.swp.model.User" %>
 <%@ page import="com.swp.model.dto.BookingView" %>
+<%@ page import="com.swp.model.dto.InvoiceView" %>
 <%@ page import="jakarta.servlet.http.HttpServletResponse" %>
 <%@ page import="java.math.BigDecimal" %>
 <%@ page import="java.text.NumberFormat" %>
@@ -12,9 +13,9 @@
 <%@ page import="java.util.Locale" %>
 
 <%!
-    private String esc(String value) {
+    private String esc(Object value) {
         if (value == null) return "";
-        return value.replace("&", "&amp;").replace("<", "&lt;")
+        return value.toString().replace("&", "&amp;").replace("<", "&lt;")
                 .replace(">", "&gt;").replace("\"", "&quot;")
                 .replace("'", "&#39;");
     }
@@ -37,20 +38,13 @@
     private String dayOfWeek(LocalDateTime value) {
         if (value == null) return "";
         switch (value.getDayOfWeek().getValue()) {
-            case 1:
-                return "Th&#7913; 2";
-            case 2:
-                return "Th&#7913; 3";
-            case 3:
-                return "Th&#7913; 4";
-            case 4:
-                return "Th&#7913; 5";
-            case 5:
-                return "Th&#7913; 6";
-            case 6:
-                return "Th&#7913; 7";
-            default:
-                return "Ch&#7911; nh&#7853;t";
+            case 1: return "Thứ 2";
+            case 2: return "Thứ 3";
+            case 3: return "Thứ 4";
+            case 4: return "Thứ 5";
+            case 5: return "Thứ 6";
+            case 6: return "Thứ 7";
+            default: return "Chủ nhật";
         }
     }
 
@@ -70,11 +64,20 @@
 
 <%
     String ctx = request.getContextPath();
+    String paymentContext = (String) request.getAttribute("paymentContext");
+    boolean checkoutContext = "CHECKOUT".equalsIgnoreCase(paymentContext);
     BookingView booking = (BookingView) request.getAttribute("booking");
-    if (booking == null) {
+    InvoiceView invoice = (InvoiceView) request.getAttribute("invoice");
+
+    if (!checkoutContext && booking == null) {
         response.sendError(HttpServletResponse.SC_NOT_FOUND, "Khong tim thay booking.");
         return;
     }
+    if (checkoutContext && invoice == null) {
+        response.sendError(HttpServletResponse.SC_NOT_FOUND, "Khong tim thay hoa don.");
+        return;
+    }
+
     List<PaymentMethod> paymentMethods = (List<PaymentMethod>) request.getAttribute("paymentMethods");
     if (paymentMethods == null) paymentMethods = new ArrayList<>();
     User currentUser = (User) session.getAttribute("user");
@@ -82,10 +85,15 @@
             ? currentUser.getFullName()
             : "Nguoi dung";
     String error = (String) request.getAttribute("error");
-    boolean holdValid = "HOLD".equals(booking.getStatus())
+
+    boolean holdValid = !checkoutContext
+            && "HOLD".equals(booking.getStatus())
             && booking.getHoldExpiresAt() != null
             && booking.getHoldExpiresAt().isAfter(LocalDateTime.now());
-    boolean monthly = isMonthlyBooking(booking);
+    boolean canPay = checkoutContext ? "PENDING".equals(invoice.getInvoiceStatus()) : holdValid;
+    boolean monthly = !checkoutContext && isMonthlyBooking(booking);
+    BigDecimal amountToPay = checkoutContext ? invoice.getTotalAmount() : booking.getDepositAmount();
+
     Integer vnpayMethodId = null;
     for (PaymentMethod method : paymentMethods) {
         if ("VNPAY".equalsIgnoreCase(method.getMethodCode())) {
@@ -103,69 +111,119 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
-    <title>Thanh to&#225;n | Sport Field Booking</title>
+    <title>Thanh toán | Sport Field Booking</title>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/" data-role="customer" data-name="<%= esc(currentName) %>" data-active="Thanh to&#225;n"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="customer" data-name="<%= esc(currentName) %>" data-active="Thanh toán"></div>
 
 <main class="py-5">
     <div class="container">
         <div class="mb-3">
-            <a class="btn btn-outline-secondary" href="<%= ctx %>/booking?action=detail&id=<%= booking.getBookingId() %>">
-                <i class="bi bi-arrow-left"></i> Quay l&#7841;i booking
+            <% if (checkoutContext) { %>
+            <a class="btn btn-outline-secondary" href="<%= ctx %>/customer/checkout-invoice?id=<%= invoice.getInvoiceId() %>">
+                <i class="bi bi-arrow-left"></i> Quay lại hóa đơn
             </a>
+            <% } else { %>
+            <a class="btn btn-outline-secondary" href="<%= ctx %>/booking?action=detail&id=<%= booking.getBookingId() %>">
+                <i class="bi bi-arrow-left"></i> Quay lại booking
+            </a>
+            <% } %>
         </div>
 
         <% if (error != null && !error.isBlank()) { %>
         <div class="alert alert-danger"><%= esc(error) %></div>
         <% } %>
-        <% if (!holdValid) { %>
+        <% if (!checkoutContext && !holdValid) { %>
         <div class="alert alert-warning">
-            Booking kh&#244;ng c&#242;n trong th&#7901;i gian gi&#7919; ch&#7895;. Kh&#244;ng th&#7875; t&#7841;o giao d&#7883;ch m&#7899;i.
+            Booking không còn trong thời gian giữ chỗ. Không thể tạo giao dịch mới.
+        </div>
+        <% } %>
+        <% if (checkoutContext && !canPay) { %>
+        <div class="alert alert-info">
+            Hóa đơn này không còn ở trạng thái chờ thanh toán.
         </div>
         <% } %>
 
         <div class="row g-4">
             <div class="col-lg-8">
                 <div class="card soft-card p-4">
-                    <h1 class="section-title">Ch&#7885;n ph&#432;&#417;ng th&#7913;c thanh to&#225;n</h1>
-                    <p class="text-muted">Booking <strong><%= esc(booking.getBookingCode()) %></strong></p>
+                    <h1 class="section-title">
+                        <%= checkoutContext ? "Thanh toán hóa đơn trả sân" : "Chọn phương thức thanh toán" %>
+                    </h1>
+                    <p class="text-muted">
+                        <% if (checkoutContext) { %>
+                        Hóa đơn <strong>#<%= esc(invoice.getInvoiceCode()) %></strong> cho booking <strong><%= esc(invoice.getBookingCode()) %></strong>
+                        <% } else { %>
+                        Booking <strong><%= esc(booking.getBookingCode()) %></strong>
+                        <% } %>
+                    </p>
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
-                            <div class="text-muted small">C&#417; s&#7903;</div>
-                            <div class="fw-semibold"><%= esc(booking.getFacilityName()) %></div>
+                            <div class="text-muted small">Cơ sở</div>
+                            <div class="fw-semibold"><%= esc(checkoutContext ? invoice.getFacilityName() : booking.getFacilityName()) %></div>
                         </div>
                         <div class="col-md-6">
-                            <div class="text-muted small">S&#226;n / lo&#7841;i s&#226;n</div>
-                            <div class="fw-semibold"><%= esc(booking.getFieldName()) %> - <%= esc(booking.getFieldTypeName()) %></div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="text-muted small">Th&#7901;i gian</div>
-                            <div class="fw-semibold"><%= bookingTimeLabel(booking) %></div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="text-muted small">Lo&#7841;i booking</div>
+                            <div class="text-muted small">Sân</div>
                             <div class="fw-semibold">
-                                <%= monthly ? "Thu&#234; theo th&#225;ng" : "Thu&#234; &#273;&#417;n l&#7867;" %>
-                                <% if (monthly && booking.getRecurringCount() != null) { %>
-                                <span class="text-muted">(<%= booking.getRecurringCount() %> bu&#7893;i)</span>
+                                <% if (checkoutContext) { %>
+                                <%= esc(invoice.getFieldName()) %>
+                                <% } else { %>
+                                <%= esc(booking.getFieldName()) %> - <%= esc(booking.getFieldTypeName()) %>
                                 <% } %>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="text-muted small">Gi&#7919; ch&#7895; &#273;&#7871;n</div>
+                            <div class="text-muted small">Thời gian</div>
+                            <div class="fw-semibold">
+                                <%= checkoutContext
+                                        ? dateTime(invoice.getStartTime()) + " - " + timeOnly(invoice.getEndTime())
+                                        : bookingTimeLabel(booking) %>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-muted small"><%= checkoutContext ? "Trạng thái hóa đơn" : "Loại booking" %></div>
+                            <div class="fw-semibold">
+                                <% if (checkoutContext) { %>
+                                <span class="badge bg-warning-subtle text-warning text-dark"><%= esc(invoice.getInvoiceStatus()) %></span>
+                                <% } else { %>
+                                <%= monthly ? "Thuê theo tháng" : "Thuê đơn lẻ" %>
+                                <% if (monthly && booking.getRecurringCount() != null) { %>
+                                <span class="text-muted">(<%= booking.getRecurringCount() %> buổi)</span>
+                                <% } %>
+                                <% } %>
+                            </div>
+                        </div>
+                        <% if (!checkoutContext) { %>
+                        <div class="col-md-6">
+                            <div class="text-muted small">Giữ chỗ đến</div>
                             <div class="fw-semibold text-danger"><%= dateTime(booking.getHoldExpiresAt()) %></div>
                         </div>
+                        <% } else { %>
+                        <div class="col-md-6">
+                            <div class="text-muted small">Phút quá giờ</div>
+                            <div class="fw-semibold"><%= invoice.getOvertimeMinutes() %> phút</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-muted small">Phụ thu quá giờ</div>
+                            <div class="fw-semibold"><%= money(invoice.getOvertimeFee()) %></div>
+                        </div>
+                        <% } %>
                     </div>
 
                     <% if (paymentMethods.isEmpty()) { %>
-                    <div class="alert alert-info mb-0">Hi&#7879;n kh&#244;ng c&#243; ph&#432;&#417;ng th&#7913;c thanh to&#225;n &#273;ang ho&#7841;t &#273;&#7897;ng.</div>
+                    <div class="alert alert-info mb-0">Hiện không có phương thức thanh toán đang hoạt động.</div>
                     <% } else { %>
                     <form method="post" action="<%= ctx %>/payment">
                         <input type="hidden" name="action" value="pay">
+                        <% if (checkoutContext) { %>
+                        <input type="hidden" name="paymentType" value="CHECKOUT">
+                        <input type="hidden" name="invoiceId" value="<%= invoice.getInvoiceId() %>">
+                        <% } else { %>
+                        <input type="hidden" name="paymentType" value="DEPOSIT">
                         <input type="hidden" name="bookingId" value="<%= booking.getBookingId() %>">
-                        <h5 class="mb-3">Ph&#432;&#417;ng th&#7913;c</h5>
+                        <% } %>
+                        <h5 class="mb-3">Phương thức</h5>
                         <div class="vstack gap-2">
                             <% for (int i = 0; i < paymentMethods.size(); i++) {
                                 PaymentMethod method = paymentMethods.get(i); %>
@@ -185,20 +243,20 @@
                             <button class="btn btn-outline-primary" type="submit" name="paymentMode" value="VNPAY"
                                     id="vnpayButton"
                                     data-vnpay-method-id="<%= vnpayMethodId == null ? "" : vnpayMethodId %>"
-                                    <%= holdValid && vnpayMethodId != null ? "" : "disabled" %>>
-                                <i class="bi bi-bank"></i> Thanh to&#225;n qua VNPay
+                                    <%= canPay && vnpayMethodId != null ? "" : "disabled" %>>
+                                <i class="bi bi-bank"></i> Thanh toán qua VNPay
                             </button>
                             <button class="btn btn-sf-primary" type="submit" name="simulateStatus" value="SUCCESS"
-                                    <%= holdValid ? "" : "disabled" %>>
-                                <i class="bi bi-shield-check"></i> Thanh to&#225;n th&#224;nh c&#244;ng
+                                    <%= canPay ? "" : "disabled" %>>
+                                <i class="bi bi-shield-check"></i> Thanh toán thành công
                             </button>
                             <button class="btn btn-outline-danger" type="submit" name="simulateStatus" value="FAILED"
-                                    <%= holdValid ? "" : "disabled" %>>
-                                Gi&#7843; l&#7853;p th&#7845;t b&#7841;i
+                                    <%= canPay ? "" : "disabled" %>>
+                                Giả lập thất bại
                             </button>
                         </div>
-                        <div class="text-muted small mt-2">Ch&#7871; &#273;&#7897; m&#244; ph&#7887;ng d&#224;nh cho demo Inter 2.</div>
-                        <div class="text-muted small mt-1">VNPay Sandbox y&#234;u c&#7847;u return/ipn URL public HTTPS; khi ch&#7841;y local c&#243; th&#7875; d&#249;ng ngrok.</div>
+                        <div class="text-muted small mt-2">Chế độ mô phỏng dành cho demo.</div>
+                        <div class="text-muted small mt-1">VNPay Sandbox yêu cầu return/ipn URL public HTTPS; khi chạy local có thể dùng ngrok.</div>
                     </form>
                     <% } %>
                 </div>
@@ -206,17 +264,37 @@
 
             <aside class="col-lg-4">
                 <div class="card soft-card p-4 sidebar-card">
-                    <h5>T&#243;m t&#7855;t thanh to&#225;n</h5>
+                    <h5>Tóm tắt thanh toán</h5>
+                    <% if (checkoutContext) { %>
                     <div class="d-flex justify-content-between mt-3">
-                        <span>T&#7893;ng ti&#7873;n</span>
+                        <span>Tổng tiền sân</span>
+                        <strong><%= money(invoice.getFieldFee()) %></strong>
+                    </div>
+                    <div class="d-flex justify-content-between mt-2">
+                        <span>Phụ thu quá giờ</span>
+                        <strong><%= money(invoice.getOvertimeFee()) %></strong>
+                    </div>
+                    <div class="d-flex justify-content-between mt-2 text-success">
+                        <span>Tiền cọc đã thanh toán</span>
+                        <strong>- <%= money(invoice.getDepositAmount()) %></strong>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between fs-5">
+                        <span>Cần thanh toán</span>
+                        <strong class="text-success"><%= money(amountToPay) %></strong>
+                    </div>
+                    <% } else { %>
+                    <div class="d-flex justify-content-between mt-3">
+                        <span>Tổng tiền</span>
                         <strong><%= money(booking.getTotalAmount()) %></strong>
                     </div>
                     <hr>
                     <div class="d-flex justify-content-between fs-5">
-                        <span><%= monthly ? "Thanh to&#225;n to&#224;n b&#7897;" : "Ti&#7873;n c&#7885;c" %></span>
-                        <strong class="text-success"><%= money(booking.getDepositAmount()) %></strong>
+                        <span><%= monthly ? "Thanh toán toàn bộ" : "Tiền cọc" %></span>
+                        <strong class="text-success"><%= money(amountToPay) %></strong>
                     </div>
-                    <p class="text-muted small mt-3 mb-0">S&#7889; ti&#7873;n &#273;&#432;&#7907;c l&#7845;y tr&#7921;c ti&#7871;p t&#7915; booking trong c&#417; s&#7903; d&#7919; li&#7879;u.</p>
+                    <% } %>
+                    <p class="text-muted small mt-3 mb-0">Số tiền được lấy trực tiếp từ cơ sở dữ liệu.</p>
                 </div>
             </aside>
         </div>

@@ -82,6 +82,8 @@
                 return "&#272;&#227; x&#225;c nh&#7853;n";
             case "CHECKED_IN":
                 return "&#272;&#227; check-in";
+            case "PENDING_CHECKOUT_PAYMENT":
+                return "Ch&#7901; thanh to&#225;n h&#243;a &#273;&#417;n";
             case "COMPLETED":
                 return "Ho&#224;n t&#7845;t";
             case "CANCELLED":
@@ -102,6 +104,8 @@
             case "COMPLETED":
             case "CHECKED_IN":
                 return "badge-soft-success";
+            case "PENDING_CHECKOUT_PAYMENT":
+                return "badge-soft-warning";
             case "HOLD":
                 return "badge-soft-warning";
             case "CANCELLED":
@@ -168,6 +172,25 @@
             </div>
         </div>
 
+        <div class="d-flex justify-content-end mb-3">
+            <div style="min-width: 240px;">
+                <label class="form-label mb-1" for="bookingStatusFilter">Tr&#7841;ng th&#225;i booking</label>
+                <select class="form-select" id="bookingStatusFilter">
+                    <option value="">T&#7845;t c&#7843; tr&#7841;ng th&#225;i</option>
+                    <option value="HOLD">Ch&#7901; thanh to&#225;n</option>
+                    <option value="CONFIRMED">&#272;&#227; x&#225;c nh&#7853;n</option>
+                    <option value="CHECKED_IN">&#272;&#227; check-in</option>
+                    <option value="COMPLETED">Ho&#224;n t&#7845;t</option>
+                    <option value="CANCELLED">&#272;&#227; h&#7911;y</option>
+                    <option value="EXPIRED">H&#7871;t h&#7841;n</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="alert alert-info d-none" id="bookingHistoryNoResult">
+            Kh&#244;ng c&#243; booking n&#224;o ph&#249; h&#7907;p v&#7899;i tr&#7841;ng th&#225;i &#273;&#227; ch&#7885;n.
+        </div>
+
         <% if (bookings.isEmpty()) { %>
         <div class="card soft-card p-5 text-center">
             <h5>Ch&#432;a c&#243; booking n&#224;o</h5>
@@ -192,7 +215,7 @@
                     </thead>
                     <tbody>
                     <% for (BookingView booking : bookings) { %>
-                    <tr>
+                    <tr data-booking-status="<%= esc(booking.getStatus()) %>">
                         <td><strong><%= esc(booking.getBookingCode()) %></strong></td>
                         <td>
                             <div class="fw-semibold"><%= esc(booking.getFacilityName()) %></div>
@@ -220,5 +243,33 @@
 <div id="footer" data-root="<%= ctx %>/"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
+<script>
+    const bookingStatusFilter = document.getElementById('bookingStatusFilter');
+    const bookingHistoryRows = document.querySelectorAll('tr[data-booking-status]');
+    const bookingHistoryNoResult = document.getElementById('bookingHistoryNoResult');
+
+    if (bookingStatusFilter) {
+        bookingStatusFilter.addEventListener('change', function () {
+            const selectedStatus = this.value;
+            let visibleCount = 0;
+
+            bookingHistoryRows.forEach(row => {
+                const matches = !selectedStatus || row.dataset.bookingStatus === selectedStatus;
+                row.classList.toggle('d-none', !matches);
+
+                if (matches) {
+                    visibleCount++;
+                }
+            });
+
+            if (bookingHistoryNoResult) {
+                bookingHistoryNoResult.classList.toggle(
+                    'd-none',
+                    bookingHistoryRows.length === 0 || visibleCount > 0
+                );
+            }
+        });
+    }
+</script>
 </body>
 </html>
