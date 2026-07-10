@@ -16,10 +16,14 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class PaymentDAO {
+
+    private final VoucherDAO voucherDAO = new VoucherDAO();
 
     private static final String STATUS_HOLD = "HOLD";
     private static final String STATUS_CONFIRMED = "CONFIRMED";
@@ -48,7 +52,11 @@ public class PaymentDAO {
                        b.start_time,
                        b.end_time,
                        grp.total_amount,
-                       grp.deposit_amount,
+                       CASE
+                           WHEN COALESCE(rg.repeat_type, 'NONE') = 'MONTHLY'
+                           THEN grp.total_amount
+                           ELSE grp.deposit_amount
+                       END AS deposit_amount,
                        b.status,
                        grp.hold_expires_at,
                        lp.payment_status,
@@ -62,8 +70,8 @@ public class PaymentDAO {
                 INNER JOIN field_types ft ON f.field_type_id = ft.field_type_id
                 OUTER APPLY (
                     SELECT COUNT(*) AS recurring_count,
-                           SUM(sb.total_amount) AS total_amount,
-                           SUM(sb.deposit_amount) AS deposit_amount,
+                           SUM(COALESCE(sb.final_amount, sb.total_amount)) AS total_amount,
+                           SUM(ROUND(COALESCE(sb.final_amount, sb.total_amount) * 0.30, 2)) AS deposit_amount,
                            MIN(sb.hold_expires_at) AS hold_expires_at
                     FROM bookings sb
                     WHERE sb.customer_id = b.customer_id
@@ -176,7 +184,12 @@ public class PaymentDAO {
     public Payment createPendingDepositPayment(long bookingId, long customerId, int paymentMethodId)
             throws SQLException {
         String selectBooking = """
-                SELECT grp.deposit_amount,
+                SELECT CASE
+                           WHEN COALESCE(rg.repeat_type, 'NONE') = 'MONTHLY'
+                           THEN grp.total_amount
+                           ELSE grp.deposit_amount
+                       END AS deposit_amount,
+                       b.voucher_id,
                        b.status,
                        CASE
                            WHEN grp.invalid_booking_count = 0
@@ -205,8 +218,10 @@ public class PaymentDAO {
                            ELSE 0
                        END AS has_success
                 FROM bookings b WITH (UPDLOCK, HOLDLOCK)
+                LEFT JOIN booking_recurring_groups rg ON b.recurring_group_id = rg.recurring_group_id
                 OUTER APPLY (
-                    SELECT SUM(sb.deposit_amount) AS deposit_amount,
+                    SELECT SUM(COALESCE(sb.final_amount, sb.total_amount)) AS total_amount,
+                           SUM(ROUND(COALESCE(sb.final_amount, sb.total_amount) * 0.30, 2)) AS deposit_amount,
                            SUM(CASE WHEN sb.status <> 'HOLD' THEN 1 ELSE 0 END) AS invalid_booking_count,
                            SUM(CASE WHEN sb.hold_expires_at > GETDATE() THEN 0 ELSE 1 END) AS hold_expired_count
                     FROM bookings sb WITH (UPDLOCK, HOLDLOCK)
@@ -284,6 +299,7 @@ public class PaymentDAO {
             conn.setAutoCommit(false);
             try {
                 BigDecimal amount;
+                Integer voucherId;
                 try (PreparedStatement ps = conn.prepareStatement(selectBooking)) {
                     ps.setLong(1, bookingId);
                     ps.setLong(2, customerId);
@@ -300,8 +316,14 @@ public class PaymentDAO {
                         if (rs.getInt("has_success") == 1) {
                             throw new IllegalArgumentException("Booking n\u00e0y \u0111\u00e3 \u0111\u01b0\u1ee3c thanh to\u00e1n.");
                         }
+                        int selectedVoucherId = rs.getInt("voucher_id");
+                        voucherId = rs.wasNull() ? null : selectedVoucherId;
                         amount = rs.getBigDecimal("deposit_amount");
                     }
+                }
+
+                if (voucherId != null && voucherDAO.hasCustomerUsedVoucher(voucherId, customerId, conn)) {
+                    throw new IllegalArgumentException("B\u1ea1n \u0111\u00e3 s\u1eed d\u1ee5ng m\u00e3 gi\u1ea3m gi\u00e1 n\u00e0y.");
                 }
 
                 if (amount == null || amount.signum() <= 0) {
@@ -767,6 +789,7 @@ public class PaymentDAO {
                         ps.executeUpdate();
                     }
                 }
+                recordVoucherUsage(conn, bookingIds, payment);
                 insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
 
                 conn.commit();
@@ -1208,6 +1231,45 @@ public class PaymentDAO {
             }
         }
         return bookingIds;
+    }
+
+    private void recordVoucherUsage(Connection conn, List<Long> bookingIds, PaymentLock payment) throws SQLException {
+        Map<Integer, Long> voucherBookingIds = new LinkedHashMap<>();
+        for (Long bookingId : bookingIds) {
+            Integer voucherId = getVoucherIdForBooking(conn, bookingId);
+            if (voucherId != null) {
+                voucherBookingIds.putIfAbsent(voucherId, bookingId);
+            }
+        }
+
+        for (Map.Entry<Integer, Long> entry : voucherBookingIds.entrySet()) {
+            int voucherId = entry.getKey();
+            long bookingId = entry.getValue();
+            if (!voucherDAO.recordUsage(voucherId, payment.customerId(), bookingId, payment.paymentId(), conn)) {
+                throw new SQLException("Khach hang da su dung voucher nay.");
+            }
+            if (!voucherDAO.incrementUsed(voucherId, conn)) {
+                throw new SQLException("Voucher khong con luot su dung de xac nhan thanh toan.");
+            }
+        }
+    }
+
+    private Integer getVoucherIdForBooking(Connection conn, Long bookingId) throws SQLException {
+        String sql = """
+                SELECT voucher_id
+                FROM bookings
+                WHERE booking_id = ?
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                int voucherId = rs.getInt("voucher_id");
+                return rs.wasNull() ? null : voucherId;
+            }
+        }
     }
 
     private Long findPaymentIdByTransactionRef(Connection conn, String transactionRef) throws SQLException {

@@ -150,6 +150,10 @@
     boolean holdActive = "HOLD".equals(booking.getStatus())
             && booking.getHoldExpiresAt() != null
             && booking.getHoldExpiresAt().isAfter(LocalDateTime.now());
+    BigDecimal discountAmount = booking.getDiscountAmount() == null ? BigDecimal.ZERO : booking.getDiscountAmount();
+    BigDecimal finalAmount = booking.getFinalAmount() != null ? booking.getFinalAmount() : booking.getTotalAmount();
+    boolean hasVoucher = booking.getVoucherCode() != null && !booking.getVoucherCode().isBlank();
+    boolean hasDiscount = discountAmount.compareTo(BigDecimal.ZERO) > 0;
 %>
 
 <!DOCTYPE html>
@@ -257,8 +261,24 @@
                     <p class="text-muted">&#272;&#432;a m&#227; n&#224;y cho nh&#226;n vi&#234;n s&#226;n &#273;&#7875; check-in.</p>
                     <hr>
                     <div class="d-flex justify-content-between mb-2">
-                        <span>Ph&#237; s&#226;n</span>
+                        <span>Gi&#225; g&#7889;c</span>
                         <strong><%= money(booking.getOriginalPrice()) %></strong>
+                    </div>
+                    <% if (hasVoucher) { %>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Mã giảm giá</span>
+                        <strong><%= esc(booking.getVoucherCode()) %></strong>
+                    </div>
+                    <% } %>
+                    <% if (hasDiscount) { %>
+                    <div class="d-flex justify-content-between mb-2 text-success">
+                        <span>Gi&#7843;m gi&#225;</span>
+                        <strong>-<%= money(discountAmount) %></strong>
+                    </div>
+                    <% } %>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>T&#7893;ng sau gi&#7843;m</span>
+                        <strong><%= money(finalAmount) %></strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>S&#7889; ti&#7873;n c&#7885;c ph&#7843;i &#273;&#243;ng</span>

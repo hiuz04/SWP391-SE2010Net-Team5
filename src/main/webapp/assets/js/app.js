@@ -20,7 +20,7 @@
 
     ],
     admin: [
-      ['Dashboard','admin/dashboard'], ['Người dùng','admin/users'], ['Cài đặt','admin/settings']
+      ['Dashboard','admin/dashboard'], ['Người dùng','admin/users'], ['Mã giảm giá','admin/vouchers'], ['Cài đặt','admin/settings']
     ]
   };
 
