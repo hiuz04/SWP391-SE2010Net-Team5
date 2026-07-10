@@ -212,6 +212,24 @@ public class WorkShiftServlet extends HttpServlet {
         return "Ca gãy";
     }
 
+    private String getFacilityShortName(String fullName) {
+        if (fullName == null || fullName.trim().isEmpty()) {
+            return "";
+        }
+        String name = fullName.trim();
+        if (name.toLowerCase().startsWith("sân bóng ")) {
+            name = name.substring(9).trim();
+        }
+        String[] parts = name.split("\\s+");
+        if (parts.length >= 2) {
+            if (parts.length >= 3 && "Hồ".equalsIgnoreCase(parts[0]) && "Chí".equalsIgnoreCase(parts[1]) && "Minh".equalsIgnoreCase(parts[2])) {
+                return "Hồ Chí Minh";
+            }
+            return parts[0] + " " + parts[1];
+        }
+        return name;
+    }
+
     private void handleCreateShift(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         long facilityId = Long.parseLong(req.getParameter("facilityId"));
         String startStr = req.getParameter("startTime");
@@ -220,7 +238,15 @@ public class WorkShiftServlet extends HttpServlet {
 
         LocalTime startTime = parseTime(startStr);
         LocalTime endTime = parseTime(endStr);
-        String shiftName = determineShiftName(startTime, endTime);
+        String baseName = determineShiftName(startTime, endTime);
+        
+        com.swp.dao.FacilityDAO facilityDAO = new com.swp.dao.FacilityDAO();
+        com.swp.model.Facility facility = facilityDAO.getFacilityDataByID(facilityId);
+        String suffix = "";
+        if (facility != null) {
+            suffix = " " + getFacilityShortName(facility.getFacilityName());
+        }
+        String shiftName = baseName + suffix;
 
         String mode = req.getParameter("mode");
         if ("batch".equals(mode)) {
@@ -359,7 +385,14 @@ public class WorkShiftServlet extends HttpServlet {
         LocalDate shiftDate = LocalDate.parse(dateStr);
         LocalTime startTime = parseTime(startStr);
         LocalTime endTime = parseTime(endStr);
-        String shiftName = determineShiftName(startTime, endTime);
+        String baseName = determineShiftName(startTime, endTime);
+        com.swp.dao.FacilityDAO facilityDAO = new com.swp.dao.FacilityDAO();
+        com.swp.model.Facility facility = facilityDAO.getFacilityDataByID(facilityId);
+        String suffix = "";
+        if (facility != null) {
+            suffix = " " + getFacilityShortName(facility.getFacilityName());
+        }
+        String shiftName = baseName + suffix;
 
         if (workShiftDAO.hasOverlappingShiftAtFacility(facilityId, shiftDate, startTime, endTime, shiftId)) {
             writeError(resp, "Cơ sở này đã được phân ca trực trùng khung giờ này trong ngày.");
@@ -517,24 +550,37 @@ public class WorkShiftServlet extends HttpServlet {
             return null;
         }
         timeStr = timeStr.trim().toUpperCase();
-        
+
         boolean pm = timeStr.contains("CH") || timeStr.contains("PM");
         boolean am = timeStr.contains("SA") || timeStr.contains("AM");
-        
+
+        if (timeStr.contains(" ")) {
+            String[] parts = timeStr.split(" ");
+            for (String part : parts) {
+                if (part.contains(":")) {
+                    timeStr = part;
+                    break;
+                }
+            }
+        }
+        if (timeStr.contains(".")) {
+            timeStr = timeStr.split("\\.")[0];
+        }
+
         String clean = timeStr.replaceAll("[^0-9:]", "").trim();
         if (clean.isEmpty()) return null;
-        
+
         String[] parts = clean.split(":");
         int hour = Integer.parseInt(parts[0]);
         int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
         int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
-        
+
         if (pm) {
             if (hour < 12) hour += 12;
         } else if (am) {
             if (hour == 12) hour = 0;
         }
-        
+
         return LocalTime.of(hour, min, sec);
     }
 

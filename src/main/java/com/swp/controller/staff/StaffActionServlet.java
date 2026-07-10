@@ -156,6 +156,23 @@ public class StaffActionServlet extends HttpServlet {
         }
 
         long bookingId = Long.parseLong(bookingIdStr.trim());
+
+        // Security check: Verify that the staff's current shift facility matches the booking's facility
+        User user = getSessionUser(req);
+        if (user != null && user.getRoleId() == ROLE_STAFF) {
+            java.util.Map<String, Object> shift = staffDAO.getCurrentShift(staffId);
+            java.util.Map<String, Object> booking = staffDAO.getBookingDetailForCheckin(bookingId);
+            if (!shift.isEmpty() && !booking.isEmpty()) {
+                long staffFacilityId = (Long) shift.get("facilityId");
+                Long bookingFacilityId = (Long) booking.get("facilityId");
+                if (bookingFacilityId != null && bookingFacilityId != staffFacilityId) {
+                    resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    write(resp, "{\"error\":\"Lượt đặt sân này thuộc cơ sở khác. Bạn không thể thực hiện check-in.\"}");
+                    return;
+                }
+            }
+        }
+
         boolean success = staffDAO.checkinBooking(bookingId, staffId, note);
 
         if (success) {
@@ -274,9 +291,20 @@ public class StaffActionServlet extends HttpServlet {
         timeStr = timeStr.trim().toUpperCase();
 
         boolean pm = timeStr.contains("CH") || timeStr.contains("PM");
+        boolean am = timeStr.contains("SA") || timeStr.contains("AM");
 
-        if (timeStr.contains(" ")) timeStr = timeStr.split(" ")[1];
-        if (timeStr.contains(".")) timeStr = timeStr.split("\\.")[0];
+        if (timeStr.contains(" ")) {
+            String[] parts = timeStr.split(" ");
+            for (String part : parts) {
+                if (part.contains(":")) {
+                    timeStr = part;
+                    break;
+                }
+            }
+        }
+        if (timeStr.contains(".")) {
+            timeStr = timeStr.split("\\.")[0];
+        }
 
         String clean = timeStr.replaceAll("[^0-9:]", "").trim();
         if (clean.isEmpty()) return null;
@@ -286,10 +314,10 @@ public class StaffActionServlet extends HttpServlet {
         int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
         int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
 
-        if (pm && hour < 12) {
-            hour += 12;
-        } else if (!pm && hour == 12) {
-            hour = 0;
+        if (pm) {
+            if (hour < 12) hour += 12;
+        } else if (am) {
+            if (hour == 12) hour = 0;
         }
 
         return java.time.LocalTime.of(hour, min, sec);

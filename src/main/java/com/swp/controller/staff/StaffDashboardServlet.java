@@ -216,19 +216,43 @@ public class StaffDashboardServlet extends HttpServlet {
                 .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
     }
 
-    private static LocalTime parseTime(String s) {
-        if (s == null) return LocalTime.MIDNIGHT;
-        // If it's a full DATETIME string (contains space), extract the time part
-        if (s.contains(" ")) {
-            s = s.split(" ")[1];
+    private static LocalTime parseTime(String timeStr) {
+        if (timeStr == null || timeStr.trim().isEmpty()) {
+            return LocalTime.MIDNIGHT;
         }
-        // SQL Server returns "HH:mm:ss" or "HH:mm:ss.n…"; normalise to HH:mm
-        if (s.contains(".")) s = s.substring(0, s.indexOf('.'));
-        // Trim to HH:mm if seconds are present
-        String[] parts = s.split(":");
-        int h = Integer.parseInt(parts[0]);
-        int m = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
-        return LocalTime.of(h, m);
+        timeStr = timeStr.trim().toUpperCase();
+
+        boolean pm = timeStr.contains("CH") || timeStr.contains("PM");
+        boolean am = timeStr.contains("SA") || timeStr.contains("AM");
+
+        if (timeStr.contains(" ")) {
+            String[] parts = timeStr.split(" ");
+            for (String part : parts) {
+                if (part.contains(":")) {
+                    timeStr = part;
+                    break;
+                }
+            }
+        }
+        if (timeStr.contains(".")) {
+            timeStr = timeStr.split("\\.")[0];
+        }
+
+        String clean = timeStr.replaceAll("[^0-9:]", "").trim();
+        if (clean.isEmpty()) return LocalTime.MIDNIGHT;
+
+        String[] parts = clean.split(":");
+        int hour = Integer.parseInt(parts[0]);
+        int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+        int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+
+        if (pm) {
+            if (hour < 12) hour += 12;
+        } else if (am) {
+            if (hour == 12) hour = 0;
+        }
+
+        return LocalTime.of(hour, min, sec);
     }
 
     private static long toSeconds(LocalTime from, LocalTime to) {

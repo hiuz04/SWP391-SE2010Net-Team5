@@ -202,7 +202,7 @@
                       <span><%= fieldName %></span>
                       <span class="badge <%= fieldBadgeClass %> field-badge align-self-start mt-1" 
                             style="font-size:0.65rem;"
-                            onclick="<%= isUpcomingShift ? "alert('Ca trực chưa bắt đầu. Bạn không thể thay đổi trạng thái sân.')" : (isEndedShift ? "alert('Ca trực đã kết thúc. Bạn không thể thay đổi trạng thái sân.')" : "openFieldStatusModal('" + fieldId + "', '" + fieldName + "', '" + fieldStatus + "')") %>">
+                            onclick="<%= isUpcomingShift ? "showToast('Ca trực chưa bắt đầu. Bạn không thể thay đổi trạng thái sân.', 'warning')" : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thay đổi trạng thái sân.', 'danger')" : "openFieldStatusModal('" + fieldId + "', '" + fieldName + "', '" + fieldStatus + "')") %>">
                         <%= fieldBadgeText %> <i class="bi bi-pencil-square ms-1"></i>
                       </span>
                     </div>
@@ -237,7 +237,7 @@
                           LocalTime bEnd = LocalTime.parse(eTimeVal);
 
                           // Check overlap
-                          if (!bStart.isAfter(slotTimeEnd) && !bEnd.isBefore(slotTimeStart)) {
+                          if (!bStart.isAfter(slotTimeEnd) && bEnd.isAfter(slotTimeStart)) {
                             foundBooking = b;
                             break;
                           }
@@ -265,14 +265,14 @@
                           cellClass = "status-booked-confirmed";
                           cellText = bCode + " - " + custName;
                           cellOnclick = isUpcomingShift 
-                             ? "alert('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.')" 
-                             : (isEndedShift ? "alert('Ca trực đã kết thúc. Bạn không thể thao tác.')" : "location.href='" + ctx + "/staff/checkin?id=" + bId + "'");
+                             ? "showToast('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.', 'warning')" 
+                             : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thao tác.', 'danger')" : "location.href='" + ctx + "/staff/checkin?id=" + bId + "'");
                         } else if ("CHECKED_IN".equals(bStatus)) {
                           cellClass = "status-booked-checkedin";
                           cellText = bCode + " - " + custName;
                           cellOnclick = isUpcomingShift 
-                             ? "alert('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.')" 
-                             : (isEndedShift ? "alert('Ca trực đã kết thúc. Bạn không thể thao tác.')" : "location.href='" + ctx + "/staff/checkout?id=" + bId + "'");
+                             ? "showToast('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.', 'warning')" 
+                             : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thao tác.', 'danger')" : "location.href='" + ctx + "/staff/checkout?id=" + bId + "'");
                         } else if ("COMPLETED".equals(bStatus)) {
                           cellClass = "status-booked-completed";
                           cellText = bCode + " - Xong";
@@ -451,6 +451,19 @@
   document.addEventListener('DOMContentLoaded', function() {
     const modalEl = document.getElementById('fieldStatusModal');
     if (modalEl) statusModal = new bootstrap.Modal(modalEl);
+    
+    <%
+      String errorParam = request.getParameter("error");
+      if (errorParam != null) {
+    %>
+      <% if ("facility_mismatch".equals(errorParam)) { %>
+        showToast("Lượt đặt sân này thuộc cơ sở khác. Bạn không thể thực hiện thao tác này.", "danger");
+      <% } else { %>
+        showToast("<%= errorParam %>", "danger");
+      <% } %>
+    <%
+      }
+    %>
   });
 
   function openFieldStatusModal(fieldId, fieldName, currentStatus) {
@@ -481,12 +494,13 @@
       
       if (data.success) {
         if (statusModal) statusModal.hide();
+        showToastAfterReload('Cập nhật trạng thái sân thành công!', 'success');
         window.location.reload();
       } else {
-        alert('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'));
+        showToast('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'), 'danger');
       }
     } catch (err) {
-      alert('Không thể cập nhật trạng thái sân: ' + err.message);
+      showToast('Không thể cập nhật trạng thái sân: ' + err.message, 'danger');
     }
   }
 </script>
