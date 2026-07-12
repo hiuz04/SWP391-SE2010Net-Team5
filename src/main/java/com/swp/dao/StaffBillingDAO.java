@@ -12,12 +12,23 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 public class StaffBillingDAO {
+
+    private static final BigDecimal DEFAULT_OVERTIME_FEE_PER_MINUTE = BigDecimal.valueOf(5000);
+    private static final String STATUS_CHECKED_IN = "CHECKED_IN";
+    private static final String STATUS_CONFIRMED = "CONFIRMED";
+    private static final String STATUS_COMPLETED = "COMPLETED";
+    private static final String STATUS_CANCELLED = "CANCELLED";
+    private static final String STATUS_PENDING_CHECKOUT_PAYMENT = "PENDING_CHECKOUT_PAYMENT";
+    private static final String INVOICE_PENDING = "PENDING";
+    private static final String INVOICE_PAID = "PAID";
+    private static final String INVOICE_ACTIVE_LEGACY = "ACTIVE";
 
     public CheckoutView getCheckoutView(long bookingId) throws SQLException {
         String sql = """
@@ -36,7 +47,17 @@ public class StaffBillingDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, bookingId);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? mapCheckoutView(rs) : null;
+                if (!rs.next()) {
+                    return null;
+                }
+                CheckoutView view = mapCheckoutView(rs);
+                enrichCheckoutAmounts(view, getOvertimeFeePerMinute(conn), LocalDateTime.now());
+                InvoiceSummary invoice = findLatestCheckoutInvoice(conn, bookingId, false);
+                if (invoice != null) {
+                    view.setExistingInvoiceId(invoice.invoiceId());
+                    view.setExistingInvoiceStatus(invoice.status());
+                }
+                return view;
             }
         }
     }
@@ -63,7 +84,8 @@ public class StaffBillingDAO {
 
     public boolean hasPaidInvoice(long bookingId) throws SQLException {
         try (Connection conn = DBContext.getConnection()) {
-            return findPaidInvoiceForUpdate(conn, bookingId) != null;
+            InvoiceSummary invoice = findLatestCheckoutInvoice(conn, bookingId, false);
+            return invoice != null && isPaidInvoice(invoice.status());
         }
     }
 
@@ -85,42 +107,141 @@ public class StaffBillingDAO {
             try {
                 BookingLock booking = lockBooking(conn, bookingId);
                 if (booking == null) {
-                    throw new IllegalArgumentException("Không tìm thấy lịch đặt sân.");
-                }
-
-                InvoiceSummary existingInvoice = findPaidInvoiceForUpdate(conn, bookingId);
-                if (existingInvoice != null) {
-                    conn.commit();
-                    return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode());
-                }
-
-                if (!"CHECKED_IN".equals(booking.status())) {
-                    throw new IllegalArgumentException("Chỉ lịch đã nhận sân mới được trả sân.");
+                    throw new IllegalArgumentException("Khong tim thay lich dat san.");
                 }
                 if (staffRole && !hasActiveShiftForComplex(conn, actorId, booking.complexId())) {
-                    throw new SecurityException("Bạn không có ca làm việc đang hoạt động tại cơ sở này.");
+                    throw new SecurityException("Ban khong co ca lam viec dang hoat dong tai co so nay.");
                 }
 
+                InvoiceSummary existingInvoice = findLatestCheckoutInvoice(conn, bookingId, true);
+                if (existingInvoice != null) {
+                    if (INVOICE_PENDING.equals(existingInvoice.status())) {
+                        insertCheckoutPaymentNotification(conn, booking, existingInvoice.invoiceId(), existingInvoice.totalAmount());
+                        conn.commit();
+                        return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode(),
+                                "Da gui lai yeu cau thanh toan cho khach.");
+                    }
+                    conn.commit();
+                    return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode(),
+                            "Hoa don da duoc thanh toan.");
+                }
+
+                if (!STATUS_CHECKED_IN.equals(booking.status())) {
+                    throw new IllegalArgumentException("Chi lich da nhan san moi duoc checkout.");
+                }
+
+                LocalDateTime now = LocalDateTime.now();
+                if (booking.endTime() != null && now.isBefore(booking.endTime())) {
+                    throw new IllegalArgumentException("Chua den gio ket thuc tran, chua the tra san.");
+                }
+
+                BigDecimal overtimeFeePerMinute = getOvertimeFeePerMinute(conn);
+                long overtimeMinutes = calculateOvertimeMinutes(booking.endTime(), now);
+                BigDecimal overtimeFee = overtimeFeePerMinute.multiply(BigDecimal.valueOf(overtimeMinutes));
                 BigDecimal fieldTotal = safe(booking.fieldFee());
-                BigDecimal remainingAmount = calculateRemaining(fieldTotal, booking.depositAmount());
-
-                updateBookingCompleted(conn, bookingId);
-                releaseField(conn, booking.fieldId());
-                insertBookingStatusLog(conn, booking, actorId, "Trả sân hoàn tất.");
-
+                BigDecimal subtotal = fieldTotal.add(overtimeFee);
+                BigDecimal finalAmount = maxZero(subtotal.subtract(safe(booking.depositAmount())));
                 String invoiceCode = generateInvoiceCode(bookingId);
+
+                if (finalAmount.signum() == 0) {
+                    long invoiceId = insertInvoice(
+                            conn,
+                            invoiceCode,
+                            booking,
+                            actorId,
+                            subtotal,
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO,
+                            INVOICE_PAID,
+                            overtimeMinutes,
+                            overtimeFee
+                    );
+                    updateBookingStatus(conn, bookingId, STATUS_CHECKED_IN, STATUS_COMPLETED);
+                    releaseField(conn, booking.fieldId());
+                    insertBookingStatusLog(conn, booking.bookingId(), STATUS_CHECKED_IN, STATUS_COMPLETED,
+                            actorId, "Checkout completed with zero amount due.");
+                    conn.commit();
+                    return new CheckoutResult(invoiceId, bookingId, invoiceCode,
+                            "Booking khong con so tien phai thanh toan. Da hoan tat checkout.");
+                }
+
                 long invoiceId = insertInvoice(
                         conn,
                         invoiceCode,
                         booking,
                         actorId,
-                        fieldTotal,
-                        remainingAmount,
-                        remainingAmount
+                        subtotal,
+                        finalAmount,
+                        BigDecimal.ZERO,
+                        INVOICE_PENDING,
+                        overtimeMinutes,
+                        overtimeFee
                 );
+                updateBookingStatus(conn, bookingId, STATUS_CHECKED_IN, STATUS_PENDING_CHECKOUT_PAYMENT);
+                insertBookingStatusLog(conn, booking.bookingId(), STATUS_CHECKED_IN, STATUS_PENDING_CHECKOUT_PAYMENT,
+                        actorId, "Checkout payment request created.");
+                insertCheckoutPaymentNotification(conn, booking, invoiceId, finalAmount);
 
                 conn.commit();
-                return new CheckoutResult(invoiceId, bookingId, invoiceCode);
+                return new CheckoutResult(invoiceId, bookingId, invoiceCode,
+                        "Da gui yeu cau thanh toan cho khach.");
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e);
+                throw e;
+            }
+        }
+    }
+
+    public boolean cancelLateNoShowBooking(long bookingId, long staffId) throws SQLException {
+        return cancelLateNoShowBooking(bookingId, staffId, true);
+    }
+
+    public boolean cancelLateNoShowBooking(long bookingId, long actorId, boolean staffRole) throws SQLException {
+        try (Connection conn = DBContext.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                BookingLock booking = lockBooking(conn, bookingId);
+                if (booking == null) {
+                    throw new IllegalArgumentException("Khong tim thay lich dat san.");
+                }
+                if (!STATUS_CONFIRMED.equals(booking.status())) {
+                    throw new IllegalArgumentException("Chi booking da xac nhan va chua check-in moi co the huy no-show.");
+                }
+                if (booking.startTime() == null || LocalDateTime.now().isBefore(booking.startTime().plusMinutes(30))) {
+                    throw new IllegalArgumentException("Booking chua qua 30 phut ke tu gio bat dau.");
+                }
+                if (staffRole && !hasActiveShiftForComplex(conn, actorId, booking.complexId())) {
+                    throw new SecurityException("Ban khong co ca lam viec dang hoat dong tai co so nay.");
+                }
+
+                String update = """
+                        UPDATE bookings
+                        SET status = 'CANCELLED',
+                            cancellation_reason = 'NO_SHOW_LATE_30_MINUTES',
+                            cancelled_at = GETDATE(),
+                            updated_at = GETDATE()
+                        WHERE booking_id = ?
+                          AND status = 'CONFIRMED'
+                        """;
+                try (PreparedStatement ps = conn.prepareStatement(update)) {
+                    ps.setLong(1, bookingId);
+                    if (ps.executeUpdate() != 1) {
+                        throw new SQLException("Khong cap nhat duoc booking no-show.");
+                    }
+                }
+
+                releaseField(conn, booking.fieldId());
+                insertBookingStatusLog(conn, booking.bookingId(), STATUS_CONFIRMED, STATUS_CANCELLED,
+                        actorId, "NO_SHOW_LATE_30_MINUTES");
+                insertNotification(conn,
+                        booking.customerId(),
+                        "Booking da bi huy do den muon",
+                        "Booking " + booking.bookingCode() + " da bi huy vi khach chua check-in sau 30 phut ke tu gio bat dau.",
+                        "BOOKING",
+                        booking.bookingId());
+
+                conn.commit();
+                return true;
             } catch (SQLException | RuntimeException e) {
                 rollback(conn, e);
                 throw e;
@@ -131,22 +252,35 @@ public class StaffBillingDAO {
     private String invoiceViewSql(String predicate) {
         return """
                 SELECT TOP 1
-                       i.invoice_id, i.invoice_code, i.status AS invoice_status, i.issued_at,
+                       i.invoice_id, i.invoice_code, i.customer_id, i.status AS invoice_status, i.issued_at,
                        i.subtotal, i.total_amount, i.paid_amount,
-                       b.booking_id, b.booking_code, b.start_time, b.end_time,
-                       b.total_amount AS field_fee, b.deposit_amount,
+                       i.overtime_minutes, i.overtime_fee,
+                       b.booking_id, b.booking_code, b.status AS booking_status, b.start_time, b.end_time,
+                       b.field_id, b.total_amount AS field_fee, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_name,
                        fc.complex_id, fc.complex_name, fc.address, fc.ward, fc.district, fc.city,
-                       staff.full_name AS staff_name
+                       staff.full_name AS staff_name,
+                       lp.payment_status,
+                       lp.payment_method_name
                 FROM invoices i
                 JOIN bookings b ON i.booking_id = b.booking_id
                 JOIN users u ON i.customer_id = u.user_id
                 JOIN fields fi ON b.field_id = fi.field_id
                 JOIN football_complexes fc ON b.complex_id = fc.complex_id
                 LEFT JOIN users staff ON i.staff_id = staff.user_id
+                OUTER APPLY (
+                    SELECT TOP 1 p.status AS payment_status,
+                           pm.method_name AS payment_method_name
+                    FROM payments p
+                    LEFT JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
+                    WHERE p.booking_id = i.booking_id
+                      AND p.customer_id = i.customer_id
+                      AND p.payment_type = 'CHECKOUT'
+                    ORDER BY p.created_at DESC, p.payment_id DESC
+                ) lp
                 WHERE %s
-                  AND i.status IN ('PAID', 'ACTIVE')
+                  AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
                 ORDER BY i.issued_at DESC, i.invoice_id DESC
                 """.formatted(predicate);
     }
@@ -154,7 +288,7 @@ public class StaffBillingDAO {
     private BookingLock lockBooking(Connection conn, long bookingId) throws SQLException {
         String sql = """
                 SELECT booking_id, booking_code, customer_id, complex_id, field_id,
-                       status, total_amount, deposit_amount
+                       status, start_time, end_time, total_amount, deposit_amount
                 FROM bookings WITH (UPDLOCK, HOLDLOCK)
                 WHERE booking_id = ?
                 """;
@@ -171,6 +305,8 @@ public class StaffBillingDAO {
                         rs.getLong("complex_id"),
                         rs.getLong("field_id"),
                         rs.getString("status"),
+                        toLocalDateTime(rs.getTimestamp("start_time")),
+                        toLocalDateTime(rs.getTimestamp("end_time")),
                         rs.getBigDecimal("total_amount"),
                         rs.getBigDecimal("deposit_amount")
                 );
@@ -178,37 +314,94 @@ public class StaffBillingDAO {
         }
     }
 
-    private InvoiceSummary findPaidInvoiceForUpdate(Connection conn, long bookingId) throws SQLException {
+    private InvoiceSummary findLatestCheckoutInvoice(Connection conn, long bookingId, boolean forUpdate) throws SQLException {
+        String lock = forUpdate ? " WITH (UPDLOCK, HOLDLOCK)" : "";
         String sql = """
-                SELECT TOP 1 invoice_id, invoice_code
-                FROM invoices WITH (UPDLOCK, HOLDLOCK)
+                SELECT TOP 1 invoice_id, invoice_code, status, total_amount
+                FROM invoices%s
                 WHERE booking_id = ?
-                  AND status IN ('PAID', 'ACTIVE')
+                  AND status IN ('PENDING', 'PAID', 'ACTIVE')
                 ORDER BY issued_at DESC, invoice_id DESC
-                """;
+                """.formatted(lock);
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, bookingId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
                     return null;
                 }
-                return new InvoiceSummary(rs.getLong("invoice_id"), rs.getString("invoice_code"));
+                return new InvoiceSummary(
+                        rs.getLong("invoice_id"),
+                        rs.getString("invoice_code"),
+                        rs.getString("status"),
+                        safe(rs.getBigDecimal("total_amount"))
+                );
             }
         }
     }
 
-    private void updateBookingCompleted(Connection conn, long bookingId) throws SQLException {
+    private void enrichCheckoutAmounts(CheckoutView view, BigDecimal overtimeFeePerMinute, LocalDateTime now) {
+        view.setCheckoutTime(now);
+        view.setOvertimeFeePerMinute(overtimeFeePerMinute);
+        long overtimeMinutes = calculateOvertimeMinutes(view.getEndTime(), now);
+        BigDecimal overtimeFee = overtimeFeePerMinute.multiply(BigDecimal.valueOf(overtimeMinutes));
+        BigDecimal subtotal = safe(view.getFieldFee()).add(overtimeFee);
+        BigDecimal finalAmount = maxZero(subtotal.subtract(safe(view.getDepositAmount())));
+
+        view.setOvertimeMinutes(overtimeMinutes);
+        view.setOvertimeFee(overtimeFee);
+        view.setSubtotal(subtotal);
+        view.setFinalAmount(finalAmount);
+        boolean allowed = view.getEndTime() == null || !now.isBefore(view.getEndTime());
+        view.setCheckoutAllowed(allowed);
+        if (!allowed) {
+            view.setCheckoutBlockedReason("Chua den gio ket thuc tran, chua the tra san.");
+        }
+    }
+
+    private long calculateOvertimeMinutes(LocalDateTime endTime, LocalDateTime now) {
+        if (endTime == null || now == null || !now.isAfter(endTime)) {
+            return 0;
+        }
+        long nanos = Duration.between(endTime, now).toNanos();
+        long minuteNanos = 60_000_000_000L;
+        return (nanos + minuteNanos - 1) / minuteNanos;
+    }
+
+    private BigDecimal getOvertimeFeePerMinute(Connection conn) {
+        String sql = """
+                SELECT setting_value
+                FROM system_settings
+                WHERE setting_key = 'CHECKOUT_OVERTIME_FEE_PER_MINUTE'
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                String raw = rs.getString("setting_value");
+                if (raw != null && !raw.isBlank()) {
+                    return new BigDecimal(raw.trim());
+                }
+            }
+        } catch (Exception ignored) {
+            return DEFAULT_OVERTIME_FEE_PER_MINUTE;
+        }
+        return DEFAULT_OVERTIME_FEE_PER_MINUTE;
+    }
+
+    private void updateBookingStatus(Connection conn, long bookingId, String oldStatus, String newStatus)
+            throws SQLException {
         String sql = """
                 UPDATE bookings
-                SET status = 'COMPLETED',
+                SET status = ?,
                     updated_at = GETDATE()
                 WHERE booking_id = ?
-                  AND status = 'CHECKED_IN'
+                  AND status = ?
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, bookingId);
+            ps.setString(1, newStatus);
+            ps.setLong(2, bookingId);
+            ps.setString(3, oldStatus);
             if (ps.executeUpdate() != 1) {
-                throw new IllegalArgumentException("Lịch đặt sân không còn hợp lệ để trả sân.");
+                throw new IllegalArgumentException("Booking khong con hop le de checkout.");
             }
         }
     }
@@ -234,7 +427,10 @@ public class StaffBillingDAO {
             Long staffId,
             BigDecimal subtotal,
             BigDecimal totalAmount,
-            BigDecimal paidAmount
+            BigDecimal paidAmount,
+            String status,
+            long overtimeMinutes,
+            BigDecimal overtimeFee
     ) throws SQLException {
         String sql = """
                 INSERT INTO invoices (
@@ -247,10 +443,12 @@ public class StaffBillingDAO {
                     total_amount,
                     paid_amount,
                     status,
-                    issued_at
+                    issued_at,
+                    overtime_minutes,
+                    overtime_fee
                 )
                 OUTPUT INSERTED.invoice_id
-                VALUES (?, ?, ?, ?, ?, 0, ?, ?, 'PAID', GETDATE())
+                VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, GETDATE(), ?, ?)
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, invoiceCode);
@@ -261,34 +459,80 @@ public class StaffBillingDAO {
             } else {
                 ps.setLong(4, staffId);
             }
-            ps.setBigDecimal(5, subtotal);
-            ps.setBigDecimal(6, totalAmount);
-            ps.setBigDecimal(7, paidAmount);
+            ps.setBigDecimal(5, safe(subtotal));
+            ps.setBigDecimal(6, safe(totalAmount));
+            ps.setBigDecimal(7, safe(paidAmount));
+            ps.setString(8, status);
+            ps.setLong(9, overtimeMinutes);
+            ps.setBigDecimal(10, safe(overtimeFee));
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
-                    throw new SQLException("Không thể tạo hóa đơn.");
+                    throw new SQLException("Khong the tao hoa don.");
                 }
                 return rs.getLong(1);
             }
         }
     }
 
-    private void insertBookingStatusLog(Connection conn, BookingLock booking, Long changedBy, String note)
+    private void insertCheckoutPaymentNotification(Connection conn, BookingLock booking, long invoiceId, BigDecimal finalAmount)
             throws SQLException {
+        insertNotification(conn,
+                booking.customerId(),
+                "Ban co hoa don can thanh toan",
+                "Booking " + booking.bookingCode() + " da duoc tra san. Vui long thanh toan so tien con lai "
+                        + moneyPlain(finalAmount) + ".",
+                "CHECKOUT_PAYMENT",
+                invoiceId);
+    }
+
+    private void insertNotification(
+            Connection conn,
+            long userId,
+            String title,
+            String message,
+            String type,
+            long referenceId
+    ) throws SQLException {
+        String sql = """
+                INSERT INTO notifications (
+                    user_id, title, message, notification_type, reference_id, is_read, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, 0, GETDATE())
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            ps.setString(2, title);
+            ps.setString(3, message);
+            ps.setString(4, type);
+            ps.setLong(5, referenceId);
+            ps.executeUpdate();
+        }
+    }
+
+    private void insertBookingStatusLog(
+            Connection conn,
+            long bookingId,
+            String oldStatus,
+            String newStatus,
+            Long changedBy,
+            String note
+    ) throws SQLException {
         String sql = """
                 INSERT INTO booking_status_logs (
                     booking_id, old_status, new_status, changed_by, note, created_at
                 )
-                VALUES (?, 'CHECKED_IN', 'COMPLETED', ?, ?, GETDATE())
+                VALUES (?, ?, ?, ?, ?, GETDATE())
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, booking.bookingId());
+            ps.setLong(1, bookingId);
+            ps.setString(2, oldStatus);
+            ps.setString(3, newStatus);
             if (changedBy == null) {
-                ps.setNull(2, Types.BIGINT);
+                ps.setNull(4, Types.BIGINT);
             } else {
-                ps.setLong(2, changedBy);
+                ps.setLong(4, changedBy);
             }
-            ps.setString(3, note);
+            ps.setString(5, note);
             ps.executeUpdate();
         }
     }
@@ -374,7 +618,9 @@ public class StaffBillingDAO {
         view.setIssuedAt(toLocalDateTime(rs.getTimestamp("issued_at")));
         view.setBookingId(rs.getLong("booking_id"));
         view.setBookingCode(rs.getString("booking_code"));
+        view.setCustomerId(rs.getLong("customer_id"));
         view.setComplexId(rs.getLong("complex_id"));
+        view.setFieldId(rs.getLong("field_id"));
         view.setCustomerName(rs.getString("customer_name"));
         view.setCustomerPhone(rs.getString("customer_phone"));
         view.setComplexName(rs.getString("complex_name"));
@@ -384,9 +630,14 @@ public class StaffBillingDAO {
         view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
         view.setFieldFee(rs.getBigDecimal("field_fee"));
         view.setDepositAmount(rs.getBigDecimal("deposit_amount"));
+        view.setOvertimeMinutes(rs.getLong("overtime_minutes"));
+        view.setOvertimeFee(rs.getBigDecimal("overtime_fee"));
         view.setSubtotal(rs.getBigDecimal("subtotal"));
         view.setTotalAmount(rs.getBigDecimal("total_amount"));
         view.setPaidAmount(rs.getBigDecimal("paid_amount"));
+        view.setBookingStatus(rs.getString("booking_status"));
+        view.setPaymentStatus(rs.getString("payment_status"));
+        view.setPaymentMethodName(rs.getString("payment_method_name"));
         view.setStaffName(rs.getString("staff_name"));
         return view;
     }
@@ -406,13 +657,20 @@ public class StaffBillingDAO {
         }
     }
 
-    private BigDecimal calculateRemaining(BigDecimal fieldTotal, BigDecimal deposit) {
-        BigDecimal remaining = safe(fieldTotal).subtract(safe(deposit));
-        return remaining.signum() < 0 ? BigDecimal.ZERO : remaining;
+    private BigDecimal maxZero(BigDecimal value) {
+        return safe(value).signum() < 0 ? BigDecimal.ZERO : safe(value);
     }
 
     private BigDecimal safe(BigDecimal value) {
         return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private boolean isPaidInvoice(String status) {
+        return INVOICE_PAID.equals(status) || INVOICE_ACTIVE_LEGACY.equals(status);
+    }
+
+    private String moneyPlain(BigDecimal value) {
+        return String.format("%,d VND", safe(value).longValue());
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
@@ -438,11 +696,18 @@ public class StaffBillingDAO {
             long complexId,
             long fieldId,
             String status,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
             BigDecimal fieldFee,
             BigDecimal depositAmount
     ) {
     }
 
-    private record InvoiceSummary(long invoiceId, String invoiceCode) {
+    private record InvoiceSummary(
+            long invoiceId,
+            String invoiceCode,
+            String status,
+            BigDecimal totalAmount
+    ) {
     }
 }

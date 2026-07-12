@@ -15,9 +15,11 @@ public class Booking implements Serializable {
     private Long recurringGroupId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private Integer voucherId;
     private BigDecimal originalPrice;
     private BigDecimal discountAmount;
     private BigDecimal totalAmount;
+    private BigDecimal finalAmount;
     private BigDecimal depositAmount;
     private String status;
     private LocalDateTime holdExpiresAt;
@@ -30,7 +32,7 @@ public class Booking implements Serializable {
     public Booking() {
     }
 
-    public Booking(Long bookingId, String bookingCode, Long customerId, Long complexId, Long fieldId, Long recurringGroupId, LocalDateTime startTime, LocalDateTime endTime, BigDecimal originalPrice, BigDecimal discountAmount, BigDecimal totalAmount, BigDecimal depositAmount, String status, LocalDateTime holdExpiresAt, String cancellationReason, LocalDateTime cancelledAt, String qrCode, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public Booking(Long bookingId, String bookingCode, Long customerId, Long complexId, Long fieldId, Long recurringGroupId, LocalDateTime startTime, LocalDateTime endTime,Integer voucherId, BigDecimal originalPrice, BigDecimal discountAmount, BigDecimal totalAmount, BigDecimal finalAmount, BigDecimal depositAmount, String status, LocalDateTime holdExpiresAt, String cancellationReason, LocalDateTime cancelledAt, String qrCode, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.bookingId = bookingId;
         this.bookingCode = bookingCode;
         this.customerId = customerId;
@@ -39,9 +41,11 @@ public class Booking implements Serializable {
         this.recurringGroupId = recurringGroupId;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.voucherId = voucherId;
         this.originalPrice = originalPrice;
         this.discountAmount = discountAmount;
         this.totalAmount = totalAmount;
+        this.finalAmount = finalAmount;
         this.depositAmount = depositAmount;
         this.status = status;
         this.holdExpiresAt = holdExpiresAt;
@@ -116,6 +120,14 @@ public class Booking implements Serializable {
         this.endTime = endTime;
     }
 
+    public Integer getVoucherId() {
+        return voucherId;
+    }
+
+    public void setVoucherId(Integer voucherId) {
+        this.voucherId = voucherId;
+    }
+
     public BigDecimal getOriginalPrice() {
         return originalPrice;
     }
@@ -138,6 +150,14 @@ public class Booking implements Serializable {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public BigDecimal getFinalAmount() {
+        return finalAmount;
+    }
+
+    public void setFinalAmount(BigDecimal finalAmount) {
+        this.finalAmount = finalAmount;
     }
 
     public BigDecimal getDepositAmount() {

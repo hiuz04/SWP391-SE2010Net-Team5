@@ -1,6 +1,7 @@
 package com.swp.controller.staff;
 
 import com.swp.dao.StaffDashboardDAO;
+import com.swp.dao.StaffBillingDAO;
 import com.swp.model.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -12,10 +13,11 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-@WebServlet({"/api/staff/checkin", "/api/staff/checkin/search", "/api/staff/field/update-status"})
+@WebServlet({"/api/staff/checkin", "/api/staff/checkin/search", "/api/staff/field/update-status", "/api/staff/no-show-cancel"})
 public class StaffActionServlet extends HttpServlet {
 
     private final StaffDashboardDAO staffDAO = new StaffDashboardDAO();
+    private final StaffBillingDAO billingDAO = new StaffBillingDAO();
     private static final int ROLE_STAFF = 3;
     private static final int ROLE_OWNER = 2;
 
@@ -134,6 +136,11 @@ public class StaffActionServlet extends HttpServlet {
                 return;
             }
 
+            if (path.startsWith("/api/staff/no-show-cancel")) {
+                handleNoShowCancel(req, resp, user);
+                return;
+            }
+
             resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
             write(resp, "{\"error\":\"Không tìm thấy API\"}");
         } catch (NumberFormatException e) {
@@ -182,6 +189,28 @@ public class StaffActionServlet extends HttpServlet {
             write(resp, "{\"success\":true}");
         } else {
             write(resp, "{\"error\":\"Không thể cập nhật trạng thái sân.\"}");
+        }
+    }
+
+    private void handleNoShowCancel(HttpServletRequest req, HttpServletResponse resp, User user) throws Exception {
+        String bookingIdStr = req.getParameter("bookingId");
+        if (bookingIdStr == null || bookingIdStr.trim().isEmpty()) {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            write(resp, "{\"error\":\"Ma booking khong hop le\"}");
+            return;
+        }
+
+        long bookingId = Long.parseLong(bookingIdStr.trim());
+        boolean success = billingDAO.cancelLateNoShowBooking(
+                bookingId,
+                user.getUserId(),
+                user.getRoleId() == ROLE_STAFF
+        );
+        if (success) {
+            write(resp, "{\"success\":true,\"message\":\"Da huy booking do khach den muon qua 30 phut.\"}");
+        } else {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            write(resp, "{\"error\":\"Khong the huy booking no-show.\"}");
         }
     }
 

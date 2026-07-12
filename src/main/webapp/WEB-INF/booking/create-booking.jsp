@@ -1,6 +1,7 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 
 <%@ page import="com.swp.model.Field" %>
+<%@ page import="com.swp.model.FieldType" %>
 <%@ page import="com.swp.model.dto.FieldScheduleSlot" %>
 <%@ page import="com.swp.model.User" %>
 
@@ -10,8 +11,32 @@
 
 <%@ page import="java.util.ArrayList" %>
 <%@ page import="java.util.LinkedHashMap" %>
+<%@ page import="java.util.LinkedHashSet" %>
 <%@ page import="java.util.List" %>
 <%@ page import="java.util.Map" %>
+<%@ page import="java.util.Set" %>
+
+<%!
+    private String esc(String value) {
+        if (value == null) return "";
+        return value.replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;").replace("\"", "&quot;")
+                .replace("'", "&#39;");
+    }
+
+    private boolean supportedFieldType(FieldType fieldType) {
+        if (fieldType == null) return false;
+        Integer players = fieldType.getNumberOfPlayers();
+        if (players != null && (players == 5 || players == 7 || players == 11)) {
+            return true;
+        }
+
+        String typeName = fieldType.getTypeName();
+        return "Sân 5".equalsIgnoreCase(typeName)
+                || "Sân 7".equalsIgnoreCase(typeName)
+                || "Sân 11".equalsIgnoreCase(typeName);
+    }
+%>
 
 <%
     String ctx = request.getContextPath();
@@ -22,6 +47,9 @@
     String error = (String) request.getAttribute("error");
 
     List<Field> fields = (List<Field>) request.getAttribute("fields");
+    List<FieldType> fieldTypes = (List<FieldType>) request.getAttribute("fieldTypes");
+    Map<Long, String> fieldTypeNameByFieldId =
+            (Map<Long, String>) request.getAttribute("fieldTypeNameByFieldId");
     List<String> timeHeaders = (List<String>) request.getAttribute("timeHeaders");
     Map<Long, List<FieldScheduleSlot>> scheduleMap =
             (Map<Long, List<FieldScheduleSlot>>) request.getAttribute("scheduleMap");
@@ -36,6 +64,14 @@
 
     if (fields == null) {
         fields = new ArrayList<>();
+    }
+
+    if (fieldTypes == null) {
+        fieldTypes = new ArrayList<>();
+    }
+
+    if (fieldTypeNameByFieldId == null) {
+        fieldTypeNameByFieldId = new LinkedHashMap<>();
     }
 
     if (timeHeaders == null) {
@@ -126,6 +162,19 @@
             background: #e1faee;
             font-weight: 600;
             color: #007444;
+        }
+
+        .field-name-text,
+        .field-type-label {
+            display: block;
+            line-height: 1.2;
+        }
+
+        .field-type-label {
+            margin-top: 2px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 500;
         }
 
         .time-header {
@@ -264,6 +313,45 @@
                     </div>
 
                     <div>
+                        <label for="fieldTypeFilter" class="form-label mb-1">Loại sân</label>
+                        <select id="fieldTypeFilter" class="form-select">
+                            <option value="">Tất cả loại sân</option>
+                            <%
+                                Set<String> renderedFieldTypes = new LinkedHashSet<>();
+                                for (FieldType fieldType : fieldTypes) {
+                                    if (!supportedFieldType(fieldType)) {
+                                        continue;
+                                    }
+
+                                    Integer players = fieldType.getNumberOfPlayers();
+                                    String typeName = fieldType.getTypeName();
+                                    if ((typeName == null || typeName.isBlank()) && players != null) {
+                                        typeName = "Sân " + players;
+                                    }
+
+                                    if (typeName != null && !typeName.isBlank()
+                                            && renderedFieldTypes.add(typeName)) {
+                            %>
+                            <option value="<%= esc(typeName) %>"><%= esc(typeName) %></option>
+                            <%
+                                    }
+                                }
+
+                                if (renderedFieldTypes.isEmpty()) {
+                                    for (String typeName : fieldTypeNameByFieldId.values()) {
+                                        if (typeName != null && !typeName.isBlank()
+                                                && renderedFieldTypes.add(typeName)) {
+                            %>
+                            <option value="<%= esc(typeName) %>"><%= esc(typeName) %></option>
+                            <%
+                                        }
+                                    }
+                                }
+                            %>
+                        </select>
+                    </div>
+
+                    <div>
                         <label for="bookingDate" class="form-label mb-1">Chọn ngày</label>
                         <input type="date"
                                id="bookingDate"
@@ -322,6 +410,11 @@
                     <%
                     } else {
                         for (Field field : fields) {
+                            String fieldTypeName = fieldTypeNameByFieldId.get(field.getFieldId());
+                            if (fieldTypeName == null || fieldTypeName.isBlank()) {
+                                fieldTypeName = "Chưa xác định";
+                            }
+
                             List<FieldScheduleSlot> slots = scheduleMap.get(field.getFieldId());
 
                             if (slots == null) {
@@ -329,8 +422,12 @@
                             }
                     %>
 
-                    <tr data-field-id="<%= field.getFieldId() %>">
-                        <td class="field-name-col"><%= field.getFieldName() %></td>
+                    <tr data-field-id="<%= field.getFieldId() %>"
+                        data-field-type="<%= esc(fieldTypeName) %>">
+                        <td class="field-name-col">
+                            <span class="field-name-text"><%= esc(field.getFieldName()) %></span>
+                            <span class="field-type-label">Loại sân: <%= esc(fieldTypeName) %></span>
+                        </td>
 
                         <%
                             for (FieldScheduleSlot slot : slots) {
@@ -360,7 +457,8 @@
                             title="<%= title %>"
                             data-status="<%= status %>"
                             data-field-id="<%= slot.getFieldId() %>"
-                            data-field-name="<%= slot.getFieldName() %>"
+                            data-field-name="<%= esc(slot.getFieldName()) %>"
+                            data-field-type="<%= esc(fieldTypeName) %>"
                             data-start="<%= startValue %>"
                             data-end="<%= endValue %>"
                             data-start-label="<%= startLabel %>"
@@ -412,6 +510,7 @@
 
     const bookingDateInput = document.getElementById('bookingDate');
     const repeatTypeInput = document.getElementById('repeatType');
+    const fieldTypeFilter = document.getElementById('fieldTypeFilter');
     const selectedInfo = document.getElementById('selectedInfo');
     const continueButton = document.getElementById('continueButton');
 
@@ -433,6 +532,10 @@
             updateSelectedInfo();
         }
     });
+
+    if (fieldTypeFilter) {
+        fieldTypeFilter.addEventListener('change', applyFieldTypeFilter);
+    }
 
     document.querySelectorAll('.slot-cell').forEach(cell => {
         cell.addEventListener('click', function () {
@@ -506,6 +609,31 @@
         document.querySelectorAll('.slot-cell').forEach(cell => {
             cell.classList.remove('selected-range', 'selected-start', 'selected-end');
         });
+        startCell = null;
+        endCell = null;
+    }
+
+    function resetSelectedInfo() {
+        selectedInfo.textContent = 'Bạn chưa chọn khung giờ.';
+    }
+
+    function applyFieldTypeFilter() {
+        const selectedFieldType = fieldTypeFilter.value;
+        let selectedRowHidden = false;
+
+        document.querySelectorAll('.schedule-table tbody tr[data-field-id]').forEach(row => {
+            const matches = !selectedFieldType || row.dataset.fieldType === selectedFieldType;
+            row.classList.toggle('d-none', !matches);
+
+            if (!matches && startCell !== null && row === startCell.closest('tr')) {
+                selectedRowHidden = true;
+            }
+        });
+
+        if (selectedRowHidden) {
+            clearSelection();
+            resetSelectedInfo();
+        }
     }
 
     continueButton.addEventListener('click', function () {

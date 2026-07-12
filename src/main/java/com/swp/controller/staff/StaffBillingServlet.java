@@ -373,6 +373,7 @@ public class StaffBillingServlet extends HttpServlet {
                 + ",\"bookingId\":" + result.getBookingId()
                 + ",\"invoiceId\":" + result.getInvoiceId()
                 + ",\"invoiceCode\":\"" + escapeJson(result.getInvoiceCode()) + "\""
+                + ",\"message\":\"" + escapeJson(result.getMessage()) + "\""
                 + ",\"redirectUrl\":\"" + escapeJson(redirectUrl) + "\""
                 + "}");
         out.flush();

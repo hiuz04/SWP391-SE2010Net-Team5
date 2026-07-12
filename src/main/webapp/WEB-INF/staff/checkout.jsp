@@ -17,11 +17,11 @@
 
   private String money(BigDecimal amount) {
     if (amount == null) amount = BigDecimal.ZERO;
-    return String.format("%,d đ", amount.longValue());
+    return String.format("%,d VND", amount.longValue());
   }
 
-  private String date(LocalDateTime value) {
-    return value == null ? "" : value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+  private String dateTime(LocalDateTime value) {
+    return value == null ? "" : value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
   }
 
   private String time(LocalDateTime value) {
@@ -36,6 +36,7 @@
 
     CheckoutView checkout = (CheckoutView) request.getAttribute("checkout");
     String error = (String) request.getAttribute("error");
+    boolean canConfirm = checkout != null && checkout.isCheckoutAllowed();
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -76,8 +77,8 @@
   <div class="container checkout-shell">
     <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
       <div>
-        <h1 class="fw-bold mb-1">Xác nhận trả sân</h1>
-        <p class="text-muted mb-0">Hoàn tất lịch đã nhận sân và tạo hóa đơn cho số tiền còn lại.</p>
+        <h1 class="fw-bold mb-1">Trả sân</h1>
+        <p class="text-muted mb-0">Tính phụ thu quá giờ và gửi yêu cầu thanh toán hóa đơn còn lại cho khách.</p>
       </div>
       <a href="<%= ctx %>/staff/schedule" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left me-1"></i>Quay lại lịch
@@ -95,28 +96,34 @@
       <div class="panel p-5 text-center">
         <i class="bi bi-calendar2-week display-4 text-muted"></i>
         <h4 class="fw-bold mt-3">Chọn lịch cần trả sân</h4>
-        <p class="text-muted mb-4">Vui lòng chọn một lịch đang chơi từ lịch trong ngày.</p>
+        <p class="text-muted mb-4">Vui lòng chọn một lịch đang sử dụng từ lịch trong ngày.</p>
         <a href="<%= ctx %>/staff/schedule" class="btn btn-sf-primary px-4">Xem lịch sân</a>
       </div>
     <% } else { %>
+      <% if (!canConfirm) { %>
+        <div class="alert alert-warning border-0 shadow-sm">
+          <i class="bi bi-clock-history me-2"></i>Chưa đến giờ kết thúc trận, chưa thể trả sân.
+        </div>
+      <% } %>
+
       <div class="row g-4 align-items-start">
         <div class="col-lg-8">
           <div class="panel p-4">
             <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-4">
               <div>
-                <span class="badge bg-info-subtle text-info fw-bold mb-2">Đang chơi</span>
+                <span class="badge bg-info-subtle text-info fw-bold mb-2">Đang sử dụng</span>
                 <h4 class="fw-bold mb-0">#<%= esc(checkout.getBookingCode()) %></h4>
               </div>
-              <span class="text-muted small"><%= esc(date(checkout.getStartTime())) %> · <%= esc(time(checkout.getStartTime())) %> - <%= esc(time(checkout.getEndTime())) %></span>
+              <span class="text-muted small"><%= esc(dateTime(checkout.getStartTime())) %> - <%= esc(time(checkout.getEndTime())) %></span>
             </div>
 
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted">Mã đặt sân</label>
+                <label class="form-label small fw-bold text-muted">Mã booking</label>
                 <input class="form-control" value="<%= esc(checkout.getBookingCode()) %>" readonly>
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted">Tên khách hàng</label>
+                <label class="form-label small fw-bold text-muted">Khách hàng</label>
                 <input class="form-control" value="<%= esc(checkout.getCustomerName()) %>" readonly>
               </div>
               <div class="col-md-6">
@@ -124,36 +131,48 @@
                 <input class="form-control" value="<%= esc(checkout.getCustomerPhone()) %>" readonly>
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted">Tên cơ sở</label>
+                <label class="form-label small fw-bold text-muted">Cụm sân</label>
                 <input class="form-control" value="<%= esc(checkout.getComplexName()) %>" readonly>
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted">Tên sân</label>
+                <label class="form-label small fw-bold text-muted">Sân</label>
                 <input class="form-control" value="<%= esc(checkout.getFieldName()) %>" readonly>
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted">Ngày đặt sân</label>
-                <input class="form-control" value="<%= esc(date(checkout.getStartTime())) %>" readonly>
-              </div>
-              <div class="col-md-6">
                 <label class="form-label small fw-bold text-muted">Giờ bắt đầu</label>
-                <input class="form-control" value="<%= esc(time(checkout.getStartTime())) %>" readonly>
+                <input class="form-control" value="<%= esc(dateTime(checkout.getStartTime())) %>" readonly>
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted">Giờ kết thúc</label>
-                <input class="form-control" value="<%= esc(time(checkout.getEndTime())) %>" readonly>
+                <label class="form-label small fw-bold text-muted">Giờ kết thúc dự kiến</label>
+                <input class="form-control" value="<%= esc(dateTime(checkout.getEndTime())) %>" readonly>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted">Giờ checkout thực tế</label>
+                <input class="form-control" value="<%= esc(dateTime(checkout.getCheckoutTime())) %>" readonly>
               </div>
               <div class="col-md-4">
-                <label class="form-label small fw-bold text-muted">Tổng tiền thuê sân</label>
+                <label class="form-label small fw-bold text-muted">Tổng tiền sân</label>
                 <input class="form-control readonly-money" value="<%= money(checkout.getFieldFee()) %>" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted">Phút quá giờ</label>
+                <input class="form-control readonly-money" value="<%= checkout.getOvertimeMinutes() %> phút" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted">Đơn giá phụ thu/phút</label>
+                <input class="form-control readonly-money" value="<%= money(checkout.getOvertimeFeePerMinute()) %>" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted">Tổng phụ thu quá giờ</label>
+                <input class="form-control readonly-money" value="<%= money(checkout.getOvertimeFee()) %>" readonly>
               </div>
               <div class="col-md-4">
                 <label class="form-label small fw-bold text-muted">Tiền cọc đã thanh toán</label>
                 <input class="form-control readonly-money" value="<%= money(checkout.getDepositAmount()) %>" readonly>
               </div>
               <div class="col-md-4">
-                <label class="form-label small fw-bold text-muted">Số tiền còn lại</label>
-                <input class="form-control readonly-money" value="<%= money(checkout.getBaseRemainingAmount()) %>" readonly>
+                <label class="form-label small fw-bold text-muted">Khách cần thanh toán</label>
+                <input class="form-control readonly-money" value="<%= money(checkout.getFinalAmount()) %>" readonly>
               </div>
             </div>
           </div>
@@ -163,22 +182,31 @@
           <div class="panel p-4">
             <h5 class="fw-bold mb-4"><i class="bi bi-receipt-cutoff text-success me-2"></i>Tổng kết</h5>
             <div class="summary-line">
-              <span class="text-muted">Tiền thuê sân</span>
+              <span class="text-muted">Tiền sân</span>
               <strong><%= money(checkout.getFieldFee()) %></strong>
+            </div>
+            <div class="summary-line">
+              <span class="text-muted">Phụ thu quá giờ</span>
+              <strong><%= money(checkout.getOvertimeFee()) %></strong>
+            </div>
+            <div class="summary-line">
+              <span class="text-muted">Tạm tính</span>
+              <strong><%= money(checkout.getSubtotal()) %></strong>
             </div>
             <div class="summary-line text-success">
               <span>Tiền cọc đã thanh toán</span>
               <strong>- <%= money(checkout.getDepositAmount()) %></strong>
             </div>
             <div class="summary-line summary-total">
-              <span>Cần thanh toán</span>
-              <span class="text-success"><%= money(checkout.getBaseRemainingAmount()) %></span>
+              <span>Khách cần thanh toán</span>
+              <span class="text-success"><%= money(checkout.getFinalAmount()) %></span>
             </div>
 
             <div id="checkout-error" class="alert alert-danger d-none mt-4 mb-0"></div>
+            <div id="checkout-success" class="alert alert-success d-none mt-4 mb-0"></div>
 
-            <button type="button" id="confirmCheckoutBtn" class="btn btn-sf-primary btn-lg w-100 mt-4">
-              <i class="bi bi-check-circle me-2"></i>Xác nhận trả sân
+            <button type="button" id="confirmCheckoutBtn" class="btn btn-sf-primary btn-lg w-100 mt-4" <%= canConfirm ? "" : "disabled" %>>
+              <i class="bi bi-send-check me-2"></i>Gửi yêu cầu thanh toán cho khách
             </button>
             <a href="<%= ctx %>/staff/schedule" class="btn btn-outline-secondary w-100 mt-2">Quay lại</a>
           </div>
@@ -195,23 +223,20 @@
 <script>
   const confirmBtn = document.getElementById('confirmCheckoutBtn');
 
-  function showError(message) {
-    const errorEl = document.getElementById('checkout-error');
-    if (!errorEl) return;
-    errorEl.textContent = message;
-    errorEl.classList.remove('d-none');
+  function showCheckoutMessage(id, message) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = message;
+    el.classList.remove('d-none');
   }
 
   async function submitCheckout() {
     if (!confirmBtn) return;
-    const errorEl = document.getElementById('checkout-error');
-    if (errorEl) {
-      errorEl.classList.add('d-none');
-      errorEl.textContent = '';
-    }
+    document.getElementById('checkout-error')?.classList.add('d-none');
+    document.getElementById('checkout-success')?.classList.add('d-none');
 
     confirmBtn.disabled = true;
-    confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang xử lý...';
+    confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang gửi...';
 
     try {
       const params = new URLSearchParams();
@@ -226,14 +251,17 @@
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Không thể xác nhận trả sân.');
+        throw new Error(data.error || 'Không thể gửi yêu cầu thanh toán.');
       }
 
-      window.location.href = data.redirectUrl || ('<%= ctx %>/staff/invoice?id=' + data.bookingId);
+      showCheckoutMessage('checkout-success', data.message || 'Đã gửi yêu cầu thanh toán cho khách.');
+      window.setTimeout(() => {
+        window.location.href = data.redirectUrl || ('<%= ctx %>/staff/schedule');
+      }, 900);
     } catch (err) {
-      showError(err.message || 'Không thể xác nhận trả sân.');
+      showCheckoutMessage('checkout-error', err.message || 'Không thể gửi yêu cầu thanh toán.');
       confirmBtn.disabled = false;
-      confirmBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Xác nhận trả sân';
+      confirmBtn.innerHTML = '<i class="bi bi-send-check me-2"></i>Gửi yêu cầu thanh toán cho khách';
     }
   }
 

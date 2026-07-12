@@ -137,9 +137,11 @@ public class BookingDAO {
                        recurring_group_id,
                        start_time,
                        end_time,
+                       voucher_id,
                        original_price,
                        discount_amount,
                        total_amount,
+                       final_amount,
                        deposit_amount,
                        status,
                        hold_expires_at,
@@ -249,9 +251,12 @@ public class BookingDAO {
                        ft.number_of_players,
                        NULL AS start_time,
                        NULL AS end_time,
+                       NULL AS voucher_id,
+                       NULL AS voucher_code,
                        NULL AS original_price,
                        NULL AS discount_amount,
                        NULL AS total_amount,
+                       NULL AS final_amount,
                        NULL AS deposit_amount,
                        NULL AS status,
                        NULL AS hold_expires_at,
@@ -437,9 +442,11 @@ public class BookingDAO {
                     field_id,
                     start_time,
                     end_time,
+                    voucher_id,
                     original_price,
                     discount_amount,
                     total_amount,
+                    final_amount,
                     deposit_amount,
                     status,
                     hold_expires_at,
@@ -448,7 +455,7 @@ public class BookingDAO {
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
                 """;
 
         String insertLog = """
@@ -486,12 +493,14 @@ public class BookingDAO {
                 ps.setLong(4, booking.getFieldId());
                 ps.setTimestamp(5, Timestamp.valueOf(booking.getStartTime()));
                 ps.setTimestamp(6, Timestamp.valueOf(booking.getEndTime()));
-                ps.setBigDecimal(7, safeMoney(booking.getOriginalPrice()));
-                ps.setBigDecimal(8, safeMoney(booking.getDiscountAmount()));
-                ps.setBigDecimal(9, safeMoney(booking.getTotalAmount()));
-                ps.setBigDecimal(10, safeMoney(booking.getDepositAmount()));
-                ps.setTimestamp(11, Timestamp.valueOf(booking.getHoldExpiresAt()));
-                ps.setString(12, booking.getQrCode());
+                setIntegerOrNull(ps, 7, booking.getVoucherId());
+                ps.setBigDecimal(8, safeMoney(booking.getOriginalPrice()));
+                ps.setBigDecimal(9, safeMoney(booking.getDiscountAmount()));
+                ps.setBigDecimal(10, safeMoney(booking.getTotalAmount()));
+                ps.setBigDecimal(11, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
+                ps.setBigDecimal(12, safeMoney(booking.getDepositAmount()));
+                ps.setTimestamp(13, Timestamp.valueOf(booking.getHoldExpiresAt()));
+                ps.setString(14, booking.getQrCode());
 
                 try (ResultSet rs = ps.executeQuery()) {
                     // Neu DB khong tra ve id thi booking chua duoc tao hop le.
@@ -583,9 +592,11 @@ public class BookingDAO {
                     recurring_group_id,
                     start_time,
                     end_time,
+                    voucher_id,
                     original_price,
                     discount_amount,
                     total_amount,
+                    final_amount,
                     deposit_amount,
                     status,
                     hold_expires_at,
@@ -594,7 +605,7 @@ public class BookingDAO {
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
                 """;
 
         String insertLog = """
@@ -659,12 +670,14 @@ public class BookingDAO {
                     ps.setLong(5, recurringGroupId);
                     ps.setTimestamp(6, Timestamp.valueOf(booking.getStartTime()));
                     ps.setTimestamp(7, Timestamp.valueOf(booking.getEndTime()));
-                    ps.setBigDecimal(8, safeMoney(booking.getOriginalPrice()));
-                    ps.setBigDecimal(9, safeMoney(booking.getDiscountAmount()));
-                    ps.setBigDecimal(10, safeMoney(booking.getTotalAmount()));
-                    ps.setBigDecimal(11, safeMoney(booking.getDepositAmount()));
-                    ps.setTimestamp(12, Timestamp.valueOf(booking.getHoldExpiresAt()));
-                    ps.setString(13, booking.getQrCode());
+                    setIntegerOrNull(ps, 8, booking.getVoucherId());
+                    ps.setBigDecimal(9, safeMoney(booking.getOriginalPrice()));
+                    ps.setBigDecimal(10, safeMoney(booking.getDiscountAmount()));
+                    ps.setBigDecimal(11, safeMoney(booking.getTotalAmount()));
+                    ps.setBigDecimal(12, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
+                    ps.setBigDecimal(13, safeMoney(booking.getDepositAmount()));
+                    ps.setTimestamp(14, Timestamp.valueOf(booking.getHoldExpiresAt()));
+                    ps.setString(15, booking.getQrCode());
 
                     try (ResultSet rs = ps.executeQuery()) {
                         // Moi booking con bat buoc phai tra ve id de ghi log dung.
@@ -1014,9 +1027,12 @@ public class BookingDAO {
                        ft.number_of_players,
                        b.start_time,
                        b.end_time,
+                       b.voucher_id,
+                       v.code AS voucher_code,
                        grp.original_price,
                        grp.discount_amount,
                        grp.total_amount,
+                       grp.final_amount,
                        grp.deposit_amount,
                        b.status,
                        b.hold_expires_at,
@@ -1041,11 +1057,13 @@ public class BookingDAO {
                 INNER JOIN football_complexes fa ON b.complex_id = fa.complex_id
                 INNER JOIN fields f ON b.field_id = f.field_id
                 INNER JOIN field_types ft ON f.field_type_id = ft.field_type_id
+                LEFT JOIN vouchers v ON b.voucher_id = v.id
                 OUTER APPLY (
                     SELECT COUNT(*) AS recurring_count,
                            SUM(sb.original_price) AS original_price,
                            SUM(sb.discount_amount) AS discount_amount,
                            SUM(sb.total_amount) AS total_amount,
+                           SUM(COALESCE(sb.final_amount, sb.total_amount)) AS final_amount,
                            SUM(sb.deposit_amount) AS deposit_amount
                     FROM bookings sb
                     WHERE sb.customer_id = b.customer_id
@@ -1179,9 +1197,11 @@ public class BookingDAO {
 
         booking.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         booking.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
+        booking.setVoucherId(getIntegerOrNull(rs, "voucher_id"));
         booking.setOriginalPrice(rs.getBigDecimal("original_price"));
         booking.setDiscountAmount(rs.getBigDecimal("discount_amount"));
         booking.setTotalAmount(rs.getBigDecimal("total_amount"));
+        booking.setFinalAmount(rs.getBigDecimal("final_amount"));
         booking.setDepositAmount(rs.getBigDecimal("deposit_amount"));
         booking.setStatus(rs.getString("status"));
         booking.setHoldExpiresAt(toLocalDateTime(rs.getTimestamp("hold_expires_at")));
@@ -1216,9 +1236,12 @@ public class BookingDAO {
         view.setNumberOfPlayers(getIntegerOrNull(rs, "number_of_players"));
         view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
+        view.setVoucherId(getIntegerOrNull(rs, "voucher_id"));
+        view.setVoucherCode(rs.getString("voucher_code"));
         view.setOriginalPrice(rs.getBigDecimal("original_price"));
         view.setDiscountAmount(rs.getBigDecimal("discount_amount"));
         view.setTotalAmount(rs.getBigDecimal("total_amount"));
+        view.setFinalAmount(rs.getBigDecimal("final_amount"));
         view.setDepositAmount(rs.getBigDecimal("deposit_amount"));
         view.setStatus(rs.getString("status"));
         view.setHoldExpiresAt(toLocalDateTime(rs.getTimestamp("hold_expires_at")));
@@ -1245,12 +1268,24 @@ public class BookingDAO {
         return rs.wasNull() ? null : value;
     }
 
+    private void setIntegerOrNull(PreparedStatement ps, int parameterIndex, Integer value) throws SQLException {
+        if (value == null) {
+            ps.setNull(parameterIndex, Types.INTEGER);
+        } else {
+            ps.setInt(parameterIndex, value);
+        }
+    }
+
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 
     private BigDecimal safeMoney(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private BigDecimal firstNonNull(BigDecimal first, BigDecimal second) {
+        return first != null ? first : second;
     }
 
     private record FieldPricingContext(Long complexId, Integer fieldTypeId) {
