@@ -7,6 +7,7 @@ public class Feedback {
     private long feedbackId;
     private long userId;
     private long complexId;
+    private long bookingId;
     private int rating;
     private String description;
     private String ownerReply;
@@ -18,10 +19,11 @@ public class Feedback {
     public Feedback() {
     }
 
-    public Feedback(long feedbackId, long userId, long complexId, int rating, String description, String ownerReply, String status, LocalDateTime createdAt, LocalDateTime updatedAt, LocalDateTime replyAt) {
+    public Feedback(long feedbackId, long userId, long complexId, long bookingId, int rating, String description, String ownerReply, String status, LocalDateTime createdAt, LocalDateTime updatedAt, LocalDateTime replyAt) {
         this.feedbackId = feedbackId;
         this.userId = userId;
         this.complexId = complexId;
+        this.bookingId = bookingId;
         this.rating = rating;
         this.description = description;
         this.ownerReply = ownerReply;
@@ -53,6 +55,14 @@ public class Feedback {
 
     public void setComplexId(long complexId) {
         this.complexId = complexId;
+    }
+
+    public long getBookingId() {
+        return bookingId;
+    }
+
+    public void setBookingId(long bookingId) {
+        this.bookingId = bookingId;
     }
 
     public int getRating() {
