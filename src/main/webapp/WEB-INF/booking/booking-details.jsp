@@ -196,7 +196,7 @@
                     <div class="d-flex justify-content-between gap-3 flex-wrap">
                         <div>
                             <h1 class="section-title">Booking <%= esc(booking.getBookingCode()) %></h1>
-                            <p class="text-muted mb-0"><%= esc(booking.getFacilityName()) %> - <%= esc(booking.getFieldName()) %></p>
+                            <p class="text-muted mb-0"><%= esc(booking.getComplexName()) %> - <%= esc(booking.getFieldName()) %></p>
                         </div>
                         <span class="badge <%= statusBadgeClass(booking.getStatus()) %> align-self-start"><%= statusLabel(booking.getStatus()) %></span>
                     </div>
@@ -212,11 +212,11 @@
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">&#272;&#7883;a ch&#7881;</div>
-                            <div class="fw-semibold"><%= esc(booking.getFacilityAddress()) %></div>
+                            <div class="fw-semibold"><%= esc(booking.getComplexAddress()) %></div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">Hotline</div>
-                            <div class="fw-semibold"><%= esc(booking.getFacilityHotline()) %></div>
+                            <div class="fw-semibold"><%= esc(booking.getComplexHotline()) %></div>
                         </div>
                     </div>
 

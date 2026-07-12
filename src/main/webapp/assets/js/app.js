@@ -16,7 +16,7 @@
     ],
     owner: [
 
-      ['Dashboard','owner'], ['Cơ sở','owner/facility'], ['Sân bóng','owner/field'], ['Quản lý ca trực','owner/work-shift'], ['Bảng giá','owner/price-rules']
+      ['Dashboard','owner'], ['Cơ sở','owner/complex'], ['Sân bóng','owner/field'], ['Quản lý ca trực','owner/work-shift'], ['Bảng giá','owner/price-rules']
 
     ],
     admin: [
@@ -36,10 +36,7 @@
     const role = target.dataset.role || 'guest';
     const name = target.dataset.name || 'Người dùng';
     const active = target.dataset.active || '';
-    console.log(">>> target: ", target );
-    console.log(">>> active: ", active);
     const roleLinks = pages[role] || pages.customer;
-    console.log(">>> roleLinks: ", roleLinks);
     const auth = role === 'guest'
       ? `<a class="btn btn-outline-success" href="${link(root, 'login')}">Đăng nhập</a><a class="btn btn-sf-primary" href="${link(root, 'register')}">Đăng ký</a>`
       : `<div class="dropdown me-2">

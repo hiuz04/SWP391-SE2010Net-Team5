@@ -79,7 +79,7 @@
                         <div class="row g-3">
                             <div class="col-md-6"><span class="text-muted d-block small">M&#227; giao d&#7883;ch</span><strong><%= esc(payment.getTransactionRef()) %></strong></div>
                             <div class="col-md-6"><span class="text-muted d-block small">Booking</span><strong><%= esc(payment.getBookingCode()) %></strong></div>
-                            <div class="col-md-6"><span class="text-muted d-block small">C&#417; s&#7903; / s&#226;n</span><strong><%= esc(payment.getFacilityName()) %> - <%= esc(payment.getFieldName()) %></strong></div>
+                            <div class="col-md-6"><span class="text-muted d-block small">C&#417; s&#7903; / s&#226;n</span><strong><%= esc(payment.getComplexName()) %> - <%= esc(payment.getFieldName()) %></strong></div>
                             <div class="col-md-6"><span class="text-muted d-block small">Th&#7901;i gian</span><strong><%= dateTime(payment.getStartTime()) %> - <%= dateTime(payment.getEndTime()) %></strong></div>
                             <div class="col-md-6"><span class="text-muted d-block small">S&#7889; ti&#7873;n</span><strong><%= money(payment.getAmount()) %></strong></div>
                             <div class="col-md-6"><span class="text-muted d-block small">Ph&#432;&#417;ng th&#7913;c</span><strong><%= esc(payment.getPaymentMethodName()) %></strong></div>

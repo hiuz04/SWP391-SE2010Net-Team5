@@ -5,10 +5,10 @@ import com.swp.model.FieldType;
 import java.time.LocalTime;
 import java.util.List;
 
-public class FieldComplexCard {
-    private long facilityId;
+public class ComplexCard {
+    private long complexId;
     private String thumbnail;
-    private String facilityName;
+    private String complexName;
     private String address;
     private String city;
     private String ward;
@@ -17,13 +17,13 @@ public class FieldComplexCard {
     private LocalTime closingTime;
     private String thumbnailUrl;
 
-    public FieldComplexCard() {
+    public ComplexCard() {
     }
 
-    public FieldComplexCard(long facilityId, String thumbnail, String facilityName, String address, String city, String ward, List<FieldType> fieldTypeList, LocalTime openingTime, LocalTime closingTime, String thumbnailUrl) {
-        this.facilityId = facilityId;
+    public ComplexCard(long complexId, String thumbnail, String complexName, String address, String city, String ward, List<FieldType> fieldTypeList, LocalTime openingTime, LocalTime closingTime, String thumbnailUrl) {
+        this.complexId = complexId;
         this.thumbnail = thumbnail;
-        this.facilityName = facilityName;
+        this.complexName = complexName;
         this.address = address;
         this.city = city;
         this.ward = ward;
@@ -33,12 +33,12 @@ public class FieldComplexCard {
         this.thumbnailUrl = thumbnailUrl;
     }
 
-    public long getFacilityId() {
-        return facilityId;
+    public long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(long complexId) {
+        this.complexId = complexId;
     }
 
     public String getThumbnail() {
@@ -49,12 +49,12 @@ public class FieldComplexCard {
         this.thumbnail = thumbnail;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 
     public String getAddress() {

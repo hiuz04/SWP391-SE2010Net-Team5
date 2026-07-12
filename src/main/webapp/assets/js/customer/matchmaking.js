@@ -9,27 +9,27 @@ const skillLevels = {
 };
 
 // Lưu danh sách cơ sở
-let facilitiesList = [];
+let complexesList = [];
 let myPostsMode = false;
 
 // Tải danh sách địa điểm để nạp vào bộ lọc và Form
-async function loadFacilities() {
+async function loadComplexes() {
     try {
-        const response = await fetch(`${ctx}/api/facilities`);
+        const response = await fetch(`${ctx}/api/complexes`);
         if (!response.ok) throw new Error("Không tải được danh sách sân.");
         
         const data = await response.json();
-        // data là mảng các đối tượng chứa facility
-        facilitiesList = data.map(item => item.facility);
+        // data là mảng các đối tượng chứa complex
+        complexesList = data.map(item => item.complex);
         
-        const filterSelect = document.getElementById("facility");
-        const formSelect = document.getElementById("newFacility");
+        const filterSelect = document.getElementById("complex");
+        const formSelect = document.getElementById("newComplex");
         
         let filterHtml = `<option value="">Tất cả địa điểm</option>`;
         let formHtml = `<option value="">Chọn địa điểm mong muốn</option>`;
         
-        facilitiesList.forEach(fac => {
-            const optionStr = `<option value="${fac.facilityId}">${fac.facilityName} (${fac.city})</option>`;
+        complexesList.forEach(fac => {
+            const optionStr = `<option value="${fac.complexId}">${fac.complexName} (${fac.city})</option>`;
             filterHtml += optionStr;
             formHtml += optionStr;
         });
@@ -64,12 +64,12 @@ function togglePostsMode(isMyPosts) {
 async function searchPosts() {
     const postType = document.getElementById("postType").value;
     const skillLevel = document.getElementById("skillLevel").value;
-    const facilityId = document.getElementById("facility").value;
+    const complexId = document.getElementById("complex").value;
     
     const params = new URLSearchParams();
     if (postType && postType !== "ALL") params.append("postType", postType);
     if (skillLevel && skillLevel !== "ALL") params.append("skillLevel", skillLevel);
-    if (facilityId) params.append("facilityId", facilityId);
+    if (complexId) params.append("complexId", complexId);
     
     if (myPostsMode) {
         params.append("myPostsOnly", "true");
@@ -100,7 +100,7 @@ async function searchPosts() {
         postsContainer.innerHTML = posts.map(item => {
             const post = item.post;
             const authorName = item.authorName || "Ẩn danh";
-            const facilityName = item.facilityName || "Tự chọn địa điểm / Sân khách";
+            const complexName = item.complexName || "Tự chọn địa điểm / Sân khách";
             
             const isOpponent = post.postType === "FIND_OPPONENT";
             let typeBadgeClass = isOpponent ? "badge-soft-success" : "badge-soft-info";
@@ -214,8 +214,8 @@ async function searchPosts() {
                             </h5>
                             
                             <div class="mb-3 text-muted" style="font-size: 0.85rem;">
-                                <div class="mb-1 text-truncate" title="${facilityName}">
-                                    <i class="bi bi-geo-alt me-2 text-success"></i>${facilityName}
+                                <div class="mb-1 text-truncate" title="${complexName}">
+                                    <i class="bi bi-geo-alt me-2 text-success"></i>${complexName}
                                 </div>
                                 <div class="mb-1">
                                     <i class="bi bi-clock me-2 text-success"></i>${expectedTimeStr}
@@ -427,6 +427,6 @@ async function closeMatchmakingPost(postId) {
 
 // Khởi chạy khi tài liệu sẵn sàng
 document.addEventListener("DOMContentLoaded", async () => {
-    await loadFacilities();
+    await loadComplexes();
     await searchPosts();
 });

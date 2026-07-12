@@ -8,8 +8,8 @@ import java.util.List;
 
 public class FieldDetail {
 
-    private long facilityId;
-    private String facilityName;
+    private long complexId;
+    private String complexName;
     private String complexAddress;
     private List<FieldType> fieldTypeList;
     private List<Field> fields;
@@ -21,9 +21,9 @@ public class FieldDetail {
     public FieldDetail() {
     }
 
-    public FieldDetail(long facilityId, String facilityName, String complexAddress, List<FieldType> fieldTypeList, List<Field> fields, String description, LocalTime openingTime, LocalTime closingTime, String hotline) {
-        this.facilityId = facilityId;
-        this.facilityName = facilityName;
+    public FieldDetail(long complexId, String complexName, String complexAddress, List<FieldType> fieldTypeList, List<Field> fields, String description, LocalTime openingTime, LocalTime closingTime, String hotline) {
+        this.complexId = complexId;
+        this.complexName = complexName;
         this.complexAddress = complexAddress;
         this.fieldTypeList = fieldTypeList;
         this.fields = fields;
@@ -49,20 +49,20 @@ public class FieldDetail {
         this.hotline = hotline;
     }
 
-    public long getFacilityId() {
-        return facilityId;
+    public long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(long complexId) {
+        this.complexId = complexId;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 
     public String getComplexAddress() {

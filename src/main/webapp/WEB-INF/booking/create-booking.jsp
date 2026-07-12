@@ -16,7 +16,7 @@
 <%
     String ctx = request.getContextPath();
 
-    Long facilityId = (Long) request.getAttribute("facilityId");
+    Long complexId = (Long) request.getAttribute("complexId");
     LocalDate selectedDate = (LocalDate) request.getAttribute("selectedDate");
     LocalDate maxBookingDate = (LocalDate) request.getAttribute("maxBookingDate");
     String error = (String) request.getAttribute("error");
@@ -407,7 +407,7 @@
 
 <script>
     const ctx = '<%= ctx %>';
-    const facilityId = '<%= facilityId == null ? "" : facilityId %>';
+    const complexId = '<%= complexId == null ? "" : complexId %>';
     const selectedDateText = '<%= selectedDate %>';
 
     const bookingDateInput = document.getElementById('bookingDate');
@@ -419,13 +419,13 @@
     let endCell = null;
 
     bookingDateInput.addEventListener('change', function () {
-        if (!facilityId) {
-            alert('Không tìm thấy facilityId.');
+        if (!complexId) {
+            alert('Không tìm thấy complexId.');
             return;
         }
 
         window.location.href =
-            ctx + '/booking?action=create&facilityId=' + facilityId + '&date=' + this.value;
+            ctx + '/booking?action=create&complexId=' + complexId + '&date=' + this.value;
     });
 
     repeatTypeInput.addEventListener('change', function () {

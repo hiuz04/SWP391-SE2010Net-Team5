@@ -1,7 +1,7 @@
 /**
- * Module: Facility Management
- * File: facility.js
- * Description: Xử lý các chức năng CRUD và gọi API cho module cơ sở (Facility).
+ * Module: Complex Management
+ * File: complex.js
+ * Description: Xử lý các chức năng CRUD và gọi API cho module cụm sân (Complex).
  *
  * Author: Dương Hải Anh
  * Version: 1.1
@@ -26,28 +26,27 @@ let deletedImg = [];
 const imgInput = document.getElementById("images");
 const preview = document.getElementById("preview");
 
-// Lấy data của facility để edit
-async function loadFacilityData() {
+// Lấy data của complex để edit
+async function loadComplexData() {
     const params = new URLSearchParams(window.location.search);
     const id = params.get("id");
     if (!id) return;
-    await fetch(`${ctx}/owner/facility?action=get&id=${id}`)
+    await fetch(`${ctx}/owner/complex?action=get&id=${id}`)
         .then(res => res.json())
         .then(data => {
-            console.log(">>> data",data);
-                document.getElementById("facilityID").value = data.facility.facilityId;
-                document.getElementById("facName").value = data.facility.facilityName;
-                document.getElementById("desc").value = data.facility.description;
-                document.getElementById("adrs").value = data.facility.address;
-                document.getElementById("ward").value = data.facility.ward;
-                document.getElementById("dist").value = data.facility.district;
-                document.getElementById("city").value = data.facility.city;
-                document.getElementById("hotln").value = data.facility.hotline;
-                document.getElementById("opTime").value = data.facility.openingTime?.slice(0, 5);
-                document.getElementById("clsTime").value = data.facility.closingTime?.slice(0, 5);
-                document.getElementById("rule").value = data.facility.generalRules;
-                document.getElementById("status").value = data.facility.status;
-                document.getElementById("feat").checked = !!data.facility.featured;
+                document.getElementById("complexId").value = data.complex.complexId;
+                document.getElementById("complexName").value = data.complex.complexName;
+                document.getElementById("desc").value = data.complex.description;
+                document.getElementById("adrs").value = data.complex.address;
+                document.getElementById("ward").value = data.complex.ward;
+                document.getElementById("dist").value = data.complex.district;
+                document.getElementById("city").value = data.complex.city;
+                document.getElementById("hotln").value = data.complex.hotline;
+                document.getElementById("opTime").value = data.complex.openingTime?.slice(0, 5);
+                document.getElementById("clsTime").value = data.complex.closingTime?.slice(0, 5);
+                document.getElementById("rule").value = data.complex.generalRules;
+                document.getElementById("status").value = data.complex.status;
+                document.getElementById("feat").checked = !!data.complex.featured;
 
                 data.img.forEach((img) => {
                     selectedImg.push({
@@ -62,7 +61,7 @@ async function loadFacilityData() {
 }
 
 async function loadForm() {
-    await loadFacilityData();
+    await loadComplexData();
     renderPreview();
 
     // Click ra ngoài thì đóng menu
@@ -86,12 +85,12 @@ async function loadForm() {
     });
 }
 
-// Lấy danh sách thông tin của facility
+// Lấy danh sách thông tin của complex
 function loadData() {
-    fetch(`${ctx}/api/facilities`)
+    fetch(`${ctx}/api/complexes`)
         .then(res => res.json())
         .then(data => {
-            const container = document.getElementById("facility-data-container");
+            const container = document.getElementById("complex-data-container");
 
             let html = "";
             if (data.length > 0) {
@@ -110,14 +109,14 @@ function loadData() {
                     <tbody>
 `
                 data.forEach(item => {
-                    const statusDisplay = statusList.find(s => s.status === item.facility.status)?.display
+                    const statusDisplay = statusList.find(s => s.status === item.complex.status)?.display
                         ?? "Không xác định";
-                    const statusBadgge = statusList.find(s => s.status === item.facility.status)?.badge
+                    const statusBadgge = statusList.find(s => s.status === item.complex.status)?.badge
                         ?? "badge-soft-secondary";
                     html += `
                       <tr>
-                        <td>${item.facility.facilityName}</td>
-                        <td style="color: grey;"><img class="icon" alt="editIcon" src="${ctx}/assets/images/icon/locationIcon.png"> ${item.facility.address}, ${item.facility.ward}, ${item.facility.district}, ${item.facility.city}</td>
+                        <td>${item.complex.complexName}</td>
+                        <td style="color: grey;"><img class="icon" alt="editIcon" src="${ctx}/assets/images/icon/locationIcon.png"> ${item.complex.address}, ${item.complex.ward}, ${item.complex.district}, ${item.complex.city}</td>
                         <td>${item.fields.length} sân</td>
                         <td>
                             <button class="badge ${statusBadgge} border-0" onclick="">
@@ -125,8 +124,8 @@ function loadData() {
                             </button>
                         </td>
                         <td class="text-center">
-                          <button class="btn btn-sm" onclick="navigateFacilityFormWithID(${item.facility.facilityId})"><img class="icon" alt="editIcon" src="${ctx}/assets/images/icon/editIcon.png"></button>
-                          <button class="btn btn-sm" onclick="deleteFacility(${item.facility.facilityId})"><img class="icon" alt="deleteIcon" src="${ctx}/assets/images/icon/deleteIcon.png"></button>
+                          <button class="btn btn-sm" onclick="navigateComplexFormWithID(${item.complex.complexId})"><img class="icon" alt="editIcon" src="${ctx}/assets/images/icon/editIcon.png"></button>
+                          <button class="btn btn-sm" onclick="deleteComplex(${item.complex.complexId})"><img class="icon" alt="deleteIcon" src="${ctx}/assets/images/icon/deleteIcon.png"></button>
                         </td>
                       </tr>
                 `
@@ -143,15 +142,15 @@ function loadData() {
 // Xử lý form submit
 function submitForm() {
     document.getElementById("submitBtn").disabled = true;
-    const id = document.getElementById("facilityID").value;
+    const id = document.getElementById("complexId").value;
 
     let url = !id
-        ? `${ctx}/owner/facility?action=add`
-        : `${ctx}/owner/facility?action=edit`;
+        ? `${ctx}/owner/complex?action=add`
+        : `${ctx}/owner/complex?action=edit`;
 
     const data = {
-        facilityID: id,
-        facilityName: document.getElementById("facName").value,
+        complexId: id,
+        complexName: document.getElementById("complexName").value,
         description: document.getElementById("desc").value,
         address: document.getElementById("adrs").value,
         ward: document.getElementById("ward").value,
@@ -169,7 +168,7 @@ function submitForm() {
 
     let errors = [];
 
-    if (!data.facilityName) errors.push("Vui lòng nhập Tên cơ sở!");
+    if (!data.complexName) errors.push("Vui lòng nhập Tên cơ sở!");
     if (!data.address) errors.push("Vui lòng nhập Địa chỉ!");
     if (!data.ward) errors.push("Vui lòng nhập Phường/Xã!");
     if (!data.district) errors.push("Vui lòng nhập Quận/Huyện!");
@@ -219,7 +218,7 @@ function submitForm() {
             return res.text();
         })
         .then(() => {
-            location.href = `${ctx}/owner/facility`;
+            location.href = `${ctx}/owner/complex`;
         })
         .catch(err => {
             console.error(err);
@@ -240,25 +239,25 @@ function dynamicLabel() {
         id ? "Chỉnh sửa cơ sở | Sport Field Booking" : "Thêm cơ sở mới | Sport Field Booking";
 }
 
-// Chuyển sang trang Facility Form
-function navigateFacilityForm() {
-    window.location.href = `${ctx}/owner/facility-form`
+// Chuyển sang trang Complex Form
+function navigateComplexForm() {
+    window.location.href = `${ctx}/owner/complex-form`
 }
 
 // Với ID
-function navigateFacilityFormWithID(id) {
-    window.location.href = `${ctx}/owner/facility-form?id=${id}`
+function navigateComplexFormWithID(id) {
+    window.location.href = `${ctx}/owner/complex-form?id=${id}`
 }
 
-// Xóa Facility
-function deleteFacility(id) {
+// Xóa Complex
+function deleteComplex(id) {
     const confirmed = window.confirm("Xóa dữ liệu sẽ làm mất toàn bộ thông tin liên quan đến cơ sở " +
         "và toàn bộ sân bóng thuộc quyền sỡ hữu của cơ sở. Dữ liệu bị xóa " +
         "sẽ không thể khôi phục. Bạn có muốn tiếp tục?");
 
     if (!confirmed) return;
 
-    fetch(`${ctx}/owner/facility?action=delete&id=${id}`, {
+    fetch(`${ctx}/owner/complex?action=delete&id=${id}`, {
         method: "POST"
     })
         .then(async res => {

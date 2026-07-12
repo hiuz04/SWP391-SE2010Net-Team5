@@ -7,13 +7,13 @@ public class CheckoutView {
     private Long bookingId;
     private String bookingCode;
     private Long customerId;
-    private Long facilityId;
+    private Long complexId;
     private Long fieldId;
     private String status;
     private String customerName;
     private String customerPhone;
-    private String facilityName;
-    private String facilityAddress;
+    private String complexName;
+    private String complexAddress;
     private String fieldName;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
@@ -44,12 +44,12 @@ public class CheckoutView {
         this.customerId = customerId;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
     }
 
     public Long getFieldId() {
@@ -84,20 +84,20 @@ public class CheckoutView {
         this.customerPhone = customerPhone;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 
-    public String getFacilityAddress() {
-        return facilityAddress;
+    public String getComplexAddress() {
+        return complexAddress;
     }
 
-    public void setFacilityAddress(String facilityAddress) {
-        this.facilityAddress = facilityAddress;
+    public void setComplexAddress(String complexAddress) {
+        this.complexAddress = complexAddress;
     }
 
     public String getFieldName() {

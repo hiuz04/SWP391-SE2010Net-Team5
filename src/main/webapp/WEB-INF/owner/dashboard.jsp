@@ -91,7 +91,7 @@
             <div class="col-lg-4">
                 <div class="card soft-card p-4"><h5>Quản lý nhanh</h5>
                     <div class="d-grid gap-2">
-                        <a class="btn btn-outline-success" href="<%= ctx %>/owner/facility">Cơ sở</a>
+                        <a class="btn btn-outline-success" href="<%= ctx %>/owner/complex">Cơ sở</a>
                         <a class="btn btn-outline-success" href="<%= ctx %>/owner/field">Sân bóng</a>
                         <a class="btn btn-outline-success" href="<%= ctx %>/owner/dashboard">Bảng giá</a>
                     </div>

@@ -57,7 +57,7 @@ function loadData(){
                       <tr>
                         <td>${item.fieldName}</td>
                         <td style="color: grey;">${item.type}</td>
-                        <td>${item.facilityName} sân</td>
+                        <td>${item.complexName} sân</td>
                         <td>${item.description}</td>
                         <td class="text-center">
                             <button class="badge ${statusBadgge} border-0" onclick="">
@@ -106,18 +106,18 @@ function loadFieldTypeData() {
 }
 
 // Lấy danh sách cơ sở
-function loadFacilityData() {
-    return fetch(`${ctx}/api/facilities`)
+function loadComplexData() {
+    return fetch(`${ctx}/api/complexes`)
         .then(response => response.json())
         .then(data => {
-            const select = document.getElementById("fac");
+            const select = document.getElementById("fc");
 
             select.innerHTML = `<option value="">-- Chọn cơ sở --</option>`;
 
-            data.forEach(fac => {
+            data.forEach(fc => {
                 select.innerHTML += `
-                    <option value="${fac.facility.facilityId}">
-                        ${fac.facility.facilityName}
+                    <option value="${fc.complex.complexId}">
+                        ${fc.complex.complexName}
                     </option>
                 `;
             });
@@ -141,8 +141,8 @@ function getFieldData(id) {
             document.getElementById("typeF").value =
                 String(data.fieldTypeId);
 
-            document.getElementById("fac").value =
-                String(data.facilityId);
+            document.getElementById("fc").value =
+                String(data.complexId);
         })
 }
 
@@ -156,7 +156,7 @@ async function openModal() {
     document.getElementById("modal").innerHTML = html;
 
     await loadFieldTypeData();
-    await loadFacilityData();
+    await loadComplexData();
     document.getElementById("fieldTitle").innerHTML = "Thêm sân bóng mới"
     document.getElementById("submitBtn").innerHTML = "Thêm mới"
 
@@ -180,7 +180,7 @@ async function openModalToEdit(id) {
 
     Promise.all([
         loadFieldTypeData(),
-        loadFacilityData()
+        loadComplexData()
     ]).then(() => {
         getFieldData(id);
     });
@@ -210,7 +210,7 @@ function submitField() {
         fieldName: document.getElementById("fieldName").value,
         description: document.getElementById("desc").value,
         fieldTypeID: document.getElementById("typeF").value,
-        facilityId: document.getElementById("fac").value,
+        complexId: document.getElementById("fc").value,
         status: document.getElementById("status").value
     };
 
@@ -218,7 +218,7 @@ function submitField() {
 
     if (!data.fieldName) errors.push("Vui lòng nhập Tên sân bóng!");
     if (data.fieldTypeID == "") errors.push("Vui lòng chọn Loại sân bóng!");
-    if (data.facilityId == "") errors.push("Vui lòng chọn Cơ sở sỡ hữu sân!");
+    if (data.complexId == "") errors.push("Vui lòng chọn Cơ sở sỡ hữu sân!");
 
     if (errors.length > 0) {
         alert(errors.join("\n"));
@@ -280,7 +280,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             document.getElementById("typeF").value = ""
 
-            document.getElementById("fac").value = ""
+            document.getElementById("fc").value = ""
         });
     }
 });

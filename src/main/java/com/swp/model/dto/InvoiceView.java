@@ -10,11 +10,11 @@ public class InvoiceView {
     private LocalDateTime issuedAt;
     private Long bookingId;
     private String bookingCode;
-    private Long facilityId;
+    private Long complexId;
     private String customerName;
     private String customerPhone;
-    private String facilityName;
-    private String facilityAddress;
+    private String complexName;
+    private String complexAddress;
     private String fieldName;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
@@ -73,12 +73,12 @@ public class InvoiceView {
         this.bookingCode = bookingCode;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
     }
 
     public String getCustomerName() {
@@ -97,20 +97,20 @@ public class InvoiceView {
         this.customerPhone = customerPhone;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 
-    public String getFacilityAddress() {
-        return facilityAddress;
+    public String getComplexAddress() {
+        return complexAddress;
     }
 
-    public void setFacilityAddress(String facilityAddress) {
-        this.facilityAddress = facilityAddress;
+    public void setComplexAddress(String complexAddress) {
+        this.complexAddress = complexAddress;
     }
 
     public String getFieldName() {

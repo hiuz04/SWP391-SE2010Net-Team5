@@ -18,10 +18,10 @@ public class BookingView implements Serializable {
     private String customerPhone;
     private String customerEmail;
 
-    private Long facilityId;
-    private String facilityName;
-    private String facilityAddress;
-    private String facilityHotline;
+    private Long complexId;
+    private String complexName;
+    private String complexAddress;
+    private String complexHotline;
 
     private Long fieldId;
     private String fieldName;
@@ -125,36 +125,36 @@ public class BookingView implements Serializable {
         this.customerEmail = customerEmail;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 
-    public String getFacilityAddress() {
-        return facilityAddress;
+    public String getComplexAddress() {
+        return complexAddress;
     }
 
-    public void setFacilityAddress(String facilityAddress) {
-        this.facilityAddress = facilityAddress;
+    public void setComplexAddress(String complexAddress) {
+        this.complexAddress = complexAddress;
     }
 
-    public String getFacilityHotline() {
-        return facilityHotline;
+    public String getComplexHotline() {
+        return complexHotline;
     }
 
-    public void setFacilityHotline(String facilityHotline) {
-        this.facilityHotline = facilityHotline;
+    public void setComplexHotline(String complexHotline) {
+        this.complexHotline = complexHotline;
     }
 
     public Long getFieldId() {

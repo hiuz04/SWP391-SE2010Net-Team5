@@ -134,7 +134,7 @@
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <div class="text-muted small">C&#417; s&#7903;</div>
-                            <div class="fw-semibold"><%= esc(booking.getFacilityName()) %></div>
+                            <div class="fw-semibold"><%= esc(booking.getComplexName()) %></div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">S&#226;n / lo&#7841;i s&#226;n</div>

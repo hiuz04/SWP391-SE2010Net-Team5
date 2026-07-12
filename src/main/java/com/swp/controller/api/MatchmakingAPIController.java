@@ -77,11 +77,11 @@ public class MatchmakingAPIController extends HttpServlet {
         String postType = req.getParameter("postType");
         String skillLevel = req.getParameter("skillLevel");
         
-        Long facilityId = null;
-        String facilityIdStr = req.getParameter("facilityId");
-        if (facilityIdStr != null && !facilityIdStr.trim().isEmpty()) {
+        Long complexId = null;
+        String complexIdStr = req.getParameter("complexId");
+        if (complexIdStr != null && !complexIdStr.trim().isEmpty()) {
             try {
-                facilityId = Long.parseLong(facilityIdStr);
+                complexId = Long.parseLong(complexIdStr);
             } catch (NumberFormatException e) {
                 // Ignore invalid long
             }
@@ -98,7 +98,7 @@ public class MatchmakingAPIController extends HttpServlet {
         }
 
         try {
-            List<MatchmakingPostDTO> posts = postDAO.getAllPosts(postType, skillLevel, facilityId, authorId);
+            List<MatchmakingPostDTO> posts = postDAO.getAllPosts(postType, skillLevel, complexId, authorId);
             
             Gson gson = new GsonBuilder()
                     .registerTypeAdapter(LocalDateTime.class,
@@ -140,7 +140,7 @@ public class MatchmakingAPIController extends HttpServlet {
                 String description = req.getParameter("description");
                 String skillLevel = req.getParameter("skillLevel");
                 String expectedTimeStr = req.getParameter("expectedTime");
-                String facilityIdStr = req.getParameter("facilityId");
+                String complexIdStr = req.getParameter("complexId");
                 String contactName = req.getParameter("contactName");
                 String contactPhone = req.getParameter("contactPhone");
 
@@ -160,9 +160,9 @@ public class MatchmakingAPIController extends HttpServlet {
                     expectedTime = LocalDateTime.parse(expectedTimeStr);
                 }
 
-                Long facilityId = null;
-                if (facilityIdStr != null && !facilityIdStr.trim().isEmpty()) {
-                    facilityId = Long.parseLong(facilityIdStr);
+                Long complexId = null;
+                if (complexIdStr != null && !complexIdStr.trim().isEmpty()) {
+                    complexId = Long.parseLong(complexIdStr);
                 }
 
                 MatchmakingPost post = new MatchmakingPost();
@@ -172,7 +172,7 @@ public class MatchmakingAPIController extends HttpServlet {
                 post.setDescription(description);
                 post.setSkillLevel(skillLevel);
                 post.setExpectedTime(expectedTime);
-                post.setFacilityId(facilityId);
+                post.setComplexId(complexId);
                 post.setContactName(contactName);
                 post.setContactPhone(contactPhone);
                 post.setStatus("OPEN");

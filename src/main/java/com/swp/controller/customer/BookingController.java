@@ -112,9 +112,9 @@ public class BookingController extends HttpServlet {
             return;
         }
 
-        Long facilityId = getFacilityIdFromRequest(request);
+        Long complexId = getComplexIdFromRequest(request);
 
-        if (facilityId == null) {
+        if (complexId == null) {
             request.setAttribute("error", "Không tìm thấy cơ sở sân.");
             request.getRequestDispatcher("/index.jsp").forward(request, response);
             return;
@@ -128,10 +128,10 @@ public class BookingController extends HttpServlet {
             request.setAttribute("error", "Chỉ cho phép đặt sân trong tháng này và tháng sau.");
         }
 
-        List<Field> fields = bookingDAO.getFieldsByFacility(facilityId);
-        List<Booking> bookings = bookingDAO.getBookingsByFacilityAndDate(facilityId, selectedDate);
+        List<Field> fields = bookingDAO.getFieldsByComplex(complexId);
+        List<Booking> bookings = bookingDAO.getBookingsByComplexAndDate(complexId, selectedDate);
         List<FieldMaintenanceSchedule> maintenances =
-                bookingDAO.getMaintenanceByFacilityAndDate(facilityId, selectedDate);
+                bookingDAO.getMaintenanceByComplexAndDate(complexId, selectedDate);
 
         List<String> timeHeaders = buildTimeHeaders();
         Map<Long, List<FieldScheduleSlot>> scheduleMap = buildScheduleMap(
@@ -141,7 +141,7 @@ public class BookingController extends HttpServlet {
                 selectedDate
         );
 
-        request.setAttribute("facilityId", facilityId);
+        request.setAttribute("complexId", complexId);
         request.setAttribute("selectedDate", selectedDate);
         request.setAttribute("maxBookingDate", maxBookingDate);
         request.setAttribute("fields", fields);
@@ -203,7 +203,7 @@ public class BookingController extends HttpServlet {
 
         Booking bookingPreview = new Booking();
         bookingPreview.setFieldId(fieldId);
-        bookingPreview.setFacilityId(bookingInfo.getFacilityId());
+        bookingPreview.setComplexId(bookingInfo.getComplexId());
         bookingPreview.setCustomerId(currentUser.getUserId());
         bookingPreview.setStartTime(startTime);
         bookingPreview.setEndTime(endTime);
@@ -280,7 +280,7 @@ public class BookingController extends HttpServlet {
             );
             bookings.add(buildBooking(
                     currentUser.getUserId(),
-                    bookingInfo.getFacilityId(),
+                    bookingInfo.getComplexId(),
                     fieldId,
                     slot.startTime(),
                     slot.endTime(),
@@ -400,7 +400,7 @@ public class BookingController extends HttpServlet {
 
     private Booking buildBooking(
             Long customerId,
-            Long facilityId,
+            Long complexId,
             Long fieldId,
             LocalDateTime startTime,
             LocalDateTime endTime,
@@ -411,7 +411,7 @@ public class BookingController extends HttpServlet {
         Booking booking = new Booking();
         booking.setBookingCode(generateBookingCode());
         booking.setCustomerId(customerId);
-        booking.setFacilityId(facilityId);
+        booking.setComplexId(complexId);
         booking.setFieldId(fieldId);
         booking.setStartTime(startTime);
         booking.setEndTime(endTime);
@@ -538,18 +538,18 @@ public class BookingController extends HttpServlet {
         booking.setCanCancel(true);
         booking.setCancelReasonMessage("Co the huy booking.");
     }
-    private Long getFacilityIdFromRequest(HttpServletRequest request) throws SQLException {
-        String facilityIdRaw = request.getParameter("facilityId");
+    private Long getComplexIdFromRequest(HttpServletRequest request) throws SQLException {
+        String complexIdRaw = request.getParameter("complexId");
         String fieldIdRaw = request.getParameter("fieldId");
 
-        // Uu tien facilityId neu request da truyen truc tiep.
-        if (facilityIdRaw != null && !facilityIdRaw.trim().isEmpty()) {
-            return Long.parseLong(facilityIdRaw.trim());
+        // Uu tien complexId neu request da truyen truc tiep.
+        if (complexIdRaw != null && !complexIdRaw.trim().isEmpty()) {
+            return Long.parseLong(complexIdRaw.trim());
         }
 
-        // Neu chi co fieldId thi suy ra facilityId tu DB.
+        // Neu chi co fieldId thi suy ra complexId tu DB.
         if (fieldIdRaw != null && !fieldIdRaw.trim().isEmpty()) {
-            return bookingDAO.getFacilityIdByFieldId(Long.parseLong(fieldIdRaw.trim()));
+            return bookingDAO.getComplexIdByFieldId(Long.parseLong(fieldIdRaw.trim()));
         }
 
         return null;
@@ -807,8 +807,8 @@ public class BookingController extends HttpServlet {
                 .append("&error=")
                 .append(URLEncoder.encode(message, StandardCharsets.UTF_8));
 
-        String facilityId = trim(request.getParameter("facilityId"));
-        if (facilityId == null || facilityId.isEmpty()) {
+        String complexId = trim(request.getParameter("complexId"));
+        if (complexId == null || complexId.isEmpty()) {
             Long fieldId = null;
             try {
                 fieldId = parseLong(request.getParameter("fieldId"), "fieldId không hợp lệ.");
@@ -816,17 +816,17 @@ public class BookingController extends HttpServlet {
             }
             if (fieldId != null) {
                 try {
-                    Long facility = bookingDAO.getFacilityIdByFieldId(fieldId);
-                    if (facility != null) {
-                        facilityId = facility.toString();
+                    Long complex = bookingDAO.getComplexIdByFieldId(fieldId);
+                    if (complex != null) {
+                        complexId = complex.toString();
                     }
                 } catch (SQLException ignored) {
                 }
             }
         }
 
-        if (facilityId != null && !facilityId.isEmpty()) {
-            url.append("&facilityId=").append(facilityId);
+        if (complexId != null && !complexId.isEmpty()) {
+            url.append("&complexId=").append(complexId);
         }
 
         String startTime = trim(request.getParameter("startTime"));

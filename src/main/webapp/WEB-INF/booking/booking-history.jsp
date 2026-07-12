@@ -195,7 +195,7 @@
                     <tr>
                         <td><strong><%= esc(booking.getBookingCode()) %></strong></td>
                         <td>
-                            <div class="fw-semibold"><%= esc(booking.getFacilityName()) %></div>
+                            <div class="fw-semibold"><%= esc(booking.getComplexName()) %></div>
                             <div class="text-muted small"><%= esc(booking.getFieldName()) %></div>
                         </td>
                         <td><%= bookingTimeLabel(booking) %></td>

@@ -129,7 +129,7 @@ public class StaffBillingServlet extends HttpServlet {
                 } else if (billingDAO.hasPaidInvoice(bookingId)) {
                     req.setAttribute("error", "Lịch đặt sân này đã có hóa đơn thanh toán.");
                 } else if (user.getRoleId() == ROLE_STAFF
-                        && !billingDAO.canStaffCheckoutFacility(user.getUserId(), checkout.getFacilityId())) {
+                        && !billingDAO.canStaffCheckoutComplex(user.getUserId(), checkout.getComplexId())) {
                     resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     req.setAttribute("error", "Bạn không có ca làm việc đang hoạt động tại cơ sở này.");
                 } else {
@@ -152,7 +152,7 @@ public class StaffBillingServlet extends HttpServlet {
                 if (invoice == null) {
                     req.setAttribute("error", "Không tìm thấy hóa đơn.");
                 } else if (user.getRoleId() == ROLE_STAFF
-                        && !billingDAO.canStaffViewFacilityToday(user.getUserId(), invoice.getFacilityId())) {
+                        && !billingDAO.canStaffViewComplexToday(user.getUserId(), invoice.getComplexId())) {
                     resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     req.setAttribute("error", "Bạn không có quyền xem hóa đơn này.");
                 } else {
@@ -175,7 +175,7 @@ public class StaffBillingServlet extends HttpServlet {
                 return;
             }
             if (user.getRoleId() == ROLE_STAFF
-                    && !billingDAO.canStaffViewFacilityToday(user.getUserId(), invoice.getFacilityId())) {
+                    && !billingDAO.canStaffViewComplexToday(user.getUserId(), invoice.getComplexId())) {
                 resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền xuất hóa đơn này.");
                 return;
             }
@@ -238,8 +238,8 @@ public class StaffBillingServlet extends HttpServlet {
 
         document.add(section("Thông tin đặt sân", fonts));
         PdfPTable booking = infoTable();
-        addInfo(booking, "Cơ sở", text(invoice.getFacilityName()), fonts);
-        addInfo(booking, "Địa chỉ", text(invoice.getFacilityAddress()), fonts);
+        addInfo(booking, "Cơ sở", text(invoice.getComplexName()), fonts);
+        addInfo(booking, "Địa chỉ", text(invoice.getComplexAddress()), fonts);
         addInfo(booking, "Sân", text(invoice.getFieldName()), fonts);
         addInfo(booking, "Thời gian", dateTime(invoice.getStartTime()) + " - " + dateTime(invoice.getEndTime()), fonts);
         document.add(booking);

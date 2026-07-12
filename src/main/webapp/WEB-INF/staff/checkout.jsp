@@ -125,7 +125,7 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label small fw-bold text-muted">Tên cơ sở</label>
-                <input class="form-control" value="<%= esc(checkout.getFacilityName()) %>" readonly>
+                <input class="form-control" value="<%= esc(checkout.getComplexName()) %>" readonly>
               </div>
               <div class="col-md-6">
                 <label class="form-label small fw-bold text-muted">Tên sân</label>

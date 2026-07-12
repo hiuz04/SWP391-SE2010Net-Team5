@@ -1,4 +1,4 @@
-package com.swp.service.owner;
+package com.swp.service;
 
 import com.swp.dao.FieldTypeDAO;
 import com.swp.model.FieldType;

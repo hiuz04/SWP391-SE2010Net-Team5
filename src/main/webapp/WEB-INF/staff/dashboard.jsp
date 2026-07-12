@@ -291,7 +291,7 @@
               <span id="shift-times" style="font-weight:400;opacity:.7;font-size:1rem;"></span>
             </h4>
             <p class="mb-2" style="opacity:.75;font-size:.9rem;">
-              Cơ sở: <strong id="facility-name">—</strong>
+              Cơ sở: <strong id="complex-name">—</strong>
             </p>
             <div class="d-flex align-items-center gap-3">
               <div class="shift-progress-bar flex-grow-1">
@@ -563,7 +563,7 @@ async function loadDashboard() {
     // ── Shift banner ─────────────────────────────────────────────────────
     const s = data.shift;
     document.getElementById('shift-name').textContent   = s.shiftName  || '—';
-    document.getElementById('facility-name').textContent = s.facilityName || '—';
+    document.getElementById('complex-name').textContent = s.complexName || '—';
     document.getElementById('shift-times').textContent  = `${timeOnly(s.startTime)} – ${timeOnly(s.endTime)}`;
     document.getElementById('shift-start').textContent  = timeOnly(s.startTime);
     document.getElementById('shift-end').textContent    = timeOnly(s.endTime);

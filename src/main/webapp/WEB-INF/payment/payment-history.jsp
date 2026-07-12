@@ -103,7 +103,7 @@
                         <td><strong><%= esc(payment.getTransactionRef()) %></strong></td>
                         <td><%= esc(payment.getBookingCode()) %></td>
                         <td>
-                            <div class="fw-semibold"><%= esc(payment.getFacilityName()) %></div>
+                            <div class="fw-semibold"><%= esc(payment.getComplexName()) %></div>
                             <div class="text-muted small"><%= esc(payment.getFieldName()) %></div>
                         </td>
                         <td><%= money(payment.getAmount()) %></td>

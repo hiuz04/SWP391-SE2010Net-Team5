@@ -38,3 +38,4 @@ src/main/resources/google.properties
 src/main/resources/mail.properties
 src/main/resources/cloudinary.properties
 src/main/resources/vnpay.properties
+src/main/resources/recaptcha.properties

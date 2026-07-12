@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
 import com.swp.model.Field;
-import com.swp.service.owner.FieldService;
+import com.swp.service.FieldService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -50,14 +50,14 @@ public class FieldController extends HttpServlet {
         String fieldName = req.getParameter("fieldName");
         String fieldDesc = req.getParameter("description");
         int fieldTypeID = Integer.parseInt(req.getParameter("fieldTypeID"));
-        long facilityID = Long.parseLong(req.getParameter("facilityId"));
+        long complexId = Long.parseLong(req.getParameter("complexId"));
         String status = req.getParameter("status");
 
         Field field = new Field();
         field.setFieldName(fieldName);
         field.setDescription(fieldDesc);
         field.setFieldTypeId(fieldTypeID);
-        field.setFacilityId(facilityID);
+        field.setComplexId(complexId);
         field.setStatus(status);
 
         fieldService.addField(field);
@@ -68,7 +68,7 @@ public class FieldController extends HttpServlet {
         String fieldName = req.getParameter("fieldName");
         String fieldDesc = req.getParameter("description");
         int fieldTypeID = Integer.parseInt(req.getParameter("fieldTypeID"));
-        long facilityID = Long.parseLong(req.getParameter("facilityId"));
+        long complexId = Long.parseLong(req.getParameter("complexId"));
         String status = req.getParameter("status");
 
         Field f = new Field();
@@ -76,7 +76,7 @@ public class FieldController extends HttpServlet {
         f.setFieldName(fieldName);
         f.setDescription(fieldDesc);
         f.setFieldTypeId(fieldTypeID);
-        f.setFacilityId(facilityID);
+        f.setComplexId(complexId);
         f.setStatus(status);
 
         fieldService.updateField(f);
