@@ -32,15 +32,15 @@ public class StaffBillingDAO {
 
     public CheckoutView getCheckoutView(long bookingId) throws SQLException {
         String sql = """
-                SELECT b.booking_id, b.booking_code, b.customer_id, b.facility_id, b.field_id,
+                SELECT b.booking_id, b.booking_code, b.customer_id, b.complex_id, b.field_id,
                        b.status, b.start_time, b.end_time, b.total_amount, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_name,
-                       fac.facility_name, fac.address, fac.ward, fac.district, fac.city
+                       fc.complex_name, fc.address, fc.ward, fc.district, fc.city
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id = fi.field_id
-                JOIN facilities fac ON b.facility_id = fac.facility_id
+                JOIN football_complexes fc ON b.complex_id = fc.complex_id
                 WHERE b.booking_id = ?
                 """;
         try (Connection conn = DBContext.getConnection();
@@ -89,15 +89,15 @@ public class StaffBillingDAO {
         }
     }
 
-    public boolean canStaffCheckoutFacility(long staffId, long facilityId) throws SQLException {
+    public boolean canStaffCheckoutComplex(long staffId, long complexId) throws SQLException {
         try (Connection conn = DBContext.getConnection()) {
-            return hasActiveShiftForFacility(conn, staffId, facilityId);
+            return hasActiveShiftForComplex(conn, staffId, complexId);
         }
     }
 
-    public boolean canStaffViewFacilityToday(long staffId, long facilityId) throws SQLException {
+    public boolean canStaffViewComplexToday(long staffId, long complexId) throws SQLException {
         try (Connection conn = DBContext.getConnection()) {
-            return hasAssignedShiftForFacilityToday(conn, staffId, facilityId);
+            return hasAssignedShiftForComplexToday(conn, staffId, complexId);
         }
     }
 
@@ -109,7 +109,7 @@ public class StaffBillingDAO {
                 if (booking == null) {
                     throw new IllegalArgumentException("Khong tim thay lich dat san.");
                 }
-                if (staffRole && !hasActiveShiftForFacility(conn, actorId, booking.facilityId())) {
+                if (staffRole && !hasActiveShiftForComplex(conn, actorId, booking.complexId())) {
                     throw new SecurityException("Ban khong co ca lam viec dang hoat dong tai co so nay.");
                 }
 
@@ -210,7 +210,7 @@ public class StaffBillingDAO {
                 if (booking.startTime() == null || LocalDateTime.now().isBefore(booking.startTime().plusMinutes(30))) {
                     throw new IllegalArgumentException("Booking chua qua 30 phut ke tu gio bat dau.");
                 }
-                if (staffRole && !hasActiveShiftForFacility(conn, actorId, booking.facilityId())) {
+                if (staffRole && !hasActiveShiftForComplex(conn, actorId, booking.complexId())) {
                     throw new SecurityException("Ban khong co ca lam viec dang hoat dong tai co so nay.");
                 }
 
@@ -259,7 +259,7 @@ public class StaffBillingDAO {
                        b.field_id, b.total_amount AS field_fee, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_name,
-                       fac.facility_id, fac.facility_name, fac.address, fac.ward, fac.district, fac.city,
+                       fc.complex_id, fc.complex_name, fc.address, fc.ward, fc.district, fc.city,
                        staff.full_name AS staff_name,
                        lp.payment_status,
                        lp.payment_method_name
@@ -267,7 +267,7 @@ public class StaffBillingDAO {
                 JOIN bookings b ON i.booking_id = b.booking_id
                 JOIN users u ON i.customer_id = u.user_id
                 JOIN fields fi ON b.field_id = fi.field_id
-                JOIN facilities fac ON b.facility_id = fac.facility_id
+                JOIN football_complexes fc ON b.complex_id = fc.complex_id
                 LEFT JOIN users staff ON i.staff_id = staff.user_id
                 OUTER APPLY (
                     SELECT TOP 1 p.status AS payment_status,
@@ -287,7 +287,7 @@ public class StaffBillingDAO {
 
     private BookingLock lockBooking(Connection conn, long bookingId) throws SQLException {
         String sql = """
-                SELECT booking_id, booking_code, customer_id, facility_id, field_id,
+                SELECT booking_id, booking_code, customer_id, complex_id, field_id,
                        status, start_time, end_time, total_amount, deposit_amount
                 FROM bookings WITH (UPDLOCK, HOLDLOCK)
                 WHERE booking_id = ?
@@ -302,7 +302,7 @@ public class StaffBillingDAO {
                         rs.getLong("booking_id"),
                         rs.getString("booking_code"),
                         rs.getLong("customer_id"),
-                        rs.getLong("facility_id"),
+                        rs.getLong("complex_id"),
                         rs.getLong("field_id"),
                         rs.getString("status"),
                         toLocalDateTime(rs.getTimestamp("start_time")),
@@ -537,13 +537,13 @@ public class StaffBillingDAO {
         }
     }
 
-    private boolean hasActiveShiftForFacility(Connection conn, long staffId, long facilityId) throws SQLException {
+    private boolean hasActiveShiftForComplex(Connection conn, long staffId, long complexId) throws SQLException {
         String sql = """
                 SELECT TOP 1 1
                 FROM work_shifts ws
                 JOIN shift_assignments sa ON ws.shift_id = sa.shift_id
                 WHERE sa.staff_id = ?
-                  AND ws.facility_id = ?
+                  AND ws.complex_id = ?
                   AND ws.shift_date = CAST(GETDATE() AS DATE)
                   AND (sa.status IS NULL OR sa.status <> 'CANCELLED')
                   AND (
@@ -564,26 +564,26 @@ public class StaffBillingDAO {
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, staffId);
-            ps.setLong(2, facilityId);
+            ps.setLong(2, complexId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }
         }
     }
 
-    private boolean hasAssignedShiftForFacilityToday(Connection conn, long staffId, long facilityId) throws SQLException {
+    private boolean hasAssignedShiftForComplexToday(Connection conn, long staffId, long complexId) throws SQLException {
         String sql = """
                 SELECT TOP 1 1
                 FROM work_shifts ws
                 JOIN shift_assignments sa ON ws.shift_id = sa.shift_id
                 WHERE sa.staff_id = ?
-                  AND ws.facility_id = ?
+                  AND ws.complex_id = ?
                   AND ws.shift_date = CAST(GETDATE() AS DATE)
                   AND (sa.status IS NULL OR sa.status <> 'CANCELLED')
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, staffId);
-            ps.setLong(2, facilityId);
+            ps.setLong(2, complexId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }
@@ -595,13 +595,13 @@ public class StaffBillingDAO {
         view.setBookingId(rs.getLong("booking_id"));
         view.setBookingCode(rs.getString("booking_code"));
         view.setCustomerId(rs.getLong("customer_id"));
-        view.setFacilityId(rs.getLong("facility_id"));
+        view.setComplexId(rs.getLong("complex_id"));
         view.setFieldId(rs.getLong("field_id"));
         view.setStatus(rs.getString("status"));
         view.setCustomerName(rs.getString("customer_name"));
         view.setCustomerPhone(rs.getString("customer_phone"));
-        view.setFacilityName(rs.getString("facility_name"));
-        view.setFacilityAddress(joinAddress(rs));
+        view.setComplexName(rs.getString("complex_name"));
+        view.setComplexAddress(joinAddress(rs));
         view.setFieldName(rs.getString("field_name"));
         view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
@@ -619,12 +619,12 @@ public class StaffBillingDAO {
         view.setBookingId(rs.getLong("booking_id"));
         view.setBookingCode(rs.getString("booking_code"));
         view.setCustomerId(rs.getLong("customer_id"));
-        view.setFacilityId(rs.getLong("facility_id"));
+        view.setComplexId(rs.getLong("complex_id"));
         view.setFieldId(rs.getLong("field_id"));
         view.setCustomerName(rs.getString("customer_name"));
         view.setCustomerPhone(rs.getString("customer_phone"));
-        view.setFacilityName(rs.getString("facility_name"));
-        view.setFacilityAddress(joinAddress(rs));
+        view.setComplexName(rs.getString("complex_name"));
+        view.setComplexAddress(joinAddress(rs));
         view.setFieldName(rs.getString("field_name"));
         view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
@@ -693,7 +693,7 @@ public class StaffBillingDAO {
             long bookingId,
             String bookingCode,
             long customerId,
-            long facilityId,
+            long complexId,
             long fieldId,
             String status,
             LocalDateTime startTime,

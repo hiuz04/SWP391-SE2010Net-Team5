@@ -1,6 +1,6 @@
 <!--
-* Module: Facility Management
-* File: facility-form.html
+* Module: Complex Management
+* File: complex-form.html
 * Description: Trang nhập liệu để thêm mới hoặc cập nhật thông tin cơ sở.
 *
 * Author: Dương Hải Anh
@@ -28,12 +28,12 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
-    <link href="<%= ctx %>/assets/css/owner/facility.css" rel="stylesheet">
+    <link href="<%= ctx %>/assets/css/owner/complex.css" rel="stylesheet">
     <title></title>
 </head>
 <body>
 <div class="container py-4">
-    <div class="facility-form-wrapper">
+    <div class="complex-form-wrapper">
         <div class="d-flex align-items-start me-2 mt-2">
             <button
                     type="button"
@@ -42,15 +42,15 @@
                 <i class="bi bi-arrow-left"></i>
             </button>
         </div>
-        <div class="card shadow-sm facility-form-card">
+        <div class="card shadow-sm complex-form-card">
             <div class="card-body p-4">
                 <h3 id="formTitle" class="mb-4 text-center"></h3>
                 <form>
-                    <input type="hidden" id="facilityID">
+                    <input type="hidden" id="complexId">
 
                     <div class="row g-3">
 
-                        <input type="hidden" id="facilityID">
+                        <input type="hidden" id="complexId">
 
                         <div class="col-12">
                             <input type="file"
@@ -69,8 +69,8 @@
                         </div>
 
                         <div class="col-md-8">
-                            <label for="facName" class="form-label">Tên cơ sở <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="facName" required>
+                            <label for="complexName" class="form-label">Tên cơ sở <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="complexName" required>
                         </div>
 
                         <div class="col-md-4">
@@ -169,7 +169,7 @@
                                 class="btn btn-primary px-4"
                                 onclick="submitForm()"
                                 id="submitBtn">
-                            Thêm Facility
+                            Thêm Cụm sân
                         </button>
                     </div>
                 </form>
@@ -177,9 +177,11 @@
         </div>
     </div>
 </div>
-
+<script>
+    window.APP_CTX = '<%= ctx %>';
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<%= ctx %>/assets/js/owner/facility.js"></script>
+<script src="<%= ctx %>/assets/js/owner/complex.js"></script>
 <script>dynamicLabel(); loadForm();</script>
 </body>
 </html>

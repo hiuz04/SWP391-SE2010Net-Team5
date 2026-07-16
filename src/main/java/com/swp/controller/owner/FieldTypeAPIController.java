@@ -11,7 +11,7 @@ package com.swp.controller.owner;
 
 import com.google.gson.Gson;
 import com.swp.model.FieldType;
-import com.swp.service.owner.FieldTypeService;
+import com.swp.service.FieldTypeService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;

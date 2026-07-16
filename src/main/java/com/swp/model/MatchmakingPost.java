@@ -12,7 +12,7 @@ public class MatchmakingPost implements Serializable {
     private String description;
     private String skillLevel;
     private LocalDateTime expectedTime;
-    private Long facilityId;
+    private Long complexId;
     private String contactName;
     private String contactPhone;
     private String status;
@@ -22,7 +22,7 @@ public class MatchmakingPost implements Serializable {
     public MatchmakingPost() {
     }
 
-    public MatchmakingPost(Long postId, Long authorId, String postType, String title, String description, String skillLevel, LocalDateTime expectedTime, Long facilityId, String contactName, String contactPhone, String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public MatchmakingPost(Long postId, Long authorId, String postType, String title, String description, String skillLevel, LocalDateTime expectedTime, Long complexId, String contactName, String contactPhone, String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.postId = postId;
         this.authorId = authorId;
         this.postType = postType;
@@ -30,7 +30,7 @@ public class MatchmakingPost implements Serializable {
         this.description = description;
         this.skillLevel = skillLevel;
         this.expectedTime = expectedTime;
-        this.facilityId = facilityId;
+        this.complexId = complexId;
         this.contactName = contactName;
         this.contactPhone = contactPhone;
         this.status = status;
@@ -94,12 +94,12 @@ public class MatchmakingPost implements Serializable {
         this.expectedTime = expectedTime;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
     }
 
     public String getContactName() {

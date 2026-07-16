@@ -1,13 +1,13 @@
 /**
- * Module: Facility Management
- * File: facility.css
+ * Module: Complex Management
+ * File: complex.css
  * Description: Định dạng giao diện cho trang danh sách và trang nhập liệu cơ sở.
  *
  * Author: Dương Hải Anh
  * Version: 1.0
  * Created date: 04/06/2026
  */
-.facility-form-wrapper {
+.complex-form-wrapper {
     min-height: 100vh;
     padding: 40px 20px;
     background: #f8f9fa;
@@ -15,13 +15,13 @@
     justify-content: center;
 }
 
-.facility-form-card {
+.complex-form-card {
     max-width: 700px;
     border: none;
     border-radius: 16px;
 }
 
-.facility-form-card .card-body {
+.complex-form-card .card-body {
     padding: 32px;
 }
 

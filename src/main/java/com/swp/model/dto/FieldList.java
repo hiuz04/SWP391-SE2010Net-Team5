@@ -5,16 +5,16 @@ public class FieldList {
     private long fieldId;
     private String fieldName;
     private String type;
-    private String facilityName;
+    private String complexName;
     private String description;
     private String status;
     private boolean isHot;
 
-    public FieldList(long fieldId, String fieldName, String type, String facilityName, String description, String status, boolean isHot) {
+    public FieldList(long fieldId, String fieldName, String type, String complexName, String description, String status, boolean isHot) {
         this.fieldId = fieldId;
         this.fieldName = fieldName;
         this.type = type;
-        this.facilityName = facilityName;
+        this.complexName = complexName;
         this.description = description;
         this.status = status;
         this.isHot = isHot;
@@ -32,8 +32,8 @@ public class FieldList {
         return type;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
     public String getDescription() {

@@ -12,8 +12,8 @@
 
     boolean hasShift = (Boolean) request.getAttribute("hasShift") != null && (Boolean) request.getAttribute("hasShift");
     String selectedDate = (String) request.getAttribute("selectedDate");
-    String facilityName = (String) request.getAttribute("facilityName");
-    Long facilityId = (Long) request.getAttribute("facilityId");
+    String complexName = (String) request.getAttribute("complexName");
+    Long complexId = (Long) request.getAttribute("complexId");
     
     List<Map<String, Object>> fields = (List<Map<String, Object>>) request.getAttribute("fields");
     List<Map<String, Object>> bookings = (List<Map<String, Object>>) request.getAttribute("bookings");
@@ -136,7 +136,7 @@
         <div class="row align-items-center g-3">
           <div class="col-md-6">
             <h1 class="fw-bold mb-1">Lịch sân hàng ngày</h1>
-            <p class="text-muted mb-0">Cơ sở: <strong class="text-success"><%= facilityName %></strong></p>
+            <p class="text-muted mb-0">Cơ sở: <strong class="text-success"><%= complexName %></strong></p>
           </div>
           <div class="col-md-6 d-flex justify-content-md-end align-items-center gap-3">
             <div>

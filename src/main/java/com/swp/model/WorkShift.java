@@ -8,7 +8,7 @@ import java.time.LocalTime;
 public class WorkShift implements Serializable {
     private static final long serialVersionUID = 1L;
     private Long shiftId;
-    private Long facilityId;
+    private Long complexId;
     private String shiftName;
     private LocalDate shiftDate;
     private LocalTime startTime;
@@ -18,9 +18,9 @@ public class WorkShift implements Serializable {
     public WorkShift() {
     }
 
-    public WorkShift(Long shiftId, Long facilityId, String shiftName, LocalDate shiftDate, LocalTime startTime, LocalTime endTime, LocalDateTime createdAt) {
+    public WorkShift(Long shiftId, Long complexId, String shiftName, LocalDate shiftDate, LocalTime startTime, LocalTime endTime, LocalDateTime createdAt) {
         this.shiftId = shiftId;
-        this.facilityId = facilityId;
+        this.complexId = complexId;
         this.shiftName = shiftName;
         this.shiftDate = shiftDate;
         this.startTime = startTime;
@@ -36,12 +36,12 @@ public class WorkShift implements Serializable {
         this.shiftId = shiftId;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
     }
 
     public String getShiftName() {

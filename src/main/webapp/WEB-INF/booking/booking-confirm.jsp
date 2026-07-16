@@ -82,8 +82,8 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="text-muted small">C&#417; s&#7903;</div>
-                            <div class="fw-semibold"><%= esc(bookingInfo.getFacilityName()) %></div>
-                            <div class="text-muted"><%= esc(bookingInfo.getFacilityAddress()) %></div>
+                            <div class="fw-semibold"><%= esc(bookingInfo.getComplexName()) %></div>
+                            <div class="text-muted"><%= esc(bookingInfo.getComplexAddress()) %></div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">S&#226;n</div>
@@ -163,7 +163,7 @@
                         </div>
                         <button type="submit" class="btn btn-sf-primary w-100">T&#7841;o booking</button>
                     </form>
-                    <a href="<%= ctx %>/booking?action=create&facilityId=<%= bookingPreview.getFacilityId() %>&date=<%= bookingPreview.getStartTime().toLocalDate() %>"
+                    <a href="<%= ctx %>/booking?action=create&complexId=<%= bookingPreview.getComplexId() %>&date=<%= bookingPreview.getStartTime().toLocalDate() %>"
                        class="btn btn-outline-secondary w-100 mt-2">Quay l&#7841;i ch&#7885;n gi&#7901;</a>
                 </div>
             </aside>

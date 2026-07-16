@@ -1,10 +1,9 @@
-package com.swp.service.owner;
+package com.swp.service;
 
 import com.swp.dao.BookingDAO;
 import com.swp.dao.FieldDAO;
 import com.swp.model.Field;
 
-import java.awt.print.Book;
 import java.util.List;
 
 public class FieldService {
@@ -34,8 +33,8 @@ public class FieldService {
         return fieldDao.getFieldByID(id);
     }
 
-    public List<Field> getFieldOfThisFacility(long id) {
-        return fieldDao.getFieldBelongToThisFacilityId(id);
+    public List<Field> getFieldOfThisComplex(long id) {
+        return fieldDao.getFieldBelongToThisComplexId(id);
     }
 
     public List<Field> getAllField() {

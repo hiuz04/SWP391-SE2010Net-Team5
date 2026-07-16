@@ -109,8 +109,8 @@
           </div>
           <div class="col-md-6 text-md-end">
             <div class="text-muted small fw-bold mb-1">CƠ SỞ</div>
-            <div class="fw-bold"><%= esc(invoice.getFacilityName()) %></div>
-            <div class="text-muted small"><%= esc(invoice.getFacilityAddress()) %></div>
+            <div class="fw-bold"><%= esc(invoice.getComplexName()) %></div>
+            <div class="text-muted small"><%= esc(invoice.getComplexAddress()) %></div>
           </div>
         </div>
 

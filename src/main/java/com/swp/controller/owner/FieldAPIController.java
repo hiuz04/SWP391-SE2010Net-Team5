@@ -11,13 +11,13 @@
 package com.swp.controller.owner;
 
 import com.google.gson.Gson;
-import com.swp.model.Facility;
 import com.swp.model.Field;
 import com.swp.model.FieldType;
+import com.swp.model.FootballComplex;
 import com.swp.model.dto.FieldList;
-import com.swp.service.owner.FacilityService;
-import com.swp.service.owner.FieldService;
-import com.swp.service.owner.FieldTypeService;
+import com.swp.service.FootballComplexService;
+import com.swp.service.FieldService;
+import com.swp.service.FieldTypeService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 public class FieldAPIController extends HttpServlet {
 
     private static final FieldService fieldService = new FieldService();
-    private static final FacilityService facilityService = new FacilityService();
+    private static final FootballComplexService complexService = new FootballComplexService();
     private static final FieldTypeService fieldTypeService = new FieldTypeService();
 
     @Override
@@ -43,9 +43,9 @@ public class FieldAPIController extends HttpServlet {
 
         List<Field> fields = fieldService.getAllField();
 
-        List<Facility> facilities = facilityService.getListFacility();
-        Map<Long, Facility> facilityMap = facilities.stream()
-                .collect(Collectors.toMap(Facility::getFacilityId, Function.identity()));
+        List<FootballComplex> complexes = complexService.getListFootballComplex();
+        Map<Long, FootballComplex> complexMap = complexes.stream()
+                .collect(Collectors.toMap(FootballComplex::getComplexId, Function.identity()));
 
         List<FieldType> fieldTypes = fieldTypeService.getAllType();
         Map<Integer, FieldType> fieldTypeMap = fieldTypes.stream()
@@ -53,14 +53,14 @@ public class FieldAPIController extends HttpServlet {
         List<FieldList> lists = new ArrayList<>();
 
         for(Field f : fields) {
-            Facility fac = facilityMap.get(f.getFacilityId());
+            FootballComplex fc = complexMap.get(f.getComplexId());
             FieldType fT = fieldTypeMap.get(f.getFieldTypeId());
 
             lists.add(new FieldList(
                     f.getFieldId(),
                     f.getFieldName(),
                     fT.getTypeName(),
-                    fac.getFacilityName(),
+                    fc.getComplexName(),
                     f.getDescription(),
                     f.getStatus(),
                     f.isHot()

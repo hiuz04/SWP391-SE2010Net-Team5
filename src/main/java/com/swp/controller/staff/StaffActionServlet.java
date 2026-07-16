@@ -77,9 +77,9 @@ public class StaffActionServlet extends HttpServlet {
                     write(resp, "{\"error\":\"Bạn không có ca làm việc hôm nay để thực hiện tìm kiếm\"}");
                     return;
                 }
-                long facilityId = (Long) shift.get("facilityId");
+                long complexId = (Long) shift.get("complexId");
 
-                java.util.List<java.util.Map<String, Object>> list = staffDAO.searchConfirmedBookings(facilityId, query);
+                java.util.List<java.util.Map<String, Object>> list = staffDAO.searchConfirmedBookings(complexId, query);
                 write(resp, toJson(list));
                 return;
             }

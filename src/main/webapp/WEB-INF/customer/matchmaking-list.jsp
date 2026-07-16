@@ -63,8 +63,8 @@
                         <option value="ADVANCED">Khá / Giỏi (Advanced)</option>
                     </select>
 
-                    <label class="form-label mt-3" for="facility">Địa điểm (Cơ sở)</label>
-                    <select class="form-select" id="facility" onchange="searchPosts()">
+                    <label class="form-label mt-3" for="complex">Địa điểm (Cơ sở)</label>
+                    <select class="form-select" id="complex" onchange="searchPosts()">
                         <option value="">Tất cả địa điểm</option>
                     </select>
 
@@ -140,8 +140,8 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="newFacility" class="form-label">Địa điểm (Cơ sở)</label>
-                        <select class="form-select" id="newFacility" name="facilityId">
+                        <label for="newComplex" class="form-label">Địa điểm (Cơ sở)</label>
+                        <select class="form-select" id="newComplex" name="complexId">
                             <option value="">Chọn địa điểm mong muốn</option>
                         </select>
                     </div>

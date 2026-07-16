@@ -1,5 +1,5 @@
 // Lưu đường context của trang
-const ctx = "/SWP391-SE2010Net-Team5";
+const ctx = window.APP_CTX || "";
 
 function loadData() {
     fetch(`${ctx}/api/dashboard`)

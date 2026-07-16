@@ -12,7 +12,7 @@ public class PaymentView implements Serializable {
     private Long bookingId;
     private Long customerId;
     private String bookingCode;
-    private String facilityName;
+    private String complexName;
     private String fieldName;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
@@ -67,12 +67,12 @@ public class PaymentView implements Serializable {
         this.bookingCode = bookingCode;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 
     public String getFieldName() {

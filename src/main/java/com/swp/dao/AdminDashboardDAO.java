@@ -141,11 +141,11 @@ public class AdminDashboardDAO {
         List<Map<String, Object>> list = new ArrayList<>();
         String sql = """
                 SELECT TOP 5 b.booking_id, u.full_name as customer_name, u.phone as customer_phone,
-                       f.field_name, fac.facility_name, b.start_time, b.end_time, b.total_amount, b.status
+                       f.field_name, fc.complex_name, b.start_time, b.end_time, b.total_amount, b.status
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields f ON b.field_id = f.field_id
-                JOIN facilities fac ON f.facility_id = fac.facility_id
+                JOIN football_complexes fc ON f.complex_id = fc.complex_id
                 ORDER BY b.created_at DESC
                 """;
         try (Connection conn = DBContext.getConnection();
@@ -157,7 +157,7 @@ public class AdminDashboardDAO {
                 map.put("customerName", rs.getString("customer_name"));
                 map.put("customerPhone", rs.getString("customer_phone"));
                 map.put("fieldName", rs.getString("field_name"));
-                map.put("facilityName", rs.getString("facility_name"));
+                map.put("complexName", rs.getString("complex_name"));
                 map.put("startTime", rs.getTimestamp("start_time").toString());
                 map.put("endTime", rs.getTimestamp("end_time").toString());
                 map.put("totalAmount", rs.getBigDecimal("total_amount"));

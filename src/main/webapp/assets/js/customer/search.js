@@ -20,7 +20,7 @@ function renderData(data) {
 
                             <div class="d-flex justify-content-between">
                                 <h5 class="card-title">
-                                    ${item.facilityName}
+                                    ${item.complexName}
                                 </h5>
                             </div>
 
@@ -34,7 +34,7 @@ function renderData(data) {
                             <div class="mb-3 d-flex">
                                 ${(item.fieldTypeList || [])
                                 .map(field => `
-                                        <span class="facility-item me-1">
+                                        <span class="complex-item me-1">
                                             ${field.typeName}
                                         </span>
                                     `)
@@ -42,11 +42,11 @@ function renderData(data) {
                             </div>
                             <div class="mt-auto d-flex justify-content-end">
                                 <a class="btn btn-outline-success me-2"
-                                   href="${ctx}/field-details?id=${item.facilityId}">
+                                   href="${ctx}/field-details?id=${item.complexId}">
                                     Xem chi tiết
                                 </a>
                                 <a class="btn btn-sf-primary"
-                                   href="${ctx}/booking?action=create&facilityId=${item.facilityId}">
+                                   href="${ctx}/booking?action=create&complexId=${item.complexId}">
                                     Đặt ngay
                                 </a>
                             </div>

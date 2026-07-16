@@ -15,11 +15,11 @@ import java.util.List;
 public class FieldDAO {
 
     public void addField(Field f) {
-        String sql = "INSERT INTO fields(facility_id, field_type_id, field_name, description, status) VALUES (?,?,?,?,?)";
+        String sql = "INSERT INTO fields(complex_id, field_type_id, field_name, description, status) VALUES (?,?,?,?,?)";
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, f.getFacilityId());
+            ps.setLong(1, f.getComplexId());
             ps.setInt(2, f.getFieldTypeId());
             ps.setString(3, f.getFieldName());
             ps.setString(4, f.getDescription());
@@ -31,14 +31,14 @@ public class FieldDAO {
     }
 
     public void editField(Field f) {
-        String sql = "UPDATE fields SET field_name=?, description=?, field_type_id=?, facility_id=?, status=? WHERE field_id=?";
+        String sql = "UPDATE fields SET field_name=?, description=?, field_type_id=?, complex_id=?, status=? WHERE field_id=?";
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, f.getFieldName());
             ps.setString(2, f.getDescription());
             ps.setInt(3, f.getFieldTypeId());
-            ps.setLong(4, f.getFacilityId());
+            ps.setLong(4, f.getComplexId());
             ps.setString(5, f.getStatus());
             ps.setLong(6, f.getFieldId());
             ps.executeUpdate();
@@ -49,17 +49,6 @@ public class FieldDAO {
 
     public void deleteField(long id) {
         String sql = "DELETE FROM fields WHERE field_id = ?";
-        try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, id);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new RuntimeException("Lỗi khi cố gắng xóa dữ liệu: " + e.getMessage(), e);
-        }
-    }
-
-    public void deleteFieldWithFacilityID(long id) {
-        String sql = "DELETE FROM fields WHERE facility_id = ?";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
@@ -82,7 +71,7 @@ public class FieldDAO {
                 field.setFieldName(rs.getString("field_name"));
                 field.setDescription(rs.getString("description"));
                 field.setFieldTypeId(rs.getInt("field_type_id"));
-                field.setFacilityId(rs.getLong("facility_id"));
+                field.setComplexId(rs.getLong("complex_id"));
                 field.setStatus(rs.getString("status"));
                 field.setHot(rs.getBoolean("is_hot"));
             }
@@ -93,10 +82,10 @@ public class FieldDAO {
         return field;
     }
 
-    public List<Field> getFieldBelongToThisFacilityId(long id) {
+    public List<Field> getFieldBelongToThisComplexId(long id) {
         List<Field> list = new ArrayList<>();
 
-        String sql = "SELECT * FROM fields WHERE facility_id = ?";
+        String sql = "SELECT * FROM fields WHERE complex_id = ?";
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -105,7 +94,7 @@ public class FieldDAO {
             while (rs.next()) {
                 list.add(new Field(
                         rs.getLong("field_id"),
-                        rs.getLong("facility_id"),
+                        rs.getLong("complex_id"),
                         rs.getInt("field_type_id"),
                         rs.getString("field_name"),
                         rs.getString("description"),
@@ -132,7 +121,7 @@ public class FieldDAO {
             while (rs.next()) {
                 list.add(new Field(
                         rs.getLong("field_id"),
-                        rs.getLong("facility_id"),
+                        rs.getLong("complex_id"),
                         rs.getInt("field_type_id"),
                         rs.getString("field_name"),
                         rs.getString("description"),
@@ -150,11 +139,11 @@ public class FieldDAO {
         return list;
     }
 
-    public int getFieldCountWithFacilityId(long id) {
+    public int getFieldCountWithComplexId(long id) {
         String sql = """
                     SELECT COUNT(*) AS total
                     FROM fields
-                    WHERE facility_id = ?
+                    WHERE complex_id = ?
                     """;
 
         try (Connection conn = DBContext.getConnection();
@@ -176,25 +165,25 @@ public class FieldDAO {
     /**
      * Lấy các sân nổi bật (hot).
      * Loại trừ các sân đang bảo trì (status = MAINTENANCE) và phải được đánh dấu là hot (is_hot = 1).
-     * Join với bảng bookings để đếm, facility để lấy địa chỉ, field_types để lấy tên loại sân.
+     * Join với bảng bookings để đếm, complex để lấy địa chỉ, field_types để lấy tên loại sân.
      */
     public List<TopFieldSummary> getHotFields() {
         List<TopFieldSummary> list = new ArrayList<>();
         String sql =
             "SELECT " +
-            "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
-            "  fac.facility_name, fac.address, fac.district, fac.city, " +
+            "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, " +
+            "  fc.complex_name, fc.address, fc.district, fc.city, " +
             "  COALESCE(ft.type_name, '') AS field_type_name, " +
             "  COUNT(b.booking_id) AS booking_count, " +
             "  fi.image_url " +
             "FROM fields f " +
             "LEFT JOIN bookings b ON b.field_id = f.field_id " +
-            "LEFT JOIN facilities fac ON fac.facility_id = f.facility_id " +
+            "LEFT JOIN football_complexes fc ON fc.complex_id = f.complex_id " +
             "LEFT JOIN field_types ft ON ft.field_type_id = f.field_type_id " +
-            "OUTER APPLY (SELECT TOP 1 image_url FROM facility_images fi2 WHERE fi2.facility_id = f.facility_id ORDER BY thumbnail DESC, image_id DESC) fi " +
+            "OUTER APPLY (SELECT TOP 1 image_url FROM football_complex_images fi2 WHERE fi2.complex_id = f.complex_id ORDER BY thumbnail DESC, image_id DESC) fi " +
             "WHERE f.status <> 'MAINTENANCE' AND f.is_hot = 1 " +
-            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
-            "         fac.facility_name, fac.address, fac.district, fac.city, ft.type_name, fi.image_url " +
+            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, " +
+            "         fc.complex_name, fc.address, fc.district, fc.city, ft.type_name, fi.image_url " +
             "ORDER BY booking_count DESC";
 
         try (Connection conn = DBContext.getConnection();
@@ -209,8 +198,8 @@ public class FieldDAO {
                     rs.getString("status"),
                     rs.getString("field_type_name"),
                     rs.getBoolean("is_hot"),
-                    rs.getLong("facility_id"),
-                    rs.getString("facility_name"),
+                    rs.getLong("complex_id"),
+                    rs.getString("complex_name"),
                     rs.getString("address"),
                     rs.getString("district"),
                     rs.getString("city"),
@@ -233,19 +222,19 @@ public class FieldDAO {
         List<TopFieldSummary> list = new ArrayList<>();
         String sql =
             "SELECT " +
-            "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
-            "  fac.facility_name, fac.address, fac.district, fac.city, " +
+            "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, " +
+            "  fc.complex_name, fc.address, fc.district, fc.city, " +
             "  COALESCE(ft.type_name, '') AS field_type_name, " +
             "  COUNT(b.booking_id) AS booking_count, " +
             "  fi.image_url " +
             "FROM fields f " +
             "LEFT JOIN bookings b ON b.field_id = f.field_id " +
-            "LEFT JOIN facilities fac ON fac.facility_id = f.facility_id " +
+            "LEFT JOIN football_complexes fc ON fc.complex_id = f.complex_id " +
             "LEFT JOIN field_types ft ON ft.field_type_id = f.field_type_id " +
-            "OUTER APPLY (SELECT TOP 1 image_url FROM facility_images fi2 WHERE fi2.facility_id = f.facility_id ORDER BY thumbnail DESC, image_id DESC) fi " +
-            "WHERE f.status <> 'MAINTENANCE' AND fac.city = ? " +
-            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.facility_id, " +
-            "         fac.facility_name, fac.address, fac.district, fac.city, ft.type_name, fi.image_url " +
+            "OUTER APPLY (SELECT TOP 1 image_url FROM football_complex_images fi2 WHERE fi2.complex_id = f.complex_id ORDER BY thumbnail DESC, image_id DESC) fi " +
+            "WHERE f.status <> 'MAINTENANCE' AND fc.city = ? " +
+            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, " +
+            "         fc.complex_name, fc.address, fc.district, fc.city, ft.type_name, fi.image_url " +
             "ORDER BY booking_count DESC";
 
         try (Connection conn = DBContext.getConnection();
@@ -260,8 +249,8 @@ public class FieldDAO {
                         rs.getString("status"),
                         rs.getString("field_type_name"),
                         rs.getBoolean("is_hot"),
-                        rs.getLong("facility_id"),
-                        rs.getString("facility_name"),
+                        rs.getLong("complex_id"),
+                        rs.getString("complex_name"),
                         rs.getString("address"),
                         rs.getString("district"),
                         rs.getString("city"),

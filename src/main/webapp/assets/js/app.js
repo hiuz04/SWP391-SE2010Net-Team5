@@ -15,9 +15,7 @@
       ['Dashboard','staff/dashboard'], ['Lịch trong ngày','staff/schedule'], ['Check-in','staff/checkin']
     ],
     owner: [
-
-      ['Dashboard','owner'], ['Cơ sở','owner/facility'], ['Sân bóng','owner/field'], ['Quản lý ca trực','owner/work-shift'], ['Bảng giá','owner/price-rules']
-
+      ['Trang chủ','index'], ['Tìm sân','search'], ['Tìm đối','matchmaking'], ['Dashboard','owner']
     ],
     admin: [
       ['Dashboard','admin/dashboard'], ['Người dùng','admin/users'], ['Mã giảm giá','admin/vouchers'], ['Cài đặt','admin/settings']
@@ -36,10 +34,7 @@
     const role = target.dataset.role || 'guest';
     const name = target.dataset.name || 'Người dùng';
     const active = target.dataset.active || '';
-    console.log(">>> target: ", target );
-    console.log(">>> active: ", active);
     const roleLinks = pages[role] || pages.customer;
-    console.log(">>> roleLinks: ", roleLinks);
     const auth = role === 'guest'
       ? `<a class="btn btn-outline-success" href="${link(root, 'login')}">Đăng nhập</a><a class="btn btn-sf-primary" href="${link(root, 'register')}">Đăng ký</a>`
       : `<div class="dropdown me-2">

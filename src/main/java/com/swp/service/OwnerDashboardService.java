@@ -1,4 +1,4 @@
-package com.swp.service.owner;
+package com.swp.service;
 
 import com.swp.dao.OwnerDashboardDAO;
 import com.swp.model.dto.OwnerDashboardDTO;

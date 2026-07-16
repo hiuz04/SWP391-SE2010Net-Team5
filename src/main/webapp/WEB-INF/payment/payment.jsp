@@ -160,8 +160,8 @@
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
-                            <div class="text-muted small">Cơ sở</div>
-                            <div class="fw-semibold"><%= esc(checkoutContext ? invoice.getFacilityName() : booking.getFacilityName()) %></div>
+                            <div class="text-muted small">Cụm sân</div>
+                            <div class="fw-semibold"><%= esc(checkoutContext ? invoice.getComplexName() : booking.getComplexName()) %></div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">Sân</div>

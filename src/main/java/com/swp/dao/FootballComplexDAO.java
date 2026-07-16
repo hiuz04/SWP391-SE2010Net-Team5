@@ -1,18 +1,18 @@
 package com.swp.dao;
 
-import com.swp.model.Facility;
-import com.swp.model.FacilityImage;
+import com.swp.model.FootballComplex;
+import com.swp.model.FootballComplexImage;
 import com.swp.util.DBContext;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FacilityDAO {
+public class FootballComplexDAO {
 
-    public long addFacility(Facility facility) {
-        String sql = "INSERT INTO facilities (" +
-                "facility_name, " +
+    public long addComplex(FootballComplex fc) {
+        String sql = "INSERT INTO football_complexes (" +
+                "complex_name, " +
                 "description, " +
                 "address, " +
                 "ward, " +
@@ -30,53 +30,53 @@ public class FacilityDAO {
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, facility.getFacilityName());
-            ps.setString(2, facility.getDescription());
-            ps.setString(3, facility.getAddress());
-            ps.setString(4, facility.getWard());
-            ps.setString(5, facility.getDistrict());
-            ps.setString(6, facility.getCity());
+            ps.setString(1, fc.getComplexName());
+            ps.setString(2, fc.getDescription());
+            ps.setString(3, fc.getAddress());
+            ps.setString(4, fc.getWard());
+            ps.setString(5, fc.getDistrict());
+            ps.setString(6, fc.getCity());
 
-            if(facility.getLatitude() != null) {
-                ps.setBigDecimal(7, facility.getLatitude());
+            if(fc.getLatitude() != null) {
+                ps.setBigDecimal(7, fc.getLatitude());
             } else {ps.setNull(7, Types.DECIMAL);}
 
-            if(facility.getLongitude() != null) {
-                ps.setBigDecimal(8, facility.getLongitude());
+            if(fc.getLongitude() != null) {
+                ps.setBigDecimal(8, fc.getLongitude());
             } else {ps.setNull(8, Types.DECIMAL);}
 
-            ps.setString(9, facility.getHotline());
+            ps.setString(9, fc.getHotline());
 
             ps.setTime(10,
-                    facility.getOpeningTime() != null
-                            ? Time.valueOf(facility.getOpeningTime())
+                    fc.getOpeningTime() != null
+                            ? Time.valueOf(fc.getOpeningTime())
                             : null
             );
 
             ps.setTime(11,
-                    facility.getClosingTime() != null
-                            ? Time.valueOf(facility.getClosingTime())
+                    fc.getClosingTime() != null
+                            ? Time.valueOf(fc.getClosingTime())
                             : null
             );
 
-            ps.setString(12, facility.getGeneralRules());
-            ps.setString(13, facility.getStatus());
-            ps.setBoolean(14, facility.getFeatured());
+            ps.setString(12, fc.getGeneralRules());
+            ps.setString(13, fc.getStatus());
+            ps.setBoolean(14, fc.getFeatured());
             ps.executeUpdate();
             ResultSet rs = ps.getGeneratedKeys();
 
             if(rs.next()){
                 return rs.getLong(1);
             }
-            throw new RuntimeException("Không lấy được facility_id");
+            throw new RuntimeException("Không lấy được complex_id");
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi tạo mới dữ liệu: " + e.getMessage(), e);
         }
     }
 
-    public void editFacility(Facility facility) {
-        String sql = "UPDATE facilities SET " +
-                "facility_name=?, " +
+    public void editFootballComplex(FootballComplex fc) {
+        String sql = "UPDATE football_complexes SET " +
+                "complex_name=?, " +
                 "description=?, " +
                 "address=?, " +
                 "ward=?, " +
@@ -90,51 +90,51 @@ public class FacilityDAO {
                 "general_rules=?, " +
                 "status=?, " +
                 "featured=? " +
-                "WHERE facility_id=?";
+                "WHERE complex_id=?";
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, facility.getFacilityName());
-            ps.setString(2, facility.getDescription());
-            ps.setString(3, facility.getAddress());
-            ps.setString(4, facility.getWard());
-            ps.setString(5, facility.getDistrict());
-            ps.setString(6, facility.getCity());
+            ps.setString(1, fc.getComplexName());
+            ps.setString(2, fc.getDescription());
+            ps.setString(3, fc.getAddress());
+            ps.setString(4, fc.getWard());
+            ps.setString(5, fc.getDistrict());
+            ps.setString(6, fc.getCity());
 
-            if(facility.getLatitude() != null) {
-                ps.setBigDecimal(7, facility.getLatitude());
+            if(fc.getLatitude() != null) {
+                ps.setBigDecimal(7, fc.getLatitude());
             } else {ps.setNull(7, Types.DECIMAL);}
 
-            if(facility.getLongitude() != null) {
-                ps.setBigDecimal(8, facility.getLongitude());
+            if(fc.getLongitude() != null) {
+                ps.setBigDecimal(8, fc.getLongitude());
             } else {ps.setNull(8, Types.DECIMAL);}
 
-            ps.setString(9, facility.getHotline());
+            ps.setString(9, fc.getHotline());
 
             ps.setTime(10,
-                    facility.getOpeningTime() != null
-                            ? Time.valueOf(facility.getOpeningTime())
+                    fc.getOpeningTime() != null
+                            ? Time.valueOf(fc.getOpeningTime())
                             : null
             );
 
             ps.setTime(11,
-                    facility.getClosingTime() != null
-                            ? Time.valueOf(facility.getClosingTime())
+                    fc.getClosingTime() != null
+                            ? Time.valueOf(fc.getClosingTime())
                             : null
             );
 
-            ps.setString(12, facility.getGeneralRules());
-            ps.setString(13, facility.getStatus());
-            ps.setBoolean(14, facility.getFeatured());
-            ps.setLong(15, facility.getFacilityId());
+            ps.setString(12, fc.getGeneralRules());
+            ps.setString(13, fc.getStatus());
+            ps.setBoolean(14, fc.getFeatured());
+            ps.setLong(15, fc.getComplexId());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi cập nhật dữ liệu: " + e.getMessage(), e);
         }
     }
 
-    public void deleteFacility(long id) {
-        String sql = "DELETE FROM facilities WHERE facility_id = ?";
+    public void deleteFootballComplex(long id) {
+        String sql = "DELETE FROM football_complexes WHERE complex_id = ?";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
@@ -144,8 +144,8 @@ public class FacilityDAO {
         }
     }
 
-    public Facility getFacilityDataByID(long id) {
-        String sql = "SELECT * FROM facilities WHERE facility_id = ?";
+    public FootballComplex getFootballComplexDataByID(long id) {
+        String sql = "SELECT * FROM football_complexes WHERE complex_id = ?";
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -155,9 +155,9 @@ public class FacilityDAO {
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-                return new Facility(
-                        rs.getLong("facility_id"),
-                        rs.getString("facility_name"),
+                return new FootballComplex(
+                        rs.getLong("complex_id"),
+                        rs.getString("complex_name"),
                         rs.getString("description"),
                         rs.getString("address"),
                         rs.getString("ward"),
@@ -187,16 +187,16 @@ public class FacilityDAO {
         }
     }
 
-    public List<Facility> getAllFacility() {
-        List<Facility> list = new ArrayList<>();
-        String sql = "SELECT * FROM facilities";
+    public List<FootballComplex> getAllComplex() {
+        List<FootballComplex> list = new ArrayList<>();
+        String sql = "SELECT * FROM football_complexes";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
-                list.add(new Facility(
-                        rs.getLong("facility_id"),
-                        rs.getString("facility_name"),
+                list.add(new FootballComplex(
+                        rs.getLong("complex_id"),
+                        rs.getString("complex_name"),
                         rs.getString("description"),
                         rs.getString("address"),
                         rs.getString("ward"),
@@ -224,9 +224,9 @@ public class FacilityDAO {
         return list;
     }
 
-    public void addImage(FacilityImage img) {
-        String sql = "INSERT INTO facility_images(" +
-                "facility_id," +
+    public void addImage(FootballComplexImage img) {
+        String sql = "INSERT INTO football_complex_images(" +
+                "complex_id," +
                 "image_url," +
                 "thumbnail," +
                 "public_id" +
@@ -234,7 +234,7 @@ public class FacilityDAO {
 
         try(Connection conn = DBContext.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, img.getFacilityId());
+            ps.setLong(1, img.getComplexId());
             ps.setString(2, img.getImageUrl());
             ps.setBoolean(3, img.getThumbnail());
             ps.setString(4, img.getPublicId());
@@ -245,7 +245,7 @@ public class FacilityDAO {
     }
 
     public void updateImage(long id, boolean isThumbnail){
-        String sql = "UPDATE facility_images SET thumbnail=? WHERE image_id=?";
+        String sql = "UPDATE football_complex_images SET thumbnail=? WHERE image_id=?";
 
         try(Connection conn = DBContext.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -259,7 +259,7 @@ public class FacilityDAO {
     }
 
     public void deleteImage(long id) {
-        String sql = "DELETE FROM facility_images WHERE image_id = ?";
+        String sql = "DELETE FROM football_complex_images WHERE image_id = ?";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
@@ -269,19 +269,19 @@ public class FacilityDAO {
         }
     }
 
-    public List<FacilityImage> getAllImage(long facilityId) {
-        List<FacilityImage> list = new ArrayList<>();
-        String sql = "SELECT * FROM facility_images WHERE facility_id = ?";
+    public List<FootballComplexImage> getAllImage(long fcId) {
+        List<FootballComplexImage> list = new ArrayList<>();
+        String sql = "SELECT * FROM football_complex_images WHERE complex_id = ?";
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, facilityId);
+            ps.setLong(1, fcId);
             ResultSet rs = ps.executeQuery();
 
             while(rs.next()) {
-                list.add(new FacilityImage(
+                list.add(new FootballComplexImage(
                         rs.getLong("image_id"),
-                        rs.getLong("facility_id"),
+                        rs.getLong("complex_id"),
                         rs.getString("image_url"),
                         rs.getBoolean("thumbnail"),
                         rs.getString("public_id"),
@@ -294,10 +294,10 @@ public class FacilityDAO {
         return list;
     }
 
-    public void deleteAllImageRelatedToFacility(long id) {
+    public void deleteAllImageRelatedToFootballComplex(long id) {
         String sql = """
-            DELETE FROM facility_images
-            WHERE facility_id = ?
+            DELETE FROM football_complex_images
+            WHERE complex_id = ?
             """;
 
         try (Connection conn = DBContext.getConnection();
@@ -308,24 +308,24 @@ public class FacilityDAO {
 
         } catch (SQLException e) {
             throw new RuntimeException(
-                    "Lỗi khi xóa toàn bộ ảnh của facility: " + e.getMessage(),
+                    "Lỗi khi xóa toàn bộ ảnh của fc: " + e.getMessage(),
                     e
             );
         }
     }
 
-    public FacilityImage getThumbnail(long facilityId) {
-        String sql = "SELECT * FROM facility_images " +
-                              "WHERE facility_id = ? " +
+    public FootballComplexImage getThumbnail(long fcId) {
+        String sql = "SELECT * FROM football_complex_images " +
+                              "WHERE complex_id = ? " +
                               "AND thumbnail = 1";
         try(Connection conn = DBContext.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)){
-            ps.setLong(1, facilityId);
+            ps.setLong(1, fcId);
             ResultSet rs = ps.executeQuery();
             if(rs.next()) {
-                return new FacilityImage(
+                return new FootballComplexImage(
                         rs.getLong("image_id"),
-                        rs.getLong("facility_id"),
+                        rs.getLong("complex_id"),
                         rs.getString("image_url"),
                         rs.getBoolean("thumbnail"),
                         rs.getString("public_id"),
@@ -339,17 +339,17 @@ public class FacilityDAO {
         }
     }
 
-    public FacilityImage getImgById(long imgId) {
-        String sql = "SELECT * FROM facility_images " +
+    public FootballComplexImage getImgById(long imgId) {
+        String sql = "SELECT * FROM football_complex_images " +
                               "WHERE image_id = ?";
         try(Connection conn = DBContext.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)){
             ps.setLong(1, imgId);
             ResultSet rs = ps.executeQuery();
             if(rs.next()) {
-                return new FacilityImage(
+                return new FootballComplexImage(
                         rs.getLong("image_id"),
-                        rs.getLong("facility_id"),
+                        rs.getLong("complex_id"),
                         rs.getString("image_url"),
                         rs.getBoolean("thumbnail"),
                         rs.getString("public_id"),
@@ -367,7 +367,7 @@ public class FacilityDAO {
 
         String sql = """
                     SELECT DISTINCT city
-                    FROM facilities
+                    FROM football_complexes
                     ORDER BY city
                 """;
 
@@ -394,7 +394,7 @@ public class FacilityDAO {
 
         String sql = """
             SELECT DISTINCT ward
-            FROM facilities
+            FROM football_complexes
             WHERE ward IS NOT NULL AND ward <> ''
             ORDER BY ward
         """;

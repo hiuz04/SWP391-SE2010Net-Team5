@@ -3,15 +3,14 @@ const ctx = window.APP_CTX || "";
 
 const id = new URLSearchParams(window.location.search).get("id");
 
-console.log(">>> id: ", id);
-
 // Load dữ liệu chi tiết của cụm sân
 function loadData(id) {
     fetch(`${ctx}/field?id=${id}`)
         .then(res => res.json())
         .then(data => {
-            console.log(">>> data: ", data);
-            document.getElementById("field-name").innerHTML = data.facilityName;
+            console.log(">>> role",currentRole);
+            console.log(">>> data",data);
+            document.getElementById("field-name").innerHTML = data.complexName;
             document.getElementById("address").innerHTML = `<i class="bi bi-geo-alt me-1"></i>` + data.complexAddress;
             document.getElementById("description").innerHTML = data.description;
             document.getElementById("workingTime").innerHTML = `${data.openingTime} - ${data.closingTime}`;
@@ -21,7 +20,7 @@ function loadData(id) {
             document.getElementById("fieldCount").innerHTML = data.fields.length;
             const bookingUrl = document.getElementById("bookingUrl");
             if (bookingUrl) {
-                bookingUrl.href = `${ctx}/booking?action=create&facilityId=${data.facilityId}`;
+                bookingUrl.href = `${ctx}/booking?action=create&complexId=${data.complexId}`;
             }
 
             const fields = document.getElementById("fields");
@@ -34,9 +33,156 @@ function loadData(id) {
 
             fields.innerHTML = data.fields.map(item => `
                 <div>
-                    <span class="facility-item">${item.fieldName}</span>
+                    <span class="complex-item">${item.fieldName}</span>
                 </div>
             `).join("");
+
+            const feedbackContainer = document.getElementById("feedbackContainer");
+
+            if (!data.feedbacks || data.feedbacks.length === 0) {
+                feedbackContainer.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        Chưa có đánh giá nào.
+                    </div>
+                `;
+                return;
+            }
+
+            feedbackContainer.innerHTML = data.feedbacks.map(feedback => {
+                const stars = Array.from({ length: 5 }, (_, i) =>
+                    `<i class="bi ${i < feedback.rating
+                        ? 'bi-star-fill text-warning'
+                        : 'bi-star text-secondary'}"></i>`
+                ).join("");
+
+                const ownerReply = currentRole.toLowerCase() !== "owner"
+                    ? `
+                        ${feedback.ownerReply
+                            ? `
+                            <div class="owner-reply mt-3">
+                                <div class="fw-semibold text-success">
+                                    <i class="bi bi-reply-fill"></i>
+                                    Phản hồi từ chủ sân
+                                </div>
+                                <div>${feedback.ownerReply}</div>
+                            </div>
+                            ` : ""
+                        }
+                    ` : "";
+
+                const replySection = currentRole.toLowerCase() === "owner"
+                    ? `
+                            ${!feedback.ownerReply ? `
+                                <button class="btn btn-sm btn-success mt-2" style="margin-right: 0; margin-left: auto; display: block"
+                                        onclick="showReplyForm(${feedback.feedbackId})">
+                                    <i class="bi bi-reply-fill"></i> Reply
+                                </button>
+                    
+                                <div id="reply-form-${feedback.feedbackId}"
+                                     class="reply-form mt-3"
+                                     style="display: none;">
+                                    <textarea
+                                        id="reply-content-${feedback.feedbackId}"
+                                        class="form-control"
+                                        rows="3"
+                                        maxlength="1000"
+                                        placeholder="Nhập phản hồi..."
+                                    ></textarea>
+                    
+                                    <div class="mt-2 text-end">
+                                        <button class="btn btn-secondary btn-sm"
+                                                onclick="hideReplyForm(${feedback.feedbackId})">
+                                            Cancel
+                                        </button>
+                    
+                                        <button class="btn btn-success btn-sm"
+                                                onclick="submitReply(${feedback.feedbackId})">
+                                            Send
+                                        </button>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="owner-reply mt-3">
+                                    <div class="fw-semibold text-success mb-1">
+                                        <i class="bi bi-reply-fill"></i> Owner Reply
+                                    </div>
+                                    <div>${feedback.ownerReply}</div>
+                                </div>
+                            `}
+                        ` : "";
+
+                return `
+                        <div class="feedback-item mb-4">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <div class="fw-bold">${feedback.userName}</div>
+                                    ${stars}
+                                </div>
+                
+                                <small class="text-muted">
+                                    ${new Date(feedback.createdAt).toLocaleDateString("vi-VN")}
+                                </small>
+                            </div>
+                
+                            <div class="text-muted mt-2">
+                                <i class="bi bi-geo-alt-fill"></i>
+                                ${feedback.fieldName}
+                            </div>
+                
+                            <p class="mt-3 mb-0">${feedback.feedbackDesc}</p>
+                
+                            ${ownerReply}
+                            
+                            ${replySection}
+                        </div>
+                    `;
+            }).join("");
         })
 }
 loadData(id);
+
+function showReplyForm(feedbackId) {
+    document.getElementById(`reply-form-${feedbackId}`).style.display = "block";
+}
+
+function hideReplyForm(feedbackId) {
+    document.getElementById(`reply-form-${feedbackId}`).style.display = "none";
+}
+
+function submitReply(feedbackId) {
+    const content = document
+        .getElementById(`reply-content-${feedbackId}`)
+        .value
+        .trim();
+
+    if (!content) {
+        alert("Vui lòng nhập nội dung phản hồi.");
+        return;
+    }
+
+    fetch(`${ctx}/feedback-owner`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+            action: "reply",
+            feedbackId: feedbackId,
+            message: content
+        })
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error("Reply failed");
+        }
+        return res.text();
+    })
+    .then(() => {
+        alert("Phản hồi thành công.");
+        location.reload();
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Có lỗi xảy ra khi gửi phản hồi.");
+    });
+}
