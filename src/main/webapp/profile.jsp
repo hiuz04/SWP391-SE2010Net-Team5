@@ -1,8 +1,10 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
     <%@ page import="com.swp.model.User" %>
-        <%@ page import="java.util.Map" %>
+<%@ page import="java.util.Map" %>
             <%@ page import="java.util.Collections" %>
-                <% User currentUser=(User) request.getAttribute("currentUser"); if (currentUser==null) {
+                <%@ page import="java.time.LocalDateTime" %>
+                    <%@ page import="java.time.format.DateTimeFormatter" %>
+                        <% User currentUser=(User) request.getAttribute("currentUser"); if (currentUser==null) {
                     response.sendRedirect(request.getContextPath() + "/profile" ); return; } String
                     ctx=request.getContextPath(); String navRole=session.getAttribute("navRole") !=null ? (String)
                     session.getAttribute("navRole") : "guest" ; String displayName=currentUser.getFullName(); String
@@ -59,6 +61,40 @@
                                                             <div class="small text-muted">Booking</div>
                                                         </div>
                                                     </div>
+                                                </div>
+
+                                                <div class="mt-4 text-start">
+                                                    <%
+                                                        boolean isCustomer = "Customer".equalsIgnoreCase(currentUser.getRoleName());
+                                                        if (isCustomer) {
+                                                    %>
+                                                    <h6 class="fw-bold">Trạng thái Hội Viên</h6>
+                                                    <%
+                                                            boolean isVip = currentUser.isVip();
+                                                            LocalDateTime validUntil = currentUser.getVipValidUntil();
+                                                            boolean isVipActive = isVip && validUntil != null && validUntil.isAfter(LocalDateTime.now());
+                                                    %>
+                                                        <% if (isVipActive) { %>
+                                                            <div class="alert alert-success p-2 mb-2 text-center">
+                                                                <i class="bi bi-star-fill text-warning"></i> <strong>Thành viên VIP</strong>
+                                                            </div>
+                                                            <div class="small text-muted text-center mb-3">
+                                                                Hiệu lực đến: <%= validUntil.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) %>
+                                                            </div>
+                                                            <% if (validUntil.isBefore(LocalDateTime.now().plusDays(3))) { %>
+                                                                <a href="<%= ctx %>/payment?action=method&type=membership" class="btn btn-warning w-100 fw-bold">
+                                                                    <i class="bi bi-gem"></i> Gia hạn gói VIP (199k/30 ngày)
+                                                                </a>
+                                                            <% } %>
+                                                        <% } else { %>
+                                                            <div class="alert alert-secondary p-2 mb-2 text-center">
+                                                                Thành viên thường
+                                                            </div>
+                                                            <a href="<%= ctx %>/payment?action=method&type=membership" class="btn btn-warning w-100 fw-bold">
+                                                                <i class="bi bi-gem"></i> Đăng ký gói VIP (199k/30 ngày)
+                                                            </a>
+                                                        <% } %>
+                                                    <% } %>
                                                 </div>
                                             </div>
                                         </aside>

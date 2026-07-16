@@ -23,9 +23,9 @@
     NumberFormat currencyFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
 
     BigDecimal todayRevenue = kpis != null && kpis.get("todayRevenue") != null ? new BigDecimal(kpis.get("todayRevenue").toString()) : BigDecimal.ZERO;
+    BigDecimal last7DaysRevenue = kpis != null && kpis.get("last7DaysRevenue") != null ? new BigDecimal(kpis.get("last7DaysRevenue").toString()) : BigDecimal.ZERO;
     int todayBookings = kpis != null && kpis.get("todayBookings") != null ? ((Number) kpis.get("todayBookings")).intValue() : 0;
     int newCustomers = kpis != null && kpis.get("newCustomers") != null ? ((Number) kpis.get("newCustomers")).intValue() : 0;
-    int pendingUsers = kpis != null && kpis.get("pendingUsers") != null ? ((Number) kpis.get("pendingUsers")).intValue() : 0;
     int pendingBookings = kpis != null && kpis.get("pendingBookings") != null ? ((Number) kpis.get("pendingBookings")).intValue() : 0;
 %>
 <!DOCTYPE html>
@@ -49,7 +49,7 @@
                     <p class="text-muted">Tổng quan tình hình hoạt động của toàn hệ thống.</p>
                 </div>
                 <div>
-                    <button class="btn btn-outline-success"><i class="bi bi-download"></i> Tải báo cáo</button>
+                    <a href="<%= ctx %>/admin/dashboard/export" class="btn btn-outline-success"><i class="bi bi-download"></i> Tải báo cáo</a>
                 </div>
             </div>
 
@@ -60,6 +60,13 @@
                         <i class="bi bi-currency-dollar stat-icon"></i>
                         <div class="text-muted fw-semibold">Doanh thu hôm nay</div>
                         <h3 class="fw-bold mt-2"><%= currencyFormat.format(todayRevenue) %>₫</h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card p-4 position-relative h-100" style="border-left-color: #20c997;">
+                        <i class="bi bi-wallet2 stat-icon"></i>
+                        <div class="text-muted fw-semibold">Doanh thu 7 ngày</div>
+                        <h3 class="fw-bold mt-2"><%= currencyFormat.format(last7DaysRevenue) %>₫</h3>
                     </div>
                 </div>
                 <div class="col-md-3">
@@ -75,13 +82,6 @@
                         <div class="text-muted fw-semibold">Khách hàng mới</div>
                         <h3 class="fw-bold mt-2"><%= newCustomers %></h3>
                         <span class="text-muted small">Trong 7 ngày qua</span>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card p-4 position-relative h-100" style="border-left-color: #dc3545;">
-                        <i class="bi bi-percent stat-icon"></i>
-                        <div class="text-muted fw-semibold">Tài khoản chờ duyệt</div>
-                        <h3 class="fw-bold mt-2"><%= pendingUsers %></h3>
                     </div>
                 </div>
             </div>

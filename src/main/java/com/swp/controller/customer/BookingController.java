@@ -46,14 +46,14 @@ public class BookingController extends HttpServlet {
     private final BookingDAO bookingDAO = new BookingDAO();
     private final FieldTypeDAO fieldTypeDAO = new FieldTypeDAO();
     private final VoucherDAO voucherDAO = new VoucherDAO();
+    private final com.swp.dao.SystemSettingDAO systemSettingDAO = new com.swp.dao.SystemSettingDAO();
 
     private static final int SLOT_MINUTES = 30;
     private static final LocalTime GRID_START_TIME = LocalTime.of(5, 0);
     private static final LocalTime GRID_LAST_SLOT_START = LocalTime.of(20, 30);
     private static final LocalTime GRID_END_TIME = GRID_LAST_SLOT_START.plusMinutes(SLOT_MINUTES);
     private static final int HOLD_MINUTES = 15;
-    private static final int MAX_RECURRING_BOOKINGS = 10;
-    private static final int MAX_BOOKING_ADVANCE_MONTHS = 1;
+    private static final int MAX_RECURRING_BOOKINGS = 50;
     private static final BigDecimal DEPOSIT_RATE = new BigDecimal("0.30");
     private static final String STATUS_HOLD = "HOLD";
     private static final String STATUS_CANCELLED = "CANCELLED";
@@ -136,7 +136,7 @@ public class BookingController extends HttpServlet {
         LocalDate maxBookingDate = getMaxBookingDate();
         if (selectedDate.isBefore(today) || selectedDate.isAfter(maxBookingDate)) {
             selectedDate = today;
-            request.setAttribute("error", "Chỉ cho phép đặt sân trong tháng này và tháng sau.");
+            request.setAttribute("error", "Chỉ cho phép đặt sân trong giới hạn ngày đã cấu hình (Tối đa đến " + maxBookingDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ").");
         }
 
         List<Field> fields = bookingDAO.getFieldsByComplex(complexId);
@@ -572,7 +572,7 @@ public class BookingController extends HttpServlet {
             }
             // Chan tao qua nhieu booking lap trong mot lan submit.
             if (slots.size() >= MAX_RECURRING_BOOKINGS) {
-                throw new IllegalArgumentException("Ch\u1ec9 cho ph\u00e9p \u0111\u1eb7t s\u00e2n tr\u01b0\u1edbc trong v\u00f2ng 1 th\u00e1ng.");
+                throw new IllegalArgumentException("Khung giờ lặp lại vượt quá giới hạn " + MAX_RECURRING_BOOKINGS + " lần.");
             }
 
             currentStart = currentStart.plusWeeks(1);
@@ -699,8 +699,14 @@ public class BookingController extends HttpServlet {
     }
 
     private LocalDate getMaxBookingDate() {
-        LocalDate lastAllowedMonth = LocalDate.now().plusMonths(MAX_BOOKING_ADVANCE_MONTHS);
-        return lastAllowedMonth.withDayOfMonth(lastAllowedMonth.lengthOfMonth());
+        int maxDays = 30; // default 30 days
+        java.util.Optional<com.swp.model.SystemSetting> setting = systemSettingDAO.getSettingByKey("MAX_BOOKING_DAYS_AHEAD");
+        if (setting.isPresent()) {
+            try {
+                maxDays = Integer.parseInt(setting.get().getSettingValue());
+            } catch (NumberFormatException ignored) {}
+        }
+        return LocalDate.now().plusDays(maxDays);
     }
 
     private List<String> buildTimeHeaders() {
