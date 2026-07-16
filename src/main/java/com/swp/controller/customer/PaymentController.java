@@ -493,7 +493,7 @@ public class PaymentController extends HttpServlet {
     }
 
     private void handleVNPayReturn(HttpServletRequest request, HttpServletResponse response)
-            throws IOException, SQLException {
+            throws IOException, ServletException, SQLException {
         Map<String, String> params = VNPayUtil.extractParams(request);
         String transactionRef = trim(params.get("vnp_TxnRef"));
         if (transactionRef == null || transactionRef.isBlank()) {
@@ -513,7 +513,7 @@ public class PaymentController extends HttpServlet {
                     signature,
                     false
             );
-            redirectToPaymentResult(request, response, transactionRef);
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Chu ky VNPay khong hop le.");
             return;
         }
 
@@ -538,7 +538,7 @@ public class PaymentController extends HttpServlet {
             );
         }
 
-        redirectToPaymentResult(request, response, transactionRef);
+        forwardToPaymentResult(request, response, transactionRef);
     }
 
     private void handleVNPayIpn(HttpServletRequest request, HttpServletResponse response)
@@ -632,6 +632,21 @@ public class PaymentController extends HttpServlet {
         String transactionRef = requireText(request.getParameter("transactionRef"),
                 "Ma giao dich khong hop le.");
         PaymentView payment = paymentDAO.getPaymentResult(transactionRef, currentUser.getUserId());
+        if (payment == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Khong tim thay giao dich.");
+            return;
+        }
+
+        request.setAttribute("payment", payment);
+        request.getRequestDispatcher("/WEB-INF/payment/payment-result.jsp").forward(request, response);
+    }
+
+    private void forwardToPaymentResult(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            String transactionRef
+    ) throws IOException, ServletException, SQLException {
+        PaymentView payment = paymentDAO.getPaymentResultByTransactionRef(transactionRef);
         if (payment == null) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "Khong tim thay giao dich.");
             return;
