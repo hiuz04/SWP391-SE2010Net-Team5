@@ -12,8 +12,8 @@
 
     boolean hasShift = (Boolean) request.getAttribute("hasShift") != null && (Boolean) request.getAttribute("hasShift");
     String selectedDate = (String) request.getAttribute("selectedDate");
-    String facilityName = (String) request.getAttribute("facilityName");
-    Long facilityId = (Long) request.getAttribute("facilityId");
+    String complexName = (String) request.getAttribute("complexName");
+    Long complexId = (Long) request.getAttribute("complexId");
     
     List<Map<String, Object>> fields = (List<Map<String, Object>>) request.getAttribute("fields");
     List<Map<String, Object>> bookings = (List<Map<String, Object>>) request.getAttribute("bookings");
@@ -135,7 +135,7 @@
         <div class="row align-items-center g-3">
           <div class="col-md-6">
             <h1 class="fw-bold mb-1">Lịch sân hàng ngày</h1>
-            <p class="text-muted mb-0">Cơ sở: <strong class="text-success"><%= facilityName %></strong></p>
+            <p class="text-muted mb-0">Cơ sở: <strong class="text-success"><%= complexName %></strong></p>
           </div>
           <div class="col-md-6 d-flex justify-content-md-end align-items-center gap-3">
             <div>
@@ -182,7 +182,7 @@
                 </tr>
               <% } else {
                 for (Map<String, Object> field : fields) {
-                  long fieldId = (Long) field.get("fieldId");
+                  long fieldId = ((Number) field.get("fieldId")).longValue();
                   String fieldName = (String) field.get("fieldName");
                   String fieldStatus = (String) field.get("status");
                   
@@ -217,7 +217,7 @@
                       Map<String, Object> foundBooking = null;
                       if (bookings != null) {
                         for (Map<String, Object> b : bookings) {
-                          long bFieldId = (Long) b.get("fieldId");
+                          long bFieldId = ((Number) b.get("fieldId")).longValue();
                           if (bFieldId != fieldId) continue;
 
                           String bStartStr = (String) b.get("startTime"); 
@@ -256,7 +256,7 @@
                         cellText = "Khóa";
                       } else if (foundBooking != null) {
                         String bStatus = (String) foundBooking.get("status");
-                        long bId = (Long) foundBooking.get("bookingId");
+                        long bId = ((Number) foundBooking.get("bookingId")).longValue();
                         String custName = (String) foundBooking.get("customerName");
                         String bCode = (String) foundBooking.get("bookingCode");
                         boolean hasInvoice = Boolean.TRUE.equals(foundBooking.get("hasInvoice"));
@@ -330,7 +330,7 @@
                 </tr>
               <% } else {
                 for (Map<String, Object> b : bookings) {
-                  long bId = (Long) b.get("bookingId");
+                  long bId = ((Number) b.get("bookingId")).longValue();
                   String bCode = (String) b.get("bookingCode");
                   String bStart = (String) b.get("startTime"); 
                   String bEnd = (String) b.get("endTime");

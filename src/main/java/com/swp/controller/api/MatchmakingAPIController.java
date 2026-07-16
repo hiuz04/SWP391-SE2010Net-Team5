@@ -336,7 +336,7 @@ public class MatchmakingAPIController extends HttpServlet {
                 String description = req.getParameter("description");
                 String skillLevel = req.getParameter("skillLevel");
                 String expectedTimeStr = req.getParameter("expectedTime");
-                String facilityIdStr = req.getParameter("facilityId");
+                String complexIdStr = req.getParameter("complexId");
                 String contactName = req.getParameter("contactName");
                 String contactPhone = req.getParameter("contactPhone");
 
@@ -394,9 +394,9 @@ public class MatchmakingAPIController extends HttpServlet {
                     return;
                 }
 
-                Long facilityId = null;
-                if (facilityIdStr != null && !facilityIdStr.trim().isEmpty()) {
-                    facilityId = Long.parseLong(facilityIdStr);
+                Long complexId = null;
+                if (complexIdStr != null && !complexIdStr.trim().isEmpty()) {
+                    complexId = Long.parseLong(complexIdStr);
                 }
 
                 MatchmakingPost post = existing.getPost();
@@ -404,7 +404,7 @@ public class MatchmakingAPIController extends HttpServlet {
                 post.setDescription(description);
                 post.setSkillLevel(skillLevel);
                 post.setExpectedTime(expectedTime);
-                post.setFacilityId(facilityId);
+                post.setComplexId(complexId);
                 post.setContactName(contactName);
                 post.setContactPhone(contactPhone);
 

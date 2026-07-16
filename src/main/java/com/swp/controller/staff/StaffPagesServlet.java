@@ -96,9 +96,9 @@ public class StaffPagesServlet extends HttpServlet {
                     if (user != null && user.getRoleId() == 3) { // Role Staff = 3
                         Map<String, Object> shift = staffDAO.getCurrentShift(user.getUserId());
                         if (!shift.isEmpty() && !booking.isEmpty()) {
-                            long staffFacilityId = (Long) shift.get("facilityId");
-                            Long bookingFacilityId = (Long) booking.get("facilityId");
-                            if (bookingFacilityId != null && bookingFacilityId != staffFacilityId) {
+                            long staffComplexId = (Long) shift.get("complexId");
+                            Long bookingComplexId = (Long) booking.get("complexId");
+                            if (bookingComplexId != null && bookingComplexId != staffComplexId) {
                                 resp.sendRedirect(req.getContextPath() + "/staff/schedule?error=facility_mismatch");
                                 return;
                             }

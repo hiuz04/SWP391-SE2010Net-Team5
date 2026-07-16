@@ -299,7 +299,7 @@ public class StaffDashboardDAO {
     public Map<String, Object> getBookingDetailForCheckin(long bookingId) {
         String sql = """
                 SELECT b.booking_id, b.booking_code, b.total_amount, b.deposit_amount,
-                       b.status, b.facility_id,
+                       b.status, b.complex_id,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        b.start_time, b.end_time, f.field_name, fc.complex_name
                 FROM bookings b
@@ -319,7 +319,7 @@ public class StaffDashboardDAO {
                     map.put("totalAmount", rs.getBigDecimal("total_amount"));
                     map.put("depositAmount", rs.getBigDecimal("deposit_amount"));
                     map.put("status", rs.getString("status"));
-                    map.put("facilityId", rs.getLong("facility_id"));
+                    map.put("complexId", rs.getLong("complex_id"));
                     map.put("customerName", rs.getString("customer_name"));
                     map.put("customerPhone", rs.getString("customer_phone"));
                     map.put("startTime", rs.getString("start_time"));

@@ -154,9 +154,9 @@ public class StaffActionServlet extends HttpServlet {
             java.util.Map<String, Object> shift = staffDAO.getCurrentShift(staffId);
             java.util.Map<String, Object> booking = staffDAO.getBookingDetailForCheckin(bookingId);
             if (!shift.isEmpty() && !booking.isEmpty()) {
-                long staffFacilityId = (Long) shift.get("facilityId");
-                Long bookingFacilityId = (Long) booking.get("facilityId");
-                if (bookingFacilityId != null && bookingFacilityId != staffFacilityId) {
+                long staffComplexId = (Long) shift.get("complexId");
+                Long bookingComplexId = (Long) booking.get("complexId");
+                if (bookingComplexId != null && bookingComplexId != staffComplexId) {
                     resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     write(resp, "{\"error\":\"Lượt đặt sân này thuộc cơ sở khác. Bạn không thể thực hiện check-in.\"}");
                     return;
@@ -248,6 +248,11 @@ public class StaffActionServlet extends HttpServlet {
         String uri = req.getRequestURI();
         String contextPath = req.getContextPath();
         return uri.substring(contextPath.length());
+    }
+
+    private User getSessionUser(HttpServletRequest req) {
+        HttpSession session = req.getSession(false);
+        return session == null ? null : (User) session.getAttribute("user");
     }
 
     private void write(HttpServletResponse resp, String json) throws IOException {

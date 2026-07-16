@@ -295,7 +295,7 @@
                                     </div>
                                     <div class="mb-3">
                                         <label for="editFacility" class="form-label">Địa điểm (Cơ sở)</label>
-                                        <select class="form-select" id="editFacility" name="facilityId" data-selected="<%= postDTO.getPost().getFacilityId() != null ? postDTO.getPost().getFacilityId() : "" %>">
+                                        <select class="form-select" id="editFacility" name="complexId" data-selected="<%= postDTO.getPost().getComplexId() != null ? postDTO.getPost().getComplexId() : "" %>">
                                             <option value="">Chọn địa điểm mong muốn</option>
                                         </select>
                                     </div>
@@ -322,7 +322,7 @@
                 <script>
                     async function loadEditFacilities() {
                         try {
-                            const response = await fetch(window.APP_CTX + '/api/facilities');
+                            const response = await fetch(window.APP_CTX + '/api/complexes');
                             if (response.ok) {
                                 const data = await response.json();
                                 const select = document.getElementById("editFacility");
@@ -330,9 +330,9 @@
                                     const selectedVal = select.getAttribute("data-selected");
                                     let html = '<option value="">Chọn địa điểm mong muốn</option>';
                                     data.forEach(item => {
-                                        const fac = item.facility;
-                                        const isSelected = fac.facilityId == selectedVal ? 'selected' : '';
-                                        html += '<option value="' + fac.facilityId + '" ' + isSelected + '>' + fac.facilityName + ' (' + fac.city + ')</option>';
+                                        const fac = item.complex;
+                                        const isSelected = fac.complexId == selectedVal ? 'selected' : '';
+                                        html += '<option value="' + fac.complexId + '" ' + isSelected + '>' + fac.complexName + ' (' + fac.city + ')</option>';
                                     });
                                     select.innerHTML = html;
                                 }
