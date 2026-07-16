@@ -22,7 +22,7 @@ import java.util.*;
  * Returns a JSON object containing all data the Staff Dashboard page needs:
  *  - shift        : current shift info + progress %
  *  - kpi          : cash, booking counts, pending check-ins, avg rating
- *  - bookings     : list of today's bookings for the shift's facility
+ *  - bookings     : list of today's bookings for the shift's complex
  *  - recentActivity: last 5 events (check-ins + invoices)
  *  - staffName    : display name of the logged-in staff
  *
@@ -47,17 +47,6 @@ public class StaffDashboardServlet extends HttpServlet {
         HttpSession session = req.getSession(false);
         User user = (session != null) ? (User) session.getAttribute("user") : null;
 
-        // ── Auth check ──────────────────────────────────────────────────────
-        if (user == null) {
-            resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            write(resp, error("Chưa đăng nhập"));
-            return;
-        }
-        if (user.getRoleId() != ROLE_STAFF && user.getRoleId() != ROLE_OWNER) {
-            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            write(resp, error("Không có quyền truy cập"));
-            return;
-        }
 
         long staffId = user.getUserId();
 
@@ -103,7 +92,7 @@ public class StaffDashboardServlet extends HttpServlet {
             shift.put("remaining",   remainStr);
             shift.put("status",      shiftStatus);
 
-            long facilityId = (Long) shift.get("facilityId");
+            long complexId = (Long) shift.get("complexId");
             String dateStr  = LocalDate.now().toString();
 
             // ── 3. Cash KPI ──────────────────────────────────────────────────
@@ -127,16 +116,16 @@ public class StaffDashboardServlet extends HttpServlet {
             cash.put("targetPct",    Math.min(Math.round(cashPct * 10) / 10.0, 100.0));
 
             // ── 4. Booking KPI ───────────────────────────────────────────────
-            Map<String, Object> bookingKpi = dao.getBookingKpi(facilityId);
+            Map<String, Object> bookingKpi = dao.getBookingKpi(complexId);
 
             // ── 5. Pending check-ins ─────────────────────────────────────────
-            int pending = dao.getPendingCheckinCount(facilityId);
+            int pending = dao.getPendingCheckinCount(complexId);
 
             // ── 6. Average rating ────────────────────────────────────────────
-            Double avgRating = dao.getAverageRatingToday(facilityId);
+            Double avgRating = dao.getAverageRatingToday(complexId);
 
             // ── 7. Bookings list ─────────────────────────────────────────────
-            List<Map<String, Object>> bookings = dao.getTodayBookings(facilityId);
+            List<Map<String, Object>> bookings = dao.getTodayBookings(complexId);
 
             // Attach "currentlyPlaying" flag based on server time
             for (Map<String, Object> b : bookings) {
@@ -146,7 +135,7 @@ public class StaffDashboardServlet extends HttpServlet {
             }
 
             // ── 8. Recent activity ───────────────────────────────────────────
-            List<Map<String, Object>> activity = dao.getRecentActivity(facilityId);
+            List<Map<String, Object>> activity = dao.getRecentActivity(complexId);
 
             // ── 9. Assemble response ─────────────────────────────────────────
             Map<String, Object> payload = new LinkedHashMap<>();
@@ -216,19 +205,43 @@ public class StaffDashboardServlet extends HttpServlet {
                 .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
     }
 
-    private static LocalTime parseTime(String s) {
-        if (s == null) return LocalTime.MIDNIGHT;
-        // If it's a full DATETIME string (contains space), extract the time part
-        if (s.contains(" ")) {
-            s = s.split(" ")[1];
+    private static LocalTime parseTime(String timeStr) {
+        if (timeStr == null || timeStr.trim().isEmpty()) {
+            return LocalTime.MIDNIGHT;
         }
-        // SQL Server returns "HH:mm:ss" or "HH:mm:ss.n…"; normalise to HH:mm
-        if (s.contains(".")) s = s.substring(0, s.indexOf('.'));
-        // Trim to HH:mm if seconds are present
-        String[] parts = s.split(":");
-        int h = Integer.parseInt(parts[0]);
-        int m = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
-        return LocalTime.of(h, m);
+        timeStr = timeStr.trim().toUpperCase();
+
+        boolean pm = timeStr.contains("CH") || timeStr.contains("PM");
+        boolean am = timeStr.contains("SA") || timeStr.contains("AM");
+
+        if (timeStr.contains(" ")) {
+            String[] parts = timeStr.split(" ");
+            for (String part : parts) {
+                if (part.contains(":")) {
+                    timeStr = part;
+                    break;
+                }
+            }
+        }
+        if (timeStr.contains(".")) {
+            timeStr = timeStr.split("\\.")[0];
+        }
+
+        String clean = timeStr.replaceAll("[^0-9:]", "").trim();
+        if (clean.isEmpty()) return LocalTime.MIDNIGHT;
+
+        String[] parts = clean.split(":");
+        int hour = Integer.parseInt(parts[0]);
+        int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+        int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+
+        if (pm) {
+            if (hour < 12) hour += 12;
+        } else if (am) {
+            if (hour == 12) hour = 0;
+        }
+
+        return LocalTime.of(hour, min, sec);
     }
 
     private static long toSeconds(LocalTime from, LocalTime to) {

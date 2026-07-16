@@ -2,29 +2,28 @@ package com.swp.model.dto;
 
 import com.swp.model.MatchmakingPost;
 import java.io.Serializable;
-import java.time.LocalDateTime;
 
 public class MatchmakingPostDTO implements Serializable {
     private static final long serialVersionUID = 1L;
     
     private MatchmakingPost post;
     private String authorName;
-    private String facilityName;
+    private String complexName;
     private int responseCount;
 
     public MatchmakingPostDTO() {
     }
 
-    public MatchmakingPostDTO(MatchmakingPost post, String authorName, String facilityName) {
+    public MatchmakingPostDTO(MatchmakingPost post, String authorName, String complexName) {
         this.post = post;
         this.authorName = authorName;
-        this.facilityName = facilityName;
+        this.complexName = complexName;
     }
 
-    public MatchmakingPostDTO(MatchmakingPost post, String authorName, String facilityName, int responseCount) {
+    public MatchmakingPostDTO(MatchmakingPost post, String authorName, String complexName, int responseCount) {
         this.post = post;
         this.authorName = authorName;
-        this.facilityName = facilityName;
+        this.complexName = complexName;
         this.responseCount = responseCount;
     }
 
@@ -52,11 +51,11 @@ public class MatchmakingPostDTO implements Serializable {
         this.authorName = authorName;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 }

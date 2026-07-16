@@ -1,6 +1,6 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="com.swp.model.User" %>
-<%@ page import="com.swp.model.Facility" %>
+<%@ page import="com.swp.model.FootballComplex" %>
 <%@ page import="com.swp.model.WorkShift" %>
 <%@ page import="com.swp.dao.WorkShiftDAO" %>
 <%@ page import="java.util.List" %>
@@ -11,7 +11,7 @@
     User sessionUser = (User) session.getAttribute("user");
     String displayName = sessionUser != null ? sessionUser.getFullName() : "";
 
-    List<Facility> facilities = (List<Facility>) request.getAttribute("facilities");
+    List<FootballComplex> complexes = (List<FootballComplex>) request.getAttribute("complexes");
     List<User> staffList = (List<User>) request.getAttribute("staffList");
     List<WorkShift> shifts = (List<WorkShift>) request.getAttribute("shifts");
     Map<Long, Integer> staffShiftCounts = (Map<Long, Integer>) request.getAttribute("staffShiftCounts");
@@ -318,7 +318,7 @@
           <div class="d-flex align-items-center justify-content-between">
             <div>
               <span class="text-muted small fw-semibold">Cơ sở hoạt động</span>
-              <h3 class="fw-bold mt-1 mb-0"><%= facilities.size() %></h3>
+              <h3 class="fw-bold mt-1 mb-0"><%= complexes.size() %></h3>
             </div>
             <div class="p-3 bg-amber-50 text-amber-600 rounded-3" style="background:#fffbeb; color:#f59e0b;">
               <i class="bi bi-geo-alt-fill fs-4"></i>
@@ -343,13 +343,13 @@
         </li>
       </ul>
 
-      <!-- Facility filter -->
+      <!-- FootballComplex filter -->
       <div class="d-flex gap-2">
-        <label for="facility-filter" class="visually-hidden">Lọc theo cơ sở</label>
-        <select class="form-select border-0 shadow-sm" id="facility-filter" style="min-width: 220px;" onchange="filterShifts()">
+        <label for="complex-filter" class="visually-hidden">Lọc theo cơ sở</label>
+        <select class="form-select border-0 shadow-sm" id="complex-filter" style="min-width: 220px;" onchange="filterShifts()">
           <option value="ALL">Tất cả cơ sở</option>
-          <% for (Facility fac : facilities) { %>
-            <option value="<%= fac.getFacilityId() %>"><%= fac.getFacilityName() %></option>
+          <% for (FootballComplex fc : complexes) { %>
+            <option value="<%= fc.getComplexId() %>"><%= fc.getComplexName() %></option>
           <% } %>
         </select>
       </div>
@@ -422,14 +422,14 @@
                 <% } else {
                   java.time.LocalDateTime now = java.time.LocalDateTime.now();
                   for (WorkShift ws : shifts) {
-                    Facility curFac = null;
-                    for (Facility fac : facilities) {
-                      if (fac.getFacilityId().equals(ws.getFacilityId())) {
-                        curFac = fac;
+                    FootballComplex curFc = null;
+                    for (FootballComplex fc : complexes) {
+                      if (fc.getComplexId().equals(ws.getComplexId())) {
+                        curFc = fc;
                         break;
                       }
                     }
-                    String facName = curFac != null ? curFac.getFacilityName() : "Không rõ";
+                    String fcName = curFc != null ? curFc.getComplexName() : "Không rõ";
                     
                     // Fetch assigned staff list
                     List<User> assigned = workShiftDAO.getStaffAssignedToShift(ws.getShiftId());
@@ -449,7 +449,7 @@
                       isOngoing = !isPast && !now.isBefore(shiftStart);
                     }
                 %>
-                  <tr class="shift-row" data-facility-id="<%= ws.getFacilityId() %>">
+                  <tr class="shift-row" data-complex-id="<%= ws.getComplexId() %>">
                     <td>
                       <% if (isPast) { %>
                         <input type="checkbox" disabled class="form-check-input">
@@ -461,7 +461,7 @@
                       <strong class="text-slate-800"><%= ws.getShiftName() %></strong>
                     </td>
                     <td>
-                      <span class="badge bg-light text-dark p-2 border"><%= facName %></span>
+                      <span class="badge bg-light text-dark p-2 border"><%= fcName %></span>
                     </td>
                     <td>
                       <span class="text-secondary"><%= ws.getShiftDate().format(dateFormatter) %></span>
@@ -501,7 +501,7 @@
                             <i class="bi bi-person-plus-fill fs-5"></i>
                           </button>
                           <button class="btn btn-sm btn-outline-primary border-0" title="Sửa ca" 
-                                  onclick="openEditShiftModal(<%= ws.getShiftId() %>, <%= ws.getFacilityId() %>, '<%= ws.getShiftName() %>', '<%= ws.getShiftDate() %>', '<%= ws.getStartTime() %>', '<%= ws.getEndTime() %>', <%= assignedStaffId != null ? assignedStaffId : "''" %>)">
+                                  onclick="openEditShiftModal(<%= ws.getShiftId() %>, <%= ws.getComplexId() %>, '<%= ws.getShiftName() %>', '<%= ws.getShiftDate() %>', '<%= ws.getStartTime() %>', '<%= ws.getEndTime() %>', <%= assignedStaffId != null ? assignedStaffId : "''" %>)">
                             <i class="bi bi-pencil-square fs-5"></i>
                           </button>
                           <button class="btn btn-sm btn-outline-danger border-0" title="Xóa ca" 
@@ -578,11 +578,11 @@
         <div class="modal-body">
           
           <div class="mb-3">
-            <label for="modal-facility" class="form-label small fw-bold text-muted">Cơ sở / Địa điểm</label>
-            <select class="form-select" id="modal-facility" required>
+            <label for="modal-complex" class="form-label small fw-bold text-muted">Cơ sở / Địa điểm</label>
+            <select class="form-select" id="modal-complex" required>
               <option value="" disabled selected>-- Chọn cơ sở --</option>
-              <% for (Facility fac : facilities) { %>
-                <option value="<%= fac.getFacilityId() %>"><%= fac.getFacilityName() %></option>
+              <% for (FootballComplex fc : complexes) { %>
+                <option value="<%= fc.getComplexId() %>"><%= fc.getComplexName() %></option>
               <% } %>
             </select>
           </div>
@@ -739,9 +739,9 @@
     initModals();
   }
 
-  // Unified shift filter: checks facility, name search, date filter, and time search
+  // Unified shift filter: checks complex, name search, date filter, and time search
   function filterShifts() {
-    const selectedFacility = document.getElementById('facility-filter').value;
+    const selectedComplex = document.getElementById('complex-filter').value;
     const searchName = document.getElementById('filter-shift-name').value.trim().toLowerCase();
     const filterDate = document.getElementById('filter-shift-date').value;
     const searchTime = document.getElementById('filter-shift-time').value.trim();
@@ -750,9 +750,9 @@
     let visibleCount = 0;
 
     rows.forEach(row => {
-      // 1. Facility match
-      const facId = row.getAttribute('data-facility-id');
-      const matchFacility = (selectedFacility === 'ALL' || facId === selectedFacility);
+      // 1. FootballComplex match
+      const fcId = row.getAttribute('data-complex-id');
+      const matchComplex = (selectedComplex === 'ALL' || fcId === selectedComplex);
 
       // 2. Name match (2nd column: td:nth-child(2))
       const nameText = row.querySelector('td:nth-child(2) strong').innerText.toLowerCase();
@@ -771,7 +771,7 @@
       const timeText = row.querySelector('td:nth-child(5) span').innerText.trim().toLowerCase();
       const matchTime = timeText.includes(searchTime.toLowerCase());
 
-      if (matchFacility && matchName && matchDate && matchTime) {
+      if (matchComplex && matchName && matchDate && matchTime) {
         row.style.display = '';
         visibleCount++;
       } else {
@@ -804,7 +804,7 @@
     document.getElementById('filter-shift-name').value = '';
     document.getElementById('filter-shift-date').value = '';
     document.getElementById('filter-shift-time').value = '';
-    document.getElementById('facility-filter').value = 'ALL';
+    document.getElementById('complex-filter').value = 'ALL';
     filterShifts();
   }
 
@@ -836,7 +836,7 @@
   function openAddShiftModal() {
     document.getElementById('shiftModalTitle').innerText = 'Thêm ca làm việc mới';
     document.getElementById('modal-shift-id').value = '';
-    document.getElementById('modal-facility').value = '';
+    document.getElementById('modal-complex').value = '';
     
     // Reset options
     const selectEl = document.getElementById('modal-shift-name');
@@ -865,10 +865,10 @@
   }
 
   // Open modal in Edit mode
-  function openEditShiftModal(id, facilityId, name, date, start, end, staffId) {
+  function openEditShiftModal(id, complexId, name, date, start, end, staffId) {
     document.getElementById('shiftModalTitle').innerText = 'Cập nhật ca làm việc';
     document.getElementById('modal-shift-id').value = id;
-    document.getElementById('modal-facility').value = facilityId;
+    document.getElementById('modal-complex').value = complexId;
     
     const selectEl = document.getElementById('modal-shift-name');
     selectEl.innerHTML = `
@@ -895,7 +895,7 @@
     event.preventDefault();
 
     const id = document.getElementById('modal-shift-id').value;
-    const facilityId = document.getElementById('modal-facility').value;
+    const complexId = document.getElementById('modal-complex').value;
     const shiftName = document.getElementById('modal-shift-name').value;
     const startTime = document.getElementById('modal-start-time').value;
     const endTime = document.getElementById('modal-end-time').value;
@@ -925,7 +925,7 @@
     const params = new URLSearchParams();
     params.append('action', action);
     if (id) params.append('shiftId', id);
-    params.append('facilityId', facilityId);
+    params.append('complexId', complexId);
     params.append('shiftName', shiftName);
     params.append('startTime', formatTime24h(startTime));
     params.append('endTime', formatTime24h(endTime));
@@ -942,7 +942,7 @@
       });
       
       if (checkedDays.length === 0) {
-        alert('Vui lòng chọn ít nhất một ngày trong tuần để tạo ca trực hàng loạt.');
+        showToast('Vui lòng chọn ít nhất một ngày trong tuần để tạo ca trực hàng loạt.', 'warning');
         return;
       }
       
@@ -968,46 +968,47 @@
 
       if (data && data.success) {
         if (data.message) {
-          alert(data.message);
+          showToastAfterReload(data.message, 'success');
+        } else {
+          showToastAfterReload('Lưu ca làm việc thành công!', 'success');
         }
         bootstrap.Modal.getOrCreateInstance(document.getElementById('shiftModal')).hide();
         window.location.reload();
       } else {
-        alert('Lỗi: ' + (data && data.error ? data.error : 'HTTP ' + res.status));
+        showToast('Lỗi: ' + (data && data.error ? data.error : 'HTTP ' + res.status), 'danger');
       }
     } catch (err) {
-      alert('Đã xảy ra lỗi kết nối: ' + err.message);
+      showToast('Đã xảy ra lỗi kết nối: ' + err.message, 'danger');
     }
   }
 
   // Delete shift
   async function deleteShift(shiftId) {
-    if (!confirm('Bạn có chắc chắn muốn xóa ca làm việc này? Mọi thông tin phân công liên quan cũng sẽ bị xóa.')) {
-      return;
-    }
+    showConfirm('Bạn có chắc chắn muốn xóa ca làm việc này? Mọi thông tin phân công liên quan cũng sẽ bị xóa.', async () => {
+      const params = new URLSearchParams();
+      params.append('action', 'delete');
+      params.append('shiftId', shiftId);
 
-    const params = new URLSearchParams();
-    params.append('action', 'delete');
-    params.append('shiftId', shiftId);
+      try {
+        const res = await fetch('<%= ctx %>/owner/work-shift', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params
+        });
 
-    try {
-      const res = await fetch('<%= ctx %>/owner/work-shift', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params
-      });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
 
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-
-      if (data.success) {
-        window.location.reload();
-      } else {
-        alert('Lỗi: ' + (data.error || 'Không thể xóa ca trực'));
+        if (data.success) {
+          showToastAfterReload('Xóa ca làm việc thành công!', 'success');
+          window.location.reload();
+        } else {
+          showToast('Lỗi: ' + (data.error || 'Không thể xóa ca trực'), 'danger');
+        }
+      } catch (err) {
+        showToast('Đã xảy ra lỗi kết nối: ' + err.message, 'danger');
       }
-    } catch (err) {
-      alert('Đã xảy ra lỗi kết nối: ' + err.message);
-    }
+    });
   }
 
   // Toggle select all shift checkboxes (only not disabled ones)
@@ -1042,38 +1043,38 @@
     const checked = document.querySelectorAll('.shift-checkbox:checked');
     if (checked.length === 0) return;
 
-    if (!confirm('Bạn có chắc chắn muốn xóa ' + checked.length + ' ca làm việc đã chọn? Mọi thông tin phân công liên quan cũng sẽ bị xóa.')) {
-      return;
-    }
+    showConfirm('Bạn có chắc chắn muốn xóa ' + checked.length + ' ca làm việc đã chọn? Mọi thông tin phân công liên quan cũng sẽ bị xóa.', async () => {
+      const ids = [];
+      checked.forEach(cb => ids.push(cb.value));
 
-    const ids = [];
-    checked.forEach(cb => ids.push(cb.value));
+      const params = new URLSearchParams();
+      params.append('action', 'deleteBatch');
+      params.append('shiftIds', ids.join(','));
 
-    const params = new URLSearchParams();
-    params.append('action', 'deleteBatch');
-    params.append('shiftIds', ids.join(','));
+      try {
+        const res = await fetch('<%= ctx %>/owner/work-shift', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params
+        });
 
-    try {
-      const res = await fetch('<%= ctx %>/owner/work-shift', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params
-      });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
 
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-
-      if (data.success) {
-        if (data.message) {
-          alert(data.message);
+        if (data.success) {
+          if (data.message) {
+            showToastAfterReload(data.message, 'success');
+          } else {
+            showToastAfterReload('Xóa các ca làm việc thành công!', 'success');
+          }
+          window.location.reload();
+        } else {
+          showToast('Lỗi: ' + (data.error || 'Không thể xóa ca trực'), 'danger');
         }
-        window.location.reload();
-      } else {
-        alert('Lỗi: ' + (data.error || 'Không thể xóa ca trực'));
+      } catch (err) {
+        showToast('Đã xảy ra lỗi kết nối: ' + err.message, 'danger');
       }
-    } catch (err) {
-      alert('Đã xảy ra lỗi kết nối: ' + err.message);
-    }
+    });
   }
 
   // Open Assign Modal and fetch assignments
@@ -1175,12 +1176,12 @@
           buttonEl.outerHTML = '<button class="btn btn-sm btn-sf-outline-success" onclick="toggleAssign(' + shiftId + ', ' + staffId + ', \'assign\', this)">Giao ca</button>';
         }
       } else {
-        alert('Lỗi: ' + (data.error || 'Thao tác phân công thất bại'));
+        showToast('Lỗi: ' + (data.error || 'Thao tác phân công thất bại'), 'danger');
         buttonEl.disabled = false;
         buttonEl.innerText = action === 'assign' ? 'Giao ca' : 'Hủy ca';
       }
     } catch (err) {
-      alert('Lỗi kết nối: ' + err.message);
+      showToast('Lỗi kết nối: ' + err.message, 'danger');
       buttonEl.disabled = false;
       buttonEl.innerText = action === 'assign' ? 'Giao ca' : 'Hủy ca';
     }

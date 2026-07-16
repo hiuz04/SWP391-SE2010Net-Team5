@@ -10,7 +10,7 @@ public class Booking implements Serializable {
     private Long bookingId;
     private String bookingCode;
     private Long customerId;
-    private Long facilityId;
+    private Long complexId;
     private Long fieldId;
     private Long recurringGroupId;
     private LocalDateTime startTime;
@@ -32,11 +32,11 @@ public class Booking implements Serializable {
     public Booking() {
     }
 
-    public Booking(Long bookingId, String bookingCode, Long customerId, Long facilityId, Long fieldId, Long recurringGroupId, LocalDateTime startTime, LocalDateTime endTime, Integer voucherId, BigDecimal originalPrice, BigDecimal discountAmount, BigDecimal totalAmount, BigDecimal finalAmount, BigDecimal depositAmount, String status, LocalDateTime holdExpiresAt, String cancellationReason, LocalDateTime cancelledAt, String qrCode, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public Booking(Long bookingId, String bookingCode, Long customerId, Long complexId, Long fieldId, Long recurringGroupId, LocalDateTime startTime, LocalDateTime endTime,Integer voucherId, BigDecimal originalPrice, BigDecimal discountAmount, BigDecimal totalAmount, BigDecimal finalAmount, BigDecimal depositAmount, String status, LocalDateTime holdExpiresAt, String cancellationReason, LocalDateTime cancelledAt, String qrCode, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.bookingId = bookingId;
         this.bookingCode = bookingCode;
         this.customerId = customerId;
-        this.facilityId = facilityId;
+        this.complexId = complexId;
         this.fieldId = fieldId;
         this.recurringGroupId = recurringGroupId;
         this.startTime = startTime;
@@ -80,12 +80,12 @@ public class Booking implements Serializable {
         this.customerId = customerId;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
     }
 
     public Long getFieldId() {

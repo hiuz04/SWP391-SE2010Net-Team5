@@ -3,21 +3,21 @@ package com.swp.model;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public class FacilityImage implements Serializable {
-//    private static final long serialVersionUID = 1L;
+public class FootballComplexImage implements Serializable {
+    //    private static final long serialVersionUID = 1L;
     private Long imageId;
-    private Long facilityId;
+    private Long complexId;
     private String imageUrl;
     private Boolean thumbnail;
     private String publicId;
     private LocalDateTime createdAt;
 
-    public FacilityImage() {
+    public FootballComplexImage() {
     }
 
-    public FacilityImage(Long imageId, Long facilityId, String imageUrl, Boolean thumbnail,String publicId, LocalDateTime createdAt) {
+    public FootballComplexImage(Long imageId, Long complexId, String imageUrl, Boolean thumbnail, String publicId, LocalDateTime createdAt) {
         this.imageId = imageId;
-        this.facilityId = facilityId;
+        this.complexId = complexId;
         this.imageUrl = imageUrl;
         this.thumbnail = thumbnail;
         this.publicId = publicId;
@@ -32,12 +32,12 @@ public class FacilityImage implements Serializable {
         this.imageId = imageId;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
     }
 
     public String getImageUrl() {

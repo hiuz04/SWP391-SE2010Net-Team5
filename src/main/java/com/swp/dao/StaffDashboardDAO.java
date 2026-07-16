@@ -20,11 +20,11 @@ public class StaffDashboardDAO {
         String sql = """
                 SELECT ws.shift_id, ws.shift_name, ws.shift_date,
                        ws.start_time, ws.end_time,
-                       f.facility_id, f.facility_name,
+                       f.complex_id, f.complex_name,
                        sa.status AS assignment_status
                 FROM work_shifts ws
                 JOIN shift_assignments sa ON ws.shift_id = sa.shift_id
-                JOIN facilities f ON ws.facility_id = f.facility_id
+                JOIN football_complexes f ON ws.complex_id = f.complex_id
                 WHERE sa.staff_id = ?
                   AND ws.shift_date = CAST(GETDATE() AS DATE)
                 ORDER BY ws.start_time
@@ -41,8 +41,8 @@ public class StaffDashboardDAO {
                     shift.put("shiftDate", rs.getString("shift_date"));
                     shift.put("startTime", rs.getString("start_time"));
                     shift.put("endTime", rs.getString("end_time"));
-                    shift.put("facilityId", rs.getLong("facility_id"));
-                    shift.put("facilityName", rs.getString("facility_name"));
+                    shift.put("complexId", rs.getLong("complex_id"));
+                    shift.put("complexName", rs.getString("complex_name"));
                     shift.put("assignmentStatus", rs.getString("assignment_status"));
                     shifts.add(shift);
                 }
@@ -53,7 +53,7 @@ public class StaffDashboardDAO {
         return selectBestShift(shifts);
     }
 
-    public List<Map<String, Object>> getTodayBookings(long facilityId) {
+    public List<Map<String, Object>> getTodayBookings(long complexId) {
         String sql = """
                 SELECT b.booking_id, b.booking_code,
                        b.start_time, b.end_time,
@@ -70,7 +70,7 @@ public class StaffDashboardDAO {
                 FROM bookings b
                 JOIN users u  ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id   = fi.field_id
-                WHERE b.facility_id = ?
+                WHERE b.complex_id = ?
                   AND CAST(b.start_time AS DATE) = CAST(GETDATE() AS DATE)
                   AND b.status NOT IN ('CANCELLED','HOLD')
                 ORDER BY b.start_time
@@ -78,7 +78,7 @@ public class StaffDashboardDAO {
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, facilityId);
+            ps.setLong(1, complexId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Map<String, Object> row = new LinkedHashMap<>();
@@ -134,13 +134,13 @@ public class StaffDashboardDAO {
         return kpi;
     }
 
-    public Map<String, Object> getBookingKpi(long facilityId) {
+    public Map<String, Object> getBookingKpi(long complexId) {
         String sql = """
                 SELECT
                     COUNT(*) AS total_bookings,
                     SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed
                 FROM bookings
-                WHERE facility_id = ?
+                WHERE complex_id = ?
                   AND CAST(start_time AS DATE) = CAST(GETDATE() AS DATE)
                   AND status NOT IN ('CANCELLED','HOLD')
                 """;
@@ -149,7 +149,7 @@ public class StaffDashboardDAO {
         kpi.put("completed", 0);
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, facilityId);
+            ps.setLong(1, complexId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     kpi.put("totalBookings", rs.getInt("total_bookings"));
@@ -162,18 +162,18 @@ public class StaffDashboardDAO {
         return kpi;
     }
 
-    public int getPendingCheckinCount(long facilityId) {
+    public int getPendingCheckinCount(long complexId) {
         String sql = """
                 SELECT COUNT(*) AS cnt
                 FROM bookings
-                WHERE facility_id = ?
+                WHERE complex_id = ?
                   AND CAST(start_time AS DATE) = CAST(GETDATE() AS DATE)
                   AND status = 'CONFIRMED'
                   AND start_time <= GETDATE()
                 """;
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, facilityId);
+            ps.setLong(1, complexId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt("cnt");
@@ -185,11 +185,11 @@ public class StaffDashboardDAO {
         return 0;
     }
 
-    public Double getAverageRatingToday(long facilityId) {
+    public Double getAverageRatingToday(long complexId) {
         return null;
     }
 
-    public List<Map<String, Object>> getRecentActivity(long facilityId) {
+    public List<Map<String, Object>> getRecentActivity(long complexId) {
         String sql = """
                 SELECT TOP 5 *
                 FROM (
@@ -204,7 +204,7 @@ public class StaffDashboardDAO {
                     JOIN bookings b ON c.booking_id = b.booking_id
                     JOIN users u ON b.customer_id = u.user_id
                     JOIN fields fi ON b.field_id = fi.field_id
-                    WHERE b.facility_id = ?
+                    WHERE b.complex_id = ?
 
                     UNION ALL
 
@@ -219,7 +219,7 @@ public class StaffDashboardDAO {
                     JOIN bookings b ON i.booking_id = b.booking_id
                     JOIN users u ON i.customer_id = u.user_id
                     JOIN fields fi ON b.field_id = fi.field_id
-                    WHERE b.facility_id = ?
+                    WHERE b.complex_id = ?
                       AND i.status = 'PAID'
                 ) activity
                 WHERE CAST(activity.event_time AS DATE) = CAST(GETDATE() AS DATE)
@@ -228,8 +228,8 @@ public class StaffDashboardDAO {
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, facilityId);
-            ps.setLong(2, facilityId);
+            ps.setLong(1, complexId);
+            ps.setLong(2, complexId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Map<String, Object> row = new LinkedHashMap<>();
@@ -297,13 +297,13 @@ public class StaffDashboardDAO {
     public Map<String, Object> getBookingDetailForCheckin(long bookingId) {
         String sql = """
                 SELECT b.booking_id, b.booking_code, b.total_amount, b.deposit_amount,
-                       b.status,
+                       b.status, b.complex_id,
                        u.full_name AS customer_name, u.phone AS customer_phone,
-                       b.start_time, b.end_time, f.field_name, fac.facility_name
+                       b.start_time, b.end_time, f.field_name, fc.complex_name
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields f ON b.field_id = f.field_id
-                JOIN facilities fac ON b.facility_id = fac.facility_id
+                JOIN football_complexes fc ON b.complex_id = fc.complex_id
                 WHERE b.booking_id = ?
                 """;
         try (Connection conn = DBContext.getConnection();
@@ -317,12 +317,13 @@ public class StaffDashboardDAO {
                     map.put("totalAmount", rs.getBigDecimal("total_amount"));
                     map.put("depositAmount", rs.getBigDecimal("deposit_amount"));
                     map.put("status", rs.getString("status"));
+                    map.put("complexId", rs.getLong("complex_id"));
                     map.put("customerName", rs.getString("customer_name"));
                     map.put("customerPhone", rs.getString("customer_phone"));
                     map.put("startTime", rs.getString("start_time"));
                     map.put("endTime", rs.getString("end_time"));
                     map.put("fieldName", rs.getString("field_name"));
-                    map.put("facilityName", rs.getString("facility_name"));
+                    map.put("complexName", rs.getString("complex_name"));
                     return map;
                 }
             }
@@ -332,7 +333,7 @@ public class StaffDashboardDAO {
         return Collections.emptyMap();
     }
 
-    public List<Map<String, Object>> getBookingsForDate(long facilityId, String dateStr) {
+    public List<Map<String, Object>> getBookingsForDate(long complexId, String dateStr) {
         String sql = """
                 SELECT b.booking_id, b.booking_code, b.start_time, b.end_time, b.status, b.total_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
@@ -347,7 +348,7 @@ public class StaffDashboardDAO {
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id = fi.field_id
-                WHERE b.facility_id = ?
+                WHERE b.complex_id = ?
                   AND CAST(b.start_time AS DATE) = ?
                   AND b.status NOT IN ('CANCELLED','HOLD')
                 ORDER BY b.start_time
@@ -355,7 +356,7 @@ public class StaffDashboardDAO {
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, facilityId);
+            ps.setLong(1, complexId);
             ps.setString(2, dateStr);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -381,12 +382,12 @@ public class StaffDashboardDAO {
         return list;
     }
 
-    public List<Map<String, Object>> getFieldsForFacility(long facilityId) {
-        String sql = "SELECT field_id, field_name, status, description FROM fields WHERE facility_id = ? ORDER BY field_name";
+    public List<Map<String, Object>> getFieldsForComplex(long complexId) {
+        String sql = "SELECT field_id, field_name, status, description FROM fields WHERE complex_id = ? ORDER BY field_name";
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, facilityId);
+            ps.setLong(1, complexId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Map<String, Object> row = new LinkedHashMap<>();
@@ -403,7 +404,7 @@ public class StaffDashboardDAO {
         return list;
     }
 
-    public List<Map<String, Object>> searchConfirmedBookings(long facilityId, String query) {
+    public List<Map<String, Object>> searchConfirmedBookings(long complexId, String query) {
         String sql = """
                 SELECT b.booking_id, b.booking_code,
                        b.start_time, b.end_time,
@@ -413,7 +414,7 @@ public class StaffDashboardDAO {
                 FROM bookings b
                 JOIN users u  ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id   = fi.field_id
-                WHERE b.facility_id = ?
+                WHERE b.complex_id = ?
                   AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'COMPLETED')
                   AND (
                       b.booking_code LIKE ?
@@ -426,7 +427,7 @@ public class StaffDashboardDAO {
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             String likePattern = "%" + query + "%";
-            ps.setLong(1, facilityId);
+            ps.setLong(1, complexId);
             ps.setString(2, likePattern);
             ps.setString(3, likePattern);
             ps.setString(4, likePattern);
@@ -504,20 +505,42 @@ public class StaffDashboardDAO {
         return !time.isBefore(start) || time.isBefore(end);
     }
 
-    private static LocalTime parseTime(String s) {
-        if (s == null || s.trim().isEmpty()) {
+    private static LocalTime parseTime(String timeStr) {
+        if (timeStr == null || timeStr.trim().isEmpty()) {
             return LocalTime.MIDNIGHT;
         }
-        s = s.trim();
-        if (s.contains(" ")) {
-            s = s.split(" ")[1];
+        timeStr = timeStr.trim().toUpperCase();
+
+        boolean pm = timeStr.contains("CH") || timeStr.contains("PM");
+        boolean am = timeStr.contains("SA") || timeStr.contains("AM");
+
+        if (timeStr.contains(" ")) {
+            String[] parts = timeStr.split(" ");
+            for (String part : parts) {
+                if (part.contains(":")) {
+                    timeStr = part;
+                    break;
+                }
+            }
         }
-        if (s.contains(".")) {
-            s = s.substring(0, s.indexOf('.'));
+        if (timeStr.contains(".")) {
+            timeStr = timeStr.split("\\.")[0];
         }
-        String[] parts = s.split(":");
-        int h = Integer.parseInt(parts[0]);
-        int m = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
-        return LocalTime.of(h, m);
+
+        String clean = timeStr.replaceAll("[^0-9:]", "").trim();
+        if (clean.isEmpty()) return LocalTime.MIDNIGHT;
+
+        String[] parts = clean.split(":");
+        int hour = Integer.parseInt(parts[0]);
+        int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+        int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+
+        if (pm) {
+            if (hour < 12) hour += 12;
+        } else if (am) {
+            if (hour == 12) hour = 0;
+        }
+
+        return LocalTime.of(hour, min, sec);
     }
 }

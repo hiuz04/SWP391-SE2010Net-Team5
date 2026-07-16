@@ -17,10 +17,6 @@
                         String emailClass = errors.containsKey("email") ? "is-invalid" : "";
                         String passwordClass = errors.containsKey("password") ? "is-invalid" : "";
 
-                        String avatarUrl = currentUser.getAvatarUrl();
-                        if (avatarUrl == null || avatarUrl.isBlank()) {
-                        avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&q=80";
-                        }
                         %>
                         <!DOCTYPE html>
                         <html lang="vi">
@@ -45,8 +41,6 @@
                                     <div class="row g-4">
                                         <aside class="col-lg-4">
                                             <div class="card soft-card p-4 text-center">
-                                                <img class="avatar-lg mx-auto img-thumbnail shadow-sm"
-                                                    src="<%= avatarUrl %>" alt="Avatar">
                                                 <h4 class="mt-3 fw-bold">
                                                     <%= currentUser.getFullName() %>
                                                 </h4>

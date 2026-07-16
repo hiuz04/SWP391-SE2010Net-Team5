@@ -5,7 +5,7 @@
 package com.swp.controller;
 
 import com.swp.dao.FieldDAO;
-import com.swp.dao.FacilityDAO;
+import com.swp.dao.FootballComplexDAO;
 import com.swp.model.User;
 import com.swp.model.dto.TopFieldSummary;
 import jakarta.servlet.ServletException;
@@ -27,7 +27,7 @@ import java.util.List;
 public class HomeController extends HttpServlet {
 
     private final FieldDAO fieldDAO = new FieldDAO();
-    private final FacilityDAO facilityDAO = new FacilityDAO();
+    private final FootballComplexDAO footballComplexDAO = new FootballComplexDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -61,8 +61,8 @@ public class HomeController extends HttpServlet {
         List<String> cities;
         List<String> wards;
         try {
-            cities = facilityDAO.getAllCities();
-            wards = facilityDAO.getAllWards();
+            cities = footballComplexDAO.getAllCities();
+            wards = footballComplexDAO.getAllWards();
         } catch (Exception e) {
             e.printStackTrace();
             cities = Collections.emptyList();

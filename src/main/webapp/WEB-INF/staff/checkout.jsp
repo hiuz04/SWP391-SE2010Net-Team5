@@ -131,8 +131,8 @@
                 <input class="form-control" value="<%= esc(checkout.getCustomerPhone()) %>" readonly>
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted">Cơ sở</label>
-                <input class="form-control" value="<%= esc(checkout.getFacilityName()) %>" readonly>
+                <label class="form-label small fw-bold text-muted">Cụm sân</label>
+                <input class="form-control" value="<%= esc(checkout.getComplexName()) %>" readonly>
               </div>
               <div class="col-md-6">
                 <label class="form-label small fw-bold text-muted">Sân</label>

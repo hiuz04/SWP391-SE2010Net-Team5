@@ -5,10 +5,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
-public class Facility implements Serializable {
-//    private static final long serialVersionUID = 1L;
-    private Long facilityId;
-    private String facilityName;
+public class FootballComplex implements Serializable {
+    //    private static final long serialVersionUID = 1L;
+    private Long complexId;
+    private String complexName;
     private String description;
     private String address;
     private String ward;
@@ -25,12 +25,12 @@ public class Facility implements Serializable {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public Facility() {
+    public FootballComplex() {
     }
 
-    public Facility(Long facilityId, String facilityName, String description, String address, String ward, String district, String city, BigDecimal latitude, BigDecimal longitude, String hotline, LocalTime openingTime, LocalTime closingTime, String generalRules, String status, Boolean featured, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.facilityId = facilityId;
-        this.facilityName = facilityName;
+    public FootballComplex(Long complexId, String complexName, String description, String address, String ward, String district, String city, BigDecimal latitude, BigDecimal longitude, String hotline, LocalTime openingTime, LocalTime closingTime, String generalRules, String status, Boolean featured, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.complexId = complexId;
+        this.complexName = complexName;
         this.description = description;
         this.address = address;
         this.ward = ward;
@@ -48,20 +48,20 @@ public class Facility implements Serializable {
         this.updatedAt = updatedAt;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 
     public String getDescription() {

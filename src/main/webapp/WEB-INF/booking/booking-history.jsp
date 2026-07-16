@@ -218,7 +218,7 @@
                     <tr data-booking-status="<%= esc(booking.getStatus()) %>">
                         <td><strong><%= esc(booking.getBookingCode()) %></strong></td>
                         <td>
-                            <div class="fw-semibold"><%= esc(booking.getFacilityName()) %></div>
+                            <div class="fw-semibold"><%= esc(booking.getComplexName()) %></div>
                             <div class="text-muted small"><%= esc(booking.getFieldName()) %></div>
                         </td>
                         <td><%= bookingTimeLabel(booking) %></td>
@@ -227,8 +227,24 @@
                         <td><%= paymentLabel(booking.getPaymentStatus()) %></td>
                         <td><%= money(booking.getTotalAmount()) %></td>
                         <td>
-                            <a class="btn btn-sm btn-outline-success"
-                               href="<%= ctx %>/booking?action=detail&id=<%= booking.getBookingId() %>">Chi ti&#7871;t</a>
+                            <div class="d-flex justify-content-center align-items-center gap-1">
+                                <a class="btn btn-sm btn-outline-success"
+                                   href="<%= ctx %>/booking?action=detail&id=<%= booking.getBookingId() %>">Chi ti&#7871;t</a>
+
+                               <% if ("COMPLETED".equals(booking.getStatus())) { %>
+                                   <% if (booking.isReviewed()) { %>
+                                        <a class="btn btn-sm btn-outline-primary"
+                                           href="<%= ctx %>/feedback-user?action=edit&id=<%= booking.getFeedbackId() %>">
+                                            Sửa đánh giá
+                                        </a>
+                                   <% } else { %>
+                                       <a class="btn btn-sm btn-outline-success"
+                                          href="<%= ctx %>/feedback-user?action=create&id=<%= booking.getBookingId() %>">
+                                           Đánh giá
+                                       </a>
+                                   <% } %>
+                               <% } %>
+                            </div>
                         </td>
                     </tr>
                     <% } %>

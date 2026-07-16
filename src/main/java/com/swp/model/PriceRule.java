@@ -9,7 +9,7 @@ import java.time.LocalTime;
 public class PriceRule implements Serializable {
     private static final long serialVersionUID = 1L;
     private Long priceRuleId;
-    private Long facilityId;
+    private Long complexId;
     private Integer fieldTypeId;
     private Long fieldId;
     private String ruleName;
@@ -26,9 +26,9 @@ public class PriceRule implements Serializable {
     public PriceRule() {
     }
 
-    public PriceRule(Long priceRuleId, Long facilityId, Integer fieldTypeId, Long fieldId, String ruleName, String dayOfWeek, LocalDate specificDate, LocalTime startTime, LocalTime endTime, BigDecimal price, String ruleType, Integer priority, String status, LocalDateTime createdAt) {
+    public PriceRule(Long priceRuleId, Long complexId, Integer fieldTypeId, Long fieldId, String ruleName, String dayOfWeek, LocalDate specificDate, LocalTime startTime, LocalTime endTime, BigDecimal price, String ruleType, Integer priority, String status, LocalDateTime createdAt) {
         this.priceRuleId = priceRuleId;
-        this.facilityId = facilityId;
+        this.complexId = complexId;
         this.fieldTypeId = fieldTypeId;
         this.fieldId = fieldId;
         this.ruleName = ruleName;
@@ -51,12 +51,12 @@ public class PriceRule implements Serializable {
         this.priceRuleId = priceRuleId;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
     }
 
     public Integer getFieldTypeId() {

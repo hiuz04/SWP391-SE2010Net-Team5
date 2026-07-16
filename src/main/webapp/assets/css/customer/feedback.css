@@ -1,0 +1,27 @@
+.rating {
+    display: inline-flex;
+    flex-direction: row-reverse;
+}
+
+.rating input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.rating label {
+    font-size: 2rem;
+    color: #ddd;
+    cursor: pointer;
+    transition: .2s;
+    margin-right: 4px;
+}
+
+.rating label:hover,
+.rating label:hover ~ label {
+    color: #ffc107;
+}
+
+.rating input:checked ~ label {
+    color: #ffc107;
+}

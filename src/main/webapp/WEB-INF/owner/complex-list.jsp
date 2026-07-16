@@ -1,7 +1,7 @@
 <%@ page import="com.swp.model.User" %>
 <!--
-* Module: Facility Management
-* File: facility-list.html
+* Module: Complex Management
+* File: complex-list.html
 * Description: Trang hiển thị danh sách tổng quan của các cơ sở gồm: tên cơ sở, địa chỉ,
 *              số lượng sân, trạng thái hoạt động và các công cụ quản lý đi kèm.
 *
@@ -36,16 +36,19 @@
   <div class="container">
     <div class="d-flex justify-content-between mb-4">
       <h1 class="section-title">Quản lý cơ sở</h1>
-      <button class="btn btn-sf-primary" style="height: 40px; background: rgb(5, 150, 105);" onclick="navigateFacilityForm()">✛ Thêm cơ sở mới</button>
+      <button class="btn btn-sf-primary" style="height: 40px; background: rgb(5, 150, 105);" onclick="navigateComplexForm()">✛ Thêm cơ sở mới</button>
     </div>
     <!-- Hiển thị danh sách cơ sở -->
-    <div class="border-0 shadow-sm px-4 data-container pt-3" id="facility-data-container"></div>
+    <div class="border-0 shadow-sm px-4 data-container pt-3" id="complex-data-container"></div>
   </div>
 </main>
 <div id="footer" data-root="../../"></div>
 
+<script>
+    window.APP_CTX = '<%= ctx %>';
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<%= ctx %>/assets/js/owner/facility.js"></script>
+<script src="<%= ctx %>/assets/js/owner/complex.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script>loadData()</script>
 </body>

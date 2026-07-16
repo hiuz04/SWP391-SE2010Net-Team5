@@ -208,7 +208,7 @@
                                     <span class="badge <%= badgeClass %>"><%= badgeText %></span>
                                 </div>
                                 <p class="text-muted small mb-2">
-                                    <i class="bi bi-building me-1"></i><%= field.getFacilityName() != null ? field.getFacilityName() : "" %>
+                                    <i class="bi bi-building me-1"></i><%= field.getComplexName() != null ? field.getComplexName() : "" %>
                                 </p>
                                 <p class="text-muted small mb-2">
                                     <i class="bi bi-geo-alt me-1"></i><%= field.getFullLocation() %>
@@ -220,7 +220,7 @@
                                     <% } %>
                                 </div>
                                 <div class="d-flex justify-content-end">
-                                    <a href="<%= ctx %>/booking?facilityId=<%= field.getFacilityId() %>" class="btn btn-sf-primary">Đặt ngay</a>
+                                    <a href="<%= ctx %>/booking?complexId=<%= field.getComplexId() %>" class="btn btn-sf-primary">Đặt ngay</a>
                                 </div>
                             </div>
                         </div>

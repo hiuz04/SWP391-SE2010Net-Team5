@@ -25,17 +25,9 @@ public class StaffActionServlet extends HttpServlet {
         resp.setContentType("application/json;charset=UTF-8");
         req.setCharacterEncoding("UTF-8");
 
-        User user = getSessionUser(req);
-        if (user == null) {
-            resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            write(resp, "{\"error\":\"Chưa đăng nhập\"}");
-            return;
-        }
-        if (!isStaffOrOwner(user)) {
-            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            write(resp, "{\"error\":\"Không có quyền truy cập\"}");
-            return;
-        }
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
+
 
         String path = getPath(req);
         long staffId = user.getUserId();
@@ -83,9 +75,9 @@ public class StaffActionServlet extends HttpServlet {
                     write(resp, "{\"error\":\"Bạn không có ca làm việc hôm nay để thực hiện tìm kiếm\"}");
                     return;
                 }
-                long facilityId = (Long) shift.get("facilityId");
+                long complexId = (Long) shift.get("complexId");
 
-                java.util.List<java.util.Map<String, Object>> list = staffDAO.searchConfirmedBookings(facilityId, query);
+                java.util.List<java.util.Map<String, Object>> list = staffDAO.searchConfirmedBookings(complexId, query);
                 write(resp, toJson(list));
                 return;
             }
@@ -104,17 +96,9 @@ public class StaffActionServlet extends HttpServlet {
         resp.setContentType("application/json;charset=UTF-8");
         req.setCharacterEncoding("UTF-8");
 
-        User user = getSessionUser(req);
-        if (user == null) {
-            resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            write(resp, "{\"error\":\"Chưa đăng nhập\"}");
-            return;
-        }
-        if (!isStaffOrOwner(user)) {
-            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            write(resp, "{\"error\":\"Không có quyền truy cập\"}");
-            return;
-        }
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
+
 
         String path = getPath(req);
         long staffId = user.getUserId();
@@ -156,6 +140,23 @@ public class StaffActionServlet extends HttpServlet {
         }
 
         long bookingId = Long.parseLong(bookingIdStr.trim());
+
+        // Security check: Verify that the staff's current shift facility matches the booking's facility
+        User user = getSessionUser(req);
+        if (user != null && user.getRoleId() == ROLE_STAFF) {
+            java.util.Map<String, Object> shift = staffDAO.getCurrentShift(staffId);
+            java.util.Map<String, Object> booking = staffDAO.getBookingDetailForCheckin(bookingId);
+            if (!shift.isEmpty() && !booking.isEmpty()) {
+                long staffComplexId = (Long) shift.get("complexId");
+                Long bookingComplexId = (Long) booking.get("complexId");
+                if (bookingComplexId != null && bookingComplexId != staffComplexId) {
+                    resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    write(resp, "{\"error\":\"Lượt đặt sân này thuộc cơ sở khác. Bạn không thể thực hiện check-in.\"}");
+                    return;
+                }
+            }
+        }
+
         boolean success = staffDAO.checkinBooking(bookingId, staffId, note);
 
         if (success) {
@@ -212,19 +213,17 @@ public class StaffActionServlet extends HttpServlet {
         return true;
     }
 
-    private User getSessionUser(HttpServletRequest req) {
-        HttpSession session = req.getSession(false);
-        return (session != null) ? (User) session.getAttribute("user") : null;
-    }
 
-    private boolean isStaffOrOwner(User user) {
-        return user.getRoleId() == ROLE_STAFF || user.getRoleId() == ROLE_OWNER;
-    }
 
     private String getPath(HttpServletRequest req) {
         String uri = req.getRequestURI();
         String contextPath = req.getContextPath();
         return uri.substring(contextPath.length());
+    }
+
+    private User getSessionUser(HttpServletRequest req) {
+        HttpSession session = req.getSession(false);
+        return session == null ? null : (User) session.getAttribute("user");
     }
 
     private void write(HttpServletResponse resp, String json) throws IOException {
@@ -274,9 +273,20 @@ public class StaffActionServlet extends HttpServlet {
         timeStr = timeStr.trim().toUpperCase();
 
         boolean pm = timeStr.contains("CH") || timeStr.contains("PM");
+        boolean am = timeStr.contains("SA") || timeStr.contains("AM");
 
-        if (timeStr.contains(" ")) timeStr = timeStr.split(" ")[1];
-        if (timeStr.contains(".")) timeStr = timeStr.split("\\.")[0];
+        if (timeStr.contains(" ")) {
+            String[] parts = timeStr.split(" ");
+            for (String part : parts) {
+                if (part.contains(":")) {
+                    timeStr = part;
+                    break;
+                }
+            }
+        }
+        if (timeStr.contains(".")) {
+            timeStr = timeStr.split("\\.")[0];
+        }
 
         String clean = timeStr.replaceAll("[^0-9:]", "").trim();
         if (clean.isEmpty()) return null;
@@ -286,10 +296,10 @@ public class StaffActionServlet extends HttpServlet {
         int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
         int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
 
-        if (pm && hour < 12) {
-            hour += 12;
-        } else if (!pm && hour == 12) {
-            hour = 0;
+        if (pm) {
+            if (hour < 12) hour += 12;
+        } else if (am) {
+            if (hour == 12) hour = 0;
         }
 
         return java.time.LocalTime.of(hour, min, sec);

@@ -264,9 +264,9 @@
     const resultsTitle = document.getElementById('results-title');
     
     resultsTitle.classList.remove('d-none');
-    currentSearchResults = bookings || [];
     
     if (!bookings || bookings.length === 0) {
+      currentSearchResults = [];
       resultsContainer.innerHTML = `
         <div class="card border-0 rounded-4 p-5 text-center shadow-sm">
           <i class="bi bi-calendar-x display-4 text-muted"></i>
@@ -276,7 +276,18 @@
       return;
     }
 
-    resultsContainer.innerHTML = bookings.map((b, index) => {
+    // Sort bookings: actionable (pending check-in and not expired) first
+    const sortedBookings = [...bookings].sort((x, y) => {
+      const xActionable = (x.status !== 'CHECKED_IN' && x.status !== 'COMPLETED' && !isBookingExpired(x.endTime));
+      const yActionable = (y.status !== 'CHECKED_IN' && y.status !== 'COMPLETED' && !isBookingExpired(y.endTime));
+      if (xActionable && !yActionable) return -1;
+      if (!xActionable && yActionable) return 1;
+      return 0;
+    });
+
+    currentSearchResults = sortedBookings;
+
+    resultsContainer.innerHTML = sortedBookings.map((b, index) => {
       const isExpired = isBookingExpired(b.endTime);
       let statusBadgeHtml = '';
       let actionBtnHtml = '';
@@ -381,13 +392,13 @@
 
       if (data.success) {
         if (checkinModalInstance) checkinModalInstance.hide();
-        alert('Check-in thành công!');
+        showToastAfterReload('Check-in thành công!', 'success');
         window.location.href = '<%= ctx %>/staff/schedule';
       } else {
-        alert('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'));
+        showToast('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'), 'danger');
       }
     } catch (err) {
-      alert('Không thể thực hiện check-in: ' + err.message);
+      showToast('Không thể thực hiện check-in: ' + err.message, 'danger');
     }
   }
 </script>

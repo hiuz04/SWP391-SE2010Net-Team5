@@ -1,9 +1,9 @@
 package com.swp.controller.owner;
 
 import com.google.gson.Gson;
-import com.swp.dao.FacilityDAO;
+import com.swp.dao.FootballComplexDAO;
 import com.swp.dao.WorkShiftDAO;
-import com.swp.model.Facility;
+import com.swp.model.FootballComplex;
 import com.swp.model.User;
 import com.swp.model.WorkShift;
 import jakarta.servlet.ServletException;
@@ -26,7 +26,7 @@ import java.util.Map;
 public class WorkShiftServlet extends HttpServlet {
 
     private final WorkShiftDAO workShiftDAO = new WorkShiftDAO();
-    private final FacilityDAO facilityDAO = new FacilityDAO();
+    private final FootballComplexDAO footballComplexDAO = new FootballComplexDAO();
     private final Gson gson = new Gson();
 
     @Override
@@ -72,7 +72,7 @@ public class WorkShiftServlet extends HttpServlet {
         }
 
         // Standard Page Load
-        List<Facility> facilities = facilityDAO.getAllFacility();
+        List<FootballComplex> complexes = footballComplexDAO.getAllComplex();
         List<User> staffList = workShiftDAO.getAllActiveStaff();
         List<WorkShift> shifts = workShiftDAO.getAllShifts();
 
@@ -139,7 +139,7 @@ public class WorkShiftServlet extends HttpServlet {
             }
         }
 
-        req.setAttribute("facilities", facilities);
+        req.setAttribute("complexes", complexes);
         req.setAttribute("staffList", staffList);
         req.setAttribute("shifts", shifts);
         req.setAttribute("staffShiftCounts", staffShiftCounts);
@@ -212,15 +212,41 @@ public class WorkShiftServlet extends HttpServlet {
         return "Ca gãy";
     }
 
+    private String getComplexShortName(String fullName) {
+        if (fullName == null || fullName.trim().isEmpty()) {
+            return "";
+        }
+        String name = fullName.trim();
+        if (name.toLowerCase().startsWith("sân bóng ")) {
+            name = name.substring(9).trim();
+        }
+        String[] parts = name.split("\\s+");
+        if (parts.length >= 2) {
+            if (parts.length >= 3 && "Hồ".equalsIgnoreCase(parts[0]) && "Chí".equalsIgnoreCase(parts[1]) && "Minh".equalsIgnoreCase(parts[2])) {
+                return "Hồ Chí Minh";
+            }
+            return parts[0] + " " + parts[1];
+        }
+        return name;
+    }
+
     private void handleCreateShift(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        long facilityId = Long.parseLong(req.getParameter("facilityId"));
+        long complexId = Long.parseLong(req.getParameter("complexId"));
         String startStr = req.getParameter("startTime");
         String endStr = req.getParameter("endTime");
         String staffIdStr = req.getParameter("staffId");
 
         LocalTime startTime = parseTime(startStr);
         LocalTime endTime = parseTime(endStr);
-        String shiftName = determineShiftName(startTime, endTime);
+        String baseName = determineShiftName(startTime, endTime);
+        
+        com.swp.dao.FootballComplexDAO complexDAO = new com.swp.dao.FootballComplexDAO();
+        com.swp.model.FootballComplex complex = complexDAO.getFootballComplexDataByID(complexId);
+        String suffix = "";
+        if (complex != null) {
+            suffix = " " + getComplexShortName(complex.getComplexName());
+        }
+        String shiftName = baseName + suffix;
 
         String mode = req.getParameter("mode");
         if ("batch".equals(mode)) {
@@ -244,7 +270,8 @@ public class WorkShiftServlet extends HttpServlet {
             for (String day : repeatDaysStr.split(",")) {
                 try {
                     repeatDays.add(Integer.parseInt(day.trim()));
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException ignored) {
+                }
             }
 
             int successCount = 0;
@@ -254,7 +281,7 @@ public class WorkShiftServlet extends HttpServlet {
             while (!curDate.isAfter(endDate)) {
                 int dayValue = curDate.getDayOfWeek().getValue();
                 if (repeatDays.contains(dayValue)) {
-                    boolean hasConflict = workShiftDAO.hasOverlappingShiftAtFacility(facilityId, curDate, startTime, endTime, null);
+                    boolean hasConflict = workShiftDAO.hasOverlappingShiftAtComplex(complexId, curDate, startTime, endTime, null);
                     long staffId = -1;
                     if (!hasConflict && staffIdStr != null && !staffIdStr.trim().isEmpty()) {
                         try {
@@ -262,11 +289,12 @@ public class WorkShiftServlet extends HttpServlet {
                             if (workShiftDAO.hasOverlappingShift(staffId, curDate, startTime, endTime, null)) {
                                 hasConflict = true;
                             }
-                        } catch (NumberFormatException ignored) {}
+                        } catch (NumberFormatException ignored) {
+                        }
                     }
 
                     if (!hasConflict) {
-                        WorkShift shift = new WorkShift(null, facilityId, shiftName, curDate, startTime, endTime, null);
+                        WorkShift shift = new WorkShift(null, complexId, shiftName, curDate, startTime, endTime, null);
                         long shiftId = workShiftDAO.insertShift(shift);
                         if (shiftId > 0) {
                             if (staffId > 0) {
@@ -298,7 +326,7 @@ public class WorkShiftServlet extends HttpServlet {
         String dateStr = req.getParameter("shiftDate");
         LocalDate shiftDate = LocalDate.parse(dateStr);
 
-        if (workShiftDAO.hasOverlappingShiftAtFacility(facilityId, shiftDate, startTime, endTime, null)) {
+        if (workShiftDAO.hasOverlappingShiftAtComplex(complexId, shiftDate, startTime, endTime, null)) {
             writeError(resp, "Cơ sở này đã được phân ca trực trùng khung giờ này trong ngày.");
             return;
         }
@@ -310,10 +338,11 @@ public class WorkShiftServlet extends HttpServlet {
                     writeError(resp, "Nhân viên này đã được phân công một ca làm việc khác trùng khung giờ này trong ngày.");
                     return;
                 }
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
 
-        WorkShift shift = new WorkShift(null, facilityId, shiftName, shiftDate, startTime, endTime, null);
+        WorkShift shift = new WorkShift(null, complexId, shiftName, shiftDate, startTime, endTime, null);
         long shiftId = workShiftDAO.insertShift(shift);
 
         if (shiftId > 0) {
@@ -321,7 +350,8 @@ public class WorkShiftServlet extends HttpServlet {
                 try {
                     long staffId = Long.parseLong(staffIdStr.trim());
                     workShiftDAO.assignStaffToShift(shiftId, staffId);
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException ignored) {
+                }
             }
             writeSuccess(resp);
         } else {
@@ -350,7 +380,7 @@ public class WorkShiftServlet extends HttpServlet {
             return;
         }
 
-        long facilityId = Long.parseLong(req.getParameter("facilityId"));
+        long complexId = Long.parseLong(req.getParameter("complexId"));
         String dateStr = req.getParameter("shiftDate");
         String startStr = req.getParameter("startTime");
         String endStr = req.getParameter("endTime");
@@ -359,9 +389,16 @@ public class WorkShiftServlet extends HttpServlet {
         LocalDate shiftDate = LocalDate.parse(dateStr);
         LocalTime startTime = parseTime(startStr);
         LocalTime endTime = parseTime(endStr);
-        String shiftName = determineShiftName(startTime, endTime);
+        String baseName = determineShiftName(startTime, endTime);
+        com.swp.dao.FootballComplexDAO complexDAO = new com.swp.dao.FootballComplexDAO();
+        com.swp.model.FootballComplex complex = complexDAO.getFootballComplexDataByID(complexId);
+        String suffix = "";
+        if (complex != null) {
+            suffix = " " + getComplexShortName(complex.getComplexName());
+        }
+        String shiftName = baseName + suffix;
 
-        if (workShiftDAO.hasOverlappingShiftAtFacility(facilityId, shiftDate, startTime, endTime, shiftId)) {
+        if (workShiftDAO.hasOverlappingShiftAtComplex(complexId, shiftDate, startTime, endTime, shiftId)) {
             writeError(resp, "Cơ sở này đã được phân ca trực trùng khung giờ này trong ngày.");
             return;
         }
@@ -373,10 +410,11 @@ public class WorkShiftServlet extends HttpServlet {
                     writeError(resp, "Nhân viên này đã được phân công một ca làm việc khác trùng khung giờ này trong ngày.");
                     return;
                 }
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
 
-        WorkShift shift = new WorkShift(shiftId, facilityId, shiftName, shiftDate, startTime, endTime, null);
+        WorkShift shift = new WorkShift(shiftId, complexId, shiftName, shiftDate, startTime, endTime, null);
         boolean success = workShiftDAO.updateShift(shift);
 
         if (success) {
@@ -395,7 +433,8 @@ public class WorkShiftServlet extends HttpServlet {
                     if (!alreadyAssigned) {
                         workShiftDAO.assignStaffToShift(shiftId, staffId);
                     }
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException ignored) {
+                }
             } else {
                 for (User u : assigned) {
                     workShiftDAO.removeStaffFromShift(shiftId, u.getUserId());
@@ -517,24 +556,36 @@ public class WorkShiftServlet extends HttpServlet {
             return null;
         }
         timeStr = timeStr.trim().toUpperCase();
-        
+
         boolean pm = timeStr.contains("CH") || timeStr.contains("PM");
         boolean am = timeStr.contains("SA") || timeStr.contains("AM");
-        
+
+        if (timeStr.contains(" ")) {
+            String[] parts = timeStr.split(" ");
+            for (String part : parts) {
+                if (part.contains(":")) {
+                    timeStr = part;
+                    break;
+                }
+            }
+        }
+        if (timeStr.contains(".")) {
+            timeStr = timeStr.split("\\.")[0];
+        }
         String clean = timeStr.replaceAll("[^0-9:]", "").trim();
         if (clean.isEmpty()) return null;
-        
+
         String[] parts = clean.split(":");
         int hour = Integer.parseInt(parts[0]);
         int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
         int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
-        
+
         if (pm) {
             if (hour < 12) hour += 12;
         } else if (am) {
             if (hour == 12) hour = 0;
         }
-        
+
         return LocalTime.of(hour, min, sec);
     }
 

@@ -1,7 +1,8 @@
+<%@ page import="com.swp.model.FootballComplex" %>
 <%@ page import="com.swp.model.FieldType" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%
-    List<Facility> facilities = (List<Facility>) request.getAttribute("facilities");
+    List<FootballComplex> complexes = (List<FootballComplex>) request.getAttribute("complexes");
     List<FieldType> fieldTypes = (List<FieldType>) request.getAttribute("fieldTypes");
 %>
 <html>
@@ -44,7 +45,7 @@
                     </div>
 
                     <div class="mb-2">
-                        <label for="fac" >Loại sân:</label>
+                        <label for="fc" >Loại sân:</label>
                         <select name="fieldTypeID" id="typeF" required>
                             <%
                                 for(FieldType ft : fieldTypes) {
@@ -57,12 +58,12 @@
                     </div>
 
                     <div class="mb-2">
-                        <label for="fac" >Cơ sở sỡ hữu sân: </label>
-                        <select name="facilityId" id="fac" required>
+                        <label for="fc" >Cơ sở sỡ hữu sân: </label>
+                        <select name="complexId" id="fc" required>
                             <%
-                                for(Facility fac : facilities) {
+                                for(FootballComplex fc : complexes) {
                             %>
-                                    <option value="<%=fac.getFacilityId()%>"><%= fac.getFacilityName() %></option>
+                                    <option value="<%=fc.getComplexId()%>"><%= fc.getComplexName() %></option>
                             <%
                                 }
                             %>
@@ -70,7 +71,7 @@
                     </div>
 
                     <div class="mb-2">
-                        <label for="fac" >Trạng thái sân</label>
+                        <label for="fc" >Trạng thái sân</label>
                         <select name="status" id="status" required>
                             <option value="AVAILABLE"> Available </option>
                             <option value="OCCUPIED"> Occupied </option>
@@ -105,7 +106,7 @@
             fieldName: document.getElementById("fieldName").value,
             description: document.getElementById("desc").value,
             fieldTypeID: document.getElementById("typeF").value,
-            facilityId: document.getElementById("fac").value,
+            complexId: document.getElementById("fc").value,
             status: document.getElementById("status").value
         };
 

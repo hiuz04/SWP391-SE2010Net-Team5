@@ -44,8 +44,8 @@ public class PaymentDAO {
                        COALESCE(rg.repeat_type, 'NONE') AS repeat_type,
                        grp.recurring_count,
                        b.customer_id,
-                       b.facility_id,
-                       fa.facility_name,
+                       b.complex_id,
+                       fa.complex_name,
                        b.field_id,
                        f.field_name,
                        ft.type_name AS field_type_name,
@@ -65,7 +65,7 @@ public class PaymentDAO {
                        lp.paid_at
                 FROM bookings b
                 LEFT JOIN booking_recurring_groups rg ON b.recurring_group_id = rg.recurring_group_id
-                INNER JOIN facilities fa ON b.facility_id = fa.facility_id
+                INNER JOIN football_complexes fa ON b.complex_id = fa.complex_id
                 INNER JOIN fields f ON b.field_id = f.field_id
                 INNER JOIN field_types ft ON f.field_type_id = ft.field_type_id
                 OUTER APPLY (
@@ -388,14 +388,14 @@ public class PaymentDAO {
                        b.field_id, b.total_amount AS field_fee, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_name,
-                       fac.facility_id, fac.facility_name, fac.address, fac.ward, fac.district, fac.city,
+                       fc.complex_id, fc.complex_name, fc.address, fc.ward, fc.district, fc.city,
                        lp.payment_status,
                        lp.payment_method_name
                 FROM invoices i
                 JOIN bookings b ON i.booking_id = b.booking_id
                 JOIN users u ON i.customer_id = u.user_id
                 JOIN fields fi ON b.field_id = fi.field_id
-                JOIN facilities fac ON b.facility_id = fac.facility_id
+                JOIN football_complexes fc ON b.complex_id = fc.complex_id
                 OUTER APPLY (
                     SELECT TOP 1 p.status AS payment_status,
                            pm.method_name AS payment_method_name
@@ -1048,12 +1048,12 @@ public class PaymentDAO {
                        b.hold_expires_at,
                        b.start_time,
                        b.end_time,
-                       fa.facility_name,
+                       fa.complex_name,
                        f.field_name
                 FROM payments p
                 INNER JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
                 INNER JOIN bookings b ON p.booking_id = b.booking_id
-                INNER JOIN facilities fa ON b.facility_id = fa.facility_id
+                INNER JOIN football_complexes fa ON b.complex_id = fa.complex_id
                 INNER JOIN fields f ON b.field_id = f.field_id
                 OUTER APPLY (
                     SELECT TOP 1 i.invoice_id
@@ -1075,8 +1075,8 @@ public class PaymentDAO {
         view.setRepeatType(rs.getString("repeat_type"));
         view.setRecurringCount(rs.getInt("recurring_count"));
         view.setCustomerId(rs.getLong("customer_id"));
-        view.setFacilityId(rs.getLong("facility_id"));
-        view.setFacilityName(rs.getString("facility_name"));
+        view.setComplexId(rs.getLong("complex_id"));
+        view.setComplexName(rs.getString("complex_name"));
         view.setFieldId(rs.getLong("field_id"));
         view.setFieldName(rs.getString("field_name"));
         view.setFieldTypeName(rs.getString("field_type_name"));
@@ -1128,7 +1128,7 @@ public class PaymentDAO {
         view.setHoldExpiresAt(toLocalDateTime(rs.getTimestamp("hold_expires_at")));
         view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
-        view.setFacilityName(rs.getString("facility_name"));
+        view.setComplexName(rs.getString("complex_name"));
         view.setFieldName(rs.getString("field_name"));
         return view;
     }
@@ -1142,12 +1142,12 @@ public class PaymentDAO {
         view.setBookingId(rs.getLong("booking_id"));
         view.setBookingCode(rs.getString("booking_code"));
         view.setCustomerId(rs.getLong("customer_id"));
-        view.setFacilityId(rs.getLong("facility_id"));
+        view.setComplexId(rs.getLong("complex_id"));
         view.setFieldId(rs.getLong("field_id"));
         view.setCustomerName(rs.getString("customer_name"));
         view.setCustomerPhone(rs.getString("customer_phone"));
-        view.setFacilityName(rs.getString("facility_name"));
-        view.setFacilityAddress(joinAddress(rs));
+        view.setComplexName(rs.getString("complex_name"));
+        view.setComplexAddress(joinAddress(rs));
         view.setFieldName(rs.getString("field_name"));
         view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
