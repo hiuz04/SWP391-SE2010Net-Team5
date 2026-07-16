@@ -73,10 +73,9 @@
                             String createdText = notif.getCreatedAt() != null ? notif.getCreatedAt().format(formatter) : "";
                     %>
                     <li class="list-group-item p-0 <%= bgClass %>" id="notif-<%= notif.getNotificationId() %>">
-                        <a class="d-block p-4 text-decoration-none text-reset"
-                           href="<%= esc(href) %>"
-                           onclick="openNotification(event, <%= notif.getNotificationId() %>, '<%= esc(href) %>')">
-                            <div class="d-flex w-100 justify-content-between gap-3">
+                        <a href="<%= esc(href) %>" class="d-block p-3 text-decoration-none text-dark"
+                           onclick="openNotification(event, <%= notif.getNotificationId() %>, '<%= esc(href) %>', '<%= esc(notif.getTitle()).replace("'", "\\'").replace("\n", "\\n") %>', '<%= esc(notif.getMessage()).replace("'", "\\'").replace("\n", "\\n") %>')">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
                                 <h6 class="mb-1 fw-bold <%= Boolean.TRUE.equals(notif.getIsRead()) ? "text-secondary" : "text-dark" %>">
                                     <% if (!Boolean.TRUE.equals(notif.getIsRead())) { %><span class="text-danger me-1">●</span><% } %>
                                     <%= esc(notif.getTitle()) %>
@@ -105,17 +104,20 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script>
-  function openNotification(event, id, href) {
-    if (event) event.preventDefault();
+  function openNotification(event, id, href, title, message) {
+    event.preventDefault();
     fetch('<%= ctx %>/api/notifications', {
       method: 'POST',
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: 'action=mark_read&id=' + encodeURIComponent(id)
-    }).finally(() => {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'action=mark_read&id=' + id
+    }).then(() => {
+      document.getElementById('notif-' + id).classList.remove('bg-light');
       if (href && href !== '#') {
         window.location.href = href;
-      } else {
-        window.location.reload();
+      } else if (title && message) {
+        if (typeof window.showNotificationDetail === 'function') {
+            window.showNotificationDetail(title, message);
+        }
       }
     });
   }

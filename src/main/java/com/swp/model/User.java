@@ -17,6 +17,8 @@ public class User implements Serializable {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String roleName;
+    private boolean isVip;
+    private LocalDateTime vipValidUntil;
 
     public User() {
     }
@@ -129,5 +131,21 @@ public class User implements Serializable {
 
     public void setRoleName(String roleName) {
         this.roleName = roleName;
+    }
+
+    public boolean isVip() {
+        return isVip;
+    }
+
+    public void setVip(boolean vip) {
+        isVip = vip;
+    }
+
+    public LocalDateTime getVipValidUntil() {
+        return vipValidUntil;
+    }
+
+    public void setVipValidUntil(LocalDateTime vipValidUntil) {
+        this.vipValidUntil = vipValidUntil;
     }
 }

@@ -59,6 +59,19 @@
         <div class="mb-4">
             <a href="<%= ctx %>/admin/users" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Quay lại</a>
         </div>
+
+        <%
+            String successMsg = (String) session.getAttribute("successMessage");
+            if (successMsg != null) {
+                session.removeAttribute("successMessage");
+        %>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> <%= successMsg %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <%
+            }
+        %>
         
         <div class="row g-4">
             <!-- User Profile Card -->
@@ -123,6 +136,27 @@
                                 </div>
                             </li>
                         </ul>
+
+                        <div class="mt-4 pt-3 border-top text-start">
+                            <h6 class="fw-bold mb-3">Quản lý Hội Viên</h6>
+                            <% if (userDetail.isVip() && userDetail.getVipValidUntil() != null && userDetail.getVipValidUntil().isAfter(java.time.LocalDateTime.now())) { %>
+                                <div class="alert alert-success p-2 mb-3">
+                                    <i class="bi bi-star-fill text-warning"></i> VIP đến: <%= userDetail.getVipValidUntil().format(dtf) %>
+                                </div>
+                            <% } else { %>
+                                <div class="alert alert-secondary p-2 mb-3">
+                                    Thành viên thường
+                                </div>
+                            <% } %>
+                            
+                            <form action="<%= ctx %>/admin/user-details" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn cấp/gia hạn gói VIP 30 ngày cho người dùng này?');">
+                                <input type="hidden" name="action" value="grantVip">
+                                <input type="hidden" name="id" value="<%= userDetail.getUserId() %>">
+                                <button type="submit" class="btn btn-warning w-100 fw-bold">
+                                    <i class="bi bi-gem"></i> Cấp gói VIP (30 ngày)
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>

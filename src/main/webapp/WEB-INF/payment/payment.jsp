@@ -66,10 +66,11 @@
     String ctx = request.getContextPath();
     String paymentContext = (String) request.getAttribute("paymentContext");
     boolean checkoutContext = "CHECKOUT".equalsIgnoreCase(paymentContext);
+    boolean membershipContext = "MEMBERSHIP".equalsIgnoreCase(paymentContext);
     BookingView booking = (BookingView) request.getAttribute("booking");
     InvoiceView invoice = (InvoiceView) request.getAttribute("invoice");
 
-    if (!checkoutContext && booking == null) {
+    if (!checkoutContext && !membershipContext && booking == null) {
         response.sendError(HttpServletResponse.SC_NOT_FOUND, "Khong tim thay booking.");
         return;
     }
@@ -86,13 +87,17 @@
             : "Nguoi dung";
     String error = (String) request.getAttribute("error");
 
-    boolean holdValid = !checkoutContext
+    boolean holdValid = !checkoutContext && !membershipContext
             && "HOLD".equals(booking.getStatus())
             && booking.getHoldExpiresAt() != null
             && booking.getHoldExpiresAt().isAfter(LocalDateTime.now());
-    boolean canPay = checkoutContext ? "PENDING".equals(invoice.getInvoiceStatus()) : holdValid;
-    boolean monthly = !checkoutContext && isMonthlyBooking(booking);
-    BigDecimal amountToPay = checkoutContext ? invoice.getTotalAmount() : booking.getDepositAmount();
+    boolean canPay = membershipContext ? true : (checkoutContext ? "PENDING".equals(invoice.getInvoiceStatus()) : holdValid);
+    boolean monthly = !checkoutContext && !membershipContext && isMonthlyBooking(booking);
+    
+    BigDecimal amountToPay = (BigDecimal) request.getAttribute("amountToPay");
+    if (amountToPay == null) {
+        amountToPay = checkoutContext ? invoice.getTotalAmount() : booking.getDepositAmount();
+    }
 
     Integer vnpayMethodId = null;
     for (PaymentMethod method : paymentMethods) {
@@ -123,6 +128,10 @@
             <a class="btn btn-outline-secondary" href="<%= ctx %>/customer/checkout-invoice?id=<%= invoice.getInvoiceId() %>">
                 <i class="bi bi-arrow-left"></i> Quay lại hóa đơn
             </a>
+            <% } else if (membershipContext) { %>
+            <a class="btn btn-outline-secondary" href="<%= ctx %>/profile">
+                <i class="bi bi-arrow-left"></i> Quay lại hồ sơ
+            </a>
             <% } else { %>
             <a class="btn btn-outline-secondary" href="<%= ctx %>/booking?action=detail&id=<%= booking.getBookingId() %>">
                 <i class="bi bi-arrow-left"></i> Quay lại booking
@@ -133,7 +142,7 @@
         <% if (error != null && !error.isBlank()) { %>
         <div class="alert alert-danger"><%= esc(error) %></div>
         <% } %>
-        <% if (!checkoutContext && !holdValid) { %>
+        <% if (!checkoutContext && !membershipContext && !holdValid) { %>
         <div class="alert alert-warning">
             Booking không còn trong thời gian giữ chỗ. Không thể tạo giao dịch mới.
         </div>
@@ -148,16 +157,19 @@
             <div class="col-lg-8">
                 <div class="card soft-card p-4">
                     <h1 class="section-title">
-                        <%= checkoutContext ? "Thanh toán hóa đơn trả sân" : "Chọn phương thức thanh toán" %>
+                        <%= checkoutContext ? "Thanh toán hóa đơn trả sân" : (membershipContext ? "Thanh toán Gói Hội Viên VIP" : "Chọn phương thức thanh toán") %>
                     </h1>
                     <p class="text-muted">
                         <% if (checkoutContext) { %>
                         Hóa đơn <strong>#<%= esc(invoice.getInvoiceCode()) %></strong> cho booking <strong><%= esc(invoice.getBookingCode()) %></strong>
+                        <% } else if (membershipContext) { %>
+                        Gói Hội Viên VIP (30 ngày)
                         <% } else { %>
                         Booking <strong><%= esc(booking.getBookingCode()) %></strong>
                         <% } %>
                     </p>
 
+                    <% if (!membershipContext) { %>
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <div class="text-muted small">Cụm sân</div>
@@ -210,6 +222,14 @@
                         </div>
                         <% } %>
                     </div>
+                    <% } else { %>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-12">
+                            <div class="text-muted small">Chi tiết gói</div>
+                            <div class="fw-semibold">Gói VIP 30 ngày sử dụng đặc quyền. Sau khi thanh toán thành công, trạng thái VIP của bạn sẽ được kích hoạt hoặc gia hạn thêm 30 ngày.</div>
+                        </div>
+                    </div>
+                    <% } %>
 
                     <% if (paymentMethods.isEmpty()) { %>
                     <div class="alert alert-info mb-0">Hiện không có phương thức thanh toán đang hoạt động.</div>
@@ -219,6 +239,8 @@
                         <% if (checkoutContext) { %>
                         <input type="hidden" name="paymentType" value="CHECKOUT">
                         <input type="hidden" name="invoiceId" value="<%= invoice.getInvoiceId() %>">
+                        <% } else if (membershipContext) { %>
+                        <input type="hidden" name="paymentType" value="MEMBERSHIP">
                         <% } else { %>
                         <input type="hidden" name="paymentType" value="DEPOSIT">
                         <input type="hidden" name="bookingId" value="<%= booking.getBookingId() %>">
@@ -277,6 +299,16 @@
                     <div class="d-flex justify-content-between mt-2 text-success">
                         <span>Tiền cọc đã thanh toán</span>
                         <strong>- <%= money(invoice.getDepositAmount()) %></strong>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between fs-5">
+                        <span>Cần thanh toán</span>
+                        <strong class="text-success"><%= money(amountToPay) %></strong>
+                    </div>
+                    <% } else if (membershipContext) { %>
+                    <div class="d-flex justify-content-between mt-3">
+                        <span>Giá trị gói</span>
+                        <strong><%= money(amountToPay) %></strong>
                     </div>
                     <hr>
                     <div class="d-flex justify-content-between fs-5">

@@ -23,6 +23,7 @@ public class NotificationScheduler implements ServletContextListener {
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 notificationDAO.sendBookingReminders();
+                notificationDAO.sendMembershipReminders();
             } catch (Exception e) {
                 e.printStackTrace();
             }

@@ -38,6 +38,7 @@ public class PaymentController extends HttpServlet {
     private static final String MODE_VNPAY = "VNPAY";
     private static final String MODE_SIMULATED = "SIMULATED";
     private static final String PAYMENT_TYPE_CHECKOUT = "CHECKOUT";
+    private static final String PAYMENT_TYPE_MEMBERSHIP = "MEMBERSHIP";
 
     private final PaymentDAO paymentDAO = new PaymentDAO();
 
@@ -122,6 +123,10 @@ public class PaymentController extends HttpServlet {
             showCheckoutPaymentMethod(request, response, currentUser);
             return;
         }
+        if (PAYMENT_TYPE_MEMBERSHIP.equalsIgnoreCase(type)) {
+            showMembershipPaymentMethod(request, response, currentUser);
+            return;
+        }
 
         long bookingId = parsePositiveLong(firstNonBlank(
                 request.getParameter("bookingId"),
@@ -137,6 +142,16 @@ public class PaymentController extends HttpServlet {
         List<PaymentMethod> methods = paymentDAO.getActivePaymentMethods();
         request.setAttribute("booking", booking);
         request.setAttribute("paymentContext", "DEPOSIT");
+        request.setAttribute("paymentMethods", methods);
+        request.setAttribute("error", request.getParameter("error"));
+        request.getRequestDispatcher("/WEB-INF/payment/payment.jsp").forward(request, response);
+    }
+
+    private void showMembershipPaymentMethod(HttpServletRequest request, HttpServletResponse response, User currentUser)
+            throws IOException, ServletException, SQLException {
+        List<PaymentMethod> methods = paymentDAO.getActivePaymentMethods();
+        request.setAttribute("paymentContext", PAYMENT_TYPE_MEMBERSHIP);
+        request.setAttribute("amountToPay", new java.math.BigDecimal("199000"));
         request.setAttribute("paymentMethods", methods);
         request.setAttribute("error", request.getParameter("error"));
         request.getRequestDispatcher("/WEB-INF/payment/payment.jsp").forward(request, response);
@@ -172,6 +187,10 @@ public class PaymentController extends HttpServlet {
         String paymentType = trim(request.getParameter("paymentType"));
         if (PAYMENT_TYPE_CHECKOUT.equalsIgnoreCase(paymentType)) {
             processCheckoutPayment(request, response, currentUser);
+            return;
+        }
+        if (PAYMENT_TYPE_MEMBERSHIP.equalsIgnoreCase(paymentType)) {
+            processMembershipPayment(request, response, currentUser);
             return;
         }
 
@@ -240,6 +259,39 @@ public class PaymentController extends HttpServlet {
         processCheckoutSimulatedPayment(request, response, invoiceId, currentUser.getUserId(), paymentMethodId, simulateStatus);
     }
 
+    private void processMembershipPayment(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            User currentUser
+    ) throws IOException, SQLException {
+        int paymentMethodId = parsePositiveInt(request.getParameter("paymentMethodId"),
+                "Vui long chon phuong thuc thanh toan.");
+
+        PaymentMethod selectedMethod = paymentDAO.getPaymentMethodById(paymentMethodId);
+        if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
+            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
+        }
+
+        String paymentMode = trim(request.getParameter("paymentMode"));
+        String simulateStatus = trim(request.getParameter("simulateStatus"));
+        boolean explicitSimulated = MODE_SIMULATED.equalsIgnoreCase(paymentMode)
+                || (simulateStatus != null && !simulateStatus.isBlank());
+        boolean selectedVNPayMethod = GATEWAY_VNPAY.equalsIgnoreCase(selectedMethod.getMethodCode());
+        boolean useVNPay = !explicitSimulated
+                && (MODE_VNPAY.equalsIgnoreCase(paymentMode) || selectedVNPayMethod);
+
+        if (MODE_VNPAY.equalsIgnoreCase(paymentMode) && !selectedVNPayMethod) {
+            throw new IllegalArgumentException("Vui long chon phuong thuc VNPay Sandbox.");
+        }
+
+        if (useVNPay) {
+            processMembershipVNPayPayment(request, response, currentUser.getUserId(), paymentMethodId);
+            return;
+        }
+
+        processMembershipSimulatedPayment(request, response, currentUser.getUserId(), paymentMethodId, simulateStatus);
+    }
+
     private void processCheckoutVNPayPayment(
             HttpServletRequest request,
             HttpServletResponse response,
@@ -289,6 +341,64 @@ public class PaymentController extends HttpServlet {
         } else {
             String gatewayTransactionId = "SIM"
                     + DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS").format(LocalDateTime.now());
+            paymentDAO.markPaymentSuccessAndConfirmBooking(
+                    transactionRef,
+                    gatewayTransactionId,
+                    rawPayload,
+                    signature
+            );
+        }
+
+        redirectToPaymentResult(request, response, transactionRef);
+    }
+
+    private void processMembershipVNPayPayment(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            long customerId,
+            int paymentMethodId
+    ) throws IOException, SQLException {
+        try {
+            VNPayConfig.validateRequired();
+        } catch (IllegalStateException e) {
+            throw new IllegalArgumentException("VNPay chua duoc cau hinh day du trong vnpay.properties.", e);
+        }
+
+        Payment payment = paymentDAO.createPendingMembershipPayment(
+                customerId,
+                paymentMethodId,
+                new java.math.BigDecimal("199000")
+        );
+        VNPayUtil.PaymentUrlDebug paymentUrlDebug = VNPayUtil.buildPaymentUrlDebug(payment, 0L, request);
+        logVNPayPaymentUrl(payment, 0L, paymentUrlDebug);
+        response.sendRedirect(paymentUrlDebug.paymentUrl());
+    }
+
+    private void processMembershipSimulatedPayment(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            long customerId,
+            int paymentMethodId,
+            String simulateStatus
+    ) throws IOException, SQLException {
+        boolean simulateFailure = "FAILED".equalsIgnoreCase(simulateStatus);
+
+        Payment payment = paymentDAO.createPendingMembershipPayment(
+                customerId,
+                paymentMethodId,
+                new java.math.BigDecimal("199000")
+        );
+        String transactionRef = payment.getTransactionRef();
+        String resultStatus = simulateFailure ? "FAILED" : "SUCCESS";
+        String rawPayload = "{\"gateway\":\"SIMULATED\",\"paymentType\":\"MEMBERSHIP\",\"status\":\"" + resultStatus
+                + "\",\"transactionRef\":\"" + transactionRef + "\"}";
+        String signature = "SIM-" + transactionRef;
+
+        if (simulateFailure) {
+            paymentDAO.markPaymentFailed(transactionRef, rawPayload, signature);
+        } else {
+            String gatewayTransactionId = "SIM"
+                    + java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS").format(java.time.LocalDateTime.now());
             paymentDAO.markPaymentSuccessAndConfirmBooking(
                     transactionRef,
                     gatewayTransactionId,
