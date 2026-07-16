@@ -23,8 +23,6 @@ public class UserDAO {
             INNER JOIN roles r ON u.role_id = r.role_id
             """;
 
-
-
     private static final String FIND_BY_GOOGLE_ID = USER_SELECT + """
             WHERE u.google_id = ? AND u.status = 'ACTIVE'
             """;
@@ -280,12 +278,12 @@ public class UserDAO {
         return user;
     }
 
-    //lay danh sach user trong admindashboard
+    // lay danh sach user trong admindashboard
     public java.util.List<User> getAllUsers() {
         java.util.List<User> users = new java.util.ArrayList<>();
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(USER_SELECT + " ORDER BY u.created_at DESC");
-             ResultSet rs = ps.executeQuery()) {
+                PreparedStatement ps = conn.prepareStatement(USER_SELECT + " ORDER BY u.created_at DESC");
+                ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 users.add(mapRow(rs));
             }
@@ -298,7 +296,7 @@ public class UserDAO {
     public java.util.List<User> getUsersPaginated(String search, String role, String status, int offset, int limit) {
         java.util.List<User> users = new java.util.ArrayList<>();
         StringBuilder sql = new StringBuilder(USER_SELECT + " WHERE 1=1 ");
-        
+
         if (search != null && !search.trim().isEmpty()) {
             sql.append(" AND (u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?) ");
         }
@@ -311,8 +309,8 @@ public class UserDAO {
         sql.append(" ORDER BY u.created_at DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY ");
 
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
-             
+                PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
             int paramIndex = 1;
             if (search != null && !search.trim().isEmpty()) {
                 String likeSearch = "%" + search.trim() + "%";
@@ -328,7 +326,7 @@ public class UserDAO {
             }
             ps.setInt(paramIndex++, offset);
             ps.setInt(paramIndex++, limit);
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     users.add(mapRow(rs));
@@ -341,8 +339,9 @@ public class UserDAO {
     }
 
     public int countUsers(String search, String role, String status) {
-        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM users u INNER JOIN roles r ON u.role_id = r.role_id WHERE 1=1 ");
-        
+        StringBuilder sql = new StringBuilder(
+                "SELECT COUNT(*) FROM users u INNER JOIN roles r ON u.role_id = r.role_id WHERE 1=1 ");
+
         if (search != null && !search.trim().isEmpty()) {
             sql.append(" AND (u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?) ");
         }
@@ -354,8 +353,8 @@ public class UserDAO {
         }
 
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
-             
+                PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
             int paramIndex = 1;
             if (search != null && !search.trim().isEmpty()) {
                 String likeSearch = "%" + search.trim() + "%";
@@ -369,7 +368,7 @@ public class UserDAO {
             if (status != null && !status.trim().isEmpty()) {
                 ps.setString(paramIndex++, status.trim());
             }
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt(1);
@@ -384,7 +383,7 @@ public class UserDAO {
     public Optional<User> getUserById(long userId) {
         String sql = USER_SELECT + " WHERE u.user_id = ?";
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -400,7 +399,7 @@ public class UserDAO {
     public void updateUserStatus(long userId, String status) {
         String sql = "UPDATE users SET status = ?, updated_at = GETDATE() WHERE user_id = ?";
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, status);
             ps.setLong(2, userId);
             ps.executeUpdate();
@@ -412,7 +411,7 @@ public class UserDAO {
     public void deleteUser(long userId) {
         String sql = "DELETE FROM users WHERE user_id = ?";
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, userId);
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -429,7 +428,7 @@ public class UserDAO {
                 WHERE user_id = ?
                 """;
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, user.getFullName());
             ps.setString(2, user.getPhone());
             ps.setString(3, user.getEmail());

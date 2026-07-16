@@ -35,10 +35,6 @@ public class VoucherManagementServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        User currentUser = requireAdmin(request, response);
-        if (currentUser == null) {
-            return;
-        }
 
         String action = trim(request.getParameter("action"));
         try {
@@ -68,10 +64,6 @@ public class VoucherManagementServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         request.setCharacterEncoding("UTF-8");
-        User currentUser = requireAdmin(request, response);
-        if (currentUser == null) {
-            return;
-        }
 
         HttpSession session = request.getSession();
         String action = trim(request.getParameter("action"));
@@ -131,20 +123,6 @@ public class VoucherManagementServlet extends HttpServlet {
         }
     }
 
-    private User requireAdmin(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
-        HttpSession session = request.getSession(false);
-        User user = session == null ? null : (User) session.getAttribute("user");
-        if (user == null) {
-            response.sendRedirect(request.getContextPath() + "/login");
-            return null;
-        }
-        if (!"ADMIN".equalsIgnoreCase(user.getRoleName())) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Không có quyền truy cập.");
-            return null;
-        }
-        return user;
-    }
 
     private void showForm(
             HttpServletRequest request,

@@ -51,10 +51,8 @@ public class StaffBillingServlet extends HttpServlet {
         req.setCharacterEncoding("UTF-8");
         resp.setCharacterEncoding("UTF-8");
 
-        User user = getSessionUser(req);
-        if (!ensurePageAccess(req, resp, user)) {
-            return;
-        }
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
 
         String path = getPath(req);
         if (path.startsWith("/staff/invoice/export")) {
@@ -78,17 +76,8 @@ public class StaffBillingServlet extends HttpServlet {
         req.setCharacterEncoding("UTF-8");
         resp.setContentType("application/json;charset=UTF-8");
 
-        User user = getSessionUser(req);
-        if (user == null) {
-            resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            writeJson(resp, false, "Bạn chưa đăng nhập.");
-            return;
-        }
-        if (!isStaffOrOwner(user)) {
-            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            writeJson(resp, false, "Bạn không có quyền truy cập.");
-            return;
-        }
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
         if (!getPath(req).equals("/api/staff/checkout")) {
             resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
             writeJson(resp, false, "Không tìm thấy API.");
@@ -338,27 +327,6 @@ public class StaffBillingServlet extends HttpServlet {
         }
     }
 
-    private boolean ensurePageAccess(HttpServletRequest req, HttpServletResponse resp, User user)
-            throws IOException {
-        if (user == null) {
-            resp.sendRedirect(req.getContextPath() + "/login");
-            return false;
-        }
-        if (!isStaffOrOwner(user)) {
-            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập.");
-            return false;
-        }
-        return true;
-    }
-
-    private User getSessionUser(HttpServletRequest req) {
-        HttpSession session = req.getSession(false);
-        return (session != null) ? (User) session.getAttribute("user") : null;
-    }
-
-    private boolean isStaffOrOwner(User user) {
-        return user.getRoleId() == ROLE_STAFF || user.getRoleId() == ROLE_OWNER;
-    }
 
     private String getPath(HttpServletRequest req) {
         String uri = req.getRequestURI();

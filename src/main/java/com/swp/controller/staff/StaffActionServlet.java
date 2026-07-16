@@ -27,17 +27,9 @@ public class StaffActionServlet extends HttpServlet {
         resp.setContentType("application/json;charset=UTF-8");
         req.setCharacterEncoding("UTF-8");
 
-        User user = getSessionUser(req);
-        if (user == null) {
-            resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            write(resp, "{\"error\":\"Chưa đăng nhập\"}");
-            return;
-        }
-        if (!isStaffOrOwner(user)) {
-            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            write(resp, "{\"error\":\"Không có quyền truy cập\"}");
-            return;
-        }
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
+
 
         String path = getPath(req);
         long staffId = user.getUserId();
@@ -106,17 +98,9 @@ public class StaffActionServlet extends HttpServlet {
         resp.setContentType("application/json;charset=UTF-8");
         req.setCharacterEncoding("UTF-8");
 
-        User user = getSessionUser(req);
-        if (user == null) {
-            resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            write(resp, "{\"error\":\"Chưa đăng nhập\"}");
-            return;
-        }
-        if (!isStaffOrOwner(user)) {
-            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            write(resp, "{\"error\":\"Không có quyền truy cập\"}");
-            return;
-        }
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
+
 
         String path = getPath(req);
         long staffId = user.getUserId();
@@ -241,14 +225,7 @@ public class StaffActionServlet extends HttpServlet {
         return true;
     }
 
-    private User getSessionUser(HttpServletRequest req) {
-        HttpSession session = req.getSession(false);
-        return (session != null) ? (User) session.getAttribute("user") : null;
-    }
 
-    private boolean isStaffOrOwner(User user) {
-        return user.getRoleId() == ROLE_STAFF || user.getRoleId() == ROLE_OWNER;
-    }
 
     private String getPath(HttpServletRequest req) {
         String uri = req.getRequestURI();
