@@ -101,24 +101,7 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="col-12">
-                            <div class="card soft-card border-0 shadow-sm">
-                                <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
-                                    <h5 class="fw-bold mb-0"><i class="bi bi-currency-dollar text-warning me-2"></i>Tài chính</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-semibold">Hoa hồng nền tảng (%)</label>
-                                        <div class="input-group">
-                                            <input type="number" class="form-control" name="PLATFORM_FEE_PERCENTAGE" value="<%= getVal(settingsMap, "PLATFORM_FEE_PERCENTAGE") %>" min="0" max="100" step="0.5">
-                                            <span class="input-group-text">%</span>
-                                        </div>
-                                        <div class="form-text">Tỷ lệ phí giữ lại từ mỗi hóa đơn đặt sân của Chủ sân.</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+
                     </div>
                 </div>
 

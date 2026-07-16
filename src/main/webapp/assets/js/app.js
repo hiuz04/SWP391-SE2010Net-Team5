@@ -168,30 +168,65 @@
     const target = document.getElementById('footer');
     if (!target) return;
     const root = target.dataset.root || '';
-    target.innerHTML = `
-      <footer class="footer pt-5 pb-4 mt-5">
-        <div class="container">
-          <div class="row g-4">
-            <div class="col-lg-3">
-              <div class="d-flex align-items-center gap-2 mb-3"><span class="logo-box">⚽</span><h5 class="mb-0 text-white">Sport Field Booking</h5></div>
-              <p>Nền tảng kết nối đam mê, mang đến trải nghiệm đặt sân bóng nhanh chóng, tiện lợi và chuyên nghiệp nhất.</p>
+    
+    fetch(root + 'api/public/settings')
+      .then(res => res.json())
+      .then(data => {
+        const email = data.email || 'tranbaolong.280904@gmail.com';
+        const phone = data.phone || '0385028924';
+        
+        target.innerHTML = `
+          <footer class="footer pt-5 pb-4 mt-5">
+            <div class="container">
+              <div class="row g-4">
+                <div class="col-lg-3">
+                  <div class="d-flex align-items-center gap-2 mb-3"><span class="logo-box">⚽</span><h5 class="mb-0 text-white">Sport Field Booking</h5></div>
+                  <p>Nền tảng kết nối đam mê, mang đến trải nghiệm đặt sân bóng nhanh chóng, tiện lợi và chuyên nghiệp nhất.</p>
+                </div>
+                <div class="col-6 col-lg-2">
+                  <h6 class="text-white">Khám phá</h6>
+                  <a class="d-block mb-2" href="${link(root, 'explore/about.jsp')}">Giới thiệu</a>
+                  <a class="d-block mb-2" href="${link(root, 'explore/security-policy.jsp')}">Chính sách bảo mật</a>
+                  <a class="d-block mb-2" href="${link(root, 'explore/terms-of-use.jsp')}">Điều khoản sử dụng</a>
+                  <a class="d-block mb-2" href="${link(root, 'explore/user-guide.jsp')}">Hướng dẫn sử dụng</a>
+                  <a class="d-block mb-2" href="${link(root, 'explore/privacy-policy.jsp')}">Chính sách quyền riêng tư</a>
+                  <a class="d-block mb-2" href="${link(root, 'explore/contact.jsp')}">Liên Hệ</a>
+                </div>
+                <div class="col-6 col-lg-2"><h6 class="text-white">Khách hàng</h6><a class="d-block mb-2" href="${link(root, 'index.jsp')}">Trang chủ</a><a class="d-block mb-2" href="${link(root, 'register.jsp')}">Đăng ký</a></div>
+                <div class="col-6 col-lg-2"><h6 class="text-white">Tài khoản</h6><a class="d-block mb-2" href="${link(root, 'login.jsp')}">Đăng nhập</a></div>
+                <div class="col-lg-3"><h6 class="text-white">Liên hệ</h6><p class="mb-1"><i class="bi bi-geo-alt me-2"></i>Hoà Lạc, Việt Nam</p><p class="mb-1"><i class="bi bi-envelope me-2"></i>${email}</p><p class="mb-1"><i class="bi bi-telephone me-2"></i>${phone}</p></div>
+              </div>
+              <hr class="border-secondary my-4"><p class="small mb-0">© 2026 Sport Field Booking. Static Bootstrap UI prototype.</p>
             </div>
-            <div class="col-6 col-lg-2">
-              <h6 class="text-white">Khám phá</h6>
-              <a class="d-block mb-2" href="${link(root, 'explore/about.jsp')}">Giới thiệu</a>
-              <a class="d-block mb-2" href="${link(root, 'explore/security-policy.jsp')}">Chính sách bảo mật</a>
-              <a class="d-block mb-2" href="${link(root, 'explore/terms-of-use.jsp')}">Điều khoản sử dụng</a>
-              <a class="d-block mb-2" href="${link(root, 'explore/user-guide.jsp')}">Hướng dẫn sử dụng</a>
-              <a class="d-block mb-2" href="${link(root, 'explore/privacy-policy.jsp')}">Chính sách quyền riêng tư</a>
-              <a class="d-block mb-2" href="${link(root, 'explore/contact.jsp')}">Liên Hệ</a>
+          </footer>`;
+      })
+      .catch(err => {
+        // Fallback in case of error
+        target.innerHTML = `
+          <footer class="footer pt-5 pb-4 mt-5">
+            <div class="container">
+              <div class="row g-4">
+                <div class="col-lg-3">
+                  <div class="d-flex align-items-center gap-2 mb-3"><span class="logo-box">⚽</span><h5 class="mb-0 text-white">Sport Field Booking</h5></div>
+                  <p>Nền tảng kết nối đam mê, mang đến trải nghiệm đặt sân bóng nhanh chóng, tiện lợi và chuyên nghiệp nhất.</p>
+                </div>
+                <div class="col-6 col-lg-2">
+                  <h6 class="text-white">Khám phá</h6>
+                  <a class="d-block mb-2" href="${link(root, 'explore/about.jsp')}">Giới thiệu</a>
+                  <a class="d-block mb-2" href="${link(root, 'explore/security-policy.jsp')}">Chính sách bảo mật</a>
+                  <a class="d-block mb-2" href="${link(root, 'explore/terms-of-use.jsp')}">Điều khoản sử dụng</a>
+                  <a class="d-block mb-2" href="${link(root, 'explore/user-guide.jsp')}">Hướng dẫn sử dụng</a>
+                  <a class="d-block mb-2" href="${link(root, 'explore/privacy-policy.jsp')}">Chính sách quyền riêng tư</a>
+                  <a class="d-block mb-2" href="${link(root, 'explore/contact.jsp')}">Liên Hệ</a>
+                </div>
+                <div class="col-6 col-lg-2"><h6 class="text-white">Khách hàng</h6><a class="d-block mb-2" href="${link(root, 'index.jsp')}">Trang chủ</a><a class="d-block mb-2" href="${link(root, 'register.jsp')}">Đăng ký</a></div>
+                <div class="col-6 col-lg-2"><h6 class="text-white">Tài khoản</h6><a class="d-block mb-2" href="${link(root, 'login.jsp')}">Đăng nhập</a></div>
+                <div class="col-lg-3"><h6 class="text-white">Liên hệ</h6><p class="mb-1"><i class="bi bi-geo-alt me-2"></i>Hoà Lạc, Việt Nam</p><p class="mb-1"><i class="bi bi-envelope me-2"></i>tranbaolong.280904@gmail.com</p><p class="mb-1"><i class="bi bi-telephone me-2"></i>0385028924</p></div>
+              </div>
+              <hr class="border-secondary my-4"><p class="small mb-0">© 2026 Sport Field Booking. Static Bootstrap UI prototype.</p>
             </div>
-            <div class="col-6 col-lg-2"><h6 class="text-white">Khách hàng</h6><a class="d-block mb-2" href="${link(root, 'index.jsp')}">Trang chủ</a><a class="d-block mb-2" href="${link(root, 'register.jsp')}">Đăng ký</a></div>
-            <div class="col-6 col-lg-2"><h6 class="text-white">Tài khoản</h6><a class="d-block mb-2" href="${link(root, 'login.jsp')}">Đăng nhập</a></div>
-            <div class="col-lg-3"><h6 class="text-white">Liên hệ</h6><p class="mb-1"><i class="bi bi-geo-alt me-2"></i>Hoà Lạc, Việt Nam</p><p class="mb-1"><i class="bi bi-envelope me-2"></i>tranbaolong.280904@gmail.com</p><p class="mb-1"><i class="bi bi-telephone me-2"></i>0385028924</p></div>
-          </div>
-          <hr class="border-secondary my-4"><p class="small mb-0">© 2026 Sport Field Booking. Static Bootstrap UI prototype.</p>
-        </div>
-      </footer>`;
+          </footer>`;
+      });
   }
 
   function initDemoActions() {
@@ -255,7 +290,7 @@
       return '#';
   }
 
-  window.handleNotificationClick = function(event, id, href) {
+  window.handleNotificationClick = function(event, id, href, title, message) {
       if (event) event.preventDefault();
       const target = document.getElementById('navbar');
       const root = target ? (target.dataset.root || '') : '';
@@ -268,10 +303,13 @@
               window.location.href = href;
           } else {
               updateNotificationCount();
+              if (title && message) showNotificationDetail(title, message);
           }
       }).catch(() => {
           if (href && href !== '#') {
               window.location.href = href;
+          } else {
+              if (title && message) showNotificationDetail(title, message);
           }
       });
   };
@@ -309,8 +347,10 @@
                 data.notifications.forEach(n => {
                     const bg = n.isRead ? '' : 'bg-light';
                     const href = notificationHref(root, n);
+                    const titleEsc = escapeHtml(n.title).replace(/'/g, "\\'");
+                    const msgEsc = escapeHtml(n.message).replace(/'/g, "\\'").replace(/\n/g, "\\n");
                     html += `<li>
-                        <a class="dropdown-item border-bottom py-2 ${bg}" href="${href}" onclick="handleNotificationClick(event, ${n.notificationId}, '${href}')">
+                        <a class="dropdown-item border-bottom py-2 ${bg}" href="${href}" onclick="handleNotificationClick(event, ${n.notificationId}, '${href}', '${titleEsc}', '${msgEsc}')">
                             <div class="fw-bold" style="font-size:0.85rem">${escapeHtml(n.title)}</div>
                             <div class="text-wrap text-muted" style="font-size:0.8rem; line-height: 1.2;">${escapeHtml(n.message)}</div>
                         </a>
@@ -376,6 +416,40 @@
     });
 
     bsModal.show();
+  };
+
+  window.showNotificationDetail = function (title, message) {
+    let modalEl = document.getElementById('notificationDetailModal');
+    if (!modalEl) {
+      modalEl = document.createElement('div');
+      modalEl.id = 'notificationDetailModal';
+      modalEl.className = 'modal fade';
+      modalEl.setAttribute('tabindex', '-1');
+      modalEl.setAttribute('aria-hidden', 'true');
+      modalEl.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content shadow border-0" style="border-radius: 12px;">
+            <div class="modal-header border-0 pb-0">
+              <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="notifDetailTitle">
+                <i class="bi bi-info-circle-fill text-primary" style="font-size: 1.3rem;"></i>
+                Thông báo
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-secondary py-3" id="notifDetailMessage" style="font-size: 0.95rem; white-space: pre-wrap;">
+              ...
+            </div>
+            <div class="modal-footer border-0 pt-0">
+              <button type="button" class="btn btn-sf-primary btn-sm" data-bs-dismiss="modal" style="border-radius: 6px;">Đóng</button>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modalEl);
+    }
+    document.getElementById('notifDetailTitle').innerHTML = '<i class="bi bi-info-circle-fill text-primary" style="font-size: 1.3rem;"></i> ' + escapeHtml(title);
+    document.getElementById('notifDetailMessage').textContent = message;
+    new bootstrap.Modal(modalEl).show();
   };
 
   document.addEventListener('DOMContentLoaded', function () {

@@ -58,4 +58,34 @@ public class AdminUserDetailsServlet extends HttpServlet {
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Lỗi truy vấn cơ sở dữ liệu");
         }
     }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String action = request.getParameter("action");
+        if ("grantVip".equals(action)) {
+            String idParam = request.getParameter("id");
+            try {
+                long userId = Long.parseLong(idParam);
+                User user = userDAO.getUserById(userId).orElse(null);
+                if (user != null) {
+                    java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                    java.time.LocalDateTime newExpiration;
+                    if (user.isVip() && user.getVipValidUntil() != null && user.getVipValidUntil().isAfter(now)) {
+                        newExpiration = user.getVipValidUntil().plusDays(30);
+                    } else {
+                        newExpiration = now.plusDays(30);
+                    }
+                    userDAO.updateVipStatus(userId, newExpiration);
+                    
+                    HttpSession session = request.getSession();
+                    session.setAttribute("successMessage", "Cấp quyền VIP thành công (gia hạn thêm 30 ngày).");
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            response.sendRedirect(request.getContextPath() + "/admin/user-details?id=" + request.getParameter("id"));
+        } else {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+        }
+    }
 }

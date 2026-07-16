@@ -142,6 +142,27 @@ public class NotificationDAO {
         }
     }
 
+    public void sendMembershipReminders() {
+        String sql = "INSERT INTO notifications (user_id, title, message, notification_type, reference_id, is_read, created_at) " +
+                     "SELECT u.user_id, N'Gia hạn Gói Hội Viên', " +
+                     "N'Gói Hội Viên VIP của bạn sẽ hết hạn vào ' + FORMAT(u.vip_valid_until, 'dd/MM/yyyy HH:mm') + N'. Vui lòng gia hạn để không bị gián đoạn đặc quyền.', " +
+                     "'SYSTEM', NULL, 0, GETDATE() " +
+                     "FROM users u " +
+                     "WHERE u.is_vip = 1 AND u.vip_valid_until IS NOT NULL " +
+                     "AND u.vip_valid_until BETWEEN GETDATE() AND DATEADD(day, 3, GETDATE()) " +
+                     "AND NOT EXISTS (" +
+                     "   SELECT 1 FROM notifications n " +
+                     "   WHERE n.user_id = u.user_id AND n.title = N'Gia hạn Gói Hội Viên' " +
+                     "   AND n.created_at >= DATEADD(day, -3, GETDATE())" +
+                     ")";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     private Notification mapRowToNotification(ResultSet rs) throws SQLException {
         Notification n = new Notification();
         n.setNotificationId(rs.getLong("notification_id"));

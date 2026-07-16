@@ -18,7 +18,7 @@ public class UserDAO {
     private static final String USER_SELECT = """
             SELECT u.user_id, u.role_id, u.full_name, u.email, u.phone, u.password_hash,
                    u.avatar_url, u.google_id, u.status, u.created_at, u.updated_at,
-                   r.role_name
+                   u.is_vip, u.vip_valid_until, r.role_name
             FROM users u
             INNER JOIN roles r ON u.role_id = r.role_id
             """;
@@ -275,6 +275,8 @@ public class UserDAO {
         user.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
         user.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
         user.setRoleName(rs.getString("role_name"));
+        user.setVip(rs.getBoolean("is_vip"));
+        user.setVipValidUntil(toLocalDateTime(rs.getTimestamp("vip_valid_until")));
         return user;
     }
 
@@ -439,6 +441,22 @@ public class UserDAO {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi cập nhật thông tin người dùng bởi admin: " + e.getMessage(), e);
+        }
+    }
+
+    public void updateVipStatus(long userId, LocalDateTime newValidUntil) {
+        String sql = "UPDATE users SET is_vip = 1, vip_valid_until = ?, updated_at = GETDATE() WHERE user_id = ?";
+        try (Connection conn = DBContext.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (newValidUntil != null) {
+                ps.setTimestamp(1, Timestamp.valueOf(newValidUntil));
+            } else {
+                ps.setNull(1, java.sql.Types.TIMESTAMP);
+            }
+            ps.setLong(2, userId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật trạng thái VIP: " + e.getMessage(), e);
         }
     }
 

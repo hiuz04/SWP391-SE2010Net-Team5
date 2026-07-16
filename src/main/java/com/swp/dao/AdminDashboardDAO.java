@@ -55,7 +55,19 @@ public class AdminDashboardDAO {
             e.printStackTrace();
         }
 
-        // 4. Tài khoản chờ duyệt
+        // 4. Doanh thu 7 ngày qua
+        String sevDayRevSql = "SELECT SUM(total_amount) FROM invoices WHERE status = 'PAID' AND issued_at >= DATEADD(day, -7, GETDATE())";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sevDayRevSql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                kpis.put("last7DaysRevenue", rs.getBigDecimal(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        // 5. Tài khoản chờ duyệt
         String pendingSql = "SELECT COUNT(*) FROM users WHERE status = 'PENDING'";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(pendingSql);
@@ -120,6 +132,7 @@ public class AdminDashboardDAO {
                 JOIN fields f ON b.field_id = f.field_id
                 JOIN field_types ft ON f.field_type_id = ft.field_type_id
                 WHERE b.status NOT IN ('CANCELLED', 'HOLD')
+                AND b.created_at >= DATEADD(day, -7, GETDATE())
                 GROUP BY ft.type_name
                 """;
         try (Connection conn = DBContext.getConnection();

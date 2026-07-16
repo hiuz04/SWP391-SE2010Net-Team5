@@ -54,8 +54,7 @@ public class AdminSettingsServlet extends HttpServlet {
             "CONTACT_EMAIL",
             "CONTACT_PHONE",
             "MAX_BOOKING_DAYS_AHEAD",
-            "MIN_CANCELLATION_HOURS",
-            "PLATFORM_FEE_PERCENTAGE"
+            "MIN_CANCELLATION_HOURS"
         };
 
         for (String key : keys) {

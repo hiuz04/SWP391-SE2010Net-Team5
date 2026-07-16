@@ -156,7 +156,7 @@ public class OwnerDashboardDAO {
             while (rs.next()) {
                 list.add(
                         new RevenueDTO(
-                                rs.getDate("day")
+                                rs.getDate("booking_day")
                                         .toLocalDate(),
                                 rs.getLong("revenue")
                         )

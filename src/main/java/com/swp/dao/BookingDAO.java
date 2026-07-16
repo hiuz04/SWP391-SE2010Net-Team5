@@ -268,7 +268,9 @@ public class BookingDAO {
                        NULL AS payment_status,
                        NULL AS payment_method_name,
                        NULL AS paid_amount,
-                       NULL AS paid_at
+                       NULL AS paid_at,
+                       NULL AS feedback_id,
+                       0 AS reviewed
                 FROM fields f
                 INNER JOIN football_complexes fa ON f.complex_id = fa.complex_id
                 INNER JOIN field_types ft ON f.field_type_id = ft.field_type_id

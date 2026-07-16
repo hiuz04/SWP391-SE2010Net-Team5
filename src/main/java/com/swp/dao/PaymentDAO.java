@@ -2,6 +2,7 @@ package com.swp.dao;
 
 import com.swp.model.Payment;
 import com.swp.model.PaymentMethod;
+import com.swp.model.User;
 import com.swp.model.dto.BookingView;
 import com.swp.model.dto.InvoiceView;
 import com.swp.model.dto.PaymentView;
@@ -34,7 +35,10 @@ public class PaymentDAO {
     private static final String STATUS_PENDING_CHECKOUT_PAYMENT = "PENDING_CHECKOUT_PAYMENT";
     private static final String PAYMENT_TYPE_DEPOSIT = "DEPOSIT";
     private static final String PAYMENT_TYPE_CHECKOUT = "CHECKOUT";
+    private static final String PAYMENT_TYPE_MEMBERSHIP = "MEMBERSHIP";
     private static final String GATEWAY_SIMULATED = "SIMULATED";
+
+    private final UserDAO userDAO = new UserDAO();
 
     public BookingView getBookingForPayment(long bookingId, long customerId) throws SQLException {
         String sql = """
@@ -563,6 +567,174 @@ public class PaymentDAO {
         }
     }
 
+    public Payment createPendingMembershipPayment(long customerId, int paymentMethodId, BigDecimal amount) throws SQLException {
+        String selectMethod = """
+                SELECT payment_method_id
+                FROM payment_methods
+                WHERE payment_method_id = ?
+                  AND status = 'ACTIVE'
+                """;
+        String selectExistingPayment = """
+                SELECT TOP 1 p.payment_id,
+                       p.booking_id,
+                       p.customer_id,
+                       p.payment_method_id,
+                       p.amount,
+                       p.payment_type,
+                       p.status,
+                       p.transaction_ref,
+                       p.gateway_transaction_id,
+                       p.paid_at,
+                       p.created_at
+                FROM payments p WITH (UPDLOCK, HOLDLOCK)
+                WHERE p.customer_id = ?
+                  AND p.payment_type = 'MEMBERSHIP'
+                  AND p.status IN ('PENDING', 'SUCCESS')
+                ORDER BY p.created_at DESC, p.payment_id DESC
+                """;
+        String insertPayment = """
+                INSERT INTO payments (
+                    booking_id,
+                    customer_id,
+                    payment_method_id,
+                    amount,
+                    payment_type,
+                    status,
+                    transaction_ref,
+                    created_at
+                )
+                OUTPUT INSERTED.payment_id,
+                       INSERTED.booking_id,
+                       INSERTED.customer_id,
+                       INSERTED.payment_method_id,
+                       INSERTED.amount,
+                       INSERTED.payment_type,
+                       INSERTED.status,
+                       INSERTED.transaction_ref,
+                       INSERTED.gateway_transaction_id,
+                       INSERTED.paid_at,
+                       INSERTED.created_at
+                VALUES (NULL, ?, ?, ?, 'MEMBERSHIP', 'PENDING', ?, GETDATE())
+                """;
+
+        try (Connection conn = DBContext.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                if (amount == null || amount.signum() <= 0) {
+                    throw new IllegalArgumentException("So tien khong hop le.");
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(selectMethod)) {
+                    ps.setInt(1, paymentMethodId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
+                        }
+                    }
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(selectExistingPayment)) {
+                    ps.setLong(1, customerId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            Payment existing = mapPayment(rs);
+                            if (STATUS_SUCCESS.equals(existing.getStatus())) {
+                                // Already bought membership, user should wait or we just create a new one.
+                                // Actually, let's just create a new one since they can extend.
+                                // But if it's PENDING, we can reuse it.
+                            } else if (STATUS_PENDING.equals(existing.getStatus())) {
+                                conn.commit();
+                                return existing;
+                            }
+                        }
+                    }
+                }
+
+                String transactionRef = generateTransactionRef();
+                Payment payment;
+                try (PreparedStatement ps = conn.prepareStatement(insertPayment)) {
+                    ps.setLong(1, customerId);
+                    ps.setInt(2, paymentMethodId);
+                    ps.setBigDecimal(3, amount);
+                    ps.setString(4, transactionRef);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new SQLException("Khong tao duoc giao dich thanh toan membership.");
+                        }
+                        payment = mapPayment(rs);
+                    }
+                }
+
+                conn.commit();
+                return payment;
+            } catch (SQLException | RuntimeException e) {
+                rollback(conn, e);
+                throw e;
+            }
+        }
+    }
+
+    private PaymentUpdateResult markMembershipPaymentSuccess(
+            Connection conn,
+            PaymentLock payment,
+            String transactionRef,
+            String gatewayTransactionId,
+            String rawPayload,
+            String signature,
+            String gatewayCode
+    ) throws SQLException {
+        String updatePayment = """
+                UPDATE payments
+                SET status = 'SUCCESS',
+                    gateway_transaction_id = ?,
+                    paid_at = GETDATE()
+                WHERE payment_id = ?
+                  AND status = 'PENDING'
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(updatePayment)) {
+            ps.setString(1, gatewayTransactionId);
+            ps.setLong(2, payment.paymentId());
+            if (ps.executeUpdate() != 1) {
+                throw new SQLException("Khong cap nhat duoc trang thai thanh toan.");
+            }
+        }
+
+        // Grant 30 days of VIP
+        User user = userDAO.getUserById(payment.customerId()).orElse(null);
+        if (user != null) {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime newExpiration;
+            if (user.isVip() && user.getVipValidUntil() != null && user.getVipValidUntil().isAfter(now)) {
+                newExpiration = user.getVipValidUntil().plusDays(30);
+            } else {
+                newExpiration = now.plusDays(30);
+            }
+            userDAO.updateVipStatus(user.getUserId(), newExpiration);
+
+            // Notify customer
+            insertNotification(conn, payment.customerId(), "Đăng ký thành công", "Bạn đã đăng ký thành công Gói Hội Viên VIP và nhận 30 ngày sử dụng đặc quyền.", "SYSTEM", null);
+
+            // Notify admins, owners, staff
+            String notifySql = """
+                    SELECT u.user_id 
+                    FROM users u 
+                    INNER JOIN roles r ON u.role_id = r.role_id 
+                    WHERE r.role_name IN ('ADMIN', 'OWNER', 'STAFF') 
+                      AND u.status = 'ACTIVE'
+                    """;
+            try (PreparedStatement psNotify = conn.prepareStatement(notifySql);
+                 ResultSet rsNotify = psNotify.executeQuery()) {
+                while (rsNotify.next()) {
+                    long staffId = rsNotify.getLong("user_id");
+                    insertNotification(conn, staffId, "Hội viên mới", "Khách hàng " + user.getFullName() + " vừa đăng ký mới Gói Hội Viên VIP.", "SYSTEM", null);
+                }
+            }
+        }
+
+        insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
+        return PaymentUpdateResult.UPDATED_SUCCESS;
+    }
+
     public GatewayPaymentView findPaymentByTransactionRef(String transactionRef) throws SQLException {
         if (transactionRef == null || transactionRef.isBlank()) {
             return null;
@@ -578,7 +750,7 @@ public class PaymentDAO {
                        p.gateway_transaction_id,
                        b.status AS booking_status
                 FROM payments p
-                INNER JOIN bookings b ON p.booking_id = b.booking_id
+                LEFT JOIN bookings b ON p.booking_id = b.booking_id
                 WHERE p.transaction_ref = ?
                 """;
 
@@ -676,7 +848,7 @@ public class PaymentDAO {
                            ELSE 0
                        END AS hold_valid
                 FROM payments p WITH (UPDLOCK, HOLDLOCK)
-                INNER JOIN bookings b WITH (UPDLOCK, HOLDLOCK) ON p.booking_id = b.booking_id
+                LEFT JOIN bookings b WITH (UPDLOCK, HOLDLOCK) ON p.booking_id = b.booking_id
                 OUTER APPLY (
                     SELECT TOP 1 i.invoice_id,
                            i.status AS invoice_status
@@ -741,6 +913,19 @@ public class PaymentDAO {
                 }
                 if (PAYMENT_TYPE_CHECKOUT.equals(payment.paymentType())) {
                     PaymentUpdateResult result = markCheckoutPaymentSuccess(
+                            conn,
+                            payment,
+                            transactionRef,
+                            gatewayTransactionId,
+                            rawPayload,
+                            signature,
+                            gatewayCode
+                    );
+                    conn.commit();
+                    return result;
+                }
+                if (PAYMENT_TYPE_MEMBERSHIP.equals(payment.paymentType())) {
+                    PaymentUpdateResult result = markMembershipPaymentSuccess(
                             conn,
                             payment,
                             transactionRef,
@@ -933,7 +1118,7 @@ public class PaymentDAO {
                        1 AS booking_count,
                        CASE WHEN b.hold_expires_at > GETDATE() THEN 1 ELSE 0 END AS hold_valid
                 FROM payments p WITH (UPDLOCK, HOLDLOCK)
-                INNER JOIN bookings b ON p.booking_id = b.booking_id
+                LEFT JOIN bookings b ON p.booking_id = b.booking_id
                 WHERE p.transaction_ref = ?
                 """;
         String updatePayment = """
@@ -1052,9 +1237,9 @@ public class PaymentDAO {
                        f.field_name
                 FROM payments p
                 INNER JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
-                INNER JOIN bookings b ON p.booking_id = b.booking_id
-                INNER JOIN football_complexes fa ON b.complex_id = fa.complex_id
-                INNER JOIN fields f ON b.field_id = f.field_id
+                LEFT JOIN bookings b ON p.booking_id = b.booking_id
+                LEFT JOIN football_complexes fa ON b.complex_id = fa.complex_id
+                LEFT JOIN fields f ON b.field_id = f.field_id
                 OUTER APPLY (
                     SELECT TOP 1 i.invoice_id
                     FROM invoices i
@@ -1096,7 +1281,7 @@ public class PaymentDAO {
     private Payment mapPayment(ResultSet rs) throws SQLException {
         Payment payment = new Payment();
         payment.setPaymentId(rs.getLong("payment_id"));
-        payment.setBookingId(rs.getLong("booking_id"));
+        payment.setBookingId(getLongOrNull(rs, "booking_id"));
         payment.setCustomerId(rs.getLong("customer_id"));
         payment.setPaymentMethodId(rs.getInt("payment_method_id"));
         payment.setAmount(rs.getBigDecimal("amount"));
@@ -1113,7 +1298,7 @@ public class PaymentDAO {
         PaymentView view = new PaymentView();
         view.setPaymentId(rs.getLong("payment_id"));
         view.setInvoiceId(getLongOrNull(rs, "invoice_id"));
-        view.setBookingId(rs.getLong("booking_id"));
+        view.setBookingId(getLongOrNull(rs, "booking_id"));
         view.setCustomerId(rs.getLong("customer_id"));
         view.setAmount(rs.getBigDecimal("amount"));
         view.setPaymentType(rs.getString("payment_type"));
