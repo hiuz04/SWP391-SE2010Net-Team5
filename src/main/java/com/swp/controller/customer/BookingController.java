@@ -2,6 +2,7 @@ package com.swp.controller.customer;
 
 import com.swp.dao.BookingDAO;
 import com.swp.dao.FieldTypeDAO;
+import com.swp.dao.UserDAO;
 import com.swp.dao.VoucherDAO;
 import com.swp.model.Booking;
 import com.swp.model.Field;
@@ -45,6 +46,7 @@ public class BookingController extends HttpServlet {
 
     private final BookingDAO bookingDAO = new BookingDAO();
     private final FieldTypeDAO fieldTypeDAO = new FieldTypeDAO();
+    private final UserDAO userDAO = new UserDAO();
     private final VoucherDAO voucherDAO = new VoucherDAO();
     private final com.swp.dao.SystemSettingDAO systemSettingDAO = new com.swp.dao.SystemSettingDAO();
 
@@ -55,6 +57,7 @@ public class BookingController extends HttpServlet {
     private static final int HOLD_MINUTES = 15;
     private static final int MAX_RECURRING_BOOKINGS = 50;
     private static final BigDecimal DEPOSIT_RATE = new BigDecimal("0.30");
+    private static final BigDecimal VIP_DISCOUNT_RATE = new BigDecimal("0.05");
     private static final String STATUS_HOLD = "HOLD";
     private static final String STATUS_CANCELLED = "CANCELLED";
     private static final String STATUS_COMPLETED = "COMPLETED";
@@ -274,6 +277,9 @@ public class BookingController extends HttpServlet {
                         slot.endTime(),
                         fullPaymentRequired
                 );
+                if (context.activeVip()) {
+                    amounts = applyVipDiscount(amounts, fullPaymentRequired);
+                }
                 bookings.add(buildBooking(
                         currentUser.getUserId(),
                         context.bookingInfo().getComplexId(),
@@ -412,8 +418,14 @@ public class BookingController extends HttpServlet {
             }
         }
 
+        boolean activeVip = hasActiveVip(currentUser);
         boolean fullPaymentRequired = REPEAT_MONTHLY.equals(repeatRequest.repeatType());
-        BookingAmounts amounts = calculateAggregateBookingAmounts(fieldId, bookingSlots, fullPaymentRequired);
+        BookingAmounts amounts = calculateAggregateBookingAmounts(
+                fieldId,
+                bookingSlots,
+                fullPaymentRequired,
+                activeVip && !REPEAT_NONE.equals(repeatRequest.repeatType())
+        );
 
         String voucherCode = trim(rawVoucherCode);
         String voucherError = null;
@@ -432,6 +444,9 @@ public class BookingController extends HttpServlet {
                     voucherError = validationResult.getMessage();
                 }
             }
+        }
+        if (activeVip && REPEAT_NONE.equals(repeatRequest.repeatType())) {
+            amounts = applyVipDiscount(amounts, fullPaymentRequired);
         }
 
         LocalDateTime holdExpiresAt = LocalDateTime.now().plusMinutes(HOLD_MINUTES);
@@ -470,7 +485,8 @@ public class BookingController extends HttpServlet {
                 amounts,
                 voucherCode,
                 voucherMessage,
-                voucherError
+                voucherError,
+                activeVip
         );
     }
 
@@ -878,6 +894,17 @@ public class BookingController extends HttpServlet {
                 && (minute == 0 || minute == 30);
     }
 
+    private boolean hasActiveVip(User currentUser) {
+        if (currentUser == null || currentUser.getUserId() == null) {
+            return false;
+        }
+
+        User latestUser = userDAO.getUserById(currentUser.getUserId()).orElse(currentUser);
+        return latestUser.isVip()
+                && latestUser.getVipValidUntil() != null
+                && latestUser.getVipValidUntil().isAfter(LocalDateTime.now());
+    }
+
     private BookingAmounts calculateBookingAmounts(Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
             throws SQLException {
         return calculateBookingAmounts(fieldId, startTime, endTime, false);
@@ -892,17 +919,11 @@ public class BookingController extends HttpServlet {
 
         BigDecimal originalPrice = bookingDAO.calculatePrice(fieldId, startTime, endTime)
                 .setScale(2, RoundingMode.HALF_UP);
-        BigDecimal discountAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-        BigDecimal totalAmount = originalPrice;
-        BigDecimal finalAmount = totalAmount;
-        BigDecimal depositAmount = calculateDepositAmount(finalAmount, fullPaymentRequired);
-
-        return new BookingAmounts(
+        return createBookingAmounts(
                 originalPrice,
-                discountAmount,
-                totalAmount,
-                finalAmount,
-                depositAmount,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                fullPaymentRequired,
                 null,
                 null
         );
@@ -913,8 +934,18 @@ public class BookingController extends HttpServlet {
             List<BookingSlot> bookingSlots,
             boolean fullPaymentRequired
     ) throws SQLException {
+        return calculateAggregateBookingAmounts(fieldId, bookingSlots, fullPaymentRequired, false);
+    }
+
+    private BookingAmounts calculateAggregateBookingAmounts(
+            Long fieldId,
+            List<BookingSlot> bookingSlots,
+            boolean fullPaymentRequired,
+            boolean applyVipDiscountPerSlot
+    ) throws SQLException {
         BigDecimal originalPrice = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         BigDecimal discountAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal vipDiscountAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         BigDecimal totalAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         BigDecimal finalAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
@@ -925,8 +956,12 @@ public class BookingController extends HttpServlet {
                     slot.endTime(),
                     fullPaymentRequired
             );
+            if (applyVipDiscountPerSlot) {
+                slotAmounts = applyVipDiscount(slotAmounts, fullPaymentRequired);
+            }
             originalPrice = originalPrice.add(slotAmounts.originalPrice());
             discountAmount = discountAmount.add(slotAmounts.discountAmount());
+            vipDiscountAmount = vipDiscountAmount.add(slotAmounts.vipDiscountAmount());
             totalAmount = totalAmount.add(slotAmounts.totalAmount());
             finalAmount = finalAmount.add(slotAmounts.finalAmount());
         }
@@ -936,6 +971,7 @@ public class BookingController extends HttpServlet {
         return new BookingAmounts(
                 originalPrice,
                 discountAmount,
+                vipDiscountAmount,
                 totalAmount,
                 finalAmount,
                 depositAmount,
@@ -950,18 +986,68 @@ public class BookingController extends HttpServlet {
             boolean fullPaymentRequired
     ) {
         BigDecimal discountAmount = money(validationResult.getDiscountAmount());
-        BigDecimal finalAmount = money(validationResult.getFinalAmount());
-        BigDecimal depositAmount = calculateDepositAmount(finalAmount, fullPaymentRequired);
-
-        return new BookingAmounts(
+        return createBookingAmounts(
                 baseAmounts.originalPrice(),
                 discountAmount,
-                finalAmount,
-                finalAmount,
-                depositAmount,
+                baseAmounts.vipDiscountAmount(),
+                fullPaymentRequired,
                 validationResult.getVoucher().getId(),
                 validationResult.getVoucher().getCode()
         );
+    }
+
+    private BookingAmounts applyVipDiscount(
+            BookingAmounts baseAmounts,
+            boolean fullPaymentRequired
+    ) {
+        BigDecimal vipDiscountAmount = money(baseAmounts.originalPrice().multiply(VIP_DISCOUNT_RATE));
+        return createBookingAmounts(
+                baseAmounts.originalPrice(),
+                baseAmounts.discountAmount(),
+                vipDiscountAmount,
+                fullPaymentRequired,
+                baseAmounts.voucherId(),
+                baseAmounts.voucherCode()
+        );
+    }
+
+    private BookingAmounts createBookingAmounts(
+            BigDecimal originalPrice,
+            BigDecimal discountAmount,
+            BigDecimal vipDiscountAmount,
+            boolean fullPaymentRequired,
+            Integer voucherId,
+            String voucherCode
+    ) {
+        BigDecimal safeOriginalPrice = money(originalPrice);
+        BigDecimal safeDiscountAmount = capDiscount(discountAmount, safeOriginalPrice);
+        BigDecimal afterVoucher = safeOriginalPrice.subtract(safeDiscountAmount).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal safeVipDiscountAmount = capDiscount(vipDiscountAmount, afterVoucher);
+        BigDecimal finalAmount = afterVoucher.subtract(safeVipDiscountAmount).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal depositAmount = calculateDepositAmount(finalAmount, fullPaymentRequired);
+
+        return new BookingAmounts(
+                safeOriginalPrice,
+                safeDiscountAmount,
+                safeVipDiscountAmount,
+                finalAmount,
+                finalAmount,
+                depositAmount,
+                voucherId,
+                voucherCode
+        );
+    }
+
+    private BigDecimal capDiscount(BigDecimal discountAmount, BigDecimal maxAmount) {
+        BigDecimal safeDiscountAmount = money(discountAmount);
+        BigDecimal safeMaxAmount = money(maxAmount);
+        if (safeDiscountAmount.signum() < 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        if (safeDiscountAmount.compareTo(safeMaxAmount) > 0) {
+            return safeMaxAmount;
+        }
+        return safeDiscountAmount;
     }
 
     private BigDecimal calculateDepositAmount(BigDecimal finalAmount, boolean fullPaymentRequired) {
@@ -1034,6 +1120,7 @@ public class BookingController extends HttpServlet {
     private record BookingAmounts(
             BigDecimal originalPrice,
             BigDecimal discountAmount,
+            BigDecimal vipDiscountAmount,
             BigDecimal totalAmount,
             BigDecimal finalAmount,
             BigDecimal depositAmount,
@@ -1050,7 +1137,8 @@ public class BookingController extends HttpServlet {
             BookingAmounts amounts,
             String voucherCode,
             String voucherMessage,
-            String voucherError
+            String voucherError,
+            boolean activeVip
     ) {
     }
 
