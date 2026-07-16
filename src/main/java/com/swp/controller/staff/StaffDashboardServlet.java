@@ -47,17 +47,6 @@ public class StaffDashboardServlet extends HttpServlet {
         HttpSession session = req.getSession(false);
         User user = (session != null) ? (User) session.getAttribute("user") : null;
 
-        // ── Auth check ──────────────────────────────────────────────────────
-        if (user == null) {
-            resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            write(resp, error("Chưa đăng nhập"));
-            return;
-        }
-        if (user.getRoleId() != ROLE_STAFF && user.getRoleId() != ROLE_OWNER) {
-            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            write(resp, error("Không có quyền truy cập"));
-            return;
-        }
 
         long staffId = user.getUserId();
 

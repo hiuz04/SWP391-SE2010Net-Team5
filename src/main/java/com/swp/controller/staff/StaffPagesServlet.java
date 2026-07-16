@@ -29,17 +29,7 @@ public class StaffPagesServlet extends HttpServlet {
         resp.setCharacterEncoding("UTF-8");
 
         HttpSession session = req.getSession(false);
-        User user = (session != null) ? (User) session.getAttribute("user") : null;
-
-        // ── Auth Check ──────────────────────────────────────────────────────
-        if (user == null) {
-            resp.sendRedirect(req.getContextPath() + "/login");
-            return;
-        }
-        if (user.getRoleId() != ROLE_STAFF && user.getRoleId() != ROLE_OWNER) {
-            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Không có quyền truy cập.");
-            return;
-        }
+        User user = (User) session.getAttribute("user");
 
         String uri = req.getRequestURI();
         String contextPath = req.getContextPath();
