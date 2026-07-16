@@ -182,7 +182,7 @@ public class MatchmakingPostDAO {
     }
 
     public void updatePost(MatchmakingPost post) {
-        String sql = "UPDATE matchmaking_posts SET title = ?, description = ?, skill_level = ?, expected_time = ?, facility_id = ?, contact_name = ?, contact_phone = ?, updated_at = GETDATE() WHERE post_id = ?";
+        String sql = "UPDATE matchmaking_posts SET title = ?, description = ?, skill_level = ?, expected_time = ?, complex_id = ?, contact_name = ?, contact_phone = ?, updated_at = GETDATE() WHERE post_id = ?";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             
@@ -190,8 +190,8 @@ public class MatchmakingPostDAO {
             ps.setString(2, post.getDescription());
             ps.setString(3, post.getSkillLevel());
             ps.setTimestamp(4, post.getExpectedTime() != null ? Timestamp.valueOf(post.getExpectedTime()) : null);
-            if (post.getFacilityId() != null) {
-                ps.setLong(5, post.getFacilityId());
+            if (post.getComplexId() != null) {
+                ps.setLong(5, post.getComplexId());
             } else {
                 ps.setNull(5, java.sql.Types.BIGINT);
             }
