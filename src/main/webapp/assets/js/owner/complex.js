@@ -11,7 +11,7 @@
  */
 
 // Lưu đường context của trang
-const ctx = "/SWP391-SE2010Net-Team5";
+const ctx = window.APP_CTX || "";
 
 // Danh sách status
 const statusList = [
@@ -64,7 +64,7 @@ async function loadForm() {
     await loadComplexData();
     renderPreview();
 
-    // Click ra ngoài thì đóng menu
+    // Click ra ngoài thì đóng menu thao tác đối với ảnh
     document.addEventListener("click", ()=>{
         document.querySelectorAll(".menu-popup").forEach(menu=>{
             menu.classList.remove("show");
@@ -176,6 +176,7 @@ function submitForm() {
 
     if (errors.length > 0) {
         alert(errors.join("\n"));
+        document.getElementById("submitBtn").disabled = false;
         return;
     }
 
@@ -224,7 +225,7 @@ function submitForm() {
             console.error(err);
             alert("Không thêm/sửa được, kiểm tra server!");
         });
-    document.getElementById("submitBtn").disabled = true;
+    document.getElementById("submitBtn").disabled = false;
 }
 
 // Xử lý title thay đổi phụ thuộc vào thao tác

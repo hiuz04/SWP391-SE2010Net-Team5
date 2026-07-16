@@ -11,7 +11,7 @@
  */
 
 // Lưu đường context của trang
-const ctx = "/SWP391-SE2010Net-Team5";
+const ctx = window.APP_CTX || "";
 
 // Danh sách status
 const statusList = [

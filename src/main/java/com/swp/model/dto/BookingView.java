@@ -53,6 +53,9 @@ public class BookingView implements Serializable {
     private boolean canCancel;
     private String cancelReasonMessage;
 
+    private boolean reviewed;
+    private Long feedbackId;
+
     public BookingView() {
     }
 
@@ -366,5 +369,21 @@ public class BookingView implements Serializable {
 
     public void setCancelReasonMessage(String cancelReasonMessage) {
         this.cancelReasonMessage = cancelReasonMessage;
+    }
+
+    public boolean isReviewed() {
+        return reviewed;
+    }
+
+    public void setReviewed(boolean reviewed) {
+        this.reviewed = reviewed;
+    }
+
+    public long getFeedbackId() {
+        return feedbackId;
+    }
+
+    public void setFeedbackId(Long feedbackId) {
+        this.feedbackId = feedbackId;
     }
 }

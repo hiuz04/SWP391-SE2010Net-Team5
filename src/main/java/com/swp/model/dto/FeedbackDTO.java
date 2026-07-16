@@ -1,9 +1,6 @@
 package com.swp.model.dto;
 
-import com.swp.model.FeedbackImage;
-
 import java.time.LocalDateTime;
-import java.util.List;
 
 public class FeedbackDTO {
 
@@ -15,7 +12,6 @@ public class FeedbackDTO {
     private int rating;
     private String feedbackDesc;
     private String ownerReply;
-    private List<FeedbackImage> imageList;
 
     public FeedbackDTO() {
     }
@@ -93,13 +89,5 @@ public class FeedbackDTO {
 
     public void setOwnerReply(String ownerReply) {
         this.ownerReply = ownerReply;
-    }
-
-    public List<FeedbackImage> getImageList() {
-        return imageList;
-    }
-
-    public void setImageList(List<FeedbackImage> imageList) {
-        this.imageList = imageList;
     }
 }

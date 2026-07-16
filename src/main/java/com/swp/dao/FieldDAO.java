@@ -58,17 +58,6 @@ public class FieldDAO {
         }
     }
 
-    public void deleteFieldWithComplexID(long id) {
-        String sql = "DELETE FROM fields WHERE complex_id = ?";
-        try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, id);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new RuntimeException("Lỗi khi cố gắng xóa dữ liệu: " + e.getMessage(), e);
-        }
-    }
-
     public Field getFieldByID(long id) {
         Field field = new Field();
         String sql = "SELECT * FROM fields WHERE field_id = ?";

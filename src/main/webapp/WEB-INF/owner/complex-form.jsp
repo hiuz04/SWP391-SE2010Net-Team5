@@ -177,7 +177,9 @@
         </div>
     </div>
 </div>
-
+<script>
+    window.APP_CTX = '<%= ctx %>';
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/owner/complex.js"></script>
 <script>dynamicLabel(); loadForm();</script>

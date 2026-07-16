@@ -1,5 +1,6 @@
 package com.swp.model.dto;
 
+import com.swp.model.Feedback;
 import com.swp.model.Field;
 import com.swp.model.FieldType;
 
@@ -17,11 +18,12 @@ public class FieldDetail {
     private LocalTime openingTime;
     private LocalTime closingTime;
     private String hotline;
+    private List<FeedbackDTO> feedbacks;
 
     public FieldDetail() {
     }
 
-    public FieldDetail(long complexId, String complexName, String complexAddress, List<FieldType> fieldTypeList, List<Field> fields, String description, LocalTime openingTime, LocalTime closingTime, String hotline) {
+    public FieldDetail(long complexId, String complexName, String complexAddress, List<FieldType> fieldTypeList, List<Field> fields, String description, LocalTime openingTime, LocalTime closingTime, String hotline, List<FeedbackDTO> feedbacks) {
         this.complexId = complexId;
         this.complexName = complexName;
         this.complexAddress = complexAddress;
@@ -31,6 +33,7 @@ public class FieldDetail {
         this.openingTime = openingTime;
         this.closingTime = closingTime;
         this.hotline = hotline;
+        this.feedbacks = feedbacks;
     }
 
     public List<Field> getFields() {
@@ -103,5 +106,13 @@ public class FieldDetail {
 
     public void setClosingTime(LocalTime closingTime) {
         this.closingTime = closingTime;
+    }
+
+    public List<FeedbackDTO> getFeedbacks() {
+        return feedbacks;
+    }
+
+    public void setFeedbacks(List<FeedbackDTO> feedbacks) {
+        this.feedbacks = feedbacks;
     }
 }

@@ -10,7 +10,12 @@ import com.swp.dao.FieldTypeDAO;
 import com.swp.model.Field;
 import com.swp.model.FieldType;
 import com.swp.model.FootballComplex;
+import com.swp.model.dto.FeedbackDTO;
 import com.swp.model.dto.FieldDetail;
+import com.swp.service.FeedbackService;
+import com.swp.service.FieldService;
+import com.swp.service.FieldTypeService;
+import com.swp.service.FootballComplexService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -27,18 +32,20 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @WebServlet("/field")
-public class GetFieldDetails extends HttpServlet {
+public class FieldDetailAPIController extends HttpServlet {
 
-    private static final FootballComplexDAO FOOTBALL_COMPLEX_DAO = new FootballComplexDAO();
-    private static final FieldDAO fieldDAO = new FieldDAO();
-    private static final FieldTypeDAO fieldTypeDao = new FieldTypeDAO();
+    private static final FootballComplexService complexService = new FootballComplexService();
+    private static final FieldService fieldService = new FieldService();
+    private static final FieldTypeService typeService = new FieldTypeService();
+    private static final FeedbackService feedbackService = new FeedbackService();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         long complexId = Long.parseLong(req.getParameter("id"));
-        FootballComplex complex = FOOTBALL_COMPLEX_DAO.getFootballComplexDataByID(complexId);
-        List<Field> fields = fieldDAO.getFieldBelongToThisComplexId(complexId);
-        List<FieldType> fieldTypes = fieldTypeDao.getAllFieldTypes();
+        FootballComplex complex = complexService.getFootballComplexInfo(complexId);
+        List<Field> fields = fieldService.getFieldOfThisComplex(complexId);
+        List<FieldType> fieldTypes = typeService.getAllType();
+        List<FeedbackDTO> feedbacks = feedbackService.getAllFeedbackOfThisComplexes(complexId);
         FieldDetail detail = new FieldDetail();
 
         Map<Integer, FieldType> fieldTypeMap = fieldTypes.stream()
@@ -67,6 +74,8 @@ public class GetFieldDetails extends HttpServlet {
         detail.setClosingTime(complex.getClosingTime());
         detail.setFields(fields);
         detail.setHotline(complex.getHotline());
+
+        detail.setFeedbacks(feedbacks);
 
         resp.setContentType("application/json;charset=UTF-8");
         Gson gson = new GsonBuilder()
