@@ -91,6 +91,19 @@ public class StaffPagesServlet extends HttpServlet {
                 try {
                     long bookingId = Long.parseLong(bookingIdParam);
                     Map<String, Object> booking = staffDAO.getBookingDetailForCheckin(bookingId);
+                    
+                    // Verify facility match for security
+                    if (user != null && user.getRoleId() == 3) { // Role Staff = 3
+                        Map<String, Object> shift = staffDAO.getCurrentShift(user.getUserId());
+                        if (!shift.isEmpty() && !booking.isEmpty()) {
+                            long staffFacilityId = (Long) shift.get("facilityId");
+                            Long bookingFacilityId = (Long) booking.get("facilityId");
+                            if (bookingFacilityId != null && bookingFacilityId != staffFacilityId) {
+                                resp.sendRedirect(req.getContextPath() + "/staff/schedule?error=facility_mismatch");
+                                return;
+                            }
+                        }
+                    }
                     req.setAttribute("booking", booking);
                 } catch (NumberFormatException ignored) {}
             }
@@ -105,28 +118,33 @@ public class StaffPagesServlet extends HttpServlet {
         timeStr = timeStr.trim().toUpperCase();
 
         boolean pm = timeStr.contains("CH") || timeStr.contains("PM");
+        boolean am = timeStr.contains("SA") || timeStr.contains("AM");
 
         if (timeStr.contains(" ")) {
-            timeStr = timeStr.split(" ")[1];
+            String[] parts = timeStr.split(" ");
+            for (String part : parts) {
+                if (part.contains(":")) {
+                    timeStr = part;
+                    break;
+                }
+            }
         }
         if (timeStr.contains(".")) {
             timeStr = timeStr.split("\\.")[0];
         }
 
         String clean = timeStr.replaceAll("[^0-9:]", "").trim();
-        if (clean.isEmpty()) {
-            return null;
-        }
+        if (clean.isEmpty()) return null;
 
         String[] parts = clean.split(":");
         int hour = Integer.parseInt(parts[0]);
         int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
         int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
 
-        if (pm && hour < 12) {
-            hour += 12;
-        } else if (!pm && hour == 12) {
-            hour = 0;
+        if (pm) {
+            if (hour < 12) hour += 12;
+        } else if (am) {
+            if (hour == 12) hour = 0;
         }
 
         return java.time.LocalTime.of(hour, min, sec);

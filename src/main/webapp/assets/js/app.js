@@ -7,6 +7,84 @@
  * Created date: 01/06/2026
  */
 (function () {
+  // Custom Toast Notification System
+  window.showToast = function (message, type = 'success') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      container.style.position = 'fixed';
+      container.style.top = '24px';
+      container.style.right = '24px';
+      container.style.zIndex = '99999';
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.gap = '12px';
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.style.minWidth = '300px';
+    toast.style.maxWidth = '450px';
+    toast.style.padding = '14px 20px';
+    toast.style.borderRadius = '10px';
+    toast.style.color = '#ffffff';
+    toast.style.fontSize = '0.9rem';
+    toast.style.fontWeight = '500';
+    toast.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)';
+    toast.style.display = 'flex';
+    toast.style.alignItems = 'center';
+    toast.style.justifyContent = 'space-between';
+    toast.style.gap = '16px';
+    toast.style.transition = 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(50px)';
+
+    let bgColor = '#10b981'; // success
+    let icon = 'bi-check-circle-fill';
+    if (type === 'error' || type === 'danger') {
+      bgColor = '#ef4444'; // danger
+      icon = 'bi-exclamation-circle-fill';
+    } else if (type === 'warning') {
+      bgColor = '#f59e0b'; // warning
+      icon = 'bi-exclamation-triangle-fill';
+    } else if (type === 'info') {
+      bgColor = '#3b82f6'; // info
+      icon = 'bi-info-circle-fill';
+    }
+    toast.style.backgroundColor = bgColor;
+
+    toast.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <i class="bi ${icon}" style="font-size: 1.2rem; display: flex; align-items: center;"></i>
+        <span>${message}</span>
+      </div>
+      <button style="background: none; border: none; color: rgba(255, 255, 255, 0.8); cursor: pointer; font-size: 1.3rem; padding: 0; line-height: 1; display: flex; align-items: center; transition: color 0.15s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.8)'" onclick="this.parentElement.style.opacity='0'; setTimeout(()=>this.parentElement.remove(),300)">&times;</button>
+    `;
+
+    container.appendChild(toast);
+
+    // Trigger animation
+    setTimeout(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateX(0)';
+    }, 10);
+
+    // Auto remove
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(50px)';
+        setTimeout(() => {
+          if (toast.parentElement) toast.remove();
+        }, 350);
+      }
+    }, 4500);
+  };
+
+
+
   const pages = {
     customer: [
       ['Trang chủ','index'], ['Tìm sân','search'], ['Tìm đối','matchmaking'], ['Lịch sử đặt sân','booking?action=history'], ['Hồ sơ','profile']
@@ -245,10 +323,77 @@
       .catch(e => console.log('Could not fetch notifications', e));
   };
 
+  window.showToastAfterReload = function (message, type = 'success') {
+    try {
+      sessionStorage.setItem('pending_toast', JSON.stringify({ message: message, type: type }));
+    } catch (e) {
+      console.error('Error saving pending toast', e);
+    }
+  };
+
+  window.showConfirm = function (message, onConfirm) {
+    let modalEl = document.getElementById('customConfirmModal');
+    if (!modalEl) {
+      modalEl = document.createElement('div');
+      modalEl.id = 'customConfirmModal';
+      modalEl.className = 'modal fade';
+      modalEl.setAttribute('tabindex', '-1');
+      modalEl.setAttribute('aria-hidden', 'true');
+      modalEl.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content shadow border-0" style="border-radius: 12px;">
+            <div class="modal-header border-0 pb-0">
+              <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 1.3rem;"></i>
+                Xác nhận
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-secondary py-3" id="customConfirmMessage" style="font-size: 0.95rem;">
+              ...
+            </div>
+            <div class="modal-footer border-0 pt-0">
+              <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal" style="border: 1px solid #dee2e6; border-radius: 6px;">Huỷ</button>
+              <button type="button" class="btn btn-sf-primary btn-sm" id="customConfirmBtn" style="border-radius: 6px;">Đồng ý</button>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modalEl);
+    }
+
+    document.getElementById('customConfirmMessage').textContent = message;
+
+    const confirmBtn = document.getElementById('customConfirmBtn');
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+    const bsModal = new bootstrap.Modal(modalEl);
+
+    newConfirmBtn.addEventListener('click', () => {
+      bsModal.hide();
+      if (onConfirm) onConfirm();
+    });
+
+    bsModal.show();
+  };
+
   document.addEventListener('DOMContentLoaded', function () {
     renderNavbar();
     renderFooter();
     initDemoActions();
     updateNotificationCount();
+    
+    // Check and show pending toast
+    try {
+      const pending = sessionStorage.getItem('pending_toast');
+      if (pending) {
+        const toastData = JSON.parse(pending);
+        window.showToast(toastData.message, toastData.type);
+        sessionStorage.removeItem('pending_toast');
+      }
+    } catch (e) {
+      console.error('Error loading pending toast', e);
+    }
   });
 })();

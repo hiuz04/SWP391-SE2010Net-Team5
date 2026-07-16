@@ -600,9 +600,9 @@ async function loadDashboard() {
       const blockClick = (e) => {
         e.preventDefault();
         if (currentShiftStatus === 'UPCOMING') {
-          alert('Ca trực của bạn chưa bắt đầu (Ca làm việc: ' + timeOnly(s.startTime) + ' - ' + timeOnly(s.endTime) + '). Bạn chỉ được xem dữ liệu, không thể thực hiện thao tác này.');
+          showToast('Ca trực của bạn chưa bắt đầu (Ca làm việc: ' + timeOnly(s.startTime) + ' - ' + timeOnly(s.endTime) + '). Bạn chỉ được xem dữ liệu, không thể thực hiện thao tác này.', 'warning');
         } else {
-          alert('Ca trực của bạn đã kết thúc. Bạn không thể thực hiện thao tác này.');
+          showToast('Ca trực của bạn đã kết thúc. Bạn không thể thực hiện thao tác này.', 'danger');
         }
       };
       

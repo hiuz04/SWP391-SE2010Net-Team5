@@ -299,7 +299,7 @@ public class StaffDashboardDAO {
     public Map<String, Object> getBookingDetailForCheckin(long bookingId) {
         String sql = """
                 SELECT b.booking_id, b.booking_code, b.total_amount, b.deposit_amount,
-                       b.status,
+                       b.status, b.facility_id,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        b.start_time, b.end_time, f.field_name, fc.complex_name
                 FROM bookings b
@@ -319,6 +319,7 @@ public class StaffDashboardDAO {
                     map.put("totalAmount", rs.getBigDecimal("total_amount"));
                     map.put("depositAmount", rs.getBigDecimal("deposit_amount"));
                     map.put("status", rs.getString("status"));
+                    map.put("facilityId", rs.getLong("facility_id"));
                     map.put("customerName", rs.getString("customer_name"));
                     map.put("customerPhone", rs.getString("customer_phone"));
                     map.put("startTime", rs.getString("start_time"));
@@ -508,20 +509,42 @@ public class StaffDashboardDAO {
         return !time.isBefore(start) || time.isBefore(end);
     }
 
-    private static LocalTime parseTime(String s) {
-        if (s == null || s.trim().isEmpty()) {
+    private static LocalTime parseTime(String timeStr) {
+        if (timeStr == null || timeStr.trim().isEmpty()) {
             return LocalTime.MIDNIGHT;
         }
-        s = s.trim();
-        if (s.contains(" ")) {
-            s = s.split(" ")[1];
+        timeStr = timeStr.trim().toUpperCase();
+
+        boolean pm = timeStr.contains("CH") || timeStr.contains("PM");
+        boolean am = timeStr.contains("SA") || timeStr.contains("AM");
+
+        if (timeStr.contains(" ")) {
+            String[] parts = timeStr.split(" ");
+            for (String part : parts) {
+                if (part.contains(":")) {
+                    timeStr = part;
+                    break;
+                }
+            }
         }
-        if (s.contains(".")) {
-            s = s.substring(0, s.indexOf('.'));
+        if (timeStr.contains(".")) {
+            timeStr = timeStr.split("\\.")[0];
         }
-        String[] parts = s.split(":");
-        int h = Integer.parseInt(parts[0]);
-        int m = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
-        return LocalTime.of(h, m);
+
+        String clean = timeStr.replaceAll("[^0-9:]", "").trim();
+        if (clean.isEmpty()) return LocalTime.MIDNIGHT;
+
+        String[] parts = clean.split(":");
+        int hour = Integer.parseInt(parts[0]);
+        int min = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+        int sec = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+
+        if (pm) {
+            if (hour < 12) hour += 12;
+        } else if (am) {
+            if (hour == 12) hour = 0;
+        }
+
+        return LocalTime.of(hour, min, sec);
     }
 }

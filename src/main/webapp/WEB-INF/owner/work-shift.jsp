@@ -942,7 +942,7 @@
       });
       
       if (checkedDays.length === 0) {
-        alert('Vui lòng chọn ít nhất một ngày trong tuần để tạo ca trực hàng loạt.');
+        showToast('Vui lòng chọn ít nhất một ngày trong tuần để tạo ca trực hàng loạt.', 'warning');
         return;
       }
       
@@ -968,46 +968,47 @@
 
       if (data && data.success) {
         if (data.message) {
-          alert(data.message);
+          showToastAfterReload(data.message, 'success');
+        } else {
+          showToastAfterReload('Lưu ca làm việc thành công!', 'success');
         }
         bootstrap.Modal.getOrCreateInstance(document.getElementById('shiftModal')).hide();
         window.location.reload();
       } else {
-        alert('Lỗi: ' + (data && data.error ? data.error : 'HTTP ' + res.status));
+        showToast('Lỗi: ' + (data && data.error ? data.error : 'HTTP ' + res.status), 'danger');
       }
     } catch (err) {
-      alert('Đã xảy ra lỗi kết nối: ' + err.message);
+      showToast('Đã xảy ra lỗi kết nối: ' + err.message, 'danger');
     }
   }
 
   // Delete shift
   async function deleteShift(shiftId) {
-    if (!confirm('Bạn có chắc chắn muốn xóa ca làm việc này? Mọi thông tin phân công liên quan cũng sẽ bị xóa.')) {
-      return;
-    }
+    showConfirm('Bạn có chắc chắn muốn xóa ca làm việc này? Mọi thông tin phân công liên quan cũng sẽ bị xóa.', async () => {
+      const params = new URLSearchParams();
+      params.append('action', 'delete');
+      params.append('shiftId', shiftId);
 
-    const params = new URLSearchParams();
-    params.append('action', 'delete');
-    params.append('shiftId', shiftId);
+      try {
+        const res = await fetch('<%= ctx %>/owner/work-shift', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params
+        });
 
-    try {
-      const res = await fetch('<%= ctx %>/owner/work-shift', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params
-      });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
 
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-
-      if (data.success) {
-        window.location.reload();
-      } else {
-        alert('Lỗi: ' + (data.error || 'Không thể xóa ca trực'));
+        if (data.success) {
+          showToastAfterReload('Xóa ca làm việc thành công!', 'success');
+          window.location.reload();
+        } else {
+          showToast('Lỗi: ' + (data.error || 'Không thể xóa ca trực'), 'danger');
+        }
+      } catch (err) {
+        showToast('Đã xảy ra lỗi kết nối: ' + err.message, 'danger');
       }
-    } catch (err) {
-      alert('Đã xảy ra lỗi kết nối: ' + err.message);
-    }
+    });
   }
 
   // Toggle select all shift checkboxes (only not disabled ones)
@@ -1042,38 +1043,38 @@
     const checked = document.querySelectorAll('.shift-checkbox:checked');
     if (checked.length === 0) return;
 
-    if (!confirm('Bạn có chắc chắn muốn xóa ' + checked.length + ' ca làm việc đã chọn? Mọi thông tin phân công liên quan cũng sẽ bị xóa.')) {
-      return;
-    }
+    showConfirm('Bạn có chắc chắn muốn xóa ' + checked.length + ' ca làm việc đã chọn? Mọi thông tin phân công liên quan cũng sẽ bị xóa.', async () => {
+      const ids = [];
+      checked.forEach(cb => ids.push(cb.value));
 
-    const ids = [];
-    checked.forEach(cb => ids.push(cb.value));
+      const params = new URLSearchParams();
+      params.append('action', 'deleteBatch');
+      params.append('shiftIds', ids.join(','));
 
-    const params = new URLSearchParams();
-    params.append('action', 'deleteBatch');
-    params.append('shiftIds', ids.join(','));
+      try {
+        const res = await fetch('<%= ctx %>/owner/work-shift', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params
+        });
 
-    try {
-      const res = await fetch('<%= ctx %>/owner/work-shift', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params
-      });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
 
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-
-      if (data.success) {
-        if (data.message) {
-          alert(data.message);
+        if (data.success) {
+          if (data.message) {
+            showToastAfterReload(data.message, 'success');
+          } else {
+            showToastAfterReload('Xóa các ca làm việc thành công!', 'success');
+          }
+          window.location.reload();
+        } else {
+          showToast('Lỗi: ' + (data.error || 'Không thể xóa ca trực'), 'danger');
         }
-        window.location.reload();
-      } else {
-        alert('Lỗi: ' + (data.error || 'Không thể xóa ca trực'));
+      } catch (err) {
+        showToast('Đã xảy ra lỗi kết nối: ' + err.message, 'danger');
       }
-    } catch (err) {
-      alert('Đã xảy ra lỗi kết nối: ' + err.message);
-    }
+    });
   }
 
   // Open Assign Modal and fetch assignments
@@ -1175,12 +1176,12 @@
           buttonEl.outerHTML = '<button class="btn btn-sm btn-sf-outline-success" onclick="toggleAssign(' + shiftId + ', ' + staffId + ', \'assign\', this)">Giao ca</button>';
         }
       } else {
-        alert('Lỗi: ' + (data.error || 'Thao tác phân công thất bại'));
+        showToast('Lỗi: ' + (data.error || 'Thao tác phân công thất bại'), 'danger');
         buttonEl.disabled = false;
         buttonEl.innerText = action === 'assign' ? 'Giao ca' : 'Hủy ca';
       }
     } catch (err) {
-      alert('Lỗi kết nối: ' + err.message);
+      showToast('Lỗi kết nối: ' + err.message, 'danger');
       buttonEl.disabled = false;
       buttonEl.innerText = action === 'assign' ? 'Giao ca' : 'Hủy ca';
     }

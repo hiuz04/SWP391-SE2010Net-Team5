@@ -212,6 +212,24 @@ public class WorkShiftServlet extends HttpServlet {
         return "Ca gãy";
     }
 
+    private String getComplexShortName(String fullName) {
+        if (fullName == null || fullName.trim().isEmpty()) {
+            return "";
+        }
+        String name = fullName.trim();
+        if (name.toLowerCase().startsWith("sân bóng ")) {
+            name = name.substring(9).trim();
+        }
+        String[] parts = name.split("\\s+");
+        if (parts.length >= 2) {
+            if (parts.length >= 3 && "Hồ".equalsIgnoreCase(parts[0]) && "Chí".equalsIgnoreCase(parts[1]) && "Minh".equalsIgnoreCase(parts[2])) {
+                return "Hồ Chí Minh";
+            }
+            return parts[0] + " " + parts[1];
+        }
+        return name;
+    }
+
     private void handleCreateShift(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         long complexId = Long.parseLong(req.getParameter("complexId"));
         String startStr = req.getParameter("startTime");
@@ -220,7 +238,15 @@ public class WorkShiftServlet extends HttpServlet {
 
         LocalTime startTime = parseTime(startStr);
         LocalTime endTime = parseTime(endStr);
-        String shiftName = determineShiftName(startTime, endTime);
+        String baseName = determineShiftName(startTime, endTime);
+        
+        com.swp.dao.FootballComplexDAO complexDAO = new com.swp.dao.FootballComplexDAO();
+        com.swp.model.FootballComplex complex = complexDAO.getFootballComplexDataByID(complexId);
+        String suffix = "";
+        if (complex != null) {
+            suffix = " " + getComplexShortName(complex.getComplexName());
+        }
+        String shiftName = baseName + suffix;
 
         String mode = req.getParameter("mode");
         if ("batch".equals(mode)) {
@@ -363,7 +389,14 @@ public class WorkShiftServlet extends HttpServlet {
         LocalDate shiftDate = LocalDate.parse(dateStr);
         LocalTime startTime = parseTime(startStr);
         LocalTime endTime = parseTime(endStr);
-        String shiftName = determineShiftName(startTime, endTime);
+        String baseName = determineShiftName(startTime, endTime);
+        com.swp.dao.FootballComplexDAO complexDAO = new com.swp.dao.FootballComplexDAO();
+        com.swp.model.FootballComplex complex = complexDAO.getFootballComplexDataByID(complexId);
+        String suffix = "";
+        if (complex != null) {
+            suffix = " " + getComplexShortName(complex.getComplexName());
+        }
+        String shiftName = baseName + suffix;
 
         if (workShiftDAO.hasOverlappingShiftAtComplex(complexId, shiftDate, startTime, endTime, shiftId)) {
             writeError(resp, "Cơ sở này đã được phân ca trực trùng khung giờ này trong ngày.");
@@ -527,6 +560,18 @@ public class WorkShiftServlet extends HttpServlet {
         boolean pm = timeStr.contains("CH") || timeStr.contains("PM");
         boolean am = timeStr.contains("SA") || timeStr.contains("AM");
 
+        if (timeStr.contains(" ")) {
+            String[] parts = timeStr.split(" ");
+            for (String part : parts) {
+                if (part.contains(":")) {
+                    timeStr = part;
+                    break;
+                }
+            }
+        }
+        if (timeStr.contains(".")) {
+            timeStr = timeStr.split("\\.")[0];
+        }
         String clean = timeStr.replaceAll("[^0-9:]", "").trim();
         if (clean.isEmpty()) return null;
 

@@ -76,4 +76,42 @@ public class MatchmakingPostResponseDAO {
             throw new RuntimeException("Lỗi khi cập nhật trạng thái phản hồi: " + e.getMessage(), e);
         }
     }
+
+    public MatchmakingPostResponse getResponseByPostAndResponder(long postId, long responderId) {
+        String sql = "SELECT * FROM matchmaking_post_responses WHERE post_id = ? AND responder_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, postId);
+            ps.setLong(2, responderId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    MatchmakingPostResponse response = new MatchmakingPostResponse();
+                    response.setResponseId(rs.getLong("response_id"));
+                    response.setPostId(rs.getLong("post_id"));
+                    response.setResponderId(rs.getLong("responder_id"));
+                    response.setMessage(rs.getString("message"));
+                    response.setStatus(rs.getString("status"));
+                    response.setCreatedAt(rs.getTimestamp("created_at") != null 
+                            ? rs.getTimestamp("created_at").toLocalDateTime() 
+                            : null);
+                    return response;
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi lấy phản hồi cụ thể: " + e.getMessage(), e);
+        }
+        return null;
+    }
+
+    public void updateResponse(long responseId, String message) {
+        String sql = "UPDATE matchmaking_post_responses SET message = ?, created_at = GETDATE() WHERE response_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, message);
+            ps.setLong(2, responseId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cập nhật nội dung phản hồi: " + e.getMessage(), e);
+        }
+    }
 }

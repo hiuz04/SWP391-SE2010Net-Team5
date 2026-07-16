@@ -12,8 +12,8 @@
 
     boolean hasShift = (Boolean) request.getAttribute("hasShift") != null && (Boolean) request.getAttribute("hasShift");
     String selectedDate = (String) request.getAttribute("selectedDate");
-    String complexName = (String) request.getAttribute("complexName");
-    Long complexId = (Long) request.getAttribute("complexId");
+    String facilityName = (String) request.getAttribute("facilityName");
+    Long facilityId = (Long) request.getAttribute("facilityId");
     
     List<Map<String, Object>> fields = (List<Map<String, Object>>) request.getAttribute("fields");
     List<Map<String, Object>> bookings = (List<Map<String, Object>>) request.getAttribute("bookings");
@@ -73,7 +73,6 @@
     .status-available { background-color: #f8fafc; color: #94a3b8; }
     .status-booked-confirmed { background-color: #fef3c7; color: #d97706; font-weight: 600; border: 1px solid #fde68a; }
     .status-booked-checkedin { background-color: #e0f2fe; color: #0284c7; font-weight: 600; border: 1px solid #bae6fd; }
-    .status-booked-pending-payment { background-color: #fae8ff; color: #a21caf; font-weight: 600; border: 1px solid #f5d0fe; }
     .status-booked-completed { background-color: #dcfce7; color: #16a34a; font-weight: 600; border: 1px solid #bbf7d0; }
     .status-field-maintenance { background-color: #f1f5f9; color: #64748b; font-weight: 500; cursor: not-allowed; }
     .status-field-disabled { background-color: #e2e8f0; color: #94a3b8; font-weight: 500; cursor: not-allowed; }
@@ -136,7 +135,7 @@
         <div class="row align-items-center g-3">
           <div class="col-md-6">
             <h1 class="fw-bold mb-1">Lịch sân hàng ngày</h1>
-            <p class="text-muted mb-0">Cơ sở: <strong class="text-success"><%= complexName %></strong></p>
+            <p class="text-muted mb-0">Cơ sở: <strong class="text-success"><%= facilityName %></strong></p>
           </div>
           <div class="col-md-6 d-flex justify-content-md-end align-items-center gap-3">
             <div>
@@ -203,7 +202,7 @@
                       <span><%= fieldName %></span>
                       <span class="badge <%= fieldBadgeClass %> field-badge align-self-start mt-1" 
                             style="font-size:0.65rem;"
-                            onclick="<%= isUpcomingShift ? "alert('Ca trực chưa bắt đầu. Bạn không thể thay đổi trạng thái sân.')" : (isEndedShift ? "alert('Ca trực đã kết thúc. Bạn không thể thay đổi trạng thái sân.')" : "openFieldStatusModal('" + fieldId + "', '" + fieldName + "', '" + fieldStatus + "')") %>">
+                            onclick="<%= isUpcomingShift ? "showToast('Ca trực chưa bắt đầu. Bạn không thể thay đổi trạng thái sân.', 'warning')" : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thay đổi trạng thái sân.', 'danger')" : "openFieldStatusModal('" + fieldId + "', '" + fieldName + "', '" + fieldStatus + "')") %>">
                         <%= fieldBadgeText %> <i class="bi bi-pencil-square ms-1"></i>
                       </span>
                     </div>
@@ -238,7 +237,7 @@
                           LocalTime bEnd = LocalTime.parse(eTimeVal);
 
                           // Check overlap
-                          if (!bStart.isAfter(slotTimeEnd) && !bEnd.isBefore(slotTimeStart)) {
+                          if (!bStart.isAfter(slotTimeEnd) && bEnd.isAfter(slotTimeStart)) {
                             foundBooking = b;
                             break;
                           }
@@ -267,14 +266,14 @@
                           cellClass = "status-booked-confirmed";
                           cellText = bCode + " - " + custName;
                           cellOnclick = isUpcomingShift 
-                             ? "alert('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.')" 
-                             : (isEndedShift ? "alert('Ca trực đã kết thúc. Bạn không thể thao tác.')" : "location.href='" + ctx + "/staff/checkin?id=" + bId + "'");
+                             ? "showToast('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.', 'warning')" 
+                             : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thao tác.', 'danger')" : "location.href='" + ctx + "/staff/checkin?id=" + bId + "'");
                         } else if ("CHECKED_IN".equals(bStatus)) {
                           cellClass = "status-booked-checkedin";
                           cellText = bCode + " - " + custName;
                           cellOnclick = isUpcomingShift 
-                             ? "alert('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.')" 
-                             : (isEndedShift ? "alert('Ca trực đã kết thúc. Bạn không thể thao tác.')" : "location.href='" + ctx + "/staff/checkout?id=" + bId + "'");
+                             ? "showToast('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.', 'warning')" 
+                             : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thao tác.', 'danger')" : "location.href='" + ctx + "/staff/checkout?id=" + bId + "'");
                           if (!checkoutDue) {
                             cellOnclick = "";
                           }
@@ -375,10 +374,10 @@
                     if (lateNoShowEligible) {
                       statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-person-x me-1'></i>No-show</span>";
                       actionButton = isUpcomingShift
-                        ? "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-lock-fill me-1'></i>Cho ca truc</button>"
+                        ? "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-lock-fill me-1'></i>Chờ ca trực</button>"
                         : (isEndedShift
-                          ? "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-lock-fill me-1'></i>Het ca truc</button>"
-                          : "<button type='button' class='btn btn-sm btn-outline-danger px-3' onclick='cancelNoShow(" + bId + ")'><i class='bi bi-person-x me-1'></i>Huy do khach den muon</button>");
+                          ? "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-lock-fill me-1'></i>Hết ca trực</button>"
+                          : "<button type='button' class='btn btn-sm btn-outline-danger px-3' onclick='cancelNoShow(" + bId + ")'><i class='bi bi-person-x me-1'></i>Hủy do khách muộn</button>");
                     } else if (isExpired) {
                       statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-exclamation-triangle me-1'></i>Quá giờ</span>";
                       actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-exclamation-circle me-1'></i>Quá giờ nhận</button>";
@@ -398,12 +397,12 @@
                         ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Ca trực đã kết thúc'><i class='bi bi-lock-fill me-1'></i>Hết ca trực</button>"
                         : "<a href='" + ctx + "/staff/checkout?id=" + bId + "' class='btn btn-sm btn-outline-success px-3'>Checkout</a>");
                     if (!checkoutDue && !isUpcomingShift && !isEndedShift) {
-                      actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled>Dang su dung</button>";
+                      actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled>Đang sử dụng</button>";
                     }
                   } else if ("PENDING_CHECKOUT_PAYMENT".equals(bStatus)) {
-                    statusBadge = "<span class='badge fw-bold' style='background:#fae8ff;color:#a21caf;'><i class='bi bi-credit-card me-1'></i>Cho khach thanh toan</span>";
+                    statusBadge = "<span class='badge fw-bold' style='background:#fae8ff;color:#a21caf;'><i class='bi bi-credit-card me-1'></i>Chờ khách thanh toán</span>";
                     if (hasInvoice) {
-                      actionButton = "<a href='" + ctx + "/staff/invoice?id=" + bId + "' class='btn btn-sm btn-outline-secondary px-3'><i class='bi bi-file-earmark-text me-1'></i>Hoa don</a>";
+                      actionButton = "<a href='" + ctx + "/staff/invoice?id=" + bId + "' class='btn btn-sm btn-outline-secondary px-3'><i class='bi bi-file-earmark-text me-1'></i>Hóa đơn</a>";
                     }
                   } else if ("COMPLETED".equals(bStatus)) {
                     statusBadge = "<span class='badge badge-soft-success'><i class='bi bi-check-circle me-1'></i>Đã xong</span>";
@@ -479,6 +478,19 @@
   document.addEventListener('DOMContentLoaded', function() {
     const modalEl = document.getElementById('fieldStatusModal');
     if (modalEl) statusModal = new bootstrap.Modal(modalEl);
+    
+    <%
+      String errorParam = request.getParameter("error");
+      if (errorParam != null) {
+    %>
+      <% if ("facility_mismatch".equals(errorParam)) { %>
+        showToast("Lượt đặt sân này thuộc cơ sở khác. Bạn không thể thực hiện thao tác này.", "danger");
+      <% } else { %>
+        showToast("<%= errorParam %>", "danger");
+      <% } %>
+    <%
+      }
+    %>
   });
 
   function openFieldStatusModal(fieldId, fieldName, currentStatus) {
@@ -509,17 +521,18 @@
       
       if (data.success) {
         if (statusModal) statusModal.hide();
+        showToastAfterReload('Cập nhật trạng thái sân thành công!', 'success');
         window.location.reload();
       } else {
-        alert('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'));
+        showToast('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'), 'danger');
       }
     } catch (err) {
-      alert('Không thể cập nhật trạng thái sân: ' + err.message);
+      showToast('Không thể cập nhật trạng thái sân: ' + err.message, 'danger');
     }
   }
 
   async function cancelNoShow(bookingId) {
-    if (!confirm('Huy booking nay do khach den muon qua 30 phut?')) {
+    if (!confirm('Hủy lượt đặt sân này do khách đến muộn quá 30 phút?')) {
       return;
     }
     try {
@@ -533,11 +546,12 @@
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Khong the huy booking no-show.');
+        throw new Error(data.error || 'Không thể hủy lượt đặt sân no-show.');
       }
+      showToastAfterReload('Hủy lượt đặt sân do khách đến muộn thành công!', 'success');
       window.location.reload();
     } catch (err) {
-      alert(err.message || 'Khong the huy booking no-show.');
+      showToast(err.message || 'Không thể hủy lượt đặt sân no-show.', 'danger');
     }
   }
 </script>

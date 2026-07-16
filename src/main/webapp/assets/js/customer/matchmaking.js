@@ -141,10 +141,10 @@ async function searchPosts() {
                 if (!isClosed) {
                     actionButton = `
                         <div class="d-flex gap-2 w-100 mt-auto">
-                            <a href="${detailUrl}" class="btn btn-outline-success btn-sm flex-grow-1">
+                            <a href="${detailUrl}" class="btn btn-outline-success btn-sm flex-grow-1 text-nowrap">
                                 <i class="bi bi-info-circle me-1"></i> Chi tiết
                             </a>
-                            <button class="btn btn-outline-primary btn-sm flex-grow-1" onclick="openResponsesListModal(${post.postId})">
+                            <button class="btn btn-outline-primary btn-sm flex-grow-1 text-nowrap" onclick="openResponsesListModal(${post.postId})">
                                 <i class="bi bi-chat-text-fill me-1"></i> Phản hồi (${item.responseCount})
                             </button>
                             <button class="btn btn-outline-danger btn-sm" onclick="closeMatchmakingPost(${post.postId})" title="Đóng bài đăng">
@@ -155,11 +155,14 @@ async function searchPosts() {
                 } else {
                     actionButton = `
                         <div class="d-flex gap-2 w-100 mt-auto">
-                            <a href="${detailUrl}" class="btn btn-outline-success btn-sm flex-grow-1">
+                            <a href="${detailUrl}" class="btn btn-outline-success btn-sm flex-grow-1 text-nowrap">
                                 <i class="bi bi-info-circle me-1"></i> Chi tiết
                             </a>
-                            <button class="btn btn-outline-primary btn-sm flex-grow-1" onclick="openResponsesListModal(${post.postId})">
-                                <i class="bi bi-chat-text-fill me-1"></i> Xem phản hồi (${item.responseCount})
+                            <button class="btn btn-outline-primary btn-sm flex-grow-1 text-nowrap" onclick="openResponsesListModal(${post.postId})">
+                                <i class="bi bi-chat-text-fill me-1"></i> Phản hồi (${item.responseCount})
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteMatchmakingPost(${post.postId})" title="Xóa bài đăng">
+                                <i class="bi bi-trash-fill"></i>
                             </button>
                         </div>
                     `;
@@ -263,6 +266,29 @@ async function searchPosts() {
 async function submitNewPost(event) {
     event.preventDefault();
     const form = document.getElementById("createPostForm");
+    
+    // Validate expected time
+    const expectedTimeInput = document.getElementById("newExpectedTime");
+    if (expectedTimeInput && expectedTimeInput.value) {
+        const selectedTime = new Date(expectedTimeInput.value);
+        const currentTime = new Date();
+        if (selectedTime < currentTime) {
+            showToast("Thời gian dự kiến không được chọn trước ngày và giờ hiện tại.", "danger");
+            return;
+        }
+    }
+    
+    // Validate phone number
+    const contactPhoneInput = document.getElementById("newContactPhone");
+    if (contactPhoneInput) {
+        const phone = contactPhoneInput.value.trim();
+        const phonePattern = /^0\d{9}$/;
+        if (!phonePattern.test(phone)) {
+            showToast("Số điện thoại không đúng định dạng (phải bao gồm 10 chữ số và bắt đầu bằng số 0).", "danger");
+            return;
+        }
+    }
+    
     const formData = new FormData(form);
     
     // Gửi AJAX POST dạng urlencoded (hoặc FormData)
@@ -283,7 +309,7 @@ async function submitNewPost(event) {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Gửi bài thất bại");
         
-        alert("Đăng tin tuyển đối/đồng đội thành công!");
+        showToast("Đăng tin tuyển đối/đồng đội thành công!", "success");
         
         // Đóng modal
         const modalEl = document.getElementById("createPostModal");
@@ -296,12 +322,12 @@ async function submitNewPost(event) {
         searchPosts();
         
     } catch (error) {
-        alert("Lỗi: " + error.message);
+        showToast("Lỗi: " + error.message, "danger");
     }
 }
 
 // Mở modal phản hồi
-function openRespondModal(postId, postTitle) {
+async function openRespondModal(postId, postTitle) {
     if (!window.IS_LOGGED_IN) {
         window.location.href = `${ctx}/login`;
         return;
@@ -309,9 +335,45 @@ function openRespondModal(postId, postTitle) {
     document.getElementById("respondPostId").value = postId;
     document.getElementById("respondPostTitle").textContent = `Phản hồi cho tin: "${postTitle}"`;
     
+    // Clear textarea first
+    const messageTextarea = document.getElementById("respondMessage");
+    if (messageTextarea) messageTextarea.value = "";
+    
+    const submitBtn = document.getElementById("respondSubmitBtn");
+    const modalTitle = document.getElementById("respondModalLabel");
+    
+    if (submitBtn) {
+        submitBtn.textContent = "Đang kiểm tra...";
+        submitBtn.disabled = true;
+    }
+    
     const modalEl = document.getElementById("respondModal");
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
+    
+    try {
+        const response = await fetch(`${ctx}/api/matchmaking?action=get_my_response&postId=${postId}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.exists) {
+                if (messageTextarea) messageTextarea.value = data.message;
+                if (modalTitle) modalTitle.textContent = "Chỉnh sửa phản hồi / Lời nhắn";
+                if (submitBtn) submitBtn.textContent = "Cập nhật lời nhắn";
+            } else {
+                if (modalTitle) modalTitle.textContent = "Gửi phản hồi / Lời nhắn";
+                if (submitBtn) submitBtn.textContent = "Gửi lời nhắn";
+            }
+        } else {
+            if (modalTitle) modalTitle.textContent = "Gửi phản hồi / Lời nhắn";
+            if (submitBtn) submitBtn.textContent = "Gửi lời nhắn";
+        }
+    } catch (error) {
+        console.error("Lỗi khi tải phản hồi cũ:", error);
+        if (modalTitle) modalTitle.textContent = "Gửi phản hồi / Lời nhắn";
+        if (submitBtn) submitBtn.textContent = "Gửi lời nhắn";
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
 }
 
 // Gửi lời nhắn phản hồi
@@ -337,7 +399,7 @@ async function submitResponse(event) {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Gửi phản hồi thất bại");
         
-        alert("Gửi phản hồi thành công! Người đăng tin sẽ nhận được lời nhắn của bạn.");
+        showToast("Lưu phản hồi thành công! Người đăng tin sẽ nhận được lời nhắn của bạn.", "success");
         
         // Đóng modal
         const modalEl = document.getElementById("respondModal");
@@ -347,7 +409,7 @@ async function submitResponse(event) {
         form.reset();
         
     } catch (error) {
-        alert("Lỗi: " + error.message);
+        showToast("Lỗi: " + error.message, "danger");
     }
 }
 
@@ -406,27 +468,73 @@ async function openResponsesListModal(postId) {
 
 // Đóng bài viết tìm đối/đồng đội
 async function closeMatchmakingPost(postId) {
-    if (!confirm("Bạn có chắc muốn đóng bài đăng này không? Khi đóng tin, những người dùng khác sẽ không thể gửi phản hồi nữa.")) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${ctx}/api/matchmaking?action=close_post&postId=${postId}`, {
-            method: "POST"
-        });
-        
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "Không đóng được bài viết");
-        
-        alert("Đã đóng bài viết thành công!");
-        searchPosts();
-    } catch (error) {
-        alert("Lỗi: " + error.message);
-    }
+    showConfirm("Bạn có chắc muốn đóng bài đăng này không? Khi đóng tin, những người dùng khác sẽ không thể gửi phản hồi nữa.", async () => {
+        try {
+            const response = await fetch(`${ctx}/api/matchmaking?action=close_post&postId=${postId}`, {
+                method: "POST"
+            });
+            
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "Không đóng được bài viết");
+            
+            showToast("Đã đóng bài viết thành công!", "success");
+            searchPosts();
+        } catch (error) {
+            showToast("Lỗi: " + error.message, "danger");
+        }
+    });
+}
+
+// Xóa bài viết tìm đối/đồng đội đã đóng
+async function deleteMatchmakingPost(postId) {
+    showConfirm("Bạn có chắc muốn xóa bài đăng này không? Hành động này sẽ xóa vĩnh viễn tin tuyển đối cùng toàn bộ các phản hồi nhận được.", async () => {
+        try {
+            const formData = new URLSearchParams();
+            formData.append("action", "delete_post");
+            formData.append("postId", postId);
+
+            const response = await fetch(`${ctx}/api/matchmaking`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: formData.toString()
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "Không xóa được bài viết");
+
+            showToast("Đã xóa bài viết thành công!", "success");
+            searchPosts();
+        } catch (error) {
+            showToast("Lỗi: " + error.message, "danger");
+        }
+    });
 }
 
 // Khởi chạy khi tài liệu sẵn sàng
 document.addEventListener("DOMContentLoaded", async () => {
     await loadComplexes();
     await searchPosts();
+    
+    // Set min date for newExpectedTime
+    const expectedTimeInput = document.getElementById("newExpectedTime");
+    if (expectedTimeInput) {
+        const updateMinDateTime = () => {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            expectedTimeInput.min = `${year}-${month}-${day}T${hours}:${minutes}`;
+        };
+        updateMinDateTime();
+        
+        // Cập nhật lại mỗi khi mở modal để lấy đúng giờ hiện tại
+        const createPostModal = document.getElementById("createPostModal");
+        if (createPostModal) {
+            createPostModal.addEventListener("show.bs.modal", updateMinDateTime);
+        }
+    }
 });
