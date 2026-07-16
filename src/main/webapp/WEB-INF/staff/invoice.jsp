@@ -24,10 +24,6 @@
     return value == null ? "" : value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
   }
 
-  private String date(LocalDateTime value) {
-    return value == null ? "" : value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-  }
-
   private String time(LocalDateTime value) {
     return value == null ? "" : value.format(DateTimeFormatter.ofPattern("HH:mm"));
   }
@@ -40,6 +36,7 @@
 
     InvoiceView invoice = (InvoiceView) request.getAttribute("invoice");
     String error = (String) request.getAttribute("error");
+    boolean pending = invoice != null && "PENDING".equals(invoice.getInvoiceStatus());
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -81,18 +78,26 @@
         <a href="<%= ctx %>/staff/schedule" class="btn btn-sf-primary px-4">Quay lại lịch sân</a>
       </div>
     <% } else { %>
-      <div class="invoice-card" id="invoice-card">
+      <div class="invoice-card">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
           <div>
             <h2 class="fw-bold mb-1">Sport Field Booking</h2>
-            <div class="text-muted">Hóa đơn thanh toán dịch vụ sân bóng</div>
+            <div class="text-muted">Hóa đơn trả sân</div>
           </div>
           <div class="text-end">
             <div class="text-muted small fw-bold">HÓA ĐƠN</div>
             <h4 class="fw-bold mb-2">#<%= esc(invoice.getInvoiceCode()) %></h4>
-            <span class="badge bg-success-subtle text-success fw-bold px-3 py-2"><%= esc(invoice.getInvoiceStatus()) %></span>
+            <span class="badge <%= pending ? "bg-warning-subtle text-warning text-dark" : "bg-success-subtle text-success" %> fw-bold px-3 py-2">
+              <%= pending ? "PENDING" : esc(invoice.getInvoiceStatus()) %>
+            </span>
           </div>
         </div>
+
+        <% if (pending) { %>
+        <div class="alert alert-warning border-0">
+          <i class="bi bi-hourglass-split me-2"></i>Đã gửi yêu cầu thanh toán cho khách. Booking sẽ hoàn tất sau khi customer thanh toán thành công.
+        </div>
+        <% } %>
 
         <div class="dash-line my-4"></div>
 
@@ -104,14 +109,14 @@
           </div>
           <div class="col-md-6 text-md-end">
             <div class="text-muted small fw-bold mb-1">CƠ SỞ</div>
-            <div class="fw-bold"><%= esc(invoice.getFacilityName()) %></div>
-            <div class="text-muted small"><%= esc(invoice.getFacilityAddress()) %></div>
+            <div class="fw-bold"><%= esc(invoice.getComplexName()) %></div>
+            <div class="text-muted small"><%= esc(invoice.getComplexAddress()) %></div>
           </div>
         </div>
 
         <div class="row g-4 mb-4">
           <div class="col-md-4">
-            <div class="text-muted small fw-bold mb-1">MÃ ĐẶT SÂN</div>
+            <div class="text-muted small fw-bold mb-1">MÃ BOOKING</div>
             <div class="fw-bold">#<%= esc(invoice.getBookingCode()) %></div>
           </div>
           <div class="col-md-4">
@@ -119,8 +124,8 @@
             <div class="fw-bold"><%= esc(invoice.getFieldName()) %></div>
           </div>
           <div class="col-md-4 text-md-end">
-            <div class="text-muted small fw-bold mb-1">NGÀY ĐẶT SÂN</div>
-            <div class="fw-bold"><%= esc(date(invoice.getStartTime())) %></div>
+            <div class="text-muted small fw-bold mb-1">THỜI GIAN</div>
+            <div class="fw-bold"><%= esc(dateTime(invoice.getStartTime())) %></div>
             <div class="text-muted small"><%= esc(time(invoice.getStartTime())) %> - <%= esc(time(invoice.getEndTime())) %></div>
           </div>
         </div>
@@ -141,13 +146,20 @@
                 </td>
                 <td class="text-end fw-bold"><%= money(invoice.getFieldFee()) %></td>
               </tr>
+              <tr>
+                <td>
+                  <strong>Phụ thu quá giờ</strong>
+                  <div class="text-muted small"><%= invoice.getOvertimeMinutes() %> phút</div>
+                </td>
+                <td class="text-end fw-bold"><%= money(invoice.getOvertimeFee()) %></td>
+              </tr>
               <tr class="text-success">
                 <td>Tiền cọc đã thanh toán</td>
                 <td class="text-end fw-bold">- <%= money(invoice.getDepositAmount()) %></td>
               </tr>
               <tr>
-                <td>Số tiền còn lại</td>
-                <td class="text-end fw-bold"><%= money(invoice.getPaidAmount()) %></td>
+                <td>Số tiền customer cần thanh toán</td>
+                <td class="text-end fw-bold"><%= money(invoice.getTotalAmount()) %></td>
               </tr>
             </tbody>
           </table>
@@ -156,16 +168,16 @@
         <div class="row justify-content-end">
           <div class="col-md-6 col-lg-5">
             <div class="ledger-row">
-              <span class="text-muted">Tổng tiền sân</span>
-              <strong><%= money(invoice.getFieldFee()) %></strong>
+              <span class="text-muted">Tạm tính</span>
+              <strong><%= money(invoice.getSubtotal()) %></strong>
             </div>
             <div class="ledger-row text-success">
-              <span>Tiền cọc đã thanh toán</span>
+              <span>Tiền cọc</span>
               <strong>- <%= money(invoice.getDepositAmount()) %></strong>
             </div>
             <div class="ledger-row fs-5 fw-bold border-top mt-2 pt-3">
-              <span>Đã thanh toán khi trả sân</span>
-              <span class="text-success"><%= money(invoice.getPaidAmount()) %></span>
+              <span><%= pending ? "Còn chờ thanh toán" : "Đã thanh toán" %></span>
+              <span class="text-success"><%= money(pending ? invoice.getAmountDue() : invoice.getPaidAmount()) %></span>
             </div>
           </div>
         </div>
@@ -178,9 +190,11 @@
         </div>
 
         <div class="text-center mt-5 d-flex justify-content-center gap-2 flex-wrap">
+          <% if (!pending) { %>
           <a href="<%= ctx %>/staff/invoice/export?id=<%= invoice.getBookingId() %>" class="btn btn-sf-primary btn-lg px-4">
             <i class="bi bi-file-earmark-arrow-down me-2"></i>Xuất hóa đơn
           </a>
+          <% } %>
           <a href="<%= ctx %>/staff/schedule" class="btn btn-outline-secondary btn-lg px-4">Quay lại lịch</a>
           <a href="<%= ctx %>/staff/dashboard" class="btn btn-outline-secondary btn-lg px-4">Dashboard</a>
         </div>

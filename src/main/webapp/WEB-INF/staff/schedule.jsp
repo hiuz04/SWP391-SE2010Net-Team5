@@ -260,6 +260,7 @@
                         String custName = (String) foundBooking.get("customerName");
                         String bCode = (String) foundBooking.get("bookingCode");
                         boolean hasInvoice = Boolean.TRUE.equals(foundBooking.get("hasInvoice"));
+                        boolean checkoutDue = Boolean.TRUE.equals(foundBooking.get("checkoutDue"));
                         
                         if ("CONFIRMED".equals(bStatus)) {
                           cellClass = "status-booked-confirmed";
@@ -273,6 +274,15 @@
                           cellOnclick = isUpcomingShift 
                              ? "showToast('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.', 'warning')" 
                              : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thao tác.', 'danger')" : "location.href='" + ctx + "/staff/checkout?id=" + bId + "'");
+                          if (!checkoutDue) {
+                            cellOnclick = "";
+                          }
+                        } else if ("PENDING_CHECKOUT_PAYMENT".equals(bStatus)) {
+                          cellClass = "status-booked-pending-payment";
+                          cellText = bCode + " - Cho thanh toan";
+                          if (hasInvoice) {
+                            cellOnclick = "location.href='" + ctx + "/staff/invoice?id=" + bId + "'";
+                          }
                         } else if ("COMPLETED".equals(bStatus)) {
                           cellClass = "status-booked-completed";
                           cellText = bCode + " - Xong";
@@ -330,6 +340,8 @@
                   String customerPhone = (String) b.get("customerPhone");
                   java.math.BigDecimal total = (java.math.BigDecimal) b.get("totalAmount");
                   boolean hasInvoice = Boolean.TRUE.equals(b.get("hasInvoice"));
+                  boolean checkoutDue = Boolean.TRUE.equals(b.get("checkoutDue"));
+                  boolean lateNoShowEligible = Boolean.TRUE.equals(b.get("lateNoShowEligible"));
 
                   String sTimeVal = bStart != null ? bStart : "00:00:00";
                   if (sTimeVal.contains(" ")) sTimeVal = sTimeVal.split(" ")[1];
@@ -359,7 +371,14 @@
                   }
 
                   if ("CONFIRMED".equals(bStatus)) {
-                    if (isExpired) {
+                    if (lateNoShowEligible) {
+                      statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-person-x me-1'></i>No-show</span>";
+                      actionButton = isUpcomingShift
+                        ? "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-lock-fill me-1'></i>Chờ ca trực</button>"
+                        : (isEndedShift
+                          ? "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-lock-fill me-1'></i>Hết ca trực</button>"
+                          : "<button type='button' class='btn btn-sm btn-outline-danger px-3' onclick='cancelNoShow(" + bId + ")'><i class='bi bi-person-x me-1'></i>Hủy do khách muộn</button>");
+                    } else if (isExpired) {
                       statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-exclamation-triangle me-1'></i>Quá giờ</span>";
                       actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-exclamation-circle me-1'></i>Quá giờ nhận</button>";
                     } else {
@@ -377,6 +396,14 @@
                       : (isEndedShift 
                         ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Ca trực đã kết thúc'><i class='bi bi-lock-fill me-1'></i>Hết ca trực</button>"
                         : "<a href='" + ctx + "/staff/checkout?id=" + bId + "' class='btn btn-sm btn-outline-success px-3'>Checkout</a>");
+                    if (!checkoutDue && !isUpcomingShift && !isEndedShift) {
+                      actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled>Đang sử dụng</button>";
+                    }
+                  } else if ("PENDING_CHECKOUT_PAYMENT".equals(bStatus)) {
+                    statusBadge = "<span class='badge fw-bold' style='background:#fae8ff;color:#a21caf;'><i class='bi bi-credit-card me-1'></i>Chờ khách thanh toán</span>";
+                    if (hasInvoice) {
+                      actionButton = "<a href='" + ctx + "/staff/invoice?id=" + bId + "' class='btn btn-sm btn-outline-secondary px-3'><i class='bi bi-file-earmark-text me-1'></i>Hóa đơn</a>";
+                    }
                   } else if ("COMPLETED".equals(bStatus)) {
                     statusBadge = "<span class='badge badge-soft-success'><i class='bi bi-check-circle me-1'></i>Đã xong</span>";
                     if (hasInvoice) {
@@ -501,6 +528,30 @@
       }
     } catch (err) {
       showToast('Không thể cập nhật trạng thái sân: ' + err.message, 'danger');
+    }
+  }
+
+  async function cancelNoShow(bookingId) {
+    if (!confirm('Hủy lượt đặt sân này do khách đến muộn quá 30 phút?')) {
+      return;
+    }
+    try {
+      const params = new URLSearchParams();
+      params.append('bookingId', bookingId);
+      const res = await fetch('<%= ctx %>/api/staff/no-show-cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+        credentials: 'include'
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Không thể hủy lượt đặt sân no-show.');
+      }
+      showToastAfterReload('Hủy lượt đặt sân do khách đến muộn thành công!', 'success');
+      window.location.reload();
+    } catch (err) {
+      showToast(err.message || 'Không thể hủy lượt đặt sân no-show.', 'danger');
     }
   }
 </script>

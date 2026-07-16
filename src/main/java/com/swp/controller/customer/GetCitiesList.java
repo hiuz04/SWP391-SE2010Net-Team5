@@ -1,7 +1,7 @@
 package com.swp.controller.customer;
 
 import com.google.gson.Gson;
-import com.swp.dao.FacilityDAO;
+import com.swp.dao.FootballComplexDAO;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -13,12 +13,12 @@ import java.util.List;
 
 @WebServlet("/cities")
 public class GetCitiesList extends HttpServlet {
-    private final FacilityDAO facilityDAO = new FacilityDAO();
+    private final FootballComplexDAO footballComplexDAO = new FootballComplexDAO();
     Gson gson = new Gson();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        List<String> cities = facilityDAO.getAllCities();
+        List<String> cities = footballComplexDAO.getAllCities();
 
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");

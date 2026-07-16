@@ -93,12 +93,10 @@
       ['Dashboard','staff/dashboard'], ['Lịch trong ngày','staff/schedule'], ['Check-in','staff/checkin']
     ],
     owner: [
-
-      ['Dashboard','owner'], ['Cơ sở','owner/facility'], ['Sân bóng','owner/field'], ['Quản lý ca trực','owner/work-shift'], ['Bảng giá','owner/price-rules']
-
+      ['Trang chủ','index'], ['Tìm sân','search'], ['Tìm đối','matchmaking'], ['Dashboard','owner']
     ],
     admin: [
-      ['Dashboard','admin/dashboard'], ['Người dùng','admin/users'], ['Cài đặt','admin/settings']
+      ['Dashboard','admin/dashboard'], ['Người dùng','admin/users'], ['Mã giảm giá','admin/vouchers'], ['Cài đặt','admin/settings']
     ]
   };
 
@@ -114,10 +112,7 @@
     const role = target.dataset.role || 'guest';
     const name = target.dataset.name || 'Người dùng';
     const active = target.dataset.active || '';
-    console.log(">>> target: ", target );
-    console.log(">>> active: ", active);
     const roleLinks = pages[role] || pages.customer;
-    console.log(">>> roleLinks: ", roleLinks);
     const auth = role === 'guest'
       ? `<a class="btn btn-outline-success" href="${link(root, 'login')}">Đăng nhập</a><a class="btn btn-sf-primary" href="${link(root, 'register')}">Đăng ký</a>`
       : `<div class="dropdown me-2">
@@ -238,6 +233,49 @@
       });
   };
 
+  function escapeHtml(value) {
+      if (value == null) return '';
+      return String(value)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+  }
+
+  function notificationHref(root, notification) {
+      const type = notification.notificationType || notification.notification_type;
+      const ref = notification.referenceId || notification.reference_id;
+      if ((type === 'CHECKOUT_PAYMENT' || type === 'CHECKOUT_PAYMENT_SUCCESS') && ref) {
+          return link(root, 'customer/checkout-invoice?id=' + encodeURIComponent(ref));
+      }
+      if ((type === 'BOOKING' || type === 'REMINDER') && ref) {
+          return link(root, 'booking?action=detail&id=' + encodeURIComponent(ref));
+      }
+      return '#';
+  }
+
+  window.handleNotificationClick = function(event, id, href) {
+      if (event) event.preventDefault();
+      const target = document.getElementById('navbar');
+      const root = target ? (target.dataset.root || '') : '';
+      fetch(link(root, 'api/notifications'), {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: 'action=mark_read&id=' + encodeURIComponent(id)
+      }).then(() => {
+          if (href && href !== '#') {
+              window.location.href = href;
+          } else {
+              updateNotificationCount();
+          }
+      }).catch(() => {
+          if (href && href !== '#') {
+              window.location.href = href;
+          }
+      });
+  };
+
   window.updateNotificationCount = function() {
     const target = document.getElementById('navbar');
     if (!target) return;
@@ -270,10 +308,11 @@
                 let html = '';
                 data.notifications.forEach(n => {
                     const bg = n.isRead ? '' : 'bg-light';
+                    const href = notificationHref(root, n);
                     html += `<li>
-                        <a class="dropdown-item border-bottom py-2 ${bg}" href="#" onclick="markAsRead(${n.notificationId})">
-                            <div class="fw-bold" style="font-size:0.85rem">${n.title}</div>
-                            <div class="text-wrap text-muted" style="font-size:0.8rem; line-height: 1.2;">${n.message}</div>
+                        <a class="dropdown-item border-bottom py-2 ${bg}" href="${href}" onclick="handleNotificationClick(event, ${n.notificationId}, '${href}')">
+                            <div class="fw-bold" style="font-size:0.85rem">${escapeHtml(n.title)}</div>
+                            <div class="text-wrap text-muted" style="font-size:0.8rem; line-height: 1.2;">${escapeHtml(n.message)}</div>
                         </a>
                     </li>`;
                 });

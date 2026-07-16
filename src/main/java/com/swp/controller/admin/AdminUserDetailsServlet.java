@@ -28,18 +28,6 @@ public class AdminUserDetailsServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        HttpSession session = request.getSession(false);
-        User currentUser = session == null ? null : (User) session.getAttribute("user");
-
-        if (currentUser == null) {
-            response.sendRedirect(request.getContextPath() + "/login");
-            return;
-        }
-
-        if (!"ADMIN".equalsIgnoreCase(currentUser.getRoleName())) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Khong co quyen truy cap.");
-            return;
-        }
 
         String idParam = request.getParameter("id");
         if (idParam == null || idParam.trim().isEmpty()) {

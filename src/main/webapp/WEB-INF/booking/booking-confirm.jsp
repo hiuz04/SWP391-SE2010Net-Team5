@@ -37,9 +37,13 @@
     String endTimeValue = (String) request.getAttribute("endTimeValue");
     String repeatType = (String) request.getAttribute("repeatType");
     Integer recurringCount = (Integer) request.getAttribute("recurringCount");
+    String voucherCode = (String) request.getAttribute("voucherCode");
+    String voucherError = (String) request.getAttribute("voucherError");
+    String voucherMessage = (String) request.getAttribute("voucherMessage");
 
     if (repeatType == null || repeatType.isBlank()) repeatType = "NONE";
     if (recurringCount == null) recurringCount = 1;
+    if (voucherCode == null) voucherCode = "";
 
     User currentUser = (User) session.getAttribute("user");
     String currentName = currentUser != null && currentUser.getFullName() != null
@@ -50,6 +54,10 @@
         response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Thieu thong tin xac nhan booking.");
         return;
     }
+    BigDecimal discountAmount = bookingPreview.getDiscountAmount() == null ? BigDecimal.ZERO : bookingPreview.getDiscountAmount();
+    BigDecimal finalAmount = bookingPreview.getFinalAmount() != null ? bookingPreview.getFinalAmount() : bookingPreview.getTotalAmount();
+    boolean hasVoucherPreview = voucherCode != null && !voucherCode.isBlank();
+    boolean hasDiscount = discountAmount.compareTo(BigDecimal.ZERO) > 0;
 %>
 
 <!DOCTYPE html>
@@ -74,8 +82,8 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="text-muted small">C&#417; s&#7903;</div>
-                            <div class="fw-semibold"><%= esc(bookingInfo.getFacilityName()) %></div>
-                            <div class="text-muted"><%= esc(bookingInfo.getFacilityAddress()) %></div>
+                            <div class="fw-semibold"><%= esc(bookingInfo.getComplexName()) %></div>
+                            <div class="text-muted"><%= esc(bookingInfo.getComplexAddress()) %></div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">S&#226;n</div>
@@ -102,6 +110,22 @@
                         <span>Gi&#225; g&#7889;c</span>
                         <strong><%= money(bookingPreview.getOriginalPrice()) %></strong>
                     </div>
+                    <% if (hasVoucherPreview) { %>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Mã giảm giá</span>
+                        <strong><%= esc(voucherCode) %></strong>
+                    </div>
+                    <% } %>
+                    <% if (hasDiscount) { %>
+                    <div class="d-flex justify-content-between mb-2 text-success">
+                        <span>Gi&#7843;m gi&#225;</span>
+                        <strong>-<%= money(discountAmount) %></strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>T&#7893;ng sau gi&#7843;m</span>
+                        <strong><%= money(finalAmount) %></strong>
+                    </div>
+                    <% } %>
                     <div class="d-flex justify-content-between mb-2">
                         <span><%= "MONTHLY".equals(repeatType) ? "Thanh to&#225;n to&#224;n b&#7897; (100%)" : "Ti&#7873;n c&#7885;c c&#7847;n thanh to&#225;n (30%)" %></span>
                         <strong class="text-primary"><%= money(bookingPreview.getDepositAmount()) %></strong>
@@ -109,7 +133,7 @@
                     <hr>
                     <div class="d-flex justify-content-between fs-5 mb-3">
                         <span>T&#7893;ng ti&#7873;n s&#226;n</span>
-                        <strong class="text-success"><%= money(bookingPreview.getTotalAmount()) %></strong>
+                        <strong class="text-success"><%= money(finalAmount) %></strong>
                     </div>
                     <p class="text-muted small">Booking s&#7869; &#273;&#432;&#7907;c gi&#7919; trong 15 ph&#250;t, &#273;&#7871;n <%= dateTime(bookingPreview.getHoldExpiresAt()) %>.</p>
                     <div class="alert alert-info py-2 small">
@@ -124,9 +148,22 @@
                         <input type="hidden" name="startTime" value="<%= esc(startTimeValue) %>">
                         <input type="hidden" name="endTime" value="<%= esc(endTimeValue) %>">
                         <input type="hidden" name="repeatType" value="<%= esc(repeatType) %>">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold" for="voucherCode">Mã giảm giá</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-ticket-perforated"></i></span>
+                                <input class="form-control text-uppercase" id="voucherCode" name="voucherCode"
+                                       maxlength="50" value="<%= esc(voucherCode) %>" placeholder="SALE20">
+                            </div>
+                            <% if (voucherError != null && !voucherError.isBlank()) { %>
+                            <div class="text-danger small mt-2"><%= esc(voucherError) %></div>
+                            <% } else if (voucherMessage != null && !voucherMessage.isBlank()) { %>
+                            <div class="text-success small mt-2"><%= esc(voucherMessage) %></div>
+                            <% } %>
+                        </div>
                         <button type="submit" class="btn btn-sf-primary w-100">T&#7841;o booking</button>
                     </form>
-                    <a href="<%= ctx %>/booking?action=create&facilityId=<%= bookingPreview.getFacilityId() %>&date=<%= bookingPreview.getStartTime().toLocalDate() %>"
+                    <a href="<%= ctx %>/booking?action=create&complexId=<%= bookingPreview.getComplexId() %>&date=<%= bookingPreview.getStartTime().toLocalDate() %>"
                        class="btn btn-outline-secondary w-100 mt-2">Quay l&#7841;i ch&#7885;n gi&#7901;</a>
                 </div>
             </aside>

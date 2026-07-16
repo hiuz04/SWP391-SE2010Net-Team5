@@ -91,7 +91,7 @@
             <div class="col-lg-4">
                 <div class="card soft-card p-4"><h5>Quản lý nhanh</h5>
                     <div class="d-grid gap-2">
-                        <a class="btn btn-outline-success" href="<%= ctx %>/owner/facility">Cơ sở</a>
+                        <a class="btn btn-outline-success" href="<%= ctx %>/owner/complex">Cơ sở</a>
                         <a class="btn btn-outline-success" href="<%= ctx %>/owner/field">Sân bóng</a>
                         <a class="btn btn-outline-success" href="<%= ctx %>/owner/dashboard">Bảng giá</a>
                     </div>
@@ -102,6 +102,9 @@
 </main>
 <div id="footer" data-root="../../"></div>
 
+<script>
+    window.APP_CTX = '<%= ctx %>';
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script src="<%= ctx %>/assets/js/owner/dashboard.js"></script>

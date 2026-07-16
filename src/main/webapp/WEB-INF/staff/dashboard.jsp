@@ -291,7 +291,7 @@
               <span id="shift-times" style="font-weight:400;opacity:.7;font-size:1rem;"></span>
             </h4>
             <p class="mb-2" style="opacity:.75;font-size:.9rem;">
-              Cơ sở: <strong id="facility-name">—</strong>
+              Cơ sở: <strong id="complex-name">—</strong>
             </p>
             <div class="d-flex align-items-center gap-3">
               <div class="shift-progress-bar flex-grow-1">
@@ -485,6 +485,7 @@ function statusBadge(status, nowPlaying, isExpired) {
   switch (status) {
     case 'COMPLETED':  return '<span class="badge badge-soft-success"><i class="bi bi-check-circle me-1"></i>Đã xong</span>';
     case 'CHECKED_IN': return '<span class="badge badge-soft-info"><i class="bi bi-play-circle me-1"></i>Đang chơi</span>';
+    case 'PENDING_CHECKOUT_PAYMENT': return '<span class="badge" style="background:#fae8ff;color:#a21caf;"><i class="bi bi-credit-card me-1"></i>Cho khach thanh toan</span>';
     case 'CONFIRMED':
       if (isExpired) {
         return '<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Quá giờ</span>';
@@ -496,7 +497,7 @@ function statusBadge(status, nowPlaying, isExpired) {
 
 let currentShiftStatus = 'ONGOING';
 
-function actionBtn(status, bookingId, isExpired, hasInvoice) {
+function actionBtn(status, bookingId, isExpired, hasInvoice, checkoutDue) {
   if (currentShiftStatus === 'UPCOMING') {
     if (status === 'CONFIRMED' || status === 'CHECKED_IN') {
       return `<button class="btn btn-sm btn-secondary px-3" disabled title="Chưa đến giờ làm việc"><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>`;
@@ -513,7 +514,12 @@ function actionBtn(status, bookingId, isExpired, hasInvoice) {
     }
     return `<a href="<%= ctx %>/staff/checkin?id=${bookingId}" class="btn btn-sm btn-success">Check-in</a>`;
   }
-  if (status === 'CHECKED_IN') return `<a href="<%= ctx %>/staff/checkout?id=${bookingId}" class="btn btn-sm btn-outline-success">Checkout</a>`;
+  if (status === 'CHECKED_IN') {
+    return checkoutDue
+      ? `<a href="<%= ctx %>/staff/checkout?id=${bookingId}" class="btn btn-sm btn-outline-success">Checkout</a>`
+      : `<button class="btn btn-sm btn-secondary px-3" disabled>Dang su dung</button>`;
+  }
+  if (status === 'PENDING_CHECKOUT_PAYMENT' && hasInvoice) return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-file-earmark-text me-1"></i>Hoa don</a>`;
   if (status === 'COMPLETED' && hasInvoice) return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-file-earmark-text me-1"></i>Hóa đơn</a>`;
   return '';
 }
@@ -563,7 +569,7 @@ async function loadDashboard() {
     // ── Shift banner ─────────────────────────────────────────────────────
     const s = data.shift;
     document.getElementById('shift-name').textContent   = s.shiftName  || '—';
-    document.getElementById('facility-name').textContent = s.facilityName || '—';
+    document.getElementById('complex-name').textContent = s.complexName || '—';
     document.getElementById('shift-times').textContent  = `${timeOnly(s.startTime)} – ${timeOnly(s.endTime)}`;
     document.getElementById('shift-start').textContent  = timeOnly(s.startTime);
     document.getElementById('shift-end').textContent    = timeOnly(s.endTime);
@@ -661,7 +667,7 @@ async function loadDashboard() {
           <td style="white-space: nowrap;"><strong>${b.fieldName || '—'}</strong></td>
           <td style="white-space: nowrap;">${b.customerName || '—'}</td>
           <td style="white-space: nowrap;">${statusBadge(b.status, nowPlaying, isExpired)}</td>
-          <td style="white-space: nowrap;">${actionBtn(b.status, b.bookingId, isExpired, b.hasInvoice)}</td>
+          <td style="white-space: nowrap;">${actionBtn(b.status, b.bookingId, isExpired, b.hasInvoice, b.checkoutDue)}</td>
         </tr>`;
       }).join('');
     }

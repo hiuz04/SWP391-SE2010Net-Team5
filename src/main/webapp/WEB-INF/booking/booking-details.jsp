@@ -77,6 +77,8 @@
                 return "&#272;&#227; x&#225;c nh&#7853;n";
             case "CHECKED_IN":
                 return "&#272;&#227; check-in";
+            case "PENDING_CHECKOUT_PAYMENT":
+                return "Ch&#7901; thanh to&#225;n h&#243;a &#273;&#417;n";
             case "COMPLETED":
                 return "Ho&#224;n t&#7845;t";
             case "CANCELLED":
@@ -97,6 +99,8 @@
             case "COMPLETED":
             case "CHECKED_IN":
                 return "badge-soft-success";
+            case "PENDING_CHECKOUT_PAYMENT":
+                return "badge-soft-warning";
             case "HOLD":
                 return "badge-soft-warning";
             case "CANCELLED":
@@ -146,6 +150,10 @@
     boolean holdActive = "HOLD".equals(booking.getStatus())
             && booking.getHoldExpiresAt() != null
             && booking.getHoldExpiresAt().isAfter(LocalDateTime.now());
+    BigDecimal discountAmount = booking.getDiscountAmount() == null ? BigDecimal.ZERO : booking.getDiscountAmount();
+    BigDecimal finalAmount = booking.getFinalAmount() != null ? booking.getFinalAmount() : booking.getTotalAmount();
+    boolean hasVoucher = booking.getVoucherCode() != null && !booking.getVoucherCode().isBlank();
+    boolean hasDiscount = discountAmount.compareTo(BigDecimal.ZERO) > 0;
 %>
 
 <!DOCTYPE html>
@@ -196,7 +204,7 @@
                     <div class="d-flex justify-content-between gap-3 flex-wrap">
                         <div>
                             <h1 class="section-title">Booking <%= esc(booking.getBookingCode()) %></h1>
-                            <p class="text-muted mb-0"><%= esc(booking.getFacilityName()) %> - <%= esc(booking.getFieldName()) %></p>
+                            <p class="text-muted mb-0"><%= esc(booking.getComplexName()) %> - <%= esc(booking.getFieldName()) %></p>
                         </div>
                         <span class="badge <%= statusBadgeClass(booking.getStatus()) %> align-self-start"><%= statusLabel(booking.getStatus()) %></span>
                     </div>
@@ -212,11 +220,11 @@
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">&#272;&#7883;a ch&#7881;</div>
-                            <div class="fw-semibold"><%= esc(booking.getFacilityAddress()) %></div>
+                            <div class="fw-semibold"><%= esc(booking.getComplexAddress()) %></div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">Hotline</div>
-                            <div class="fw-semibold"><%= esc(booking.getFacilityHotline()) %></div>
+                            <div class="fw-semibold"><%= esc(booking.getComplexHotline()) %></div>
                         </div>
                     </div>
 
@@ -253,8 +261,24 @@
                     <p class="text-muted">&#272;&#432;a m&#227; n&#224;y cho nh&#226;n vi&#234;n s&#226;n &#273;&#7875; check-in.</p>
                     <hr>
                     <div class="d-flex justify-content-between mb-2">
-                        <span>Ph&#237; s&#226;n</span>
+                        <span>Gi&#225; g&#7889;c</span>
                         <strong><%= money(booking.getOriginalPrice()) %></strong>
+                    </div>
+                    <% if (hasVoucher) { %>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Mã giảm giá</span>
+                        <strong><%= esc(booking.getVoucherCode()) %></strong>
+                    </div>
+                    <% } %>
+                    <% if (hasDiscount) { %>
+                    <div class="d-flex justify-content-between mb-2 text-success">
+                        <span>Gi&#7843;m gi&#225;</span>
+                        <strong>-<%= money(discountAmount) %></strong>
+                    </div>
+                    <% } %>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>T&#7893;ng sau gi&#7843;m</span>
+                        <strong><%= money(finalAmount) %></strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>S&#7889; ti&#7873;n c&#7885;c ph&#7843;i &#273;&#243;ng</span>

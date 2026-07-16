@@ -162,7 +162,7 @@
                                         <td><strong><%= esc(b.getBookingCode()) %></strong></td>
                                         <td>
                                             <div class="fw-semibold"><%= esc(b.getFieldName()) %></div>
-                                            <small class="text-muted"><%= esc(b.getFacilityName()) %></small>
+                                            <small class="text-muted"><%= esc(b.getComplexName()) %></small>
                                         </td>
                                         <td>
                                             <div><%= b.getStartTime() != null ? b.getStartTime().format(dtf) : "" %></div>

@@ -151,7 +151,7 @@
 %>
                                         <tr>
                                             <td><strong><%= esc((String)rb.get("customerName")) %></strong><br><small class="text-muted"><%= esc((String)rb.get("customerPhone")) %></small></td>
-                                            <td><%= esc((String)rb.get("fieldName")) %> (<%= esc((String)rb.get("facilityName")) %>)</td>
+                                            <td><%= esc((String)rb.get("fieldName")) %> (<%= esc((String)rb.get("complexName")) %>)</td>
                                             <td><%= startT %> - <%= endT %></td>
                                             <td><%= currencyFormat.format(totalAmt) %>₫</td>
                                             <td><span class="badge <%= badgeClass %>"><%= stText %></span></td>

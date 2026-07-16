@@ -60,7 +60,7 @@
                     <div class="card soft-card p-4">
                         <h1 class="section-title mb-2 text-dark"><%= postDTO.getPost().getTitle() %></h1>
                         <p class="text-muted mb-4">
-                            <i class="bi bi-geo-alt-fill me-1 text-success"></i><%= postDTO.getFacilityName() != null ? postDTO.getFacilityName() : "Tự chọn địa điểm / Sân khách" %> 
+                            <i class="bi bi-geo-alt-fill me-1 text-success"></i><%= postDTO.getComplexName() != null ? postDTO.getComplexName() : "Tự chọn địa điểm / Sân khách" %>
                             &middot; 
                             <i class="bi bi-clock-fill me-1 text-success"></i><%= timeStr %>
                         </p>

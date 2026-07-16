@@ -51,10 +51,8 @@ public class StaffBillingServlet extends HttpServlet {
         req.setCharacterEncoding("UTF-8");
         resp.setCharacterEncoding("UTF-8");
 
-        User user = getSessionUser(req);
-        if (!ensurePageAccess(req, resp, user)) {
-            return;
-        }
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
 
         String path = getPath(req);
         if (path.startsWith("/staff/invoice/export")) {
@@ -78,17 +76,8 @@ public class StaffBillingServlet extends HttpServlet {
         req.setCharacterEncoding("UTF-8");
         resp.setContentType("application/json;charset=UTF-8");
 
-        User user = getSessionUser(req);
-        if (user == null) {
-            resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            writeJson(resp, false, "Bạn chưa đăng nhập.");
-            return;
-        }
-        if (!isStaffOrOwner(user)) {
-            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            writeJson(resp, false, "Bạn không có quyền truy cập.");
-            return;
-        }
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
         if (!getPath(req).equals("/api/staff/checkout")) {
             resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
             writeJson(resp, false, "Không tìm thấy API.");
@@ -129,7 +118,7 @@ public class StaffBillingServlet extends HttpServlet {
                 } else if (billingDAO.hasPaidInvoice(bookingId)) {
                     req.setAttribute("error", "Lịch đặt sân này đã có hóa đơn thanh toán.");
                 } else if (user.getRoleId() == ROLE_STAFF
-                        && !billingDAO.canStaffCheckoutFacility(user.getUserId(), checkout.getFacilityId())) {
+                        && !billingDAO.canStaffCheckoutComplex(user.getUserId(), checkout.getComplexId())) {
                     resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     req.setAttribute("error", "Bạn không có ca làm việc đang hoạt động tại cơ sở này.");
                 } else {
@@ -152,7 +141,7 @@ public class StaffBillingServlet extends HttpServlet {
                 if (invoice == null) {
                     req.setAttribute("error", "Không tìm thấy hóa đơn.");
                 } else if (user.getRoleId() == ROLE_STAFF
-                        && !billingDAO.canStaffViewFacilityToday(user.getUserId(), invoice.getFacilityId())) {
+                        && !billingDAO.canStaffViewComplexToday(user.getUserId(), invoice.getComplexId())) {
                     resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     req.setAttribute("error", "Bạn không có quyền xem hóa đơn này.");
                 } else {
@@ -175,7 +164,7 @@ public class StaffBillingServlet extends HttpServlet {
                 return;
             }
             if (user.getRoleId() == ROLE_STAFF
-                    && !billingDAO.canStaffViewFacilityToday(user.getUserId(), invoice.getFacilityId())) {
+                    && !billingDAO.canStaffViewComplexToday(user.getUserId(), invoice.getComplexId())) {
                 resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền xuất hóa đơn này.");
                 return;
             }
@@ -238,8 +227,8 @@ public class StaffBillingServlet extends HttpServlet {
 
         document.add(section("Thông tin đặt sân", fonts));
         PdfPTable booking = infoTable();
-        addInfo(booking, "Cơ sở", text(invoice.getFacilityName()), fonts);
-        addInfo(booking, "Địa chỉ", text(invoice.getFacilityAddress()), fonts);
+        addInfo(booking, "Cơ sở", text(invoice.getComplexName()), fonts);
+        addInfo(booking, "Địa chỉ", text(invoice.getComplexAddress()), fonts);
         addInfo(booking, "Sân", text(invoice.getFieldName()), fonts);
         addInfo(booking, "Thời gian", dateTime(invoice.getStartTime()) + " - " + dateTime(invoice.getEndTime()), fonts);
         document.add(booking);
@@ -338,27 +327,6 @@ public class StaffBillingServlet extends HttpServlet {
         }
     }
 
-    private boolean ensurePageAccess(HttpServletRequest req, HttpServletResponse resp, User user)
-            throws IOException {
-        if (user == null) {
-            resp.sendRedirect(req.getContextPath() + "/login");
-            return false;
-        }
-        if (!isStaffOrOwner(user)) {
-            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập.");
-            return false;
-        }
-        return true;
-    }
-
-    private User getSessionUser(HttpServletRequest req) {
-        HttpSession session = req.getSession(false);
-        return (session != null) ? (User) session.getAttribute("user") : null;
-    }
-
-    private boolean isStaffOrOwner(User user) {
-        return user.getRoleId() == ROLE_STAFF || user.getRoleId() == ROLE_OWNER;
-    }
 
     private String getPath(HttpServletRequest req) {
         String uri = req.getRequestURI();
@@ -373,6 +341,7 @@ public class StaffBillingServlet extends HttpServlet {
                 + ",\"bookingId\":" + result.getBookingId()
                 + ",\"invoiceId\":" + result.getInvoiceId()
                 + ",\"invoiceCode\":\"" + escapeJson(result.getInvoiceCode()) + "\""
+                + ",\"message\":\"" + escapeJson(result.getMessage()) + "\""
                 + ",\"redirectUrl\":\"" + escapeJson(redirectUrl) + "\""
                 + "}");
         out.flush();

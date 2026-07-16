@@ -1,6 +1,6 @@
 /**
- * Module: Facility Management
- * File: FacilityAPIController.java
+ * Module: Complex Management
+ * File: ComplexAPIController.java
  * Description: Lấy toàn bộ thông tin cơ sở để hiển thị dữ liệu lên front-end.
  *
  * Author: Dương Hải Anh
@@ -15,11 +15,11 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
-import com.swp.model.dto.FacilityWithField;
-import com.swp.model.Facility;
+import com.swp.model.FootballComplex;
+import com.swp.model.dto.ComplexWithField;
 import com.swp.model.Field;
-import com.swp.service.owner.FacilityService;
-import com.swp.service.owner.FieldService;
+import com.swp.service.FootballComplexService;
+import com.swp.service.FieldService;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,25 +31,25 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
-@WebServlet("/api/facilities")
-public class FacilityAPIController extends HttpServlet {
+@WebServlet("/api/complexes")
+public class ComplexAPIController extends HttpServlet {
 
     private static final FieldService fieldService = new FieldService();
-    private static final FacilityService facilityService = new FacilityService();
+    private static final FootballComplexService FOOTBALL_COMPLEX_SERVICE = new FootballComplexService();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
-        List<FacilityWithField> lists = new ArrayList<>();
+        List<ComplexWithField> lists = new ArrayList<>();
         List<Field> fields = fieldService.getAllField();
-        List<Facility> facilities = facilityService.getListFacility();
+        List<FootballComplex> complexes = FOOTBALL_COMPLEX_SERVICE.getListFootballComplex();
 
-        for (Facility fac : facilities) {
-            List<Field> facilityFields = fields.stream()
-                    .filter(f -> fac.getFacilityId() == f.getFacilityId())
+        for (FootballComplex fc : complexes) {
+            List<Field> complexFields = fields.stream()
+                    .filter(f -> fc.getComplexId() == f.getComplexId())
                     .toList();
 
-            lists.add(new FacilityWithField(fac, facilityFields));
+            lists.add(new ComplexWithField(fc, complexFields));
         }
 
         resp.setContentType("application/json;charset=UTF-8");

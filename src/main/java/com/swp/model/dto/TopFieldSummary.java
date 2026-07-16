@@ -16,8 +16,8 @@ public class TopFieldSummary {
     private String fieldTypeName;
     private boolean isHot;
 
-    private long facilityId;
-    private String facilityName;
+    private long complexId;
+    private String complexName;
     private String address;
     private String district;
     private String city;
@@ -29,7 +29,7 @@ public class TopFieldSummary {
     }
 
     public TopFieldSummary(long fieldId, String fieldName, String description, String status,
-                           String fieldTypeName, boolean isHot, long facilityId, String facilityName,
+                           String fieldTypeName, boolean isHot, long complexId, String complexName,
                            String address, String district, String city, int bookingCount, String imageUrl) {
         this.fieldId = fieldId;
         this.fieldName = fieldName;
@@ -37,8 +37,8 @@ public class TopFieldSummary {
         this.status = status;
         this.fieldTypeName = fieldTypeName;
         this.isHot = isHot;
-        this.facilityId = facilityId;
-        this.facilityName = facilityName;
+        this.complexId = complexId;
+        this.complexName = complexName;
         this.address = address;
         this.district = district;
         this.city = city;
@@ -64,11 +64,11 @@ public class TopFieldSummary {
     public boolean isHot() { return isHot; }
     public void setHot(boolean isHot) { this.isHot = isHot; }
 
-    public long getFacilityId() { return facilityId; }
-    public void setFacilityId(long facilityId) { this.facilityId = facilityId; }
+    public long getComplexId() { return complexId; }
+    public void setComplexId(long complexId) { this.complexId = complexId; }
 
-    public String getFacilityName() { return facilityName; }
-    public void setFacilityName(String facilityName) { this.facilityName = facilityName; }
+    public String getComplexName() { return complexName; }
+    public void setComplexName(String complexName) { this.complexName = complexName; }
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }

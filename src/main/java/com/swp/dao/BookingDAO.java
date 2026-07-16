@@ -34,9 +34,9 @@ public class BookingDAO {
             "Th\u1eddi gian gi\u1eef ch\u1ed7 \u0111\u00e3 h\u1ebft h\u1ea1n.";
     private static final int DEFAULT_CANCEL_BEFORE_HOURS = 24;
 
-    public Long getFacilityIdByFieldId(Long fieldId) throws SQLException {
+    public Long getComplexIdByFieldId(Long fieldId) throws SQLException {
         String sql = """
-                SELECT facility_id
+                SELECT complex_id
                 FROM fields
                 WHERE field_id = ?
                 """;
@@ -48,7 +48,7 @@ public class BookingDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getLong("facility_id");
+                    return rs.getLong("complex_id");
                 }
             }
         }
@@ -58,7 +58,7 @@ public class BookingDAO {
 
     private FieldPricingContext getFieldPricingContext(Long fieldId) throws SQLException {
         String sql = """
-                SELECT facility_id,
+                SELECT complex_id,
                        field_type_id
                 FROM fields
                 WHERE field_id = ?
@@ -72,7 +72,7 @@ public class BookingDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return new FieldPricingContext(
-                            rs.getLong("facility_id"),
+                            rs.getLong("complex_id"),
                             rs.getInt("field_type_id")
                     );
                 }
@@ -82,10 +82,10 @@ public class BookingDAO {
         return null;
     }
 
-    public List<Field> getFieldsByFacility(Long facilityId) throws SQLException {
+    public List<Field> getFieldsByComplex(Long complexId) throws SQLException {
         String sql = """
                 SELECT field_id,
-                       facility_id,
+                       complex_id,
                        field_type_id,
                        field_name,
                        description,
@@ -93,7 +93,7 @@ public class BookingDAO {
                        created_at,
                        updated_at
                 FROM fields
-                WHERE facility_id = ?
+                WHERE complex_id = ?
                 ORDER BY field_name
                 """;
 
@@ -102,14 +102,14 @@ public class BookingDAO {
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setLong(1, facilityId);
+            ps.setLong(1, complexId);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Field field = new Field();
 
                     field.setFieldId(rs.getLong("field_id"));
-                    field.setFacilityId(rs.getLong("facility_id"));
+                    field.setComplexId(rs.getLong("complex_id"));
                     field.setFieldTypeId(rs.getInt("field_type_id"));
                     field.setFieldName(rs.getString("field_name"));
                     field.setDescription(rs.getString("description"));
@@ -125,21 +125,23 @@ public class BookingDAO {
         return fields;
     }
 
-    public List<Booking> getBookingsByFacilityAndDate(Long facilityId, LocalDate date) throws SQLException {
+    public List<Booking> getBookingsByComplexAndDate(Long complexId, LocalDate date) throws SQLException {
         cancelExpiredHolds();
 
         String sql = """
                 SELECT booking_id,
                        booking_code,
                        customer_id,
-                       facility_id,
+                       complex_id,
                        field_id,
                        recurring_group_id,
                        start_time,
                        end_time,
+                       voucher_id,
                        original_price,
                        discount_amount,
                        total_amount,
+                       final_amount,
                        deposit_amount,
                        status,
                        hold_expires_at,
@@ -149,7 +151,7 @@ public class BookingDAO {
                        created_at,
                        updated_at
                 FROM bookings
-                WHERE facility_id = ?
+                WHERE complex_id = ?
                   AND status NOT IN ('CANCELLED', 'EXPIRED', 'REJECTED')
                   AND start_time < ?
                   AND end_time > ?
@@ -163,7 +165,7 @@ public class BookingDAO {
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setLong(1, facilityId);
+            ps.setLong(1, complexId);
             ps.setTimestamp(2, Timestamp.valueOf(dayEnd));
             ps.setTimestamp(3, Timestamp.valueOf(dayStart));
 
@@ -177,7 +179,7 @@ public class BookingDAO {
         return bookings;
     }
 
-    public List<FieldMaintenanceSchedule> getMaintenanceByFacilityAndDate(Long facilityId, LocalDate date)
+    public List<FieldMaintenanceSchedule> getMaintenanceByComplexAndDate(Long complexId, LocalDate date)
             throws SQLException {
 
         String sql = """
@@ -190,7 +192,7 @@ public class BookingDAO {
                        m.created_at
                 FROM field_maintenance_schedules m
                 INNER JOIN fields f ON m.field_id = f.field_id
-                WHERE f.facility_id = ?
+                WHERE f.complex_id = ?
                   AND m.status <> 'CANCELLED'
                   AND m.start_time < ?
                   AND m.end_time > ?
@@ -204,7 +206,7 @@ public class BookingDAO {
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setLong(1, facilityId);
+            ps.setLong(1, complexId);
             ps.setTimestamp(2, Timestamp.valueOf(dayEnd));
             ps.setTimestamp(3, Timestamp.valueOf(dayStart));
 
@@ -239,19 +241,22 @@ public class BookingDAO {
                        u.full_name AS customer_name,
                        u.phone AS customer_phone,
                        u.email AS customer_email,
-                       fa.facility_id,
-                       fa.facility_name,
-                       fa.address AS facility_address,
-                       fa.hotline AS facility_hotline,
+                       fa.complex_id,
+                       fa.complex_name,
+                       fa.address AS complex_address,
+                       fa.hotline AS complex_address,
                        f.field_id,
                        f.field_name,
                        ft.type_name AS field_type_name,
                        ft.number_of_players,
                        NULL AS start_time,
                        NULL AS end_time,
+                       NULL AS voucher_id,
+                       NULL AS voucher_code,
                        NULL AS original_price,
                        NULL AS discount_amount,
                        NULL AS total_amount,
+                       NULL AS final_amount,
                        NULL AS deposit_amount,
                        NULL AS status,
                        NULL AS hold_expires_at,
@@ -265,7 +270,7 @@ public class BookingDAO {
                        NULL AS paid_amount,
                        NULL AS paid_at
                 FROM fields f
-                INNER JOIN facilities fa ON f.facility_id = fa.facility_id
+                INNER JOIN football_complexes fa ON f.complex_id = fa.complex_id
                 INNER JOIN field_types ft ON f.field_type_id = ft.field_type_id
                 INNER JOIN users u ON u.user_id = ?
                 WHERE f.field_id = ?
@@ -306,8 +311,8 @@ public class BookingDAO {
 
         List<PriceRuleCandidate> rules = getPriceRuleCandidates(pricingContext, startTime, endTime);
         if (rules.isEmpty()) {
-            throw new SQLException("Không tìm thấy price rule ACTIVE phù hợp cho facility_id="
-                    + pricingContext.facilityId()
+            throw new SQLException("Không tìm thấy price rule ACTIVE phù hợp cho complex_id="
+                    + pricingContext.complexId()
                     + ", field_type_id=" + pricingContext.fieldTypeId()
                     + ", thời gian " + startTime + " - " + endTime + ".");
         }
@@ -344,8 +349,8 @@ public class BookingDAO {
                             .comparingInt(PriceRuleCandidate::priority)
                             .thenComparing(PriceRuleCandidate::exactSpecificDate)
                             .thenComparingLong(PriceRuleCandidate::priceRuleId))
-                    .orElseThrow(() -> new SQLException("Không tìm thấy price rule ACTIVE phù hợp cho facility_id="
-                            + pricingContext.facilityId()
+                    .orElseThrow(() -> new SQLException("Không tìm thấy price rule ACTIVE phù hợp cho complex_id="
+                            + pricingContext.complexId()
                             + ", field_type_id=" + pricingContext.fieldTypeId()
                             + ", thời gian " + startTime.toLocalDate().atTime(segmentStartTime)
                             + " - " + startTime.toLocalDate().atTime(segmentEndTime) + "."));
@@ -373,7 +378,7 @@ public class BookingDAO {
                        CASE WHEN pr.specific_date = ? THEN 1 ELSE 0 END AS exact_specific_date
                 FROM price_rules pr
                 WHERE pr.status = 'ACTIVE'
-                  AND pr.facility_id = ?
+                  AND pr.complex_id = ?
                   AND pr.field_type_id = ?
                   AND (pr.specific_date = ? OR pr.specific_date IS NULL)
                   AND (
@@ -397,7 +402,7 @@ public class BookingDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setDate(1, java.sql.Date.valueOf(startTime.toLocalDate()));
-            ps.setLong(2, pricingContext.facilityId());
+            ps.setLong(2, pricingContext.complexId());
             ps.setInt(3, pricingContext.fieldTypeId());
             ps.setDate(4, java.sql.Date.valueOf(startTime.toLocalDate()));
             ps.setString(5, startTime.getDayOfWeek().name());
@@ -433,13 +438,15 @@ public class BookingDAO {
                 INSERT INTO bookings (
                     booking_code,
                     customer_id,
-                    facility_id,
+                    complex_id,
                     field_id,
                     start_time,
                     end_time,
+                    voucher_id,
                     original_price,
                     discount_amount,
                     total_amount,
+                    final_amount,
                     deposit_amount,
                     status,
                     hold_expires_at,
@@ -448,7 +455,7 @@ public class BookingDAO {
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
                 """;
 
         String insertLog = """
@@ -482,16 +489,18 @@ public class BookingDAO {
             try (PreparedStatement ps = conn.prepareStatement(insertBooking)) {
                 ps.setString(1, booking.getBookingCode());
                 ps.setLong(2, booking.getCustomerId());
-                ps.setLong(3, booking.getFacilityId());
+                ps.setLong(3, booking.getComplexId());
                 ps.setLong(4, booking.getFieldId());
                 ps.setTimestamp(5, Timestamp.valueOf(booking.getStartTime()));
                 ps.setTimestamp(6, Timestamp.valueOf(booking.getEndTime()));
-                ps.setBigDecimal(7, safeMoney(booking.getOriginalPrice()));
-                ps.setBigDecimal(8, safeMoney(booking.getDiscountAmount()));
-                ps.setBigDecimal(9, safeMoney(booking.getTotalAmount()));
-                ps.setBigDecimal(10, safeMoney(booking.getDepositAmount()));
-                ps.setTimestamp(11, Timestamp.valueOf(booking.getHoldExpiresAt()));
-                ps.setString(12, booking.getQrCode());
+                setIntegerOrNull(ps, 7, booking.getVoucherId());
+                ps.setBigDecimal(8, safeMoney(booking.getOriginalPrice()));
+                ps.setBigDecimal(9, safeMoney(booking.getDiscountAmount()));
+                ps.setBigDecimal(10, safeMoney(booking.getTotalAmount()));
+                ps.setBigDecimal(11, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
+                ps.setBigDecimal(12, safeMoney(booking.getDepositAmount()));
+                ps.setTimestamp(13, Timestamp.valueOf(booking.getHoldExpiresAt()));
+                ps.setString(14, booking.getQrCode());
 
                 try (ResultSet rs = ps.executeQuery()) {
                     // Neu DB khong tra ve id thi booking chua duoc tao hop le.
@@ -578,14 +587,16 @@ public class BookingDAO {
                 INSERT INTO bookings (
                     booking_code,
                     customer_id,
-                    facility_id,
+                    complex_id,
                     field_id,
                     recurring_group_id,
                     start_time,
                     end_time,
+                    voucher_id,
                     original_price,
                     discount_amount,
                     total_amount,
+                    final_amount,
                     deposit_amount,
                     status,
                     hold_expires_at,
@@ -594,7 +605,7 @@ public class BookingDAO {
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
                 """;
 
         String insertLog = """
@@ -654,17 +665,19 @@ public class BookingDAO {
                 try (PreparedStatement ps = conn.prepareStatement(insertBooking)) {
                     ps.setString(1, booking.getBookingCode());
                     ps.setLong(2, booking.getCustomerId());
-                    ps.setLong(3, booking.getFacilityId());
+                    ps.setLong(3, booking.getComplexId());
                     ps.setLong(4, booking.getFieldId());
                     ps.setLong(5, recurringGroupId);
                     ps.setTimestamp(6, Timestamp.valueOf(booking.getStartTime()));
                     ps.setTimestamp(7, Timestamp.valueOf(booking.getEndTime()));
-                    ps.setBigDecimal(8, safeMoney(booking.getOriginalPrice()));
-                    ps.setBigDecimal(9, safeMoney(booking.getDiscountAmount()));
-                    ps.setBigDecimal(10, safeMoney(booking.getTotalAmount()));
-                    ps.setBigDecimal(11, safeMoney(booking.getDepositAmount()));
-                    ps.setTimestamp(12, Timestamp.valueOf(booking.getHoldExpiresAt()));
-                    ps.setString(13, booking.getQrCode());
+                    setIntegerOrNull(ps, 8, booking.getVoucherId());
+                    ps.setBigDecimal(9, safeMoney(booking.getOriginalPrice()));
+                    ps.setBigDecimal(10, safeMoney(booking.getDiscountAmount()));
+                    ps.setBigDecimal(11, safeMoney(booking.getTotalAmount()));
+                    ps.setBigDecimal(12, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
+                    ps.setBigDecimal(13, safeMoney(booking.getDepositAmount()));
+                    ps.setTimestamp(14, Timestamp.valueOf(booking.getHoldExpiresAt()));
+                    ps.setString(15, booking.getQrCode());
 
                     try (ResultSet rs = ps.executeQuery()) {
                         // Moi booking con bat buoc phai tra ve id de ghi log dung.
@@ -902,12 +915,12 @@ public class BookingDAO {
         return 0;
     }
 
-    public int getBookingCountWithFacilityId(long id) {
+    public int getBookingCountWithComplexId(long id) {
         String sql = """
-                    SELECT COUNT(*) AS total
-                    FROM bookings
-                    WHERE facility_id = ?
-                    """;
+                SELECT COUNT(*) AS total
+                FROM bookings
+                WHERE complex_id = ?
+                """;
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
@@ -925,10 +938,10 @@ public class BookingDAO {
 
     public int getBookingCountWithFieldId(long id) {
         String sql = """
-                    SELECT COUNT(*) AS total
-                    FROM bookings
-                    WHERE field_id = ?
-                    """;
+                SELECT COUNT(*) AS total
+                FROM bookings
+                WHERE field_id = ?
+                """;
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
@@ -942,6 +955,101 @@ public class BookingDAO {
                     "Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e
             );
         }
+    }
+
+    public Booking getBookingById(Long bookingId) {
+        String sql = """
+                SELECT booking_id,
+                       booking_code,
+                       customer_id,
+                       complex_id,
+                       field_id,
+                       recurring_group_id,
+                       start_time,
+                       end_time,
+                       voucher_id,
+                       original_price,
+                       discount_amount,
+                       total_amount,
+                       final_amount,
+                       deposit_amount,
+                       status,
+                       hold_expires_at,
+                       cancellation_reason,
+                       cancelled_at,
+                       qr_code,
+                       created_at,
+                       updated_at
+                FROM bookings
+                WHERE booking_id = ?
+                """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Booking booking = new Booking();
+
+                    booking.setBookingId(rs.getLong("booking_id"));
+                    booking.setBookingCode(rs.getString("booking_code"));
+                    booking.setCustomerId(rs.getLong("customer_id"));
+                    booking.setComplexId(rs.getLong("complex_id"));
+                    booking.setFieldId(rs.getLong("field_id"));
+
+                    long recurringGroupId = rs.getLong("recurring_group_id");
+                    booking.setRecurringGroupId(rs.wasNull() ? null : recurringGroupId);
+
+                    Timestamp startTime = rs.getTimestamp("start_time");
+                    if (startTime != null) {
+                        booking.setStartTime(startTime.toLocalDateTime());
+                    }
+
+                    Timestamp endTime = rs.getTimestamp("end_time");
+                    if (endTime != null) {
+                        booking.setEndTime(endTime.toLocalDateTime());
+                    }
+
+                    int voucherId = rs.getInt("voucher_id");
+                    booking.setVoucherId(rs.wasNull() ? null : voucherId);
+                    booking.setOriginalPrice(rs.getBigDecimal("original_price"));
+                    booking.setDiscountAmount(rs.getBigDecimal("discount_amount"));
+                    booking.setTotalAmount(rs.getBigDecimal("total_amount"));
+                    booking.setFinalAmount(rs.getBigDecimal("final_amount"));
+                    booking.setDepositAmount(rs.getBigDecimal("deposit_amount"));
+                    booking.setStatus(rs.getString("status"));
+                    booking.setCancellationReason(rs.getString("cancellation_reason"));
+                    booking.setQrCode(rs.getString("qr_code"));
+
+                    Timestamp holdExpiresAt = rs.getTimestamp("hold_expires_at");
+                    if (holdExpiresAt != null) {
+                        booking.setHoldExpiresAt(holdExpiresAt.toLocalDateTime());
+                    }
+
+                    Timestamp cancelledAt = rs.getTimestamp("cancelled_at");
+                    if (cancelledAt != null) {
+                        booking.setCancelledAt(cancelledAt.toLocalDateTime());
+                    }
+
+                    Timestamp createdAt = rs.getTimestamp("created_at");
+                    if (createdAt != null) {
+                        booking.setCreatedAt(createdAt.toLocalDateTime());
+                    }
+
+                    Timestamp updatedAt = rs.getTimestamp("updated_at");
+                    if (updatedAt != null) {
+                        booking.setUpdatedAt(updatedAt.toLocalDateTime());
+                    }
+
+                    return booking;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 
     private boolean isFieldAvailable(Connection conn, Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
@@ -1004,19 +1112,22 @@ public class BookingDAO {
                        u.full_name AS customer_name,
                        u.phone AS customer_phone,
                        u.email AS customer_email,
-                       b.facility_id,
-                       fa.facility_name,
-                       fa.address AS facility_address,
-                       fa.hotline AS facility_hotline,
+                       b.complex_id,
+                       fa.complex_name,
+                       fa.address AS complex_address,
+                       fa.hotline AS complex_address,
                        b.field_id,
                        f.field_name,
                        ft.type_name AS field_type_name,
                        ft.number_of_players,
                        b.start_time,
                        b.end_time,
+                       b.voucher_id,
+                       v.code AS voucher_code,
                        grp.original_price,
                        grp.discount_amount,
                        grp.total_amount,
+                       grp.final_amount,
                        grp.deposit_amount,
                        b.status,
                        b.hold_expires_at,
@@ -1034,18 +1145,25 @@ public class BookingDAO {
                        END AS payment_status,
                        lp.payment_method_name,
                        CASE WHEN lp.payment_status = 'SUCCESS' THEN lp.paid_amount ELSE NULL END AS paid_amount,
-                       lp.paid_at
+                       lp.paid_at,
+                       fb.feedback_id,
+                       IIF(fb.feedback_id IS NULL, 0, 1) AS reviewed
                 FROM bookings b
                 LEFT JOIN booking_recurring_groups rg ON b.recurring_group_id = rg.recurring_group_id
                 INNER JOIN users u ON b.customer_id = u.user_id
-                INNER JOIN facilities fa ON b.facility_id = fa.facility_id
+                INNER JOIN football_complexes fa ON b.complex_id = fa.complex_id
                 INNER JOIN fields f ON b.field_id = f.field_id
                 INNER JOIN field_types ft ON f.field_type_id = ft.field_type_id
+                LEFT JOIN vouchers v ON b.voucher_id = v.id
+                LEFT JOIN feedbacks fb
+                    ON fb.booking_id = b.booking_id
+                   AND fb.status = 'ACTIVE'
                 OUTER APPLY (
                     SELECT COUNT(*) AS recurring_count,
                            SUM(sb.original_price) AS original_price,
                            SUM(sb.discount_amount) AS discount_amount,
                            SUM(sb.total_amount) AS total_amount,
+                           SUM(COALESCE(sb.final_amount, sb.total_amount)) AS final_amount,
                            SUM(sb.deposit_amount) AS deposit_amount
                     FROM bookings sb
                     WHERE sb.customer_id = b.customer_id
@@ -1116,7 +1234,7 @@ public class BookingDAO {
                 DECLARE @ExpiredBookings TABLE (
                     booking_id BIGINT NOT NULL
                 );
-
+                
                 UPDATE b
                 SET b.status = 'CANCELLED',
                     b.cancellation_reason = ?,
@@ -1135,7 +1253,7 @@ public class BookingDAO {
                       WHERE p.booking_id = b.booking_id
                         AND p.status = 'SUCCESS'
                   )
-
+                
                 INSERT INTO booking_status_logs (
                     booking_id,
                     old_status,
@@ -1169,7 +1287,7 @@ public class BookingDAO {
         booking.setBookingId(rs.getLong("booking_id"));
         booking.setBookingCode(rs.getString("booking_code"));
         booking.setCustomerId(rs.getLong("customer_id"));
-        booking.setFacilityId(rs.getLong("facility_id"));
+        booking.setComplexId(rs.getLong("complex_id"));
         booking.setFieldId(rs.getLong("field_id"));
 
         Object recurringGroupId = rs.getObject("recurring_group_id");
@@ -1179,9 +1297,11 @@ public class BookingDAO {
 
         booking.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         booking.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
+        booking.setVoucherId(getIntegerOrNull(rs, "voucher_id"));
         booking.setOriginalPrice(rs.getBigDecimal("original_price"));
         booking.setDiscountAmount(rs.getBigDecimal("discount_amount"));
         booking.setTotalAmount(rs.getBigDecimal("total_amount"));
+        booking.setFinalAmount(rs.getBigDecimal("final_amount"));
         booking.setDepositAmount(rs.getBigDecimal("deposit_amount"));
         booking.setStatus(rs.getString("status"));
         booking.setHoldExpiresAt(toLocalDateTime(rs.getTimestamp("hold_expires_at")));
@@ -1206,19 +1326,22 @@ public class BookingDAO {
         view.setCustomerName(rs.getString("customer_name"));
         view.setCustomerPhone(rs.getString("customer_phone"));
         view.setCustomerEmail(rs.getString("customer_email"));
-        view.setFacilityId(getLongOrNull(rs, "facility_id"));
-        view.setFacilityName(rs.getString("facility_name"));
-        view.setFacilityAddress(rs.getString("facility_address"));
-        view.setFacilityHotline(rs.getString("facility_hotline"));
+        view.setComplexId(getLongOrNull(rs, "complex_id"));
+        view.setComplexName(rs.getString("complex_name"));
+        view.setComplexAddress(rs.getString("complex_address"));
+        view.setComplexHotline(rs.getString("complex_address"));
         view.setFieldId(getLongOrNull(rs, "field_id"));
         view.setFieldName(rs.getString("field_name"));
         view.setFieldTypeName(rs.getString("field_type_name"));
         view.setNumberOfPlayers(getIntegerOrNull(rs, "number_of_players"));
         view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
+        view.setVoucherId(getIntegerOrNull(rs, "voucher_id"));
+        view.setVoucherCode(rs.getString("voucher_code"));
         view.setOriginalPrice(rs.getBigDecimal("original_price"));
         view.setDiscountAmount(rs.getBigDecimal("discount_amount"));
         view.setTotalAmount(rs.getBigDecimal("total_amount"));
+        view.setFinalAmount(rs.getBigDecimal("final_amount"));
         view.setDepositAmount(rs.getBigDecimal("deposit_amount"));
         view.setStatus(rs.getString("status"));
         view.setHoldExpiresAt(toLocalDateTime(rs.getTimestamp("hold_expires_at")));
@@ -1231,6 +1354,8 @@ public class BookingDAO {
         view.setPaymentMethodName(rs.getString("payment_method_name"));
         view.setPaidAmount(rs.getBigDecimal("paid_amount"));
         view.setPaidAt(toLocalDateTime(rs.getTimestamp("paid_at")));
+        view.setFeedbackId(getLongOrNull(rs, "feedback_id"));
+        view.setReviewed(rs.getBoolean("reviewed"));
 
         return view;
     }
@@ -1245,6 +1370,14 @@ public class BookingDAO {
         return rs.wasNull() ? null : value;
     }
 
+    private void setIntegerOrNull(PreparedStatement ps, int parameterIndex, Integer value) throws SQLException {
+        if (value == null) {
+            ps.setNull(parameterIndex, Types.INTEGER);
+        } else {
+            ps.setInt(parameterIndex, value);
+        }
+    }
+
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
@@ -1253,7 +1386,11 @@ public class BookingDAO {
         return value == null ? BigDecimal.ZERO : value;
     }
 
-    private record FieldPricingContext(Long facilityId, Integer fieldTypeId) {
+    private BigDecimal firstNonNull(BigDecimal first, BigDecimal second) {
+        return first != null ? first : second;
+    }
+
+    private record FieldPricingContext(Long complexId, Integer fieldTypeId) {
     }
 
     private record PriceRuleCandidate(

@@ -8,10 +8,11 @@ public class PaymentView implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private Long paymentId;
+    private Long invoiceId;
     private Long bookingId;
     private Long customerId;
     private String bookingCode;
-    private String facilityName;
+    private String complexName;
     private String fieldName;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
@@ -32,6 +33,14 @@ public class PaymentView implements Serializable {
 
     public void setPaymentId(Long paymentId) {
         this.paymentId = paymentId;
+    }
+
+    public Long getInvoiceId() {
+        return invoiceId;
+    }
+
+    public void setInvoiceId(Long invoiceId) {
+        this.invoiceId = invoiceId;
     }
 
     public Long getBookingId() {
@@ -58,12 +67,12 @@ public class PaymentView implements Serializable {
         this.bookingCode = bookingCode;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 
     public String getFieldName() {
@@ -171,6 +180,13 @@ public class PaymentView implements Serializable {
     }
 
     public boolean isRetryAllowed() {
+        if (!"FAILED".equals(status)) {
+            return false;
+        }
+        if ("CHECKOUT".equals(paymentType)) {
+            return invoiceId != null
+                    && ("PENDING_CHECKOUT_PAYMENT".equals(bookingStatus) || "CHECKED_IN".equals(bookingStatus));
+        }
         return "FAILED".equals(status)
                 && "HOLD".equals(bookingStatus)
                 && holdExpiresAt != null

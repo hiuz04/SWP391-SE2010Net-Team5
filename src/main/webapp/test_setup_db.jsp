@@ -97,7 +97,7 @@
             long shift1Id = 0;
             long shift2Id = 0;
             long shift3Id = 0;
-            String insertShiftSql = "INSERT INTO work_shifts (facility_id, shift_name, shift_date, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, GETDATE())";
+            String insertShiftSql = "INSERT INTO work_shifts (complex_id, shift_name, shift_date, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, GETDATE())";
             try (PreparedStatement ps = conn.prepareStatement(insertShiftSql, Statement.RETURN_GENERATED_KEYS)) {
                 // Shift 1
                 ps.setLong(1, 1);
@@ -169,7 +169,7 @@
             long booking9Id = 0;
 
             String insertBookingSql = "INSERT INTO bookings (" +
-                " booking_code, customer_id, facility_id, field_id, start_time, end_time," +
+                " booking_code, customer_id, complex_id, field_id, start_time, end_time," +
                 " original_price, discount_amount, total_amount, deposit_amount, status, created_at, updated_at" +
                 ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())";
             

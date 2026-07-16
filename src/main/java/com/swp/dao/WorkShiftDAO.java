@@ -32,12 +32,12 @@ public class WorkShiftDAO {
         return list;
     }
 
-    public List<WorkShift> getShiftsByFacility(long facilityId) {
+    public List<WorkShift> getShiftsByComplex(long complexId) {
         List<WorkShift> list = new ArrayList<>();
-        String sql = "SELECT * FROM work_shifts WHERE facility_id = ? ORDER BY shift_date DESC, start_time ASC";
+        String sql = "SELECT * FROM work_shifts WHERE complex_id = ? ORDER BY shift_date DESC, start_time ASC";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, facilityId);
+            ps.setLong(1, complexId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(mapWorkShift(rs));
@@ -66,10 +66,10 @@ public class WorkShiftDAO {
     }
 
     public long insertShift(WorkShift shift) {
-        String sql = "INSERT INTO work_shifts (facility_id, shift_name, shift_date, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, GETDATE())";
+        String sql = "INSERT INTO work_shifts (complex_id, shift_name, shift_date, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, GETDATE())";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
-            ps.setLong(1, shift.getFacilityId());
+            ps.setLong(1, shift.getComplexId());
             ps.setString(2, shift.getShiftName());
             ps.setDate(3, Date.valueOf(shift.getShiftDate()));
             ps.setTime(4, Time.valueOf(shift.getStartTime()));
@@ -89,10 +89,10 @@ public class WorkShiftDAO {
     }
 
     public boolean updateShift(WorkShift shift) {
-        String sql = "UPDATE work_shifts SET facility_id = ?, shift_name = ?, shift_date = ?, start_time = ?, end_time = ? WHERE shift_id = ?";
+        String sql = "UPDATE work_shifts SET complex_id = ?, shift_name = ?, shift_date = ?, start_time = ?, end_time = ? WHERE shift_id = ?";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, shift.getFacilityId());
+            ps.setLong(1, shift.getComplexId());
             ps.setString(2, shift.getShiftName());
             ps.setDate(3, Date.valueOf(shift.getShiftDate()));
             ps.setTime(4, Time.valueOf(shift.getStartTime()));
@@ -293,13 +293,13 @@ public class WorkShiftDAO {
         return false;
     }
 
-    public boolean hasOverlappingShiftAtFacility(long facilityId, java.time.LocalDate date, java.time.LocalTime start, java.time.LocalTime end, Long excludeShiftId) {
+    public boolean hasOverlappingShiftAtComplex(long complexId, java.time.LocalDate date, java.time.LocalTime start, java.time.LocalTime end, Long excludeShiftId) {
         String sql = "SELECT * FROM work_shifts " +
-                     "WHERE facility_id = ? AND shift_date BETWEEN ? AND ?";
+                     "WHERE complex_id = ? AND shift_date BETWEEN ? AND ?";
         List<WorkShift> list = new ArrayList<>();
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-             ps.setLong(1, facilityId);
+             ps.setLong(1, complexId);
              ps.setDate(2, Date.valueOf(date.minusDays(1)));
              ps.setDate(3, Date.valueOf(date.plusDays(1)));
              try (ResultSet rs = ps.executeQuery()) {
@@ -333,7 +333,7 @@ public class WorkShiftDAO {
     private WorkShift mapWorkShift(ResultSet rs) throws SQLException {
         WorkShift ws = new WorkShift();
         ws.setShiftId(rs.getLong("shift_id"));
-        ws.setFacilityId(rs.getLong("facility_id"));
+        ws.setComplexId(rs.getLong("complex_id"));
         ws.setShiftName(rs.getString("shift_name"));
         ws.setShiftDate(rs.getDate("shift_date").toLocalDate());
         ws.setStartTime(rs.getTime("start_time").toLocalTime());

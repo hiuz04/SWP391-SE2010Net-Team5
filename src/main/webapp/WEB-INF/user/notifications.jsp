@@ -2,6 +2,30 @@
 <%@ page import="java.util.List" %>
 <%@ page import="com.swp.model.Notification" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%!
+    private String esc(Object value) {
+        if (value == null) return "";
+        return value.toString()
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
+    }
+
+    private String notificationLink(String ctx, Notification notif) {
+        if (notif == null || notif.getReferenceId() == null) return "#";
+        String type = notif.getNotificationType();
+        Long ref = notif.getReferenceId();
+        if ("CHECKOUT_PAYMENT".equals(type) || "CHECKOUT_PAYMENT_SUCCESS".equals(type)) {
+            return ctx + "/customer/checkout-invoice?id=" + ref;
+        }
+        if ("BOOKING".equals(type) || "REMINDER".equals(type)) {
+            return ctx + "/booking?action=detail&id=" + ref;
+        }
+        return "#";
+    }
+%>
 <%
     User sessionUser = (User) request.getAttribute("sessionUser");
     if (sessionUser == null) sessionUser = (User) session.getAttribute("user");
@@ -10,7 +34,7 @@
     if (navRole == null) navRole = "guest";
     String displayName = sessionUser != null ? sessionUser.getFullName() : "";
     String ctx = request.getContextPath();
-    
+
     List<Notification> notifications = (List<Notification>) request.getAttribute("notifications");
 %>
 <!DOCTYPE html>
@@ -24,7 +48,7 @@
     <title>Thông báo của bạn | Sport Field Booking</title>
 </head>
 <body class="bg-light">
-<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active=""></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= esc(displayName) %>" data-active=""></div>
 
 <main class="py-5">
     <div class="container" style="max-width: 800px;">
@@ -43,24 +67,26 @@
                 <ul class="list-group list-group-flush rounded-4">
                     <% if (notifications != null && !notifications.isEmpty()) {
                         for (Notification notif : notifications) {
-                            String bgClass = notif.getIsRead() ? "bg-white" : "bg-light";
+                            String bgClass = Boolean.TRUE.equals(notif.getIsRead()) ? "bg-white" : "bg-light";
+                            String href = notificationLink(ctx, notif);
+                            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM");
+                            String createdText = notif.getCreatedAt() != null ? notif.getCreatedAt().format(formatter) : "";
                     %>
-                    <li class="list-group-item p-4 <%= bgClass %>" id="notif-<%= notif.getNotificationId() %>">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1 fw-bold <%= notif.getIsRead() ? "text-secondary" : "text-dark" %>">
-                                <% if (!notif.getIsRead()) { %><span class="text-danger me-1">●</span><% } %>
-                                <%= notif.getTitle() %>
-                            </h6>
-                            <small class="text-muted">
-                                <% 
-                                    java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM");
-                                    out.print(notif.getCreatedAt() != null ? notif.getCreatedAt().format(formatter) : "");
-                                %>
-                            </small>
-                        </div>
-                        <p class="mb-1 mt-2 <%= notif.getIsRead() ? "text-muted" : "text-dark" %>" style="font-size: 0.95rem;">
-                            <%= notif.getMessage() %>
-                        </p>
+                    <li class="list-group-item p-0 <%= bgClass %>" id="notif-<%= notif.getNotificationId() %>">
+                        <a class="d-block p-4 text-decoration-none text-reset"
+                           href="<%= esc(href) %>"
+                           onclick="openNotification(event, <%= notif.getNotificationId() %>, '<%= esc(href) %>')">
+                            <div class="d-flex w-100 justify-content-between gap-3">
+                                <h6 class="mb-1 fw-bold <%= Boolean.TRUE.equals(notif.getIsRead()) ? "text-secondary" : "text-dark" %>">
+                                    <% if (!Boolean.TRUE.equals(notif.getIsRead())) { %><span class="text-danger me-1">●</span><% } %>
+                                    <%= esc(notif.getTitle()) %>
+                                </h6>
+                                <small class="text-muted text-nowrap"><%= esc(createdText) %></small>
+                            </div>
+                            <p class="mb-1 mt-2 <%= Boolean.TRUE.equals(notif.getIsRead()) ? "text-muted" : "text-dark" %>" style="font-size: 0.95rem;">
+                                <%= esc(notif.getMessage()) %>
+                            </p>
+                        </a>
                     </li>
                     <% } } else { %>
                     <li class="list-group-item p-5 text-center text-muted">
@@ -78,5 +104,21 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
+<script>
+  function openNotification(event, id, href) {
+    if (event) event.preventDefault();
+    fetch('<%= ctx %>/api/notifications', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'action=mark_read&id=' + encodeURIComponent(id)
+    }).finally(() => {
+      if (href && href !== '#') {
+        window.location.href = href;
+      } else {
+        window.location.reload();
+      }
+    });
+  }
+</script>
 </body>
 </html>

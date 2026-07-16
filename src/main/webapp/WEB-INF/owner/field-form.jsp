@@ -43,8 +43,8 @@
           </div>
 
           <div class="mb-3">
-            <label for="fac" class="form-label">Cơ sở sở hữu sân <span class="text-danger">*</span></label>
-            <select name="facilityId" id="fac"
+            <label for="fc" class="form-label">Cơ sở sở hữu sân <span class="text-danger">*</span></label>
+            <select name="complexId" id="fc"
                     class="form-select custom-input" required>
             </select>
           </div>

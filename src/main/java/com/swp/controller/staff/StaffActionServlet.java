@@ -1,6 +1,7 @@
 package com.swp.controller.staff;
 
 import com.swp.dao.StaffDashboardDAO;
+import com.swp.dao.StaffBillingDAO;
 import com.swp.model.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -12,10 +13,11 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-@WebServlet({"/api/staff/checkin", "/api/staff/checkin/search", "/api/staff/field/update-status"})
+@WebServlet({"/api/staff/checkin", "/api/staff/checkin/search", "/api/staff/field/update-status", "/api/staff/no-show-cancel"})
 public class StaffActionServlet extends HttpServlet {
 
     private final StaffDashboardDAO staffDAO = new StaffDashboardDAO();
+    private final StaffBillingDAO billingDAO = new StaffBillingDAO();
     private static final int ROLE_STAFF = 3;
     private static final int ROLE_OWNER = 2;
 
@@ -25,17 +27,9 @@ public class StaffActionServlet extends HttpServlet {
         resp.setContentType("application/json;charset=UTF-8");
         req.setCharacterEncoding("UTF-8");
 
-        User user = getSessionUser(req);
-        if (user == null) {
-            resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            write(resp, "{\"error\":\"Chưa đăng nhập\"}");
-            return;
-        }
-        if (!isStaffOrOwner(user)) {
-            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            write(resp, "{\"error\":\"Không có quyền truy cập\"}");
-            return;
-        }
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
+
 
         String path = getPath(req);
         long staffId = user.getUserId();
@@ -83,9 +77,9 @@ public class StaffActionServlet extends HttpServlet {
                     write(resp, "{\"error\":\"Bạn không có ca làm việc hôm nay để thực hiện tìm kiếm\"}");
                     return;
                 }
-                long facilityId = (Long) shift.get("facilityId");
+                long complexId = (Long) shift.get("complexId");
 
-                java.util.List<java.util.Map<String, Object>> list = staffDAO.searchConfirmedBookings(facilityId, query);
+                java.util.List<java.util.Map<String, Object>> list = staffDAO.searchConfirmedBookings(complexId, query);
                 write(resp, toJson(list));
                 return;
             }
@@ -104,17 +98,9 @@ public class StaffActionServlet extends HttpServlet {
         resp.setContentType("application/json;charset=UTF-8");
         req.setCharacterEncoding("UTF-8");
 
-        User user = getSessionUser(req);
-        if (user == null) {
-            resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            write(resp, "{\"error\":\"Chưa đăng nhập\"}");
-            return;
-        }
-        if (!isStaffOrOwner(user)) {
-            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            write(resp, "{\"error\":\"Không có quyền truy cập\"}");
-            return;
-        }
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
+
 
         String path = getPath(req);
         long staffId = user.getUserId();
@@ -131,6 +117,11 @@ public class StaffActionServlet extends HttpServlet {
 
             if (path.startsWith("/api/staff/field/update-status")) {
                 handleFieldStatusUpdate(req, resp);
+                return;
+            }
+
+            if (path.startsWith("/api/staff/no-show-cancel")) {
+                handleNoShowCancel(req, resp, user);
                 return;
             }
 
@@ -202,6 +193,28 @@ public class StaffActionServlet extends HttpServlet {
         }
     }
 
+    private void handleNoShowCancel(HttpServletRequest req, HttpServletResponse resp, User user) throws Exception {
+        String bookingIdStr = req.getParameter("bookingId");
+        if (bookingIdStr == null || bookingIdStr.trim().isEmpty()) {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            write(resp, "{\"error\":\"Ma booking khong hop le\"}");
+            return;
+        }
+
+        long bookingId = Long.parseLong(bookingIdStr.trim());
+        boolean success = billingDAO.cancelLateNoShowBooking(
+                bookingId,
+                user.getUserId(),
+                user.getRoleId() == ROLE_STAFF
+        );
+        if (success) {
+            write(resp, "{\"success\":true,\"message\":\"Da huy booking do khach den muon qua 30 phut.\"}");
+        } else {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            write(resp, "{\"error\":\"Khong the huy booking no-show.\"}");
+        }
+    }
+
     private boolean ensureActiveShift(HttpServletResponse resp, long staffId) throws IOException {
         java.util.Map<String, Object> shift = staffDAO.getCurrentShift(staffId);
         if (shift.isEmpty()) {
@@ -229,14 +242,7 @@ public class StaffActionServlet extends HttpServlet {
         return true;
     }
 
-    private User getSessionUser(HttpServletRequest req) {
-        HttpSession session = req.getSession(false);
-        return (session != null) ? (User) session.getAttribute("user") : null;
-    }
 
-    private boolean isStaffOrOwner(User user) {
-        return user.getRoleId() == ROLE_STAFF || user.getRoleId() == ROLE_OWNER;
-    }
 
     private String getPath(HttpServletRequest req) {
         String uri = req.getRequestURI();

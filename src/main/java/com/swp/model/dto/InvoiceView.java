@@ -10,19 +10,26 @@ public class InvoiceView {
     private LocalDateTime issuedAt;
     private Long bookingId;
     private String bookingCode;
-    private Long facilityId;
+    private Long customerId;
+    private Long fieldId;
+    private Long complexId;
     private String customerName;
     private String customerPhone;
-    private String facilityName;
-    private String facilityAddress;
+    private String complexName;
+    private String complexAddress;
     private String fieldName;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private BigDecimal fieldFee = BigDecimal.ZERO;
     private BigDecimal depositAmount = BigDecimal.ZERO;
+    private long overtimeMinutes;
+    private BigDecimal overtimeFee = BigDecimal.ZERO;
     private BigDecimal subtotal = BigDecimal.ZERO;
     private BigDecimal totalAmount = BigDecimal.ZERO;
     private BigDecimal paidAmount = BigDecimal.ZERO;
+    private String bookingStatus;
+    private String paymentStatus;
+    private String paymentMethodName;
     private String staffName;
 
     public Long getInvoiceId() {
@@ -73,12 +80,28 @@ public class InvoiceView {
         this.bookingCode = bookingCode;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getCustomerId() {
+        return customerId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setCustomerId(Long customerId) {
+        this.customerId = customerId;
+    }
+
+    public Long getComplexId() {
+        return complexId;
+    }
+
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
+    }
+
+    public Long getFieldId() {
+        return fieldId;
+    }
+
+    public void setFieldId(Long fieldId) {
+        this.fieldId = fieldId;
     }
 
     public String getCustomerName() {
@@ -97,20 +120,20 @@ public class InvoiceView {
         this.customerPhone = customerPhone;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 
-    public String getFacilityAddress() {
-        return facilityAddress;
+    public String getComplexAddress() {
+        return complexAddress;
     }
 
-    public void setFacilityAddress(String facilityAddress) {
-        this.facilityAddress = facilityAddress;
+    public void setComplexAddress(String complexAddress) {
+        this.complexAddress = complexAddress;
     }
 
     public String getFieldName() {
@@ -153,6 +176,22 @@ public class InvoiceView {
         this.depositAmount = depositAmount != null ? depositAmount : BigDecimal.ZERO;
     }
 
+    public long getOvertimeMinutes() {
+        return overtimeMinutes;
+    }
+
+    public void setOvertimeMinutes(long overtimeMinutes) {
+        this.overtimeMinutes = Math.max(0, overtimeMinutes);
+    }
+
+    public BigDecimal getOvertimeFee() {
+        return overtimeFee;
+    }
+
+    public void setOvertimeFee(BigDecimal overtimeFee) {
+        this.overtimeFee = overtimeFee != null ? overtimeFee : BigDecimal.ZERO;
+    }
+
     public BigDecimal getSubtotal() {
         return subtotal;
     }
@@ -175,6 +214,35 @@ public class InvoiceView {
 
     public void setPaidAmount(BigDecimal paidAmount) {
         this.paidAmount = paidAmount != null ? paidAmount : BigDecimal.ZERO;
+    }
+
+    public BigDecimal getAmountDue() {
+        BigDecimal due = totalAmount.subtract(paidAmount);
+        return due.signum() < 0 ? BigDecimal.ZERO : due;
+    }
+
+    public String getBookingStatus() {
+        return bookingStatus;
+    }
+
+    public void setBookingStatus(String bookingStatus) {
+        this.bookingStatus = bookingStatus;
+    }
+
+    public String getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
+    public String getPaymentMethodName() {
+        return paymentMethodName;
+    }
+
+    public void setPaymentMethodName(String paymentMethodName) {
+        this.paymentMethodName = paymentMethodName;
     }
 
     public String getStaffName() {

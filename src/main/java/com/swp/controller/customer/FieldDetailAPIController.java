@@ -4,13 +4,18 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
-import com.swp.dao.FacilityDAO;
+import com.swp.dao.FootballComplexDAO;
 import com.swp.dao.FieldDAO;
 import com.swp.dao.FieldTypeDAO;
-import com.swp.model.Facility;
 import com.swp.model.Field;
 import com.swp.model.FieldType;
+import com.swp.model.FootballComplex;
+import com.swp.model.dto.FeedbackDTO;
 import com.swp.model.dto.FieldDetail;
+import com.swp.service.FeedbackService;
+import com.swp.service.FieldService;
+import com.swp.service.FieldTypeService;
+import com.swp.service.FootballComplexService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -27,18 +32,20 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @WebServlet("/field")
-public class GetFieldDetails extends HttpServlet {
+public class FieldDetailAPIController extends HttpServlet {
 
-    private static final FacilityDAO facilityDao = new FacilityDAO();
-    private static final FieldDAO fieldDAO = new FieldDAO();
-    private static final FieldTypeDAO fieldTypeDao = new FieldTypeDAO();
+    private static final FootballComplexService complexService = new FootballComplexService();
+    private static final FieldService fieldService = new FieldService();
+    private static final FieldTypeService typeService = new FieldTypeService();
+    private static final FeedbackService feedbackService = new FeedbackService();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        long facilityId = Long.parseLong(req.getParameter("id"));
-        Facility facility = facilityDao.getFacilityDataByID(facilityId);
-        List<Field> fields = fieldDAO.getFieldBelongToThisFacilityId(facilityId);
-        List<FieldType> fieldTypes = fieldTypeDao.getAllFieldTypes();
+        long complexId = Long.parseLong(req.getParameter("id"));
+        FootballComplex complex = complexService.getFootballComplexInfo(complexId);
+        List<Field> fields = fieldService.getFieldOfThisComplex(complexId);
+        List<FieldType> fieldTypes = typeService.getAllType();
+        List<FeedbackDTO> feedbacks = feedbackService.getAllFeedbackOfThisComplexes(complexId);
         FieldDetail detail = new FieldDetail();
 
         Map<Integer, FieldType> fieldTypeMap = fieldTypes.stream()
@@ -46,27 +53,29 @@ public class GetFieldDetails extends HttpServlet {
                         FieldType::getFieldTypeId,
                         Function.identity()
                 ));
-        List<FieldType> typeOfFac = fields.stream()
+        List<FieldType> typeOfFc = fields.stream()
                 .map(Field::getFieldTypeId)
                 .distinct()
                 .map(fieldTypeMap::get)
                 .filter(Objects::nonNull)
                 .toList();
 
-        detail.setFacilityId(facilityId);
-        detail.setFacilityName(facility.getFacilityName());
+        detail.setComplexId(complexId);
+        detail.setComplexName(complex.getComplexName());
         detail.setComplexAddress(String.join(", ",
-                facility.getAddress(),
-                facility.getWard(),
-                facility.getDistrict(),
-                facility.getCity()
+                complex.getAddress(),
+                complex.getWard(),
+                complex.getDistrict(),
+                complex.getCity()
         ));
-        detail.setDescription(facility.getDescription());
-        detail.setFieldTypeList(typeOfFac);
-        detail.setOpeningTime(facility.getOpeningTime());
-        detail.setClosingTime(facility.getClosingTime());
+        detail.setDescription(complex.getDescription());
+        detail.setFieldTypeList(typeOfFc);
+        detail.setOpeningTime(complex.getOpeningTime());
+        detail.setClosingTime(complex.getClosingTime());
         detail.setFields(fields);
-        detail.setHotline(facility.getHotline());
+        detail.setHotline(complex.getHotline());
+
+        detail.setFeedbacks(feedbacks);
 
         resp.setContentType("application/json;charset=UTF-8");
         Gson gson = new GsonBuilder()
