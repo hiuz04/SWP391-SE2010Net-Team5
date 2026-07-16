@@ -26,6 +26,14 @@
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
+    private BigDecimal vipDiscount(BigDecimal originalPrice, BigDecimal voucherDiscount, BigDecimal finalAmount) {
+        BigDecimal original = originalPrice == null ? BigDecimal.ZERO : originalPrice;
+        BigDecimal voucher = voucherDiscount == null ? BigDecimal.ZERO : voucherDiscount;
+        BigDecimal payable = finalAmount == null ? BigDecimal.ZERO : finalAmount;
+        BigDecimal discount = original.subtract(voucher).subtract(payable);
+        return discount.compareTo(BigDecimal.ZERO) > 0 ? discount : BigDecimal.ZERO;
+    }
+
     private String timeOnly(LocalDateTime value) {
         if (value == null) return "";
         return value.format(DateTimeFormatter.ofPattern("HH:mm"));
@@ -152,8 +160,10 @@
             && booking.getHoldExpiresAt().isAfter(LocalDateTime.now());
     BigDecimal discountAmount = booking.getDiscountAmount() == null ? BigDecimal.ZERO : booking.getDiscountAmount();
     BigDecimal finalAmount = booking.getFinalAmount() != null ? booking.getFinalAmount() : booking.getTotalAmount();
+    BigDecimal vipDiscountAmount = vipDiscount(booking.getOriginalPrice(), discountAmount, finalAmount);
     boolean hasVoucher = booking.getVoucherCode() != null && !booking.getVoucherCode().isBlank();
     boolean hasDiscount = discountAmount.compareTo(BigDecimal.ZERO) > 0;
+    boolean hasVipDiscount = vipDiscountAmount.compareTo(BigDecimal.ZERO) > 0;
 %>
 
 <!DOCTYPE html>
@@ -272,8 +282,14 @@
                     <% } %>
                     <% if (hasDiscount) { %>
                     <div class="d-flex justify-content-between mb-2 text-success">
-                        <span>Gi&#7843;m gi&#225;</span>
+                        <span>Gi&#7843;m voucher</span>
                         <strong>-<%= money(discountAmount) %></strong>
+                    </div>
+                    <% } %>
+                    <% if (hasVipDiscount) { %>
+                    <div class="d-flex justify-content-between mb-2 text-success">
+                        <span>&#431;u &#273;&#227;i h&#7897;i vi&#234;n (5%)</span>
+                        <strong>-<%= money(vipDiscountAmount) %></strong>
                     </div>
                     <% } %>
                     <div class="d-flex justify-content-between mb-2">
