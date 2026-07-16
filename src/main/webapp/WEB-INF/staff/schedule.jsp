@@ -342,7 +342,6 @@
                   java.math.BigDecimal total = (java.math.BigDecimal) b.get("totalAmount");
                   boolean hasInvoice = Boolean.TRUE.equals(b.get("hasInvoice"));
                   boolean checkoutDue = Boolean.TRUE.equals(b.get("checkoutDue"));
-                  boolean lateNoShowEligible = Boolean.TRUE.equals(b.get("lateNoShowEligible"));
 
                   String sTimeVal = bStart != null ? bStart : "00:00:00";
                   if (sTimeVal.contains(" ")) sTimeVal = sTimeVal.split(" ")[1];
@@ -372,14 +371,7 @@
                   }
 
                   if ("CONFIRMED".equals(bStatus)) {
-                    if (lateNoShowEligible) {
-                      statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-person-x me-1'></i>No-show</span>";
-                      actionButton = isUpcomingShift
-                        ? "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-lock-fill me-1'></i>Cho ca truc</button>"
-                        : (isEndedShift
-                          ? "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-lock-fill me-1'></i>Het ca truc</button>"
-                          : "<button type='button' class='btn btn-sm btn-outline-danger px-3' onclick='cancelNoShow(" + bId + ")'><i class='bi bi-person-x me-1'></i>Huy do khach den muon</button>");
-                    } else if (isExpired) {
+                    if (isExpired) {
                       statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-exclamation-triangle me-1'></i>Quá giờ</span>";
                       actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-exclamation-circle me-1'></i>Quá giờ nhận</button>";
                     } else {
@@ -518,28 +510,6 @@
     }
   }
 
-  async function cancelNoShow(bookingId) {
-    if (!confirm('Huy booking nay do khach den muon qua 30 phut?')) {
-      return;
-    }
-    try {
-      const params = new URLSearchParams();
-      params.append('bookingId', bookingId);
-      const res = await fetch('<%= ctx %>/api/staff/no-show-cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params,
-        credentials: 'include'
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Khong the huy booking no-show.');
-      }
-      window.location.reload();
-    } catch (err) {
-      alert(err.message || 'Khong the huy booking no-show.');
-    }
-  }
 </script>
 </body>
 </html>
