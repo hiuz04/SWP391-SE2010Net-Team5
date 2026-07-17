@@ -1,0 +1,12 @@
+vnpay.tmnCode=YOUR_TMN_CODE
+vnpay.hashSecret=YOUR_HASH_SECRET
+vnpay.payUrl=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+vnpay.returnUrl=https://YOUR_NGROK_DOMAIN/payment/vnpay-return
+vnpay.ipnUrl=https://YOUR_NGROK_DOMAIN/payment/vnpay-ipn
+vnpay.version=2.1.0
+vnpay.command=pay
+vnpay.orderType=other
+vnpay.currCode=VND
+vnpay.locale=vn
+vnpay.timeZone=Asia/Ho_Chi_Minh
+vnpay.expireMinutes=15

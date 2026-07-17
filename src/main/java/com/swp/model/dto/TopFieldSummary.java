@@ -14,32 +14,39 @@ public class TopFieldSummary {
     private String description;
     private String status;
     private String fieldTypeName;
+    private boolean isHot;
 
-    private long facilityId;
-    private String facilityName;
+    private long complexId;
+    private String complexName;
     private String address;
     private String district;
     private String city;
 
     private int bookingCount;
+    private String imageUrl;
+    private java.math.BigDecimal currentPrice;
 
     public TopFieldSummary() {
     }
 
     public TopFieldSummary(long fieldId, String fieldName, String description, String status,
-                           String fieldTypeName, long facilityId, String facilityName,
-                           String address, String district, String city, int bookingCount) {
+                           String fieldTypeName, boolean isHot, long complexId, String complexName,
+                           String address, String district, String city, int bookingCount, String imageUrl,
+                           java.math.BigDecimal currentPrice) {
         this.fieldId = fieldId;
         this.fieldName = fieldName;
         this.description = description;
         this.status = status;
         this.fieldTypeName = fieldTypeName;
-        this.facilityId = facilityId;
-        this.facilityName = facilityName;
+        this.isHot = isHot;
+        this.complexId = complexId;
+        this.complexName = complexName;
         this.address = address;
         this.district = district;
         this.city = city;
         this.bookingCount = bookingCount;
+        this.imageUrl = imageUrl;
+        this.currentPrice = currentPrice;
     }
 
     public long getFieldId() { return fieldId; }
@@ -57,11 +64,14 @@ public class TopFieldSummary {
     public String getFieldTypeName() { return fieldTypeName; }
     public void setFieldTypeName(String fieldTypeName) { this.fieldTypeName = fieldTypeName; }
 
-    public long getFacilityId() { return facilityId; }
-    public void setFacilityId(long facilityId) { this.facilityId = facilityId; }
+    public boolean isHot() { return isHot; }
+    public void setHot(boolean isHot) { this.isHot = isHot; }
 
-    public String getFacilityName() { return facilityName; }
-    public void setFacilityName(String facilityName) { this.facilityName = facilityName; }
+    public long getComplexId() { return complexId; }
+    public void setComplexId(long complexId) { this.complexId = complexId; }
+
+    public String getComplexName() { return complexName; }
+    public void setComplexName(String complexName) { this.complexName = complexName; }
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
@@ -74,6 +84,12 @@ public class TopFieldSummary {
 
     public int getBookingCount() { return bookingCount; }
     public void setBookingCount(int bookingCount) { this.bookingCount = bookingCount; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public java.math.BigDecimal getCurrentPrice() { return currentPrice; }
+    public void setCurrentPrice(java.math.BigDecimal currentPrice) { this.currentPrice = currentPrice; }
 
     /** Trả về địa chỉ đầy đủ gồm district + city */
     public String getFullLocation() {

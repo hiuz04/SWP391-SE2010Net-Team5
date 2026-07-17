@@ -11,6 +11,8 @@ import com.swp.util.GoogleConfig;
 import com.swp.util.PasswordUtil;
 import com.swp.util.RegisterValidator;
 import com.swp.util.ValidationResult;
+import com.swp.util.RecaptchaUtil;
+import com.swp.util.MailUtil;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -19,6 +21,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
 
 @WebServlet("/register")
 public class RegisterServlet extends HttpServlet {
@@ -38,8 +42,7 @@ public class RegisterServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/");
             return;
         }
-        request.setAttribute("googleEnabled", GoogleConfig.isConfigured());
-        request.getRequestDispatcher("/register.jsp").forward(request, response);
+        forward(request, response);
     }
 
     /**
@@ -52,6 +55,14 @@ public class RegisterServlet extends HttpServlet {
             throws ServletException, IOException {
 
         request.setCharacterEncoding("UTF-8");
+
+        HttpSession currentSession = request.getSession(false);
+        String sessionCsrf = currentSession != null ? (String) currentSession.getAttribute("csrfToken") : null;
+        String requestCsrf = request.getParameter("csrfToken");
+        if (sessionCsrf == null || !sessionCsrf.equals(requestCsrf)) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid CSRF Token");
+            return;
+        }
 
         String fullName = trim(request.getParameter("fullName"));
         String phone = trim(request.getParameter("phone"));
@@ -67,6 +78,19 @@ public class RegisterServlet extends HttpServlet {
         if (!validation.isValid()) {
             request.setAttribute("fieldErrors", validation.getFieldErrors());
             request.setAttribute("error", validation.getGeneralError());
+            forward(request, response);
+            return;
+        }
+
+        // Validate reCAPTCHA
+        String recaptchaResponse = request.getParameter("g-recaptcha-response");
+        if (recaptchaResponse == null || recaptchaResponse.isEmpty()) {
+            request.setAttribute("error", "Vui lòng xác nhận bạn không phải người máy.");
+            forward(request, response);
+            return;
+        }
+        if (!RecaptchaUtil.verify(recaptchaResponse)) {
+            request.setAttribute("error", "Xác thực reCAPTCHA thất bại. Vui lòng thử lại.");
             forward(request, response);
             return;
         }
@@ -98,12 +122,37 @@ public class RegisterServlet extends HttpServlet {
             user.setPhone(phone);
             user.setPasswordHash(PasswordUtil.hashPassword(password));
 
-            userDAO.insert(user);
-            response.sendRedirect(request.getContextPath() + "/login?registered=1");
-        } catch (RuntimeException e) {
-            request.setAttribute("error", "Không thể đăng ký. Kiểm tra kết nối database và bảng roles.");
+            // Generate OTP
+            String otpCode = generateOtp();
+            LocalDateTime expiryTime = LocalDateTime.now().plusMinutes(5);
+
+            // Save to Session
+            HttpSession session = request.getSession(true);
+            session.setAttribute("registrationUser", user);
+            session.setAttribute("registrationOtp", otpCode);
+            session.setAttribute("registrationExpiry", expiryTime);
+
+            // Send Email
+            if (MailUtil.isConfigured()) {
+                String subject = "Xác thực tài khoản mới - Sport Field Booking";
+                String htmlBody = MailUtil.buildRegistrationOtpEmail(fullName, otpCode);
+                MailUtil.sendHtml(email, subject, htmlBody);
+                response.sendRedirect(request.getContextPath() + "/verify-registration");
+            } else {
+                request.setAttribute("error", "Hệ thống email chưa được cấu hình. Không thể gửi mã xác thực.");
+                forward(request, response);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            request.setAttribute("error", "Không thể đăng ký. Lỗi hệ thống: " + e.getMessage());
             forward(request, response);
         }
+    }
+
+    private String generateOtp() {
+        SecureRandom random = new SecureRandom();
+        int otp = 100000 + random.nextInt(900000);
+        return String.valueOf(otp);
     }
 
     /**
@@ -121,6 +170,10 @@ public class RegisterServlet extends HttpServlet {
      */
     private void forward(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        HttpSession session = request.getSession(true);
+        if (session.getAttribute("csrfToken") == null) {
+            session.setAttribute("csrfToken", java.util.UUID.randomUUID().toString());
+        }
         request.setAttribute("googleEnabled", GoogleConfig.isConfigured());
         request.getRequestDispatcher("/register.jsp").forward(request, response);
     }

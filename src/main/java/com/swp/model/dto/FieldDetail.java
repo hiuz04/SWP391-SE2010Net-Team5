@@ -1,15 +1,17 @@
 package com.swp.model.dto;
 
+import com.swp.model.Feedback;
 import com.swp.model.Field;
 import com.swp.model.FieldType;
+import com.swp.model.PriceRule;
 
 import java.time.LocalTime;
 import java.util.List;
 
 public class FieldDetail {
 
-    private long facilityId;
-    private String facilityName;
+    private long complexId;
+    private String complexName;
     private String complexAddress;
     private List<FieldType> fieldTypeList;
     private List<Field> fields;
@@ -17,13 +19,16 @@ public class FieldDetail {
     private LocalTime openingTime;
     private LocalTime closingTime;
     private String hotline;
+    private List<FeedbackDTO> feedbacks;
+    private List<PriceRule> priceRules;
+    private java.math.BigDecimal currentPrice;
 
     public FieldDetail() {
     }
 
-    public FieldDetail(long facilityId, String facilityName, String complexAddress, List<FieldType> fieldTypeList, List<Field> fields, String description, LocalTime openingTime, LocalTime closingTime, String hotline) {
-        this.facilityId = facilityId;
-        this.facilityName = facilityName;
+    public FieldDetail(long complexId, String complexName, String complexAddress, List<FieldType> fieldTypeList, List<Field> fields, String description, LocalTime openingTime, LocalTime closingTime, String hotline, List<FeedbackDTO> feedbacks) {
+        this.complexId = complexId;
+        this.complexName = complexName;
         this.complexAddress = complexAddress;
         this.fieldTypeList = fieldTypeList;
         this.fields = fields;
@@ -31,6 +36,23 @@ public class FieldDetail {
         this.openingTime = openingTime;
         this.closingTime = closingTime;
         this.hotline = hotline;
+        this.feedbacks = feedbacks;
+    }
+
+    public List<PriceRule> getPriceRules() {
+        return priceRules;
+    }
+
+    public void setPriceRules(List<PriceRule> priceRules) {
+        this.priceRules = priceRules;
+    }
+
+    public java.math.BigDecimal getCurrentPrice() {
+        return currentPrice;
+    }
+
+    public void setCurrentPrice(java.math.BigDecimal currentPrice) {
+        this.currentPrice = currentPrice;
     }
 
     public List<Field> getFields() {
@@ -49,20 +71,20 @@ public class FieldDetail {
         this.hotline = hotline;
     }
 
-    public long getFacilityId() {
-        return facilityId;
+    public long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(long complexId) {
+        this.complexId = complexId;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 
     public String getComplexAddress() {
@@ -103,5 +125,13 @@ public class FieldDetail {
 
     public void setClosingTime(LocalTime closingTime) {
         this.closingTime = closingTime;
+    }
+
+    public List<FeedbackDTO> getFeedbacks() {
+        return feedbacks;
+    }
+
+    public void setFeedbacks(List<FeedbackDTO> feedbacks) {
+        this.feedbacks = feedbacks;
     }
 }

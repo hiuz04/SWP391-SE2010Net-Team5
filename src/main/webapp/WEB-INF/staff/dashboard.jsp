@@ -65,9 +65,21 @@
       display: inline-block; 
       animation: pulse-dot 1.4s ease-in-out infinite; 
     }
+    .live-dot.upcoming { 
+      background: #3b82f6; 
+      animation: pulse-blue 1.4s ease-in-out infinite; 
+    }
+    .live-dot.completed { 
+      background: #94a3b8; 
+      animation: none; 
+    }
     @keyframes pulse-dot { 
       0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,.6) } 
       50% { box-shadow: 0 0 0 6px rgba(74,222,128,0) } 
+    }
+    @keyframes pulse-blue { 
+      0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,.6) } 
+      50% { box-shadow: 0 0 0 6px rgba(59,130,246,0) } 
     }
     .ring-wrap { 
       position: relative; 
@@ -223,6 +235,20 @@
       </div>
     </div>
 
+    <!-- Alert message for shift restriction -->
+    <div id="shift-restriction-alert" class="alert alert-warning alert-dismissible fade show d-none rounded-4 border-0 shadow-sm p-4 mb-4" role="alert" style="background-color: #fffbeb; border-left: 5px solid #f59e0b !important;">
+      <div class="d-flex align-items-center gap-3">
+        <div class="p-2 rounded-3 bg-warning text-white" style="font-size: 1.2rem; background-color: #f59e0b !important; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <div>
+          <h6 class="fw-bold mb-1" style="color: #92400e;">Tính năng bị giới hạn</h6>
+          <p class="mb-0 small" style="color: #b45309;">Bạn chỉ được phép thực hiện check-in/checkout trong khung giờ ca làm việc được phân công của ngày hôm nay. Vui lòng quay lại khi đến giờ trực!</p>
+        </div>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="top: 1.5rem;"></button>
+    </div>
+
     <!-- Loading state -->
     <div id="loading-state" class="text-center py-5">
       <div class="spinner-border text-success" role="status"></div>
@@ -257,15 +283,15 @@
           </div>
           <div class="flex-grow-1">
             <div class="d-flex align-items-center gap-2 mb-1">
-              <span class="live-dot"></span>
-              <span class="fw-semibold" style="color:#a3e635;">Ca đang diễn ra</span>
+              <span class="live-dot" id="shift-status-dot"></span>
+              <span class="fw-semibold" style="color:#a3e635;" id="shift-status-lbl">Ca đang diễn ra</span>
             </div>
             <h4 class="fw-bold mb-1">
               <span id="shift-name">—</span>&nbsp;
               <span id="shift-times" style="font-weight:400;opacity:.7;font-size:1rem;"></span>
             </h4>
             <p class="mb-2" style="opacity:.75;font-size:.9rem;">
-              Cơ sở: <strong id="facility-name">—</strong>
+              Cơ sở: <strong id="complex-name">—</strong>
             </p>
             <div class="d-flex align-items-center gap-3">
               <div class="shift-progress-bar flex-grow-1">
@@ -341,6 +367,7 @@
                 <thead style="background:#f8fafc;">
                   <tr>
                     <th class="text-muted" style="font-weight:500;">Giờ</th>
+                    <th class="text-muted" style="font-weight:500;">Mã đặt sân</th>
                     <th class="text-muted" style="font-weight:500;">Sân</th>
                     <th class="text-muted" style="font-weight:500;">Khách</th>
                     <th class="text-muted" style="font-weight:500;">Trạng thái</th>
@@ -348,7 +375,7 @@
                   </tr>
                 </thead>
                 <tbody id="booking-tbody">
-                  <tr><td colspan="5" class="text-center text-muted py-4">Không có booking nào hôm nay</td></tr>
+                  <tr><td colspan="6" class="text-center text-muted py-4">Không có booking nào hôm nay</td></tr>
                 </tbody>
               </table>
             </div>
@@ -388,7 +415,7 @@
                 </a>
               </div>
               <div class="col-6">
-                <a href="<%= ctx %>/staff/checkout" class="shortcut-btn w-100" id="sc-checkout">
+                <a href="<%= ctx %>/staff/schedule" class="shortcut-btn w-100" id="sc-checkout">
                   <div class="sc-icon" style="background:#e0f2fe;color:#0284c7;"><i class="bi bi-receipt-cutoff"></i></div>Checkout
                 </a>
               </div>
@@ -398,7 +425,7 @@
                 </a>
               </div>
               <div class="col-6">
-                <a href="<%= ctx %>/staff/invoice" class="shortcut-btn w-100" id="sc-invoice">
+                <a href="<%= ctx %>/staff/schedule" class="shortcut-btn w-100" id="sc-invoice">
                   <div class="sc-icon" style="background:#f5f3ff;color:#7c3aed;"><i class="bi bi-file-earmark-text-fill"></i></div>Hóa đơn
                 </a>
               </div>
@@ -442,19 +469,58 @@ function fmt(amount) {
   return Number(amount).toLocaleString('vi-VN') + ' ₫';
 }
 
-function statusBadge(status, nowPlaying) {
+function isBookingExpired(endTimeStr) {
+  if (!endTimeStr) return false;
+  try {
+    const isoStr = endTimeStr.replace(' ', 'T').substring(0, 19);
+    const endDt = new Date(isoStr);
+    return endDt < new Date();
+  } catch (e) {
+    return false;
+  }
+}
+
+function statusBadge(status, nowPlaying, isExpired) {
   if (nowPlaying) return '<span class="badge badge-soft-info"><i class="bi bi-play-circle me-1"></i>Đang chơi</span>';
   switch (status) {
     case 'COMPLETED':  return '<span class="badge badge-soft-success"><i class="bi bi-check-circle me-1"></i>Đã xong</span>';
     case 'CHECKED_IN': return '<span class="badge badge-soft-info"><i class="bi bi-play-circle me-1"></i>Đang chơi</span>';
-    case 'CONFIRMED':  return '<span class="badge badge-soft-warning"><i class="bi bi-hourglass-split me-1"></i>Chờ check-in</span>';
+    case 'PENDING_CHECKOUT_PAYMENT': return '<span class="badge" style="background:#fae8ff;color:#a21caf;"><i class="bi bi-credit-card me-1"></i>Cho khach thanh toan</span>';
+    case 'CONFIRMED':
+      if (isExpired) {
+        return '<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Quá giờ</span>';
+      }
+      return '<span class="badge badge-soft-warning"><i class="bi bi-hourglass-split me-1"></i>Chờ check-in</span>';
     default:           return '<span class="badge" style="background:#f1f5f9;color:#64748b;">Sắp tới</span>';
   }
 }
 
-function actionBtn(status, bookingId) {
-  if (status === 'CONFIRMED') return `<a href="<%= ctx %>/staff/checkin?id=${bookingId}" class="btn btn-sm btn-success">Check-in</a>`;
-  if (status === 'CHECKED_IN') return `<a href="<%= ctx %>/staff/checkout?id=${bookingId}" class="btn btn-sm btn-outline-success">Checkout</a>`;
+let currentShiftStatus = 'ONGOING';
+
+function actionBtn(status, bookingId, isExpired, hasInvoice, checkoutDue) {
+  if (currentShiftStatus === 'UPCOMING') {
+    if (status === 'CONFIRMED' || status === 'CHECKED_IN') {
+      return `<button class="btn btn-sm btn-secondary px-3" disabled title="Chưa đến giờ làm việc"><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>`;
+    }
+  }
+  if (currentShiftStatus === 'COMPLETED') {
+    if (status === 'CONFIRMED' || status === 'CHECKED_IN') {
+      return `<button class="btn btn-sm btn-secondary px-3" disabled title="Ca trực đã kết thúc"><i class="bi bi-lock-fill me-1"></i>Hết ca trực</button>`;
+    }
+  }
+  if (status === 'CONFIRMED') {
+    if (isExpired) {
+      return `<button class="btn btn-sm btn-secondary px-3" disabled><i class="bi bi-exclamation-circle me-1"></i>Quá giờ nhận</button>`;
+    }
+    return `<a href="<%= ctx %>/staff/checkin?id=${bookingId}" class="btn btn-sm btn-success">Check-in</a>`;
+  }
+  if (status === 'CHECKED_IN') {
+    return checkoutDue
+      ? `<a href="<%= ctx %>/staff/checkout?id=${bookingId}" class="btn btn-sm btn-outline-success">Checkout</a>`
+      : `<button class="btn btn-sm btn-secondary px-3" disabled>Dang su dung</button>`;
+  }
+  if (status === 'PENDING_CHECKOUT_PAYMENT' && hasInvoice) return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-file-earmark-text me-1"></i>Hoa don</a>`;
+  if (status === 'COMPLETED' && hasInvoice) return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-file-earmark-text me-1"></i>Hóa đơn</a>`;
   return '';
 }
 
@@ -503,12 +569,56 @@ async function loadDashboard() {
     // ── Shift banner ─────────────────────────────────────────────────────
     const s = data.shift;
     document.getElementById('shift-name').textContent   = s.shiftName  || '—';
-    document.getElementById('facility-name').textContent = s.facilityName || '—';
+    document.getElementById('complex-name').textContent = s.complexName || '—';
     document.getElementById('shift-times').textContent  = `${timeOnly(s.startTime)} – ${timeOnly(s.endTime)}`;
     document.getElementById('shift-start').textContent  = timeOnly(s.startTime);
     document.getElementById('shift-end').textContent    = timeOnly(s.endTime);
     document.getElementById('shift-remaining').textContent = s.remaining || '';
     document.getElementById('cash-shift-name').textContent = s.shiftName || 'Ca này';
+
+    const statusDot = document.getElementById('shift-status-dot');
+    const statusLbl = document.getElementById('shift-status-lbl');
+    currentShiftStatus = s.status || 'ONGOING';
+    
+    if (statusDot && statusLbl) {
+      statusDot.className = 'live-dot'; // reset
+      if (currentShiftStatus === 'UPCOMING') {
+        statusDot.classList.add('upcoming');
+        statusLbl.textContent = 'Ca trực chưa diễn ra';
+        statusLbl.style.color = '#3b82f6';
+      } else if (currentShiftStatus === 'COMPLETED') {
+        statusDot.classList.add('completed');
+        statusLbl.textContent = 'Ca trực đã kết thúc';
+        statusLbl.style.color = '#94a3b8';
+      } else {
+        statusLbl.textContent = 'Ca đang diễn ra';
+        statusLbl.style.color = '#a3e635';
+      }
+    }
+
+    if (currentShiftStatus === 'UPCOMING' || currentShiftStatus === 'COMPLETED') {
+      const blockClick = (e) => {
+        e.preventDefault();
+        if (currentShiftStatus === 'UPCOMING') {
+          showToast('Ca trực của bạn chưa bắt đầu (Ca làm việc: ' + timeOnly(s.startTime) + ' - ' + timeOnly(s.endTime) + '). Bạn chỉ được xem dữ liệu, không thể thực hiện thao tác này.', 'warning');
+        } else {
+          showToast('Ca trực của bạn đã kết thúc. Bạn không thể thực hiện thao tác này.', 'danger');
+        }
+      };
+      
+      const checkinBtn = document.getElementById('sc-checkin');
+      const checkoutBtn = document.getElementById('sc-checkout');
+      if (checkinBtn) {
+        checkinBtn.addEventListener('click', blockClick);
+        checkinBtn.style.opacity = '0.6';
+        checkinBtn.style.cursor = 'not-allowed';
+      }
+      if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', blockClick);
+        checkoutBtn.style.opacity = '0.6';
+        checkoutBtn.style.cursor = 'not-allowed';
+      }
+    }
 
     const pct = s.progressPct || 0;
     document.getElementById('shift-pct').textContent = Math.round(pct) + '%';
@@ -544,18 +654,20 @@ async function loadDashboard() {
     const tbody = document.getElementById('booking-tbody');
     const bookings = data.bookings || [];
     if (bookings.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Không có booking nào hôm nay</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Không có booking nào hôm nay</td></tr>';
     } else {
       tbody.innerHTML = bookings.map(b => {
         const nowPlaying = b.nowPlaying && b.status === 'CHECKED_IN';
+        const isExpired = isBookingExpired(b.endTime);
         const rowClass   = nowPlaying ? 'booking-row now-playing' : 'booking-row';
         const timeBgStyle = nowPlaying ? 'background:#dcfce7;color:#15803d;' : '';
         return `<tr class="${rowClass}">
-          <td><span class="time-badge" style="${timeBgStyle}">${timeOnly(b.startTime)}–${timeOnly(b.endTime)}</span></td>
-          <td><strong>${b.fieldName || '—'}</strong></td>
-          <td>${b.customerName || '—'}</td>
-          <td>${statusBadge(b.status, nowPlaying)}</td>
-          <td>${actionBtn(b.status, b.bookingId)}</td>
+          <td style="white-space: nowrap;"><span class="time-badge" style="${timeBgStyle}">${timeOnly(b.startTime)}–${timeOnly(b.endTime)}</span></td>
+          <td style="white-space: nowrap;"><strong>${b.bookingCode || '—'}</strong></td>
+          <td style="white-space: nowrap;"><strong>${b.fieldName || '—'}</strong></td>
+          <td style="white-space: nowrap;">${b.customerName || '—'}</td>
+          <td style="white-space: nowrap;">${statusBadge(b.status, nowPlaying, isExpired)}</td>
+          <td style="white-space: nowrap;">${actionBtn(b.status, b.bookingId, isExpired, b.hasInvoice, b.checkoutDue)}</td>
         </tr>`;
       }).join('');
     }
@@ -584,10 +696,25 @@ async function loadDashboard() {
   }
 }
 
+function checkShiftError() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('error') === 'not_in_shift') {
+    const alertEl = document.getElementById('shift-restriction-alert');
+    if (alertEl) {
+      alertEl.classList.remove('d-none');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', loadDashboard);
+  document.addEventListener('DOMContentLoaded', () => {
+    loadDashboard();
+    checkShiftError();
+  });
 } else {
   loadDashboard();
+  checkShiftError();
 }
 </script>
 </body>

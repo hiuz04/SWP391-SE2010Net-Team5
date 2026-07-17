@@ -30,8 +30,6 @@
 </head>
 <body>
 <div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Tìm sân"></div>
-
-
 <main class="py-4">
     <div class="container">
         <nav aria-label="breadcrumb">
@@ -51,6 +49,8 @@
                         <h2 class="section-title" id="field-name"></h2>
 
                         <p class="text-muted" id="address"></p>
+                        
+                        <h4 class="text-success fw-bold mt-2 mb-3" id="currentPrice"></h4>
 
                         <div class="d-flex gap-4">
                             <span>
@@ -80,12 +80,19 @@
                         </div>
 
                     </div>
-<%--                    <div class="card soft-card p-4">--%>
-<%--                        <h2 class="section-title"><i class="bi bi-tag-fill me-2"></i> Bảng giá thuê sân</h2>--%>
-<%--                        <div id="price-rule-list">--%>
+                    <div class="card soft-card p-4">
+                        <h2 class="section-title"><i class="bi bi-tag-fill me-2"></i> Bảng giá thuê sân</h2>
+                        <div id="price-rule-list" class="mt-3">
+                            <!-- Bảng giá sẽ render ở đây -->
+                        </div>
+                    </div>
+                    <div class="card soft-card p-4 mt-3">
+                        <h2 class="section-title">Đánh giá</h2>
 
-<%--                        </div>--%>
-<%--                    </div>--%>
+                        <div id="feedbackContainer">
+                            <!-- Feedback sẽ được render tại đây -->
+                        </div>
+                    </div>
                 </div>
                 <aside class="col-lg-4">
                     <div class="card soft-card p-4 sidebar-card"><h4 class="fw-bold">Đặt sân</h4>
@@ -102,6 +109,7 @@
 <div id="footer" data-root="../../"></div>
 <script>
     window.APP_CTX = '<%= ctx %>';
+    const currentRole = "<%= navRole %>";
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>

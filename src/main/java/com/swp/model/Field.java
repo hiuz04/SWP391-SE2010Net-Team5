@@ -4,26 +4,28 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 public class Field implements Serializable {
-    private static final long serialVersionUID = 1L;
+//    private static final long serialVersionUID = 1L;
     private Long fieldId;
-    private Long facilityId;
+    private Long complexId;
     private Integer fieldTypeId;
     private String fieldName;
     private String description;
     private String status;
+    private boolean isHot;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public Field() {
     }
 
-    public Field(Long fieldId, Long facilityId, Integer fieldTypeId, String fieldName, String description, String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public Field(Long fieldId, Long complexId, Integer fieldTypeId, String fieldName, String description, String status, boolean isHot, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.fieldId = fieldId;
-        this.facilityId = facilityId;
+        this.complexId = complexId;
         this.fieldTypeId = fieldTypeId;
         this.fieldName = fieldName;
         this.description = description;
         this.status = status;
+        this.isHot = isHot;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -36,12 +38,12 @@ public class Field implements Serializable {
         this.fieldId = fieldId;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
     }
 
     public Integer getFieldTypeId() {
@@ -74,6 +76,14 @@ public class Field implements Serializable {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public boolean isHot() {
+        return isHot;
+    }
+
+    public void setHot(boolean isHot) {
+        this.isHot = isHot;
     }
 
     public LocalDateTime getCreatedAt() {

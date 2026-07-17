@@ -26,6 +26,56 @@
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
+    private BigDecimal vipDiscount(BigDecimal originalPrice, BigDecimal voucherDiscount, BigDecimal finalAmount) {
+        BigDecimal original = originalPrice == null ? BigDecimal.ZERO : originalPrice;
+        BigDecimal voucher = voucherDiscount == null ? BigDecimal.ZERO : voucherDiscount;
+        BigDecimal payable = finalAmount == null ? BigDecimal.ZERO : finalAmount;
+        BigDecimal discount = original.subtract(voucher).subtract(payable);
+        return discount.compareTo(BigDecimal.ZERO) > 0 ? discount : BigDecimal.ZERO;
+    }
+
+    private String timeOnly(LocalDateTime value) {
+        if (value == null) return "";
+        return value.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private String dayOfWeek(LocalDateTime value) {
+        if (value == null) return "";
+        switch (value.getDayOfWeek().getValue()) {
+            case 1:
+                return "Th&#7913; 2";
+            case 2:
+                return "Th&#7913; 3";
+            case 3:
+                return "Th&#7913; 4";
+            case 4:
+                return "Th&#7913; 5";
+            case 5:
+                return "Th&#7913; 6";
+            case 6:
+                return "Th&#7913; 7";
+            default:
+                return "Ch&#7911; nh&#7853;t";
+        }
+    }
+
+    private boolean monthly(BookingView booking) {
+        return booking != null && "MONTHLY".equals(booking.getRepeatType());
+    }
+
+    private String bookingTimeLabel(BookingView booking) {
+        if (booking == null) return "";
+        if (monthly(booking)) {
+            String countText = booking.getRecurringCount() == null
+                    ? ""
+                    : " (" + booking.getRecurringCount() + " bu&#7893;i)";
+            return dayOfWeek(booking.getStartTime()) + ", "
+                    + timeOnly(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime())
+                    + countText;
+        }
+        return dateTime(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime());
+    }
+
     private String statusLabel(String status) {
         if (status == null) return "Kh&#244;ng r&#245;";
         switch (status) {
@@ -35,6 +85,8 @@
                 return "&#272;&#227; x&#225;c nh&#7853;n";
             case "CHECKED_IN":
                 return "&#272;&#227; check-in";
+            case "PENDING_CHECKOUT_PAYMENT":
+                return "Ch&#7901; thanh to&#225;n h&#243;a &#273;&#417;n";
             case "COMPLETED":
                 return "Ho&#224;n t&#7845;t";
             case "CANCELLED":
@@ -55,6 +107,8 @@
             case "COMPLETED":
             case "CHECKED_IN":
                 return "badge-soft-success";
+            case "PENDING_CHECKOUT_PAYMENT":
+                return "badge-soft-warning";
             case "HOLD":
                 return "badge-soft-warning";
             case "CANCELLED":
@@ -100,6 +154,16 @@
     String qrText = booking.getQrCode() != null && !booking.getQrCode().isBlank()
             ? booking.getQrCode()
             : booking.getBookingCode();
+    boolean paymentSuccess = "SUCCESS".equals(booking.getPaymentStatus());
+    boolean holdActive = "HOLD".equals(booking.getStatus())
+            && booking.getHoldExpiresAt() != null
+            && booking.getHoldExpiresAt().isAfter(LocalDateTime.now());
+    BigDecimal discountAmount = booking.getDiscountAmount() == null ? BigDecimal.ZERO : booking.getDiscountAmount();
+    BigDecimal finalAmount = booking.getFinalAmount() != null ? booking.getFinalAmount() : booking.getTotalAmount();
+    BigDecimal vipDiscountAmount = vipDiscount(booking.getOriginalPrice(), discountAmount, finalAmount);
+    boolean hasVoucher = booking.getVoucherCode() != null && !booking.getVoucherCode().isBlank();
+    boolean hasDiscount = discountAmount.compareTo(BigDecimal.ZERO) > 0;
+    boolean hasVipDiscount = vipDiscountAmount.compareTo(BigDecimal.ZERO) > 0;
 %>
 
 <!DOCTYPE html>
@@ -150,15 +214,15 @@
                     <div class="d-flex justify-content-between gap-3 flex-wrap">
                         <div>
                             <h1 class="section-title">Booking <%= esc(booking.getBookingCode()) %></h1>
-                            <p class="text-muted mb-0"><%= esc(booking.getFacilityName()) %> - <%= esc(booking.getFieldName()) %></p>
+                            <p class="text-muted mb-0"><%= esc(booking.getComplexName()) %> - <%= esc(booking.getFieldName()) %></p>
                         </div>
                         <span class="badge <%= statusBadgeClass(booking.getStatus()) %> align-self-start"><%= statusLabel(booking.getStatus()) %></span>
                     </div>
 
                     <div class="row g-3 mt-3">
                         <div class="col-md-6">
-                            <div class="text-muted small">Gi&#7901; b&#7855;t &#273;&#7847;u / kick-off</div>
-                            <div class="fw-semibold"><%= dateTime(booking.getStartTime()) %> - <%= dateTime(booking.getEndTime()) %></div>
+                            <div class="text-muted small"><%= monthly(booking) ? "L&#7883;ch c&#7889; &#273;&#7883;nh" : "Gi&#7901; b&#7855;t &#273;&#7847;u / kick-off" %></div>
+                            <div class="fw-semibold"><%= bookingTimeLabel(booking) %></div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">Lo&#7841;i s&#226;n</div>
@@ -166,11 +230,11 @@
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">&#272;&#7883;a ch&#7881;</div>
-                            <div class="fw-semibold"><%= esc(booking.getFacilityAddress()) %></div>
+                            <div class="fw-semibold"><%= esc(booking.getComplexAddress()) %></div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">Hotline</div>
-                            <div class="fw-semibold"><%= esc(booking.getFacilityHotline()) %></div>
+                            <div class="fw-semibold"><%= esc(booking.getComplexHotline()) %></div>
                         </div>
                     </div>
 
@@ -207,12 +271,34 @@
                     <p class="text-muted">&#272;&#432;a m&#227; n&#224;y cho nh&#226;n vi&#234;n s&#226;n &#273;&#7875; check-in.</p>
                     <hr>
                     <div class="d-flex justify-content-between mb-2">
-                        <span>Ph&#237; s&#226;n</span>
+                        <span>Gi&#225; g&#7889;c</span>
                         <strong><%= money(booking.getOriginalPrice()) %></strong>
                     </div>
+                    <% if (hasVoucher) { %>
                     <div class="d-flex justify-content-between mb-2">
-                        <span>T&#7893;ng ti&#7873;n</span>
-                        <strong><%= money(booking.getTotalAmount()) %></strong>
+                        <span>Mã giảm giá</span>
+                        <strong><%= esc(booking.getVoucherCode()) %></strong>
+                    </div>
+                    <% } %>
+                    <% if (hasDiscount) { %>
+                    <div class="d-flex justify-content-between mb-2 text-success">
+                        <span>Gi&#7843;m voucher</span>
+                        <strong>-<%= money(discountAmount) %></strong>
+                    </div>
+                    <% } %>
+                    <% if (hasVipDiscount) { %>
+                    <div class="d-flex justify-content-between mb-2 text-success">
+                        <span>&#431;u &#273;&#227;i h&#7897;i vi&#234;n (5%)</span>
+                        <strong>-<%= money(vipDiscountAmount) %></strong>
+                    </div>
+                    <% } %>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>T&#7893;ng sau gi&#7843;m</span>
+                        <strong><%= money(finalAmount) %></strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>S&#7889; ti&#7873;n c&#7885;c ph&#7843;i &#273;&#243;ng</span>
+                        <strong><%= money(booking.getDepositAmount()) %></strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>&#272;&#227; thanh to&#225;n</span>
@@ -224,6 +310,18 @@
                     </div>
                     <% if (booking.getPaymentMethodName() != null) { %>
                     <div class="text-muted small mt-2"><%= esc(booking.getPaymentMethodName()) %></div>
+                    <% } %>
+                    <% if (paymentSuccess || "CONFIRMED".equals(booking.getStatus())) { %>
+                    <div class="alert alert-success mt-3 mb-0">
+                        <i class="bi bi-check-circle"></i> &#272;&#227; thanh to&#225;n / booking &#273;&#227; x&#225;c nh&#7853;n.
+                    </div>
+                    <% } else if (holdActive) { %>
+                    <a class="btn btn-sf-primary w-100 mt-3"
+                       href="<%= ctx %>/payment?action=method&bookingId=<%= booking.getBookingId() %>">
+                        <i class="bi bi-credit-card"></i> Thanh to&#225;n ngay
+                    </a>
+                    <% } else if ("HOLD".equals(booking.getStatus())) { %>
+                    <div class="alert alert-warning mt-3 mb-0">Th&#7901;i gian gi&#7919; ch&#7895; &#273;&#227; h&#7871;t h&#7841;n.</div>
                     <% } %>
                     <hr>
                     <% if (booking.isCanCancel()) { %>

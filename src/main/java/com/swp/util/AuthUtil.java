@@ -14,12 +14,14 @@ public final class AuthUtil {
      * Chuyển đổi tên vai trò từ database sang chuỗi navRole
      * dùng để điều hướng menu trong giao diện (app.js).
      *
-     * <p>Mapping:</p>
+     * <p>
+     * Mapping:
+     * </p>
      * <ul>
-     *   <li>ADMIN  → "admin"</li>
-     *   <li>STAFF  → "staff"</li>
-     *   <li>OWNER  → "owner"</li>
-     *   <li>khác   → "customer"</li>
+     * <li>ADMIN → "admin"</li>
+     * <li>STAFF → "staff"</li>
+     * <li>OWNER → "owner"</li>
+     * <li>khác → "customer"</li>
      * </ul>
      *
      * @param roleName tên vai trò lấy từ DB (ví dụ: "ADMIN", "STAFF")
@@ -34,6 +36,19 @@ public final class AuthUtil {
             case "STAFF" -> "staff";
             case "OWNER" -> "owner";
             default -> "customer";
+        };
+    }
+
+    public static String dashboardPath(String roleName) {
+        if (roleName == null || roleName.isBlank()) {
+            return "/";
+        }
+        return switch (roleName.toUpperCase()) {
+            case "ADMIN" -> "/admin/dashboard";
+            case "OWNER" -> "/owner/dashboard";
+            case "STAFF" -> "/staff/dashboard";
+            case "CUSTOMER" -> "/search";
+            default -> "/";
         };
     }
 }

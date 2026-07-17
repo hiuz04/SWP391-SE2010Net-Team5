@@ -17,11 +17,13 @@ public class User implements Serializable {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String roleName;
+    private boolean isVip;
+    private LocalDateTime vipValidUntil;
 
     public User() {
     }
 
-    public User(Long userId, Integer roleId, String fullName, String email, String phone, String passwordHash, String avatarUrl, String googleId, String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public User(Long userId, Integer roleId, String fullName, String email, String phone, String passwordHash, String avatarUrl, String googleId, String status, LocalDateTime createdAt, LocalDateTime updatedAt, String roleName, int rewardPoints) {
         this.userId = userId;
         this.roleId = roleId;
         this.fullName = fullName;
@@ -33,6 +35,8 @@ public class User implements Serializable {
         this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.roleName = roleName;
+        this.rewardPoints = rewardPoints;
     }
 
     public Long getUserId() {
@@ -129,5 +133,21 @@ public class User implements Serializable {
 
     public void setRoleName(String roleName) {
         this.roleName = roleName;
+    }
+
+    public boolean isVip() {
+        return isVip;
+    }
+
+    public void setVip(boolean vip) {
+        isVip = vip;
+    }
+
+    public LocalDateTime getVipValidUntil() {
+        return vipValidUntil;
+    }
+
+    public void setVipValidUntil(LocalDateTime vipValidUntil) {
+        this.vipValidUntil = vipValidUntil;
     }
 }

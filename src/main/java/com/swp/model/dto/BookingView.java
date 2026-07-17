@@ -9,16 +9,19 @@ public class BookingView implements Serializable {
 
     private Long bookingId;
     private String bookingCode;
+    private Long recurringGroupId;
+    private String repeatType;
+    private Integer recurringCount;
 
     private Long customerId;
     private String customerName;
     private String customerPhone;
     private String customerEmail;
 
-    private Long facilityId;
-    private String facilityName;
-    private String facilityAddress;
-    private String facilityHotline;
+    private Long complexId;
+    private String complexName;
+    private String complexAddress;
+    private String complexHotline;
 
     private Long fieldId;
     private String fieldName;
@@ -28,9 +31,12 @@ public class BookingView implements Serializable {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
 
+    private Integer voucherId;
+    private String voucherCode;
     private BigDecimal originalPrice;
     private BigDecimal discountAmount;
     private BigDecimal totalAmount;
+    private BigDecimal finalAmount;
     private BigDecimal depositAmount;
 
     private String status;
@@ -46,6 +52,9 @@ public class BookingView implements Serializable {
     private LocalDateTime updatedAt;
     private boolean canCancel;
     private String cancelReasonMessage;
+
+    private boolean reviewed;
+    private Long feedbackId;
 
     public BookingView() {
     }
@@ -64,6 +73,30 @@ public class BookingView implements Serializable {
 
     public void setBookingCode(String bookingCode) {
         this.bookingCode = bookingCode;
+    }
+
+    public Long getRecurringGroupId() {
+        return recurringGroupId;
+    }
+
+    public void setRecurringGroupId(Long recurringGroupId) {
+        this.recurringGroupId = recurringGroupId;
+    }
+
+    public String getRepeatType() {
+        return repeatType;
+    }
+
+    public void setRepeatType(String repeatType) {
+        this.repeatType = repeatType;
+    }
+
+    public Integer getRecurringCount() {
+        return recurringCount;
+    }
+
+    public void setRecurringCount(Integer recurringCount) {
+        this.recurringCount = recurringCount;
     }
 
     public Long getCustomerId() {
@@ -98,36 +131,36 @@ public class BookingView implements Serializable {
         this.customerEmail = customerEmail;
     }
 
-    public Long getFacilityId() {
-        return facilityId;
+    public Long getComplexId() {
+        return complexId;
     }
 
-    public void setFacilityId(Long facilityId) {
-        this.facilityId = facilityId;
+    public void setComplexId(Long complexId) {
+        this.complexId = complexId;
     }
 
-    public String getFacilityName() {
-        return facilityName;
+    public String getComplexName() {
+        return complexName;
     }
 
-    public void setFacilityName(String facilityName) {
-        this.facilityName = facilityName;
+    public void setComplexName(String complexName) {
+        this.complexName = complexName;
     }
 
-    public String getFacilityAddress() {
-        return facilityAddress;
+    public String getComplexAddress() {
+        return complexAddress;
     }
 
-    public void setFacilityAddress(String facilityAddress) {
-        this.facilityAddress = facilityAddress;
+    public void setComplexAddress(String complexAddress) {
+        this.complexAddress = complexAddress;
     }
 
-    public String getFacilityHotline() {
-        return facilityHotline;
+    public String getComplexHotline() {
+        return complexHotline;
     }
 
-    public void setFacilityHotline(String facilityHotline) {
-        this.facilityHotline = facilityHotline;
+    public void setComplexHotline(String complexHotline) {
+        this.complexHotline = complexHotline;
     }
 
     public Long getFieldId() {
@@ -178,6 +211,22 @@ public class BookingView implements Serializable {
         this.endTime = endTime;
     }
 
+    public Integer getVoucherId() {
+        return voucherId;
+    }
+
+    public void setVoucherId(Integer voucherId) {
+        this.voucherId = voucherId;
+    }
+
+    public String getVoucherCode() {
+        return voucherCode;
+    }
+
+    public void setVoucherCode(String voucherCode) {
+        this.voucherCode = voucherCode;
+    }
+
     public BigDecimal getOriginalPrice() {
         return originalPrice;
     }
@@ -200,6 +249,14 @@ public class BookingView implements Serializable {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public BigDecimal getFinalAmount() {
+        return finalAmount;
+    }
+
+    public void setFinalAmount(BigDecimal finalAmount) {
+        this.finalAmount = finalAmount;
     }
 
     public BigDecimal getDepositAmount() {
@@ -312,5 +369,21 @@ public class BookingView implements Serializable {
 
     public void setCancelReasonMessage(String cancelReasonMessage) {
         this.cancelReasonMessage = cancelReasonMessage;
+    }
+
+    public boolean isReviewed() {
+        return reviewed;
+    }
+
+    public void setReviewed(boolean reviewed) {
+        this.reviewed = reviewed;
+    }
+
+    public long getFeedbackId() {
+        return feedbackId;
+    }
+
+    public void setFeedbackId(Long feedbackId) {
+        this.feedbackId = feedbackId;
     }
 }

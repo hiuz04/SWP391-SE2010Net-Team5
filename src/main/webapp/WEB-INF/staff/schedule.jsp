@@ -12,11 +12,43 @@
 
     boolean hasShift = (Boolean) request.getAttribute("hasShift") != null && (Boolean) request.getAttribute("hasShift");
     String selectedDate = (String) request.getAttribute("selectedDate");
-    String facilityName = (String) request.getAttribute("facilityName");
-    Long facilityId = (Long) request.getAttribute("facilityId");
+    String complexName = (String) request.getAttribute("complexName");
+    Long complexId = (Long) request.getAttribute("complexId");
     
     List<Map<String, Object>> fields = (List<Map<String, Object>>) request.getAttribute("fields");
     List<Map<String, Object>> bookings = (List<Map<String, Object>>) request.getAttribute("bookings");
+
+    boolean isUpcomingShift = false;
+    boolean isEndedShift = false;
+    if (hasShift) {
+        String sStart = (String) request.getAttribute("shiftStartTime");
+        String sEnd = (String) request.getAttribute("shiftEndTime");
+        if (sStart != null && sEnd != null) {
+            try {
+                String cleanStart = sStart.contains(" ") ? sStart.split(" ")[1] : sStart;
+                if (cleanStart.contains(".")) cleanStart = cleanStart.split("\\.")[0];
+                if (cleanStart.length() > 5) cleanStart = cleanStart.substring(0, 5);
+                
+                java.time.LocalTime start = java.time.LocalTime.parse(cleanStart);
+                
+                String cleanEnd = sEnd.contains(" ") ? sEnd.split(" ")[1] : sEnd;
+                if (cleanEnd.contains(".")) cleanEnd = cleanEnd.split("\\.")[0];
+                if (cleanEnd.length() > 5) cleanEnd = cleanEnd.substring(0, 5);
+                
+                java.time.LocalTime end = java.time.LocalTime.parse(cleanEnd);
+                
+                java.time.LocalTime now = java.time.LocalTime.now();
+                java.time.LocalDate today = java.time.LocalDate.now();
+                if (selectedDate.equals(today.toString())) {
+                    if (now.isBefore(start)) {
+                        isUpcomingShift = true;
+                    } else if (now.isAfter(end)) {
+                        isEndedShift = true;
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+    }
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -103,7 +135,7 @@
         <div class="row align-items-center g-3">
           <div class="col-md-6">
             <h1 class="fw-bold mb-1">Lịch sân hàng ngày</h1>
-            <p class="text-muted mb-0">Cơ sở: <strong class="text-success"><%= facilityName %></strong></p>
+            <p class="text-muted mb-0">Cơ sở: <strong class="text-success"><%= complexName %></strong></p>
           </div>
           <div class="col-md-6 d-flex justify-content-md-end align-items-center gap-3">
             <div>
@@ -150,7 +182,7 @@
                 </tr>
               <% } else {
                 for (Map<String, Object> field : fields) {
-                  long fieldId = (Long) field.get("fieldId");
+                  long fieldId = ((Number) field.get("fieldId")).longValue();
                   String fieldName = (String) field.get("fieldName");
                   String fieldStatus = (String) field.get("status");
                   
@@ -170,7 +202,7 @@
                       <span><%= fieldName %></span>
                       <span class="badge <%= fieldBadgeClass %> field-badge align-self-start mt-1" 
                             style="font-size:0.65rem;"
-                            onclick="openFieldStatusModal('<%= fieldId %>', '<%= fieldName %>', '<%= fieldStatus %>')">
+                            onclick="<%= isUpcomingShift ? "showToast('Ca trực chưa bắt đầu. Bạn không thể thay đổi trạng thái sân.', 'warning')" : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thay đổi trạng thái sân.', 'danger')" : "openFieldStatusModal('" + fieldId + "', '" + fieldName + "', '" + fieldStatus + "')") %>">
                         <%= fieldBadgeText %> <i class="bi bi-pencil-square ms-1"></i>
                       </span>
                     </div>
@@ -185,7 +217,7 @@
                       Map<String, Object> foundBooking = null;
                       if (bookings != null) {
                         for (Map<String, Object> b : bookings) {
-                          long bFieldId = (Long) b.get("fieldId");
+                          long bFieldId = ((Number) b.get("fieldId")).longValue();
                           if (bFieldId != fieldId) continue;
 
                           String bStartStr = (String) b.get("startTime"); 
@@ -205,7 +237,7 @@
                           LocalTime bEnd = LocalTime.parse(eTimeVal);
 
                           // Check overlap
-                          if (!bStart.isAfter(slotTimeEnd) && !bEnd.isBefore(slotTimeStart)) {
+                          if (!bStart.isAfter(slotTimeEnd) && bEnd.isAfter(slotTimeStart)) {
                             foundBooking = b;
                             break;
                           }
@@ -224,21 +256,39 @@
                         cellText = "Khóa";
                       } else if (foundBooking != null) {
                         String bStatus = (String) foundBooking.get("status");
-                        long bId = (Long) foundBooking.get("bookingId");
+                        long bId = ((Number) foundBooking.get("bookingId")).longValue();
                         String custName = (String) foundBooking.get("customerName");
+                        String bCode = (String) foundBooking.get("bookingCode");
+                        boolean hasInvoice = Boolean.TRUE.equals(foundBooking.get("hasInvoice"));
+                        boolean checkoutDue = Boolean.TRUE.equals(foundBooking.get("checkoutDue"));
                         
                         if ("CONFIRMED".equals(bStatus)) {
                           cellClass = "status-booked-confirmed";
-                          cellText = custName;
-                          cellOnclick = "location.href='" + ctx + "/staff/checkin?id=" + bId + "'";
+                          cellText = bCode + " - " + custName;
+                          cellOnclick = isUpcomingShift 
+                             ? "showToast('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.', 'warning')" 
+                             : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thao tác.', 'danger')" : "location.href='" + ctx + "/staff/checkin?id=" + bId + "'");
                         } else if ("CHECKED_IN".equals(bStatus)) {
                           cellClass = "status-booked-checkedin";
-                          cellText = custName;
-                          cellOnclick = "location.href='" + ctx + "/staff/checkout?id=" + bId + "'";
+                          cellText = bCode + " - " + custName;
+                          cellOnclick = isUpcomingShift 
+                             ? "showToast('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.', 'warning')" 
+                             : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thao tác.', 'danger')" : "location.href='" + ctx + "/staff/checkout?id=" + bId + "'");
+                          if (!checkoutDue) {
+                            cellOnclick = "";
+                          }
+                        } else if ("PENDING_CHECKOUT_PAYMENT".equals(bStatus)) {
+                          cellClass = "status-booked-pending-payment";
+                          cellText = bCode + " - Cho thanh toan";
+                          if (hasInvoice) {
+                            cellOnclick = "location.href='" + ctx + "/staff/invoice?id=" + bId + "'";
+                          }
                         } else if ("COMPLETED".equals(bStatus)) {
                           cellClass = "status-booked-completed";
-                          cellText = "Xong";
-                          cellOnclick = "location.href='" + ctx + "/staff/invoice?id=" + bId + "'";
+                          cellText = bCode + " - Xong";
+                          if (hasInvoice) {
+                            cellOnclick = "location.href='" + ctx + "/staff/invoice?id=" + bId + "'";
+                          }
                         }
                       }
                   %>
@@ -264,6 +314,7 @@
             <thead class="table-light">
               <tr>
                 <th>Giờ</th>
+                <th>Mã đặt sân</th>
                 <th>Sân bóng</th>
                 <th>Khách hàng</th>
                 <th>Số điện thoại</th>
@@ -275,11 +326,11 @@
             <tbody>
               <% if (bookings == null || bookings.isEmpty()) { %>
                 <tr>
-                  <td colspan="7" class="text-center text-muted py-4">Không có trận đấu nào trong ngày này.</td>
+                  <td colspan="8" class="text-center text-muted py-4">Không có trận đấu nào trong ngày này.</td>
                 </tr>
               <% } else {
                 for (Map<String, Object> b : bookings) {
-                  long bId = (Long) b.get("bookingId");
+                  long bId = ((Number) b.get("bookingId")).longValue();
                   String bCode = (String) b.get("bookingCode");
                   String bStart = (String) b.get("startTime"); 
                   String bEnd = (String) b.get("endTime");
@@ -288,6 +339,8 @@
                   String customerName = (String) b.get("customerName");
                   String customerPhone = (String) b.get("customerPhone");
                   java.math.BigDecimal total = (java.math.BigDecimal) b.get("totalAmount");
+                  boolean hasInvoice = Boolean.TRUE.equals(b.get("hasInvoice"));
+                  boolean checkoutDue = Boolean.TRUE.equals(b.get("checkoutDue"));
 
                   String sTimeVal = bStart != null ? bStart : "00:00:00";
                   if (sTimeVal.contains(" ")) sTimeVal = sTimeVal.split(" ")[1];
@@ -304,25 +357,61 @@
                   String statusBadge = "";
                   String actionButton = "";
                   
+                  boolean isExpired = false;
+                  if ("CONFIRMED".equals(bStatus) && bEnd != null) {
+                    try {
+                      String isoEnd = bEnd.replace(" ", "T");
+                      if (isoEnd.contains(".")) {
+                        isoEnd = isoEnd.substring(0, isoEnd.indexOf("."));
+                      }
+                      java.time.LocalDateTime endDt = java.time.LocalDateTime.parse(isoEnd);
+                      isExpired = endDt.isBefore(java.time.LocalDateTime.now());
+                    } catch (Exception ignored) {}
+                  }
+
                   if ("CONFIRMED".equals(bStatus)) {
-                    statusBadge = "<span class='badge badge-soft-warning'><i class='bi bi-hourglass-split me-1'></i>Chờ check-in</span>";
-                    actionButton = "<a href='" + ctx + "/staff/checkin?id=" + bId + "' class='btn btn-sm btn-sf-primary px-3'>Check-in</a>";
+                    if (isExpired) {
+                      statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-exclamation-triangle me-1'></i>Quá giờ</span>";
+                      actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-exclamation-circle me-1'></i>Quá giờ nhận</button>";
+                    } else {
+                      statusBadge = "<span class='badge badge-soft-warning'><i class='bi bi-hourglass-split me-1'></i>Chờ check-in</span>";
+                      actionButton = isUpcomingShift 
+                        ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Chưa đến giờ làm việc'><i class='bi bi-lock-fill me-1'></i>Chờ ca trực</button>"
+                        : (isEndedShift 
+                          ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Ca trực đã kết thúc'><i class='bi bi-lock-fill me-1'></i>Hết ca trực</button>"
+                          : "<a href='" + ctx + "/staff/checkin?id=" + bId + "' class='btn btn-sm btn-sf-primary px-3'>Check-in</a>");
+                    }
                   } else if ("CHECKED_IN".equals(bStatus)) {
                     statusBadge = "<span class='badge badge-soft-info'><i class='pulse-playing me-1'></i>Đang đá</span>";
-                    actionButton = "<a href='" + ctx + "/staff/checkout?id=" + bId + "' class='btn btn-sm btn-outline-success px-3'>Checkout</a>";
+                    actionButton = isUpcomingShift 
+                      ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Chưa đến giờ làm việc'><i class='bi bi-lock-fill me-1'></i>Chờ ca trực</button>"
+                      : (isEndedShift 
+                        ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Ca trực đã kết thúc'><i class='bi bi-lock-fill me-1'></i>Hết ca trực</button>"
+                        : "<a href='" + ctx + "/staff/checkout?id=" + bId + "' class='btn btn-sm btn-outline-success px-3'>Checkout</a>");
+                    if (!checkoutDue && !isUpcomingShift && !isEndedShift) {
+                      actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled>Đang sử dụng</button>";
+                    }
+                  } else if ("PENDING_CHECKOUT_PAYMENT".equals(bStatus)) {
+                    statusBadge = "<span class='badge fw-bold' style='background:#fae8ff;color:#a21caf;'><i class='bi bi-credit-card me-1'></i>Chờ khách thanh toán</span>";
+                    if (hasInvoice) {
+                      actionButton = "<a href='" + ctx + "/staff/invoice?id=" + bId + "' class='btn btn-sm btn-outline-secondary px-3'><i class='bi bi-file-earmark-text me-1'></i>Hóa đơn</a>";
+                    }
                   } else if ("COMPLETED".equals(bStatus)) {
                     statusBadge = "<span class='badge badge-soft-success'><i class='bi bi-check-circle me-1'></i>Đã xong</span>";
-                    actionButton = "<a href='" + ctx + "/staff/invoice?id=" + bId + "' class='btn btn-sm btn-outline-secondary px-3'><i class='bi bi-printer me-1'></i>Hóa đơn</a>";
+                    if (hasInvoice) {
+                      actionButton = "<a href='" + ctx + "/staff/invoice?id=" + bId + "' class='btn btn-sm btn-outline-secondary px-3'><i class='bi bi-file-earmark-text me-1'></i>Hóa đơn</a>";
+                    }
                   }
               %>
                 <tr>
-                  <td><strong class="text-dark"><%= formattedTime %></strong></td>
-                  <td><strong><%= fieldName %></strong></td>
-                  <td><%= customerName %></td>
-                  <td><%= customerPhone %></td>
-                  <td class="text-success fw-bold"><%= String.format("%,d ₫", total.longValue()) %></td>
-                  <td><%= statusBadge %></td>
-                  <td><%= actionButton %></td>
+                  <td style="white-space: nowrap;"><strong class="text-dark"><%= formattedTime %></strong></td>
+                  <td style="white-space: nowrap;"><strong class="text-success"><%= bCode %></strong></td>
+                  <td style="white-space: nowrap;"><strong><%= fieldName %></strong></td>
+                  <td style="white-space: nowrap;"><%= customerName %></td>
+                  <td style="white-space: nowrap;"><%= customerPhone %></td>
+                  <td class="text-success fw-bold" style="white-space: nowrap;"><%= String.format("%,d ₫", total.longValue()) %></td>
+                  <td style="white-space: nowrap;"><%= statusBadge %></td>
+                  <td style="white-space: nowrap;"><%= actionButton %></td>
                 </tr>
               <% }
               } %>
@@ -381,6 +470,19 @@
   document.addEventListener('DOMContentLoaded', function() {
     const modalEl = document.getElementById('fieldStatusModal');
     if (modalEl) statusModal = new bootstrap.Modal(modalEl);
+    
+    <%
+      String errorParam = request.getParameter("error");
+      if (errorParam != null) {
+    %>
+      <% if ("facility_mismatch".equals(errorParam)) { %>
+        showToast("Lượt đặt sân này thuộc cơ sở khác. Bạn không thể thực hiện thao tác này.", "danger");
+      <% } else { %>
+        showToast("<%= errorParam %>", "danger");
+      <% } %>
+    <%
+      }
+    %>
   });
 
   function openFieldStatusModal(fieldId, fieldName, currentStatus) {
@@ -411,14 +513,16 @@
       
       if (data.success) {
         if (statusModal) statusModal.hide();
+        showToastAfterReload('Cập nhật trạng thái sân thành công!', 'success');
         window.location.reload();
       } else {
-        alert('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'));
+        showToast('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'), 'danger');
       }
     } catch (err) {
-      alert('Không thể cập nhật trạng thái sân: ' + err.message);
+      showToast('Không thể cập nhật trạng thái sân: ' + err.message, 'danger');
     }
   }
+
 </script>
 </body>
 </html>

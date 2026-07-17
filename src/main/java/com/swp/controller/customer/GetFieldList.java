@@ -4,13 +4,11 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
-import com.swp.dao.FacilityDAO;
+import com.swp.dao.FootballComplexDAO;
 import com.swp.dao.FieldDAO;
 import com.swp.dao.FieldTypeDAO;
-import com.swp.model.Facility;
-import com.swp.model.Field;
-import com.swp.model.FieldType;
-import com.swp.model.dto.FieldComplexCard;
+import com.swp.model.*;
+import com.swp.model.dto.ComplexCard;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -18,7 +16,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.function.Function;
@@ -27,7 +24,7 @@ import java.util.stream.Collectors;
 @WebServlet("/field-list")
 public class GetFieldList extends HttpServlet {
 
-    private static final FacilityDAO facilityDao = new FacilityDAO();
+    private static final FootballComplexDAO FOOTBALL_COMPLEX_DAO = new FootballComplexDAO();
     private static final FieldDAO fieldDAO = new FieldDAO();
     private static final FieldTypeDAO fieldTypeDao = new FieldTypeDAO();
 
@@ -40,12 +37,13 @@ public class GetFieldList extends HttpServlet {
         String province = req.getParameter("province");
         String ward = req.getParameter("ward");
         String fieldTypeId = req.getParameter("fieldTypeId");
+        String sortOrder = req.getParameter("sortOrder");
 
-        List<Facility> facilities = facilityDao.getAllFacility();
+        List<FootballComplex> complexes = FOOTBALL_COMPLEX_DAO.getAllComplex();
         List<Field> fields = fieldDAO.getAllField();
         List<FieldType> fieldTypes = fieldTypeDao.getAllFieldTypes();
 
-        List<FieldComplexCard> lists = new ArrayList<>();
+        List<ComplexCard> lists = new ArrayList<>();
 
         Map<Integer, FieldType> fieldTypeMap = fieldTypes.stream()
                 .collect(Collectors.toMap(
@@ -53,10 +51,11 @@ public class GetFieldList extends HttpServlet {
                         Function.identity()
                 ));
 
-        for (Facility fac : facilities) {
+        for (FootballComplex fc : complexes) {
+            FootballComplexImage thumbnail = FOOTBALL_COMPLEX_DAO.getThumbnail(fc.getComplexId());
 
-            List<FieldType> typeOfFac = fields.stream()
-                    .filter(f -> f.getFacilityId() == fac.getFacilityId())
+            List<FieldType> typeOfFc = fields.stream()
+                    .filter(f -> f.getComplexId() == fc.getComplexId())
                     .map(Field::getFieldTypeId)
                     .distinct()
                     .map(fieldTypeMap::get)
@@ -69,8 +68,8 @@ public class GetFieldList extends HttpServlet {
 //                String kw = keyword.trim().toLowerCase();
 //
 //                boolean match =
-//                        fac.getFacilityName().toLowerCase().contains(kw)
-//                                || fac.getAddress().toLowerCase().contains(kw);
+//                        fc.getComplexName().toLowerCase().contains(kw)
+//                                || fc.getAddress().toLowerCase().contains(kw);
 //
 //                if (!match) {
 //                    continue;
@@ -80,14 +79,14 @@ public class GetFieldList extends HttpServlet {
             // Search theo province
             if (province != null
                     && !province.isBlank()
-                    && !province.equalsIgnoreCase(fac.getCity())) {
+                    && !province.equalsIgnoreCase(fc.getCity())) {
                 continue;
             }
 
             // Search theo ward
             if (ward != null
                     && !ward.isBlank()
-                    && !ward.equalsIgnoreCase(fac.getWard())) {
+                    && !ward.equalsIgnoreCase(fc.getWard())) {
                 continue;
             }
 
@@ -96,7 +95,7 @@ public class GetFieldList extends HttpServlet {
 
                 int typeId = Integer.parseInt(fieldTypeId);
 
-                boolean hasType = typeOfFac.stream()
+                boolean hasType = typeOfFc.stream()
                         .anyMatch(t -> t.getFieldTypeId() == typeId);
 
                 if (!hasType) {
@@ -104,18 +103,38 @@ public class GetFieldList extends HttpServlet {
                 }
             }
 
-            FieldComplexCard card = new FieldComplexCard();
+            ComplexCard card = new ComplexCard();
 
-            card.setFacilityId(fac.getFacilityId());
-            card.setFacilityName(fac.getFacilityName());
-            card.setAddress(fac.getAddress());
-            card.setCity(fac.getCity());
-            card.setWard(fac.getWard());
-            card.setFieldTypeList(typeOfFac);
-            card.setOpeningTime(fac.getOpeningTime());
-            card.setClosingTime(fac.getClosingTime());
+            card.setComplexId(fc.getComplexId());
+            card.setComplexName(fc.getComplexName());
+            card.setAddress(fc.getAddress());
+            card.setCity(fc.getCity());
+            card.setWard(fc.getWard());
+            card.setFieldTypeList(typeOfFc);
+            card.setOpeningTime(fc.getOpeningTime());
+            card.setClosingTime(fc.getClosingTime());
+            card.setThumbnailUrl(thumbnail.getImageUrl());
+            card.setCurrentPrice(FOOTBALL_COMPLEX_DAO.getCurrentPriceForComplex(fc.getComplexId()));
 
             lists.add(card);
+        }
+
+        if (sortOrder != null && !sortOrder.isBlank()) {
+            if (sortOrder.equals("price_asc")) {
+                lists.sort((c1, c2) -> {
+                    if (c1.getCurrentPrice() == null && c2.getCurrentPrice() == null) return 0;
+                    if (c1.getCurrentPrice() == null) return 1;
+                    if (c2.getCurrentPrice() == null) return -1;
+                    return c1.getCurrentPrice().compareTo(c2.getCurrentPrice());
+                });
+            } else if (sortOrder.equals("price_desc")) {
+                lists.sort((c1, c2) -> {
+                    if (c1.getCurrentPrice() == null && c2.getCurrentPrice() == null) return 0;
+                    if (c1.getCurrentPrice() == null) return 1;
+                    if (c2.getCurrentPrice() == null) return -1;
+                    return c2.getCurrentPrice().compareTo(c1.getCurrentPrice());
+                });
+            }
         }
 
         Gson gson = new GsonBuilder()

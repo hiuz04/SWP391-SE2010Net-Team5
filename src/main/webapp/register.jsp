@@ -1,6 +1,7 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="java.util.Collections" %>
 <%@ page import="java.util.Map" %>
+<%@ page import="com.swp.util.RecaptchaConfig" %>
 <%
     if (request.getAttribute("googleEnabled") == null) {
         response.sendRedirect(request.getContextPath() + "/register");
@@ -32,6 +33,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
     <title>Đăng ký | Sport Field Booking</title>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
 <div id="navbar" data-root="<%= ctx %>/" data-role="guest" data-name="" data-active=""></div>
@@ -52,6 +54,7 @@
                     <% } %>
 
                     <form id="registerForm" action="<%= ctx %>/register" method="post" novalidate>
+                        <input type="hidden" name="csrfToken" value="<%= session.getAttribute("csrfToken") != null ? session.getAttribute("csrfToken") : "" %>">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label" for="fullName">Họ tên <span class="text-danger">*</span></label>
@@ -66,7 +69,7 @@
                                 <label class="form-label" for="phone">Số điện thoại <span class="text-danger">*</span></label>
                                 <input id="phone" name="phone" class="form-control <%= phoneClass %>"
                                        placeholder="0901234567" value="<%= phone %>"
-                                       inputmode="numeric" pattern="0[0-9]{9,10}" required>
+                                       inputmode="numeric" pattern="0[35789][0-9]{8}" required>
                                 <div class="invalid-feedback" data-field-error="phone">
                                     <%= fieldErrors.getOrDefault("phone", "Số điện thoại không hợp lệ.") %>
                                 </div>
@@ -111,6 +114,12 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Google reCAPTCHA -->
+                        <div class="mt-4 d-flex justify-content-center">
+                            <div class="g-recaptcha" data-sitekey="<%= RecaptchaConfig.getSiteKey() %>"></div>
+                        </div>
+
                         <button type="submit" class="btn btn-sf-primary btn-lg w-100 mt-4">Tạo tài khoản</button>
                     </form>
 
