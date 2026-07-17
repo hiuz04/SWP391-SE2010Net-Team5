@@ -10,6 +10,7 @@ import com.swp.dao.FieldTypeDAO;
 import com.swp.model.Field;
 import com.swp.model.FieldType;
 import com.swp.model.FootballComplex;
+import com.swp.model.PriceRule;
 import com.swp.model.dto.FeedbackDTO;
 import com.swp.model.dto.FieldDetail;
 import com.swp.service.FeedbackService;
@@ -38,6 +39,7 @@ public class FieldDetailAPIController extends HttpServlet {
     private static final FieldService fieldService = new FieldService();
     private static final FieldTypeService typeService = new FieldTypeService();
     private static final FeedbackService feedbackService = new FeedbackService();
+    private static final com.swp.dao.PriceRuleDAO priceRuleDAO = new com.swp.dao.PriceRuleDAO();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -46,6 +48,7 @@ public class FieldDetailAPIController extends HttpServlet {
         List<Field> fields = fieldService.getFieldOfThisComplex(complexId);
         List<FieldType> fieldTypes = typeService.getAllType();
         List<FeedbackDTO> feedbacks = feedbackService.getAllFeedbackOfThisComplexes(complexId);
+        List<PriceRule> priceRules = priceRuleDAO.getByComplexId(complexId);
         FieldDetail detail = new FieldDetail();
 
         Map<Integer, FieldType> fieldTypeMap = fieldTypes.stream()
@@ -75,7 +78,11 @@ public class FieldDetailAPIController extends HttpServlet {
         detail.setFields(fields);
         detail.setHotline(complex.getHotline());
 
+        java.math.BigDecimal currentPrice = com.swp.util.PriceCalculator.calculateCurrentPrice(priceRules, null, null);
+        detail.setCurrentPrice(currentPrice);
+
         detail.setFeedbacks(feedbacks);
+        detail.setPriceRules(priceRules);
 
         resp.setContentType("application/json;charset=UTF-8");
         Gson gson = new GsonBuilder()

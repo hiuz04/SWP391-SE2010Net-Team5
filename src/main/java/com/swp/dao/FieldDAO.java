@@ -171,10 +171,10 @@ public class FieldDAO {
         List<TopFieldSummary> list = new ArrayList<>();
         String sql =
             "SELECT " +
-            "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, " +
+            "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, f.field_type_id, " +
             "  fc.complex_name, fc.address, fc.district, fc.city, " +
             "  COALESCE(ft.type_name, '') AS field_type_name, " +
-            "  COUNT(b.booking_id) AS booking_count, " +
+            "  SUM(CASE WHEN b.status IN ('PAID', 'CONFIRMED', 'COMPLETED') THEN 1 ELSE 0 END) AS booking_count, " +
             "  fi.image_url " +
             "FROM fields f " +
             "LEFT JOIN bookings b ON b.field_id = f.field_id " +
@@ -182,7 +182,7 @@ public class FieldDAO {
             "LEFT JOIN field_types ft ON ft.field_type_id = f.field_type_id " +
             "OUTER APPLY (SELECT TOP 1 image_url FROM football_complex_images fi2 WHERE fi2.complex_id = f.complex_id ORDER BY thumbnail DESC, image_id DESC) fi " +
             "WHERE f.status <> 'MAINTENANCE' AND f.is_hot = 1 " +
-            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, " +
+            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, f.field_type_id, " +
             "         fc.complex_name, fc.address, fc.district, fc.city, ft.type_name, fi.image_url " +
             "ORDER BY booking_count DESC";
 
@@ -190,7 +190,14 @@ public class FieldDAO {
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
+            PriceRuleDAO priceRuleDAO = new PriceRuleDAO();
+
             while (rs.next()) {
+                long cId = rs.getLong("complex_id");
+                long fId = rs.getLong("field_id");
+                int ftId = rs.getInt("field_type_id");
+                java.math.BigDecimal currentPrice = com.swp.util.PriceCalculator.calculateCurrentPrice(priceRuleDAO.getByComplexId(cId), fId, ftId);
+
                 list.add(new TopFieldSummary(
                     rs.getLong("field_id"),
                     rs.getString("field_name"),
@@ -198,13 +205,14 @@ public class FieldDAO {
                     rs.getString("status"),
                     rs.getString("field_type_name"),
                     rs.getBoolean("is_hot"),
-                    rs.getLong("complex_id"),
+                    cId,
                     rs.getString("complex_name"),
                     rs.getString("address"),
                     rs.getString("district"),
                     rs.getString("city"),
                     rs.getInt("booking_count"),
-                    rs.getString("image_url")
+                    rs.getString("image_url"),
+                    currentPrice
                 ));
             }
         } catch (SQLException e) {
@@ -222,10 +230,10 @@ public class FieldDAO {
         List<TopFieldSummary> list = new ArrayList<>();
         String sql =
             "SELECT " +
-            "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, " +
+            "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, f.field_type_id, " +
             "  fc.complex_name, fc.address, fc.district, fc.city, " +
             "  COALESCE(ft.type_name, '') AS field_type_name, " +
-            "  COUNT(b.booking_id) AS booking_count, " +
+            "  SUM(CASE WHEN b.status IN ('PAID', 'CONFIRMED', 'COMPLETED') THEN 1 ELSE 0 END) AS booking_count, " +
             "  fi.image_url " +
             "FROM fields f " +
             "LEFT JOIN bookings b ON b.field_id = f.field_id " +
@@ -233,7 +241,7 @@ public class FieldDAO {
             "LEFT JOIN field_types ft ON ft.field_type_id = f.field_type_id " +
             "OUTER APPLY (SELECT TOP 1 image_url FROM football_complex_images fi2 WHERE fi2.complex_id = f.complex_id ORDER BY thumbnail DESC, image_id DESC) fi " +
             "WHERE f.status <> 'MAINTENANCE' AND fc.city = ? " +
-            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, " +
+            "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, f.field_type_id, " +
             "         fc.complex_name, fc.address, fc.district, fc.city, ft.type_name, fi.image_url " +
             "ORDER BY booking_count DESC";
 
@@ -241,7 +249,12 @@ public class FieldDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, city);
             try (ResultSet rs = ps.executeQuery()) {
+                PriceRuleDAO priceRuleDAO = new PriceRuleDAO();
                 while (rs.next()) {
+                    long fId = rs.getLong("field_id");
+                    long cId = rs.getLong("complex_id");
+                    int ftId = rs.getInt("field_type_id");
+                    java.math.BigDecimal currentPrice = com.swp.util.PriceCalculator.calculateCurrentPrice(priceRuleDAO.getByComplexId(cId), fId, ftId);
                     list.add(new TopFieldSummary(
                         rs.getLong("field_id"),
                         rs.getString("field_name"),
@@ -249,13 +262,14 @@ public class FieldDAO {
                         rs.getString("status"),
                         rs.getString("field_type_name"),
                         rs.getBoolean("is_hot"),
-                        rs.getLong("complex_id"),
+                        cId,
                         rs.getString("complex_name"),
                         rs.getString("address"),
                         rs.getString("district"),
                         rs.getString("city"),
                         rs.getInt("booking_count"),
-                        rs.getString("image_url")
+                        rs.getString("image_url"),
+                        currentPrice
                     ));
                 }
             }

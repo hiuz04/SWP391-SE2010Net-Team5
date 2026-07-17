@@ -9,6 +9,9 @@ import com.swp.model.User;
 import com.swp.model.dto.BookingView;
 import com.swp.model.dto.InvoiceView;
 import com.swp.model.dto.PaymentView;
+import com.swp.dao.SystemSettingDAO;
+import com.swp.model.SystemSetting;
+import java.util.Optional;
 import com.swp.util.VNPayConfig;
 import com.swp.util.VNPayUtil;
 import jakarta.servlet.ServletException;
@@ -41,6 +44,17 @@ public class PaymentController extends HttpServlet {
     private static final String PAYMENT_TYPE_MEMBERSHIP = "MEMBERSHIP";
 
     private final PaymentDAO paymentDAO = new PaymentDAO();
+    private final SystemSettingDAO systemSettingDAO = new SystemSettingDAO();
+
+    private java.math.BigDecimal getVipPrice() {
+        Optional<SystemSetting> vipSetting = systemSettingDAO.getSettingByKey("VIP_SUBSCRIPTION_PRICE_MONTHLY");
+        if (vipSetting.isPresent() && vipSetting.get().getSettingValue() != null) {
+            try {
+                return new java.math.BigDecimal(vipSetting.get().getSettingValue().replaceAll("[^0-9]", ""));
+            } catch(Exception e) {}
+        }
+        return new java.math.BigDecimal("199000");
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -151,7 +165,7 @@ public class PaymentController extends HttpServlet {
             throws IOException, ServletException, SQLException {
         List<PaymentMethod> methods = paymentDAO.getActivePaymentMethods();
         request.setAttribute("paymentContext", PAYMENT_TYPE_MEMBERSHIP);
-        request.setAttribute("amountToPay", new java.math.BigDecimal("199000"));
+        request.setAttribute("amountToPay", getVipPrice());
         request.setAttribute("paymentMethods", methods);
         request.setAttribute("error", request.getParameter("error"));
         request.getRequestDispatcher("/WEB-INF/payment/payment.jsp").forward(request, response);
@@ -367,7 +381,7 @@ public class PaymentController extends HttpServlet {
         Payment payment = paymentDAO.createPendingMembershipPayment(
                 customerId,
                 paymentMethodId,
-                new java.math.BigDecimal("199000")
+                getVipPrice()
         );
         VNPayUtil.PaymentUrlDebug paymentUrlDebug = VNPayUtil.buildPaymentUrlDebug(payment, 0L, request);
         logVNPayPaymentUrl(payment, 0L, paymentUrlDebug);
@@ -386,7 +400,7 @@ public class PaymentController extends HttpServlet {
         Payment payment = paymentDAO.createPendingMembershipPayment(
                 customerId,
                 paymentMethodId,
-                new java.math.BigDecimal("199000")
+                getVipPrice()
         );
         String transactionRef = payment.getTransactionRef();
         String resultStatus = simulateFailure ? "FAILED" : "SUCCESS";

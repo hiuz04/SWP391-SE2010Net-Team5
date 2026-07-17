@@ -12,6 +12,16 @@ function loadData(id) {
             console.log(">>> data",data);
             document.getElementById("field-name").innerHTML = data.complexName;
             document.getElementById("address").innerHTML = `<i class="bi bi-geo-alt me-1"></i>` + data.complexAddress;
+            
+            const currentPriceElem = document.getElementById("currentPrice");
+            if (currentPriceElem) {
+                if (data.currentPrice != null) {
+                    currentPriceElem.innerHTML = `<i class="bi bi-cash me-1"></i> Giá lúc này: ${new Intl.NumberFormat('vi-VN').format(data.currentPrice)} đ/giờ<br><small class="text-muted fw-normal" style="font-size: 0.9rem;">* Giá có thể thay đổi tùy thuộc vào khung giờ bạn chọn</small>`;
+                } else {
+                    currentPriceElem.innerHTML = `<i class="bi bi-cash me-1"></i> Chưa có giá`;
+                }
+            }
+            
             document.getElementById("description").innerHTML = data.description;
             document.getElementById("workingTime").innerHTML = `${data.openingTime} - ${data.closingTime}`;
             document.querySelectorAll(".hotline").forEach(el => {
@@ -36,6 +46,47 @@ function loadData(id) {
                     <span class="complex-item">${item.fieldName}</span>
                 </div>
             `).join("");
+
+            const priceRuleList = document.getElementById("price-rule-list");
+            if (priceRuleList) {
+                if (!data.priceRules || data.priceRules.length === 0) {
+                    priceRuleList.innerHTML = `<div class="text-muted">Chưa có thông tin bảng giá.</div>`;
+                } else {
+                    let html = `<div class="table-responsive"><table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Loại giá</th>
+                                <th>Thời gian áp dụng</th>
+                                <th>Khung giờ</th>
+                                <th>Giá tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                    
+                    data.priceRules.forEach(rule => {
+                        let dayDisplay = rule.dayOfWeek;
+                        if (dayDisplay === 'All') dayDisplay = 'Tất cả các ngày';
+                        else if (dayDisplay === 'Weekday') dayDisplay = 'Thứ 2 - Thứ 6';
+                        else if (dayDisplay === 'Weekend') dayDisplay = 'Thứ 7, Chủ nhật';
+                        else if (dayDisplay === 'SpecificDate') dayDisplay = `Ngày: ${rule.specificDate}`;
+                        
+                        let timeDisplay = 'Cả ngày';
+                        if (rule.startTime && rule.endTime) {
+                            timeDisplay = `${rule.startTime} - ${rule.endTime}`;
+                        }
+                        
+                        html += `<tr>
+                            <td><span class="badge bg-secondary">${rule.ruleName}</span></td>
+                            <td>${dayDisplay}</td>
+                            <td>${timeDisplay}</td>
+                            <td class="text-success fw-bold">${new Intl.NumberFormat('vi-VN').format(rule.price)} đ</td>
+                        </tr>`;
+                    });
+                    
+                    html += `</tbody></table></div>`;
+                    priceRuleList.innerHTML = html;
+                }
+            }
 
             const feedbackContainer = document.getElementById("feedbackContainer");
 
