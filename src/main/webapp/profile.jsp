@@ -3,7 +3,10 @@
 <%@ page import="java.util.Map" %>
             <%@ page import="java.util.Collections" %>
                 <%@ page import="java.time.LocalDateTime" %>
-                    <%@ page import="java.time.format.DateTimeFormatter" %>
+<%@ page import="java.time.format.DateTimeFormatter" %>
+<%@ page import="com.swp.dao.SystemSettingDAO" %>
+<%@ page import="com.swp.model.SystemSetting" %>
+<%@ page import="java.util.Optional" %>
                         <% User currentUser=(User) request.getAttribute("currentUser"); if (currentUser==null) {
                     response.sendRedirect(request.getContextPath() + "/profile" ); return; } String
                     ctx=request.getContextPath(); String navRole=session.getAttribute("navRole") !=null ? (String)
@@ -73,6 +76,19 @@
                                                             boolean isVip = currentUser.isVip();
                                                             LocalDateTime validUntil = currentUser.getVipValidUntil();
                                                             boolean isVipActive = isVip && validUntil != null && validUntil.isAfter(LocalDateTime.now());
+                                                            
+                                                            SystemSettingDAO sysDao = new SystemSettingDAO();
+                                                            Optional<SystemSetting> vipSetting = sysDao.getSettingByKey("VIP_SUBSCRIPTION_PRICE_MONTHLY");
+                                                            String vipPriceK = "199k";
+                                                            if (vipSetting.isPresent() && vipSetting.get().getSettingValue() != null) {
+                                                                String val = vipSetting.get().getSettingValue();
+                                                                try {
+                                                                    long p = Long.parseLong(val.replaceAll("[^0-9]", ""));
+                                                                    vipPriceK = (p / 1000) + "k";
+                                                                } catch(Exception e) {
+                                                                    vipPriceK = val;
+                                                                }
+                                                            }
                                                     %>
                                                         <% if (isVipActive) { %>
                                                             <div class="alert alert-success p-2 mb-2 text-center">
@@ -83,7 +99,7 @@
                                                             </div>
                                                             <% if (validUntil.isBefore(LocalDateTime.now().plusDays(3))) { %>
                                                                 <a href="<%= ctx %>/payment?action=method&type=membership" class="btn btn-warning w-100 fw-bold">
-                                                                    <i class="bi bi-gem"></i> Gia hạn gói VIP (199k/30 ngày)
+                                                                    <i class="bi bi-gem"></i> Gia hạn gói VIP (<%= vipPriceK %>/30 ngày)
                                                                 </a>
                                                             <% } %>
                                                         <% } else { %>
@@ -91,7 +107,7 @@
                                                                 Thành viên thường
                                                             </div>
                                                             <a href="<%= ctx %>/payment?action=method&type=membership" class="btn btn-warning w-100 fw-bold">
-                                                                <i class="bi bi-gem"></i> Đăng ký gói VIP (199k/30 ngày)
+                                                                <i class="bi bi-gem"></i> Đăng ký gói VIP (<%= vipPriceK %>/30 ngày)
                                                             </a>
                                                         <% } %>
                                                     <% } %>

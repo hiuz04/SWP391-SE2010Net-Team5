@@ -398,6 +398,22 @@ public class UserDAO {
         return Optional.empty();
     }
 
+    public int getAvailableRewardPoints(long userId) {
+        String sql = "SELECT available_reward_points FROM users WHERE user_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("available_reward_points");
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi truy vấn điểm thưởng: " + e.getMessage(), e);
+        }
+        return 0;
+    }
+
     public void updateUserStatus(long userId, String status) {
         String sql = "UPDATE users SET status = ?, updated_at = GETDATE() WHERE user_id = ?";
         try (Connection conn = DBContext.getConnection();

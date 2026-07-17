@@ -3,6 +3,9 @@
 <%@ page import="com.swp.model.dto.TopFieldSummary" %>
 <%@ page import="java.util.List" %>
 <%@ page import="java.util.Collections" %>
+<%@ page import="com.swp.dao.SystemSettingDAO" %>
+<%@ page import="com.swp.model.SystemSetting" %>
+<%@ page import="java.util.Optional" %>
 <%
     User sessionUser = (User) request.getAttribute("sessionUser");
     if (sessionUser == null) sessionUser = (User) session.getAttribute("user");
@@ -26,6 +29,25 @@
         if (isVipActive) {
             // Hiển thị nút gia hạn nếu hạn sử dụng <= 3 ngày (tính từ thời điểm hiện tại)
             showVipRenew = validUntil.isBefore(now.plusDays(3)) || validUntil.isEqual(now.plusDays(3));
+        }
+    }
+    
+    SystemSettingDAO sysDao = new SystemSettingDAO();
+    Optional<SystemSetting> vipDiscountSetting = sysDao.getSettingByKey("VIP_DISCOUNT_PERCENTAGE");
+    String vipDiscountStr = "5";
+    if (vipDiscountSetting.isPresent() && vipDiscountSetting.get().getSettingValue() != null) {
+        vipDiscountStr = vipDiscountSetting.get().getSettingValue().replaceAll("[^0-9.]", "");
+    }
+
+    Optional<SystemSetting> vipSetting = sysDao.getSettingByKey("VIP_SUBSCRIPTION_PRICE_MONTHLY");
+    String vipPriceStr = "199.000";
+    if (vipSetting.isPresent() && vipSetting.get().getSettingValue() != null) {
+        String val = vipSetting.get().getSettingValue();
+        try {
+            long p = Long.parseLong(val.replaceAll("[^0-9]", ""));
+            vipPriceStr = String.format("%,d", p).replace(',', '.');
+        } catch(Exception e) {
+            vipPriceStr = val;
         }
     }
 %>
@@ -268,13 +290,13 @@
             </div>
             <% if (isVipActive) { %>
             <h2 class="fw-bold">Bạn đã là Hội viên VIP</h2>
-            <p class="lead text-white-50">Cảm ơn bạn đã đồng hành. Bạn đang được hưởng đặc quyền giảm 5% cho mọi lần đặt sân.</p>
+            <p class="lead text-white-50">Cảm ơn bạn đã đồng hành. Bạn đang được hưởng đặc quyền giảm <%= vipDiscountStr %>% cho mọi lần đặt sân.</p>
             <button type="button" class="btn btn-warning btn-lg fw-bold shadow-sm px-4 text-dark" data-bs-toggle="modal" data-bs-target="#vipModal">
                 Xem lại Đặc quyền
             </button>
             <% } else { %>
             <h2 class="fw-bold">Đăng ký Hội viên VIP</h2>
-            <p class="lead text-white-50">Nhận ngay đặc quyền ưu đãi khủng, giảm 5% cho tất cả các lần đặt sân.</p>
+            <p class="lead text-white-50">Nhận ngay đặc quyền ưu đãi khủng, giảm <%= vipDiscountStr %>% cho tất cả các lần đặt sân.</p>
             <% if (sessionUser == null) { %>
             <a class="btn btn-light btn-lg fw-bold shadow-sm px-4" href="<%= ctx %>/register">Tham gia ngay</a>
             <% } else { %>
@@ -302,7 +324,7 @@
         </div>
         <h4 class="fw-bold mb-3">Đặc quyền Dành riêng cho Bạn</h4>
         <ul class="list-unstyled text-start mx-auto mb-4" style="max-width: 320px;">
-            <li class="mb-3 d-flex align-items-center"><i class="bi bi-check-circle-fill text-success fs-5 me-3"></i><span><strong>Giảm trực tiếp 5%</strong> cho mọi lần đặt sân</span></li>
+            <li class="mb-3 d-flex align-items-center"><i class="bi bi-check-circle-fill text-success fs-5 me-3"></i><span><strong>Giảm trực tiếp <%= vipDiscountStr %>%</strong> cho mọi lần đặt sân</span></li>
             <li class="mb-3 d-flex align-items-center"><i class="bi bi-check-circle-fill text-success fs-5 me-3"></i><span>Ưu tiên hiển thị lịch trống, đặt sân nhanh chóng</span></li>
             <li class="mb-3 d-flex align-items-center"><i class="bi bi-check-circle-fill text-success fs-5 me-3"></i><span>Hỗ trợ chăm sóc khách hàng ưu tiên 24/7</span></li>
         </ul>
@@ -312,15 +334,15 @@
             <h5 class="text-success mb-0"><i class="bi bi-check-circle-fill me-2"></i><strong>Đang kích hoạt</strong></h5>
         </div>
         <% if (showVipRenew) { %>
-        <a href="<%= ctx %>/payment?action=checkoutMembership" class="btn btn-outline-warning btn-lg w-100 fw-bold shadow-sm">Gia hạn thêm 30 ngày VIP</a>
+        <a href="<%= ctx %>/payment?action=method&type=membership" class="btn btn-outline-warning btn-lg w-100 fw-bold shadow-sm">Gia hạn thêm 30 ngày VIP</a>
         <% } else { %>
         <button type="button" class="btn btn-secondary btn-lg w-100 fw-bold shadow-sm" disabled>Đã Nâng Cấp VIP</button>
         <% } %>
         <% } else { %>
         <div class="bg-light p-3 rounded-3 mb-4 border border-warning border-opacity-50">
-            <h5 class="text-sf-accent mb-0">Chỉ với: <strong>199.000đ/Tháng</strong></h5>
+            <h5 class="text-sf-accent mb-0">Chỉ với: <strong><%= vipPriceStr %>đ/Tháng</strong></h5>
         </div>
-        <a href="<%= ctx %>/payment?action=checkoutMembership" class="btn btn-sf-accent btn-lg w-100 fw-bold shadow-sm">Nâng cấp VIP ngay</a>
+        <a href="<%= ctx %>/payment?action=method&type=membership" class="btn btn-sf-accent btn-lg w-100 fw-bold shadow-sm">Nâng cấp VIP ngay</a>
         <% } %>
       </div>
     </div>
