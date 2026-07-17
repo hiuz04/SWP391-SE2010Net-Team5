@@ -18,8 +18,6 @@ public class Voucher implements Serializable {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private String status;
-    private int exchangePoint;
-    private String targetUser;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -112,22 +110,6 @@ public class Voucher implements Serializable {
 
     public void setStatus(String status) {
         this.status = status;
-    }
-
-    public int getExchangePoint() {
-        return exchangePoint;
-    }
-
-    public void setExchangePoint(int exchangePoint) {
-        this.exchangePoint = exchangePoint;
-    }
-
-    public String getTargetUser() {
-        return targetUser;
-    }
-
-    public void setTargetUser(String targetUser) {
-        this.targetUser = targetUser;
     }
 
     public LocalDateTime getCreatedAt() {
