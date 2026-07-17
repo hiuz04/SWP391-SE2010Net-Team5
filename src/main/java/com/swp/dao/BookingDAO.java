@@ -73,7 +73,8 @@ public class BookingDAO {
                 if (rs.next()) {
                     return new FieldPricingContext(
                             rs.getLong("complex_id"),
-                            rs.getInt("field_type_id")
+                            rs.getInt("field_type_id"),
+                            fieldId
                     );
                 }
             }
@@ -350,6 +351,7 @@ public class BookingDAO {
                     .max(Comparator
                             .comparingInt(PriceRuleCandidate::priority)
                             .thenComparing(PriceRuleCandidate::exactSpecificDate)
+                            .thenComparing(PriceRuleCandidate::price)
                             .thenComparingLong(PriceRuleCandidate::priceRuleId))
                     .orElseThrow(() -> new SQLException("Không tìm thấy price rule ACTIVE phù hợp cho complex_id="
                             + pricingContext.complexId()
@@ -381,17 +383,19 @@ public class BookingDAO {
                 FROM price_rules pr
                 WHERE pr.status = 'ACTIVE'
                   AND pr.complex_id = ?
-                  AND pr.field_type_id = ?
+                  AND (pr.field_type_id = ? OR pr.field_type_id IS NULL)
+                  AND (pr.field_id = ? OR pr.field_id IS NULL)
                   AND (pr.specific_date = ? OR pr.specific_date IS NULL)
                   AND (
                       pr.day_of_week IS NULL
                       OR UPPER(pr.day_of_week) = 'ALL'
+                      OR UPPER(pr.day_of_week) = 'SPECIFICDATE'
                       OR UPPER(pr.day_of_week) = ?
                       OR (UPPER(pr.day_of_week) = 'WEEKDAY' AND ? = 1)
                       OR (UPPER(pr.day_of_week) = 'WEEKEND' AND ? = 1)
                   )
-                  AND pr.start_time < CAST(? AS time)
-                  AND pr.end_time > CAST(? AS time)
+                  AND (pr.start_time IS NULL OR pr.start_time <= CAST(? AS time))
+                  AND (pr.end_time IS NULL OR pr.end_time >= CAST(? AS time))
                 ORDER BY
                   pr.priority DESC,
                   pr.price_rule_id DESC
@@ -406,12 +410,13 @@ public class BookingDAO {
             ps.setDate(1, java.sql.Date.valueOf(startTime.toLocalDate()));
             ps.setLong(2, pricingContext.complexId());
             ps.setInt(3, pricingContext.fieldTypeId());
-            ps.setDate(4, java.sql.Date.valueOf(startTime.toLocalDate()));
-            ps.setString(5, startTime.getDayOfWeek().name());
-            ps.setInt(6, weekday ? 1 : 0);
-            ps.setInt(7, weekday ? 0 : 1);
-            ps.setString(8, endTime.toLocalTime().toString());
-            ps.setString(9, startTime.toLocalTime().toString());
+            ps.setLong(4, pricingContext.fieldId());
+            ps.setDate(5, java.sql.Date.valueOf(startTime.toLocalDate()));
+            ps.setString(6, startTime.getDayOfWeek().name());
+            ps.setInt(7, weekday ? 1 : 0);
+            ps.setInt(8, weekday ? 0 : 1);
+            ps.setString(9, endTime.toLocalTime().toString());
+            ps.setString(10, startTime.toLocalTime().toString());
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -420,10 +425,16 @@ public class BookingDAO {
                         continue;
                     }
 
+                    java.sql.Time st = rs.getTime("start_time");
+                    java.time.LocalTime ruleStartTime = st != null ? st.toLocalTime() : java.time.LocalTime.MIN;
+
+                    java.sql.Time et = rs.getTime("end_time");
+                    java.time.LocalTime ruleEndTime = et != null ? et.toLocalTime() : java.time.LocalTime.MAX;
+
                     rules.add(new PriceRuleCandidate(
                             rs.getLong("price_rule_id"),
-                            rs.getTime("start_time").toLocalTime(),
-                            rs.getTime("end_time").toLocalTime(),
+                            ruleStartTime,
+                            ruleEndTime,
                             price,
                             rs.getInt("priority"),
                             rs.getInt("exact_specific_date") == 1
@@ -1392,7 +1403,7 @@ public class BookingDAO {
         return first != null ? first : second;
     }
 
-    private record FieldPricingContext(Long complexId, Integer fieldTypeId) {
+    private record FieldPricingContext(Long complexId, Integer fieldTypeId, Long fieldId) {
     }
 
     private record PriceRuleCandidate(

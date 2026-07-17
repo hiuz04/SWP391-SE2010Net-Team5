@@ -98,6 +98,36 @@
                                         <input type="number" class="form-control" name="MIN_CANCELLATION_HOURS" value="<%= getVal(settingsMap, "MIN_CANCELLATION_HOURS") %>" min="0">
                                         <div class="form-text">Khách hàng được phép hủy không mất phí nếu cách giờ đá hơn số giờ này.</div>
                                     </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Tỉ lệ cọc mặc định (%)</label>
+                                        <input type="number" class="form-control" name="DEPOSIT_PERCENTAGE" value="<%= getVal(settingsMap, "DEPOSIT_PERCENTAGE") %>" min="0" max="100">
+                                        <div class="form-text">Phần trăm số tiền khách phải cọc khi đặt sân.</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Thời gian giữ chỗ (Phút)</label>
+                                        <input type="number" class="form-control" name="BOOKING_HOLD_MINUTES" value="<%= getVal(settingsMap, "BOOKING_HOLD_MINUTES") %>" min="1">
+                                        <div class="form-text">Thời gian chờ thanh toán trước khi tự động hủy hóa đơn.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="card soft-card border-0 shadow-sm mt-4">
+                                <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                                    <h5 class="fw-bold mb-0"><i class="bi bi-star-fill text-warning me-2"></i>Tài chính & Ưu đãi VIP</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Giá gói VIP 1 tháng (VNĐ)</label>
+                                        <input type="number" class="form-control" name="VIP_SUBSCRIPTION_PRICE_MONTHLY" value="<%= getVal(settingsMap, "VIP_SUBSCRIPTION_PRICE_MONTHLY") %>" min="0">
+                                        <div class="form-text">Giá tiền để đăng ký/nâng cấp gói hội viên VIP.</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Giảm giá VIP (%)</label>
+                                        <input type="number" class="form-control" name="VIP_DISCOUNT_PERCENTAGE" value="<%= getVal(settingsMap, "VIP_DISCOUNT_PERCENTAGE") %>" min="0" max="100">
+                                        <div class="form-text">Phần trăm giảm giá dành riêng cho hội viên VIP mỗi khi đặt sân.</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -1,39 +1,14 @@
 -- ===============================================================
--- Script: Allow payments.booking_id to be NULL
--- Purpose: Membership payments are not attached to a booking.
--- Safe to run multiple times.
--- ===============================================================
+-- Script: Cho phép booking_id nhận giá trị NULL trong bảng payments
+-- Mục đích: Để hỗ trợ các loại giao dịch không gắn liền với 
+--           booking cụ thể (như mua gói MEMBERSHIP).
+-- Xoá các constraint (nếu có) trước khi alter column. Thông thường 
+-- FOREIGN KEY sẽ không cản trở việc đổi thành NULL, 
+-- nhưng nếu có DEFAULT hoặc UNIQUE constraint thì sẽ cần xử lý.
+-- Với khoá ngoại, nếu có vấn đề bạn hãy thử xóa khoá ngoại,
+-- alter column, sau đó tạo lại khoá ngoại.
 
-USE FootballBookingSystem;
-GO
-
-SET NOCOUNT ON;
-
-IF OBJECT_ID(N'dbo.payments', N'U') IS NULL
-BEGIN
-    THROW 50000, 'Table dbo.payments does not exist.', 1;
-END;
-
-IF COL_LENGTH(N'dbo.payments', N'booking_id') IS NULL
-BEGIN
-    THROW 50001, 'Column dbo.payments.booking_id does not exist.', 1;
-END;
-
-IF EXISTS (
-    SELECT 1
-    FROM sys.columns
-    WHERE object_id = OBJECT_ID(N'dbo.payments')
-      AND name = N'booking_id'
-      AND is_nullable = 0
-)
-BEGIN
-    ALTER TABLE dbo.payments
-    ALTER COLUMN booking_id BIGINT NULL;
-
-    PRINT 'Updated dbo.payments.booking_id to allow NULL.';
-END
-ELSE
-BEGIN
-    PRINT 'dbo.payments.booking_id already allows NULL.';
-END;
+-- Lệnh chuyển booking_id thành NULLable
+ALTER TABLE payments
+ALTER COLUMN booking_id BIGINT NULL;
 GO

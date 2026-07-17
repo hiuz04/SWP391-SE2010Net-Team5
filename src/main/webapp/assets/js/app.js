@@ -163,20 +163,20 @@
           </div>
         </div>
       </nav>`;
-    }
+  }
 
-    function renderFooter() {
-        const target = document.getElementById('footer');
-        if (!target) return;
-        const root = target.dataset.root || '';
-
-        fetch(root + 'api/public/settings')
-            .then(res => res.json())
-            .then(data => {
-                const email = data.email || 'tranbaolong.280904@gmail.com';
-                const phone = data.phone || '0385028924';
-
-                target.innerHTML = `
+  function renderFooter() {
+    const target = document.getElementById('footer');
+    if (!target) return;
+    const root = target.dataset.root || '';
+    
+    fetch(root + 'api/public/settings')
+      .then(res => res.json())
+      .then(data => {
+        const email = data.email || 'tranbaolong.280904@gmail.com';
+        const phone = data.phone || '0385028924';
+        
+        target.innerHTML = `
           <footer class="footer pt-5 pb-4 mt-5">
             <div class="container">
               <div class="row g-4">
@@ -200,10 +200,10 @@
               <hr class="border-secondary my-4"><p class="small mb-0">© 2026 Sport Field Booking. Static Bootstrap UI prototype.</p>
             </div>
           </footer>`;
-            })
-            .catch(err => {
-                // Fallback in case of error
-                target.innerHTML = `
+      })
+      .catch(err => {
+        // Fallback in case of error
+        target.innerHTML = `
           <footer class="footer pt-5 pb-4 mt-5">
             <div class="container">
               <div class="row g-4">
@@ -227,66 +227,116 @@
               <hr class="border-secondary my-4"><p class="small mb-0">© 2026 Sport Field Booking. Static Bootstrap UI prototype.</p>
             </div>
           </footer>`;
-            });
-    }
+      });
+  }
 
-    function initDemoActions() {
-        document.querySelectorAll('[data-demo-alert]').forEach(btn => {
-            btn.addEventListener('click', () => alert(btn.getAttribute('data-demo-alert')));
-        });
-        document.querySelectorAll('[data-fill-date="today"]').forEach(el => {
-            const d = new Date();
-            el.value = d.toISOString().slice(0, 10);
-        });
-    }
+  function initDemoActions() {
+    document.querySelectorAll('[data-demo-alert]').forEach(btn => {
+      btn.addEventListener('click', () => alert(btn.getAttribute('data-demo-alert')));
+    });
+    document.querySelectorAll('[data-fill-date="today"]').forEach(el => {
+      const d = new Date();
+      el.value = d.toISOString().slice(0, 10);
+    });
+  }
 
-    window.markAllAsRead = function (e) {
-        if (e) e.stopPropagation();
-        const target = document.getElementById('navbar');
-        const root = target ? (target.dataset.root || '') : '';
-        fetch(link(root, 'api/notifications'), {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'action=mark_all_read'
-        }).then(res => res.json()).then(data => {
-            if (data.success) {
-                updateNotificationCount();
-            }
-        });
-    };
+  window.markAllAsRead = function(e) {
+      if(e) e.stopPropagation();
+      const target = document.getElementById('navbar');
+      const root = target ? (target.dataset.root || '') : '';
+      fetch(link(root, 'api/notifications'), {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: 'action=mark_all_read'
+      }).then(res => res.json()).then(data => {
+          if(data.success) {
+              updateNotificationCount();
+          }
+      });
+  };
 
-    window.markAsRead = function (id) {
-        const target = document.getElementById('navbar');
-        const root = target ? (target.dataset.root || '') : '';
-        fetch(link(root, 'api/notifications'), {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'action=mark_read&id=' + id
-        }).then(res => res.json()).then(data => {
-            if (data.success) {
-                updateNotificationCount();
-            }
-        });
-    };
+  window.markAsRead = function(id) {
+      const target = document.getElementById('navbar');
+      const root = target ? (target.dataset.root || '') : '';
+      fetch(link(root, 'api/notifications'), {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: 'action=mark_read&id=' + id
+      }).then(res => res.json()).then(data => {
+          if(data.success) {
+              updateNotificationCount();
+          }
+      });
+  };
 
-    function escapeHtml(value) {
-        if (value == null) return '';
-        return String(value)
-            .replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')
-            .replaceAll('"', '&quot;')
-            .replaceAll("'", '&#39;');
-    }
+  function escapeHtml(value) {
+      if (value == null) return '';
+      return String(value)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+  }
 
-    function notificationHref(root, notification) {
-        const type = notification.notificationType || notification.notification_type;
-        const ref = notification.referenceId || notification.reference_id;
-        if ((type === 'CHECKOUT_PAYMENT' || type === 'CHECKOUT_PAYMENT_SUCCESS') && ref) {
-            return link(root, 'customer/checkout-invoice?id=' + encodeURIComponent(ref));
-        }
-        if ((type === 'BOOKING' || type === 'REMINDER') && ref) {
-            return link(root, 'booking?action=detail&id=' + encodeURIComponent(ref));
+  function notificationHref(root, notification) {
+      const type = notification.notificationType || notification.notification_type;
+      const ref = notification.referenceId || notification.reference_id;
+      if ((type === 'CHECKOUT_PAYMENT' || type === 'CHECKOUT_PAYMENT_SUCCESS') && ref) {
+          return link(root, 'customer/checkout-invoice?id=' + encodeURIComponent(ref));
+      }
+      if ((type === 'BOOKING' || type === 'REMINDER') && ref) {
+          return link(root, 'booking?action=detail&id=' + encodeURIComponent(ref));
+      }
+      return '#';
+  }
+
+  window.handleNotificationClick = function(event, id, href, title, message) {
+      if (event) event.preventDefault();
+      const target = document.getElementById('navbar');
+      const root = target ? (target.dataset.root || '') : '';
+      fetch(link(root, 'api/notifications'), {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: 'action=mark_read&id=' + encodeURIComponent(id)
+      }).then(() => {
+          if (href && href !== '#') {
+              window.location.href = href;
+          } else {
+              updateNotificationCount();
+              if (title && message) showNotificationDetail(title, message);
+          }
+      }).catch(() => {
+          if (href && href !== '#') {
+              window.location.href = href;
+          } else {
+              if (title && message) showNotificationDetail(title, message);
+          }
+      });
+  };
+
+  window.updateNotificationCount = function() {
+    const target = document.getElementById('navbar');
+    if (!target) return;
+    const root = target.dataset.root || '';
+    const role = target.dataset.role || 'guest';
+    
+    if (role === 'guest') return;
+
+    fetch(link(root, 'api/notifications'))
+      .then(res => {
+          if (!res.ok) throw new Error('Not logged in');
+          return res.json();
+      })
+      .then(data => {
+        const badge = document.getElementById('notifBadge');
+        if (badge) {
+          if (data.unreadCount > 0) {
+            badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
+            badge.style.display = 'inline-block';
+          } else {
+            badge.style.display = 'none';
+          }
         }
         return '#';
     }
@@ -303,54 +353,13 @@
             if (href && href !== '#') {
                 window.location.href = href;
             } else {
-                updateNotificationCount();
-                if (title && message) showNotificationDetail(title, message);
-            }
-        }).catch(() => {
-            if (href && href !== '#') {
-                window.location.href = href;
-            } else {
-                if (title && message) showNotificationDetail(title, message);
-            }
-        });
-    };
-
-    window.updateNotificationCount = function () {
-        const target = document.getElementById('navbar');
-        if (!target) return;
-        const root = target.dataset.root || '';
-        const role = target.dataset.role || 'guest';
-
-        if (role === 'guest') return;
-
-        fetch(link(root, 'api/notifications'))
-            .then(res => {
-                if (!res.ok) throw new Error('Not logged in');
-                return res.json();
-            })
-            .then(data => {
-                const badge = document.getElementById('notifBadge');
-                if (badge) {
-                    if (data.unreadCount > 0) {
-                        badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
-                        badge.style.display = 'inline-block';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                }
-
-                const list = document.getElementById('notifList');
-                if (list) {
-                    if (!data.notifications || data.notifications.length === 0) {
-                        list.innerHTML = '<li><span class="dropdown-item text-center text-muted py-3">Không có thông báo mới</span></li>';
-                    } else {
-                        let html = '';
-                        data.notifications.forEach(n => {
-                            const bg = n.isRead ? '' : 'bg-light';
-                            const href = notificationHref(root, n);
-                            const titleEsc = escapeHtml(n.title).replace(/'/g, "\\'");
-                            const msgEsc = escapeHtml(n.message).replace(/'/g, "\\'").replace(/\n/g, "\\n");
-                            html += `<li>
+                let html = '';
+                data.notifications.forEach(n => {
+                    const bg = n.isRead ? '' : 'bg-light';
+                    const href = notificationHref(root, n);
+                    const titleEsc = escapeHtml(n.title).replace(/'/g, "\\'");
+                    const msgEsc = escapeHtml(n.message).replace(/'/g, "\\'").replace(/\n/g, "\\n");
+                    html += `<li>
                         <a class="dropdown-item border-bottom py-2 ${bg}" href="${href}" onclick="handleNotificationClick(event, ${n.notificationId}, '${href}', '${titleEsc}', '${msgEsc}')">
                             <div class="fw-bold" style="font-size:0.85rem">${escapeHtml(n.title)}</div>
                             <div class="text-wrap text-muted" style="font-size:0.8rem; line-height: 1.2;">${escapeHtml(n.message)}</div>
@@ -416,18 +425,18 @@
             if (onConfirm) onConfirm();
         });
 
-        bsModal.show();
-    };
+    bsModal.show();
+  };
 
-    window.showNotificationDetail = function (title, message) {
-        let modalEl = document.getElementById('notificationDetailModal');
-        if (!modalEl) {
-            modalEl = document.createElement('div');
-            modalEl.id = 'notificationDetailModal';
-            modalEl.className = 'modal fade';
-            modalEl.setAttribute('tabindex', '-1');
-            modalEl.setAttribute('aria-hidden', 'true');
-            modalEl.innerHTML = `
+  window.showNotificationDetail = function (title, message) {
+    let modalEl = document.getElementById('notificationDetailModal');
+    if (!modalEl) {
+      modalEl = document.createElement('div');
+      modalEl.id = 'notificationDetailModal';
+      modalEl.className = 'modal fade';
+      modalEl.setAttribute('tabindex', '-1');
+      modalEl.setAttribute('aria-hidden', 'true');
+      modalEl.innerHTML = `
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content shadow border-0" style="border-radius: 12px;">
             <div class="modal-header border-0 pb-0">
@@ -446,29 +455,29 @@
           </div>
         </div>
       `;
-            document.body.appendChild(modalEl);
-        }
-        document.getElementById('notifDetailTitle').innerHTML = '<i class="bi bi-info-circle-fill text-primary" style="font-size: 1.3rem;"></i> ' + escapeHtml(title);
-        document.getElementById('notifDetailMessage').textContent = message;
-        new bootstrap.Modal(modalEl).show();
-    };
+      document.body.appendChild(modalEl);
+    }
+    document.getElementById('notifDetailTitle').innerHTML = '<i class="bi bi-info-circle-fill text-primary" style="font-size: 1.3rem;"></i> ' + escapeHtml(title);
+    document.getElementById('notifDetailMessage').textContent = message;
+    new bootstrap.Modal(modalEl).show();
+  };
 
-    document.addEventListener('DOMContentLoaded', function () {
-        renderNavbar();
-        renderFooter();
-        initDemoActions();
-        updateNotificationCount();
-
-        // Check and show pending toast
-        try {
-            const pending = sessionStorage.getItem('pending_toast');
-            if (pending) {
-                const toastData = JSON.parse(pending);
-                window.showToast(toastData.message, toastData.type);
-                sessionStorage.removeItem('pending_toast');
-            }
-        } catch (e) {
-            console.error('Error loading pending toast', e);
-        }
-    });
+  document.addEventListener('DOMContentLoaded', function () {
+    renderNavbar();
+    renderFooter();
+    initDemoActions();
+    updateNotificationCount();
+    
+    // Check and show pending toast
+    try {
+      const pending = sessionStorage.getItem('pending_toast');
+      if (pending) {
+        const toastData = JSON.parse(pending);
+        window.showToast(toastData.message, toastData.type);
+        sessionStorage.removeItem('pending_toast');
+      }
+    } catch (e) {
+      console.error('Error loading pending toast', e);
+    }
+  });
 })();

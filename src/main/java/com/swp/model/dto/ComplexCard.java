@@ -16,11 +16,12 @@ public class ComplexCard {
     private LocalTime openingTime;
     private LocalTime closingTime;
     private String thumbnailUrl;
+    private java.math.BigDecimal currentPrice;
 
     public ComplexCard() {
     }
 
-    public ComplexCard(long complexId, String thumbnail, String complexName, String address, String city, String ward, List<FieldType> fieldTypeList, LocalTime openingTime, LocalTime closingTime, String thumbnailUrl) {
+    public ComplexCard(long complexId, String thumbnail, String complexName, String address, String city, String ward, List<FieldType> fieldTypeList, LocalTime openingTime, LocalTime closingTime, String thumbnailUrl, java.math.BigDecimal currentPrice) {
         this.complexId = complexId;
         this.thumbnail = thumbnail;
         this.complexName = complexName;
@@ -31,6 +32,7 @@ public class ComplexCard {
         this.openingTime = openingTime;
         this.closingTime = closingTime;
         this.thumbnailUrl = thumbnailUrl;
+        this.currentPrice = currentPrice;
     }
 
     public long getComplexId() {
@@ -111,5 +113,13 @@ public class ComplexCard {
 
     public void setThumbnailUrl(String thumbnailUrl) {
         this.thumbnailUrl = thumbnailUrl;
+    }
+
+    public java.math.BigDecimal getCurrentPrice() {
+        return currentPrice;
+    }
+
+    public void setCurrentPrice(java.math.BigDecimal currentPrice) {
+        this.currentPrice = currentPrice;
     }
 }

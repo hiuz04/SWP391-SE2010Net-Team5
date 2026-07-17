@@ -24,13 +24,15 @@ public class TopFieldSummary {
 
     private int bookingCount;
     private String imageUrl;
+    private java.math.BigDecimal currentPrice;
 
     public TopFieldSummary() {
     }
 
     public TopFieldSummary(long fieldId, String fieldName, String description, String status,
                            String fieldTypeName, boolean isHot, long complexId, String complexName,
-                           String address, String district, String city, int bookingCount, String imageUrl) {
+                           String address, String district, String city, int bookingCount, String imageUrl,
+                           java.math.BigDecimal currentPrice) {
         this.fieldId = fieldId;
         this.fieldName = fieldName;
         this.description = description;
@@ -44,6 +46,7 @@ public class TopFieldSummary {
         this.city = city;
         this.bookingCount = bookingCount;
         this.imageUrl = imageUrl;
+        this.currentPrice = currentPrice;
     }
 
     public long getFieldId() { return fieldId; }
@@ -84,6 +87,9 @@ public class TopFieldSummary {
 
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public java.math.BigDecimal getCurrentPrice() { return currentPrice; }
+    public void setCurrentPrice(java.math.BigDecimal currentPrice) { this.currentPrice = currentPrice; }
 
     /** Trả về địa chỉ đầy đủ gồm district + city */
     public String getFullLocation() {
