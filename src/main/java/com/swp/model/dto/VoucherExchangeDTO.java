@@ -1,13 +1,11 @@
-package com.swp.model;
+package com.swp.model.dto;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public class Voucher implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class VoucherExchangeDTO {
 
-    private int id;
+    private long id;
     private String code;
     private String name;
     private String discountType;
@@ -15,22 +13,32 @@ public class Voucher implements Serializable {
     private BigDecimal minOrder;
     private int quantity;
     private int used;
-    private LocalDateTime startDate;
+    private int exchangePoints;
     private LocalDateTime endDate;
-    private String status;
-    private int exchangePoint;
     private String targetUser;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 
-    public Voucher() {
+    public VoucherExchangeDTO() {
     }
 
-    public int getId() {
+    public VoucherExchangeDTO(long id, String code, String name, String discountType, BigDecimal discountValue, BigDecimal minOrder, int quantity, int used, int exchangePoints, LocalDateTime endDate, String targetUser) {
+        this.id = id;
+        this.code = code;
+        this.name = name;
+        this.discountType = discountType;
+        this.discountValue = discountValue;
+        this.minOrder = minOrder;
+        this.quantity = quantity;
+        this.used = used;
+        this.exchangePoints = exchangePoints;
+        this.endDate = endDate;
+        this.targetUser = targetUser;
+    }
+
+    public long getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(long id) {
         this.id = id;
     }
 
@@ -90,12 +98,12 @@ public class Voucher implements Serializable {
         this.used = used;
     }
 
-    public LocalDateTime getStartDate() {
-        return startDate;
+    public int getExchangePoints() {
+        return exchangePoints;
     }
 
-    public void setStartDate(LocalDateTime startDate) {
-        this.startDate = startDate;
+    public void setExchangePoints(int exchangePoints) {
+        this.exchangePoints = exchangePoints;
     }
 
     public LocalDateTime getEndDate() {
@@ -106,43 +114,11 @@ public class Voucher implements Serializable {
         this.endDate = endDate;
     }
 
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public int getExchangePoint() {
-        return exchangePoint;
-    }
-
-    public void setExchangePoint(int exchangePoint) {
-        this.exchangePoint = exchangePoint;
-    }
-
     public String getTargetUser() {
         return targetUser;
     }
 
     public void setTargetUser(String targetUser) {
         this.targetUser = targetUser;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

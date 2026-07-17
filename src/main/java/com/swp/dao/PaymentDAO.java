@@ -1194,6 +1194,20 @@ public class PaymentDAO {
         }
     }
 
+    public PaymentView getPaymentResultByTransactionRef(String transactionRef) throws SQLException {
+        String sql = paymentViewSql() + """
+                WHERE p.transaction_ref = ?
+                """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, transactionRef);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapPaymentView(rs) : null;
+            }
+        }
+    }
+
     public List<PaymentView> getPaymentHistory(long customerId) throws SQLException {
         String sql = paymentViewSql() + """
                 WHERE p.customer_id = ?
