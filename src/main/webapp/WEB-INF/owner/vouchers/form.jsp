@@ -26,7 +26,7 @@
     User currentUser = (User) session.getAttribute("user");
     String currentName = currentUser != null && currentUser.getFullName() != null
             ? currentUser.getFullName()
-            : "Admin";
+            : "Owner";
     Voucher voucher = (Voucher) request.getAttribute("voucher");
     if (voucher == null) voucher = new Voucher();
     String mode = (String) request.getAttribute("mode");
@@ -47,12 +47,12 @@
     <title><%= edit ? "Sửa mã giảm giá" : "Tạo mã giảm giá" %> | Sport Field Booking</title>
 </head>
 <body class="bg-light">
-<div id="navbar" data-root="<%= ctx %>/" data-role="admin" data-name="<%= esc(currentName) %>" data-active="Mã giảm giá"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="owner" data-name="<%= esc(currentName) %>" data-active="Mã giảm giá"></div>
 
 <main class="py-4">
     <div class="container">
         <div class="mb-3">
-            <a class="btn btn-outline-secondary" href="<%= ctx %>/admin/vouchers">
+            <a class="btn btn-outline-secondary" href="<%= ctx %>/owner/vouchers">
                 <i class="bi bi-arrow-left"></i> Quay l&#7841;i
             </a>
         </div>
@@ -64,7 +64,7 @@
                 <div class="alert alert-danger"><%= esc(error) %></div>
                 <% } %>
 
-                <form method="post" action="<%= ctx %>/admin/vouchers?action=<%= edit ? "edit" : "create" %>">
+                <form method="post" action="<%= ctx %>/owner/vouchers?action=<%= edit ? "edit" : "create" %>">
                     <% if (edit) { %>
                     <input type="hidden" name="id" value="<%= voucher.getId() %>">
                     <% } %>
@@ -128,7 +128,7 @@
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 mt-4">
-                        <a class="btn btn-light" href="<%= ctx %>/admin/vouchers">H&#7911;y</a>
+                        <a class="btn btn-light" href="<%= ctx %>/owner/vouchers">H&#7911;y</a>
                         <button class="btn btn-success" type="submit">
                             <i class="bi bi-save me-2"></i>Lưu mã giảm giá
                         </button>

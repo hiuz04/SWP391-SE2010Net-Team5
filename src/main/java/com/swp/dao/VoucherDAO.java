@@ -36,6 +36,8 @@ public class VoucherDAO {
                        start_date,
                        end_date,
                        status,
+                       target_user,
+                       exchange_points,
                        created_at,
                        updated_at
                 FROM vouchers
@@ -578,6 +580,8 @@ public class VoucherDAO {
                        start_date,
                        end_date,
                        status,
+                       target_user,
+                       exchange_points,
                        created_at,
                        updated_at
                 FROM vouchers
@@ -629,9 +633,10 @@ public class VoucherDAO {
         voucher.setStartDate(toLocalDateTime(rs.getTimestamp("start_date")));
         voucher.setEndDate(toLocalDateTime(rs.getTimestamp("end_date")));
         voucher.setStatus(rs.getString("status"));
+        voucher.setTargetUser(rs.getString("target_user"));
+        voucher.setExchangePoint(rs.getInt("exchange_points"));
         voucher.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
         voucher.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
-        voucher.setExchangePoint(rs.getInt("exchange_points"));
         return voucher;
     }
 

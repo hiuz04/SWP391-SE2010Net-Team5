@@ -47,7 +47,7 @@
     User currentUser = (User) session.getAttribute("user");
     String currentName = currentUser != null && currentUser.getFullName() != null
             ? currentUser.getFullName()
-            : "Admin";
+            : "Owner";
     List<Voucher> vouchers = (List<Voucher>) request.getAttribute("vouchers");
     String successMessage = (String) session.getAttribute("successMessage");
     String errorMessage = (String) session.getAttribute("errorMessage");
@@ -65,7 +65,7 @@
     <title>Quản lý mã giảm giá | Sport Field Booking</title>
 </head>
 <body class="bg-light">
-<div id="navbar" data-root="<%= ctx %>/" data-role="admin" data-name="<%= esc(currentName) %>" data-active="Mã giảm giá"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="owner" data-name="<%= esc(currentName) %>" data-active="Mã giảm giá"></div>
 
 <main class="py-4">
     <div class="container">
@@ -74,7 +74,7 @@
                 <h1 class="section-title mb-1">Quản lý mã giảm giá</h1>
                 <p class="text-muted mb-0">Tạo, sửa và bật/tắt mã giảm giá cho luồng đặt sân.</p>
             </div>
-            <a class="btn btn-success" href="<%= ctx %>/admin/vouchers?action=create">
+            <a class="btn btn-success" href="<%= ctx %>/owner/vouchers?action=create">
                 <i class="bi bi-plus-circle me-2"></i>Thêm mã giảm giá
             </a>
         </div>
@@ -129,10 +129,10 @@
                         <td><%= dateTime(voucher.getEndDate()) %></td>
                         <td><span class="badge <%= statusBadge(voucher.getStatus()) %>"><%= statusText(voucher.getStatus()) %></span></td>
                         <td class="text-end pe-4">
-                            <a class="btn btn-sm btn-outline-primary" href="<%= ctx %>/admin/vouchers?action=edit&id=<%= voucher.getId() %>">
+                            <a class="btn btn-sm btn-outline-primary" href="<%= ctx %>/owner/vouchers?action=edit&id=<%= voucher.getId() %>">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            <form method="post" action="<%= ctx %>/admin/vouchers" class="d-inline">
+                            <form method="post" action="<%= ctx %>/owner/vouchers" class="d-inline">
                                 <input type="hidden" name="action" value="toggle-status">
                                 <input type="hidden" name="id" value="<%= voucher.getId() %>">
                                 <button type="submit" class="btn btn-sm <%= active ? "btn-outline-secondary" : "btn-outline-success" %>">
