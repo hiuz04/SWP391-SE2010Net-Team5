@@ -131,10 +131,6 @@ public class StaffBillingDAO {
                 }
 
                 LocalDateTime now = LocalDateTime.now();
-                if (booking.endTime() != null && now.isBefore(booking.endTime())) {
-                    throw new IllegalArgumentException("Chua den gio ket thuc tran, chua the tra san.");
-                }
-
                 BigDecimal overtimeFeePerMinute = getOvertimeFeePerMinute(conn);
                 long overtimeMinutes = calculateOvertimeMinutes(booking.endTime(), now);
                 BigDecimal overtimeFee = overtimeFeePerMinute.multiply(BigDecimal.valueOf(overtimeMinutes));
@@ -351,11 +347,8 @@ public class StaffBillingDAO {
         view.setOvertimeFee(overtimeFee);
         view.setSubtotal(subtotal);
         view.setFinalAmount(finalAmount);
-        boolean allowed = view.getEndTime() == null || !now.isBefore(view.getEndTime());
-        view.setCheckoutAllowed(allowed);
-        if (!allowed) {
-            view.setCheckoutBlockedReason("Chua den gio ket thuc tran, chua the tra san.");
-        }
+        view.setCheckoutAllowed(STATUS_CHECKED_IN.equals(view.getStatus()));
+        view.setCheckoutBlockedReason(null);
     }
 
     private long calculateOvertimeMinutes(LocalDateTime endTime, LocalDateTime now) {

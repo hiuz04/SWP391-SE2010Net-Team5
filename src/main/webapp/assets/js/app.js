@@ -92,10 +92,10 @@
             ['Dashboard', 'staff/dashboard'], ['Lịch trong ngày', 'staff/schedule'], ['Check-in', 'staff/checkin']
         ],
         owner: [
-            ['Dashboard', 'owner'], ['Cơ sở', 'owner/complex'], ['Sân bóng', 'owner/field'], ['Quản lý ca trực', 'owner/work-shift'], ['Bảng giá', 'owner/price-rules']
+            ['Dashboard', 'owner'], ['Cơ sở', 'owner/complex'], ['Sân bóng', 'owner/field'], ['Quản lý ca trực', 'owner/work-shift'], ['Bảng giá', 'owner/price-rules'], ['Mã giảm giá', 'owner/vouchers']
         ],
         admin: [
-            ['Dashboard', 'admin/dashboard'], ['Người dùng', 'admin/users'], ['Mã giảm giá', 'admin/vouchers'], ['Cài đặt', 'admin/settings']
+            ['Dashboard', 'admin/dashboard'], ['Người dùng', 'admin/users'], ['Cài đặt', 'admin/settings']
         ]
     };
 
