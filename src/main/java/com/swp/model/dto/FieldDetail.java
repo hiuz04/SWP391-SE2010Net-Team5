@@ -3,6 +3,7 @@ package com.swp.model.dto;
 import com.swp.model.Feedback;
 import com.swp.model.Field;
 import com.swp.model.FieldType;
+import com.swp.model.PriceRule;
 
 import java.time.LocalTime;
 import java.util.List;
@@ -19,6 +20,8 @@ public class FieldDetail {
     private LocalTime closingTime;
     private String hotline;
     private List<FeedbackDTO> feedbacks;
+    private List<PriceRule> priceRules;
+    private java.math.BigDecimal currentPrice;
 
     public FieldDetail() {
     }
@@ -34,6 +37,22 @@ public class FieldDetail {
         this.closingTime = closingTime;
         this.hotline = hotline;
         this.feedbacks = feedbacks;
+    }
+
+    public List<PriceRule> getPriceRules() {
+        return priceRules;
+    }
+
+    public void setPriceRules(List<PriceRule> priceRules) {
+        this.priceRules = priceRules;
+    }
+
+    public java.math.BigDecimal getCurrentPrice() {
+        return currentPrice;
+    }
+
+    public void setCurrentPrice(java.math.BigDecimal currentPrice) {
+        this.currentPrice = currentPrice;
     }
 
     public List<Field> getFields() {

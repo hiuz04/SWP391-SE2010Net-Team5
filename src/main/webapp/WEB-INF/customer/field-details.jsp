@@ -49,6 +49,8 @@
                         <h2 class="section-title" id="field-name"></h2>
 
                         <p class="text-muted" id="address"></p>
+                        
+                        <h4 class="text-success fw-bold mt-2 mb-3" id="currentPrice"></h4>
 
                         <div class="d-flex gap-4">
                             <span>
@@ -78,12 +80,12 @@
                         </div>
 
                     </div>
-<%--                    <div class="card soft-card p-4">--%>
-<%--                        <h2 class="section-title"><i class="bi bi-tag-fill me-2"></i> Bảng giá thuê sân</h2>--%>
-<%--                        <div id="price-rule-list">--%>
-
-<%--                        </div>--%>
-<%--                    </div>--%>
+                    <div class="card soft-card p-4">
+                        <h2 class="section-title"><i class="bi bi-tag-fill me-2"></i> Bảng giá thuê sân</h2>
+                        <div id="price-rule-list" class="mt-3">
+                            <!-- Bảng giá sẽ render ở đây -->
+                        </div>
+                    </div>
                     <div class="card soft-card p-4 mt-3">
                         <h2 class="section-title">Đánh giá</h2>
 

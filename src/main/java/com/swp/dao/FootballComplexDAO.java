@@ -417,4 +417,42 @@ public class FootballComplexDAO {
 
         return wards;
     }
+
+    public java.math.BigDecimal getMinPriceForComplex(Long complexId) {
+        String sql = "SELECT MIN(price) AS min_price FROM price_rules WHERE complex_id = ? AND status = 'ACTIVE'";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, complexId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getBigDecimal("min_price");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public java.math.BigDecimal getMaxPriceForComplex(Long complexId) {
+        String sql = "SELECT MAX(price) AS max_price FROM price_rules WHERE complex_id = ? AND status = 'ACTIVE'";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, complexId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getBigDecimal("max_price");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public java.math.BigDecimal getCurrentPriceForComplex(Long complexId) {
+        PriceRuleDAO priceRuleDAO = new PriceRuleDAO();
+        java.util.List<com.swp.model.PriceRule> rules = priceRuleDAO.getByComplexId(complexId);
+        return com.swp.util.PriceCalculator.calculateCurrentPrice(rules, null, null);
+    }
 }

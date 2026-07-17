@@ -218,11 +218,6 @@
                                     <input type="hidden" name="userId" value="<%= u.getUserId() %>">
                                     <button type="submit" class="action-btn text-success" title="Mở khóa"><i class="bi bi-unlock"></i></button>
                                 </form>
-                                <form method="post" action="<%= ctx %>/admin/users" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa vĩnh viễn người dùng này?');">
-                                    <input type="hidden" name="action" value="delete">
-                                    <input type="hidden" name="userId" value="<%= u.getUserId() %>">
-                                    <button type="submit" class="action-btn text-danger" title="Xóa vĩnh viễn"><i class="bi bi-trash"></i></button>
-                                </form>
                                 <% } %>
                             </td>
                         </tr>

@@ -6,12 +6,12 @@ function renderData(data) {
     const html = data.map(item => `
         <div class="col-12 mb-3">
             <div class="card soft-card">
-                <div class="row g-0" style="max-height: 180px">
+                <div class="row g-0 h-100">
 
                     <div class="col-md-4">
                         <img
                             src="${item.thumbnailUrl}"
-                            class="img-fluid w-100 object-fit-cover"
+                            class="img-fluid w-100 h-100 object-fit-cover"
                             alt="Sân bóng">
                     </div>
 
@@ -40,6 +40,18 @@ function renderData(data) {
                                     `)
                                 .join("")}
                             </div>
+                            
+                            ${item.currentPrice != null ? `
+                                <p class="text-success fw-bold mb-3" style="font-size: 1.1rem;">
+                                    <i class="bi bi-cash me-1"></i> Giá lúc này: ${new Intl.NumberFormat('vi-VN').format(item.currentPrice)}đ/giờ
+                                    <br><small class="text-muted fw-normal" style="font-size: 0.8rem;">* Giá có thể thay đổi theo khung giờ đặt</small>
+                                </p>
+                            ` : `
+                                <p class="text-success fw-bold mb-3">
+                                    <i class="bi bi-cash me-1"></i> Chưa có giá
+                                </p>
+                            `}
+
                             <div class="mt-auto d-flex justify-content-end">
                                 <a class="btn btn-outline-success me-2"
                                    href="${ctx}/field-details?id=${item.complexId}">
@@ -126,6 +138,11 @@ function searchData() {
 
     if (fieldTypeId) {
         params.append("fieldTypeId", fieldTypeId);
+    }
+
+    const sortOrder = document.getElementById("sortOrder");
+    if (sortOrder && sortOrder.value) {
+        params.append("sortOrder", sortOrder.value);
     }
 
     fetch(`${ctx}/field-list?${params.toString()}`)

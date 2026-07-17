@@ -37,6 +37,7 @@ public class GetFieldList extends HttpServlet {
         String province = req.getParameter("province");
         String ward = req.getParameter("ward");
         String fieldTypeId = req.getParameter("fieldTypeId");
+        String sortOrder = req.getParameter("sortOrder");
 
         List<FootballComplex> complexes = FOOTBALL_COMPLEX_DAO.getAllComplex();
         List<Field> fields = fieldDAO.getAllField();
@@ -113,8 +114,27 @@ public class GetFieldList extends HttpServlet {
             card.setOpeningTime(fc.getOpeningTime());
             card.setClosingTime(fc.getClosingTime());
             card.setThumbnailUrl(thumbnail.getImageUrl());
+            card.setCurrentPrice(FOOTBALL_COMPLEX_DAO.getCurrentPriceForComplex(fc.getComplexId()));
 
             lists.add(card);
+        }
+
+        if (sortOrder != null && !sortOrder.isBlank()) {
+            if (sortOrder.equals("price_asc")) {
+                lists.sort((c1, c2) -> {
+                    if (c1.getCurrentPrice() == null && c2.getCurrentPrice() == null) return 0;
+                    if (c1.getCurrentPrice() == null) return 1;
+                    if (c2.getCurrentPrice() == null) return -1;
+                    return c1.getCurrentPrice().compareTo(c2.getCurrentPrice());
+                });
+            } else if (sortOrder.equals("price_desc")) {
+                lists.sort((c1, c2) -> {
+                    if (c1.getCurrentPrice() == null && c2.getCurrentPrice() == null) return 0;
+                    if (c1.getCurrentPrice() == null) return 1;
+                    if (c2.getCurrentPrice() == null) return -1;
+                    return c2.getCurrentPrice().compareTo(c1.getCurrentPrice());
+                });
+            }
         }
 
         Gson gson = new GsonBuilder()

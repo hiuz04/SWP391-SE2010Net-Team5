@@ -65,10 +65,10 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div><h1 class="section-title">Tìm sân bóng</h1>
                         <p class="text-muted mb-0" id="fieldCount"></p></div>
-                    <select class="form-select w-auto">
-                        <option>Sắp xếp: Gần nhất</option>
-                        <option>Đánh giá cao</option>
-                        <option>Giá thấp</option>
+                    <select class="form-select w-auto" id="sortOrder" onchange="searchData()">
+                        <option value="">Sắp xếp: Mặc định</option>
+                        <option value="price_asc">Giá: Thấp đến Cao</option>
+                        <option value="price_desc">Giá: Cao đến Thấp</option>
                     </select></div>
 <%--                <div class="map-placeholder mb-4">--%>
 <%--                    <div><i class="bi bi-map display-4"></i><h5 class="mt-2">Khu vực bản đồ</h5>--%>
