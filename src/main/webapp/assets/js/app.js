@@ -338,20 +338,11 @@
             badge.style.display = 'none';
           }
         }
-        return '#';
-    }
-
-    window.handleNotificationClick = function (event, id, href, title, message) {
-        if (event) event.preventDefault();
-        const target = document.getElementById('navbar');
-        const root = target ? (target.dataset.root || '') : '';
-        fetch(link(root, 'api/notifications'), {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'action=mark_read&id=' + encodeURIComponent(id)
-        }).then(() => {
-            if (href && href !== '#') {
-                window.location.href = href;
+        
+        const list = document.getElementById('notifList');
+        if (list && data.notifications) {
+            if (data.notifications.length === 0) {
+                list.innerHTML = '<li><span class="dropdown-item text-center text-muted py-3">Không có thông báo mới</span></li>';
             } else {
                 let html = '';
                 data.notifications.forEach(n => {
@@ -360,18 +351,18 @@
                     const titleEsc = escapeHtml(n.title).replace(/'/g, "\\'");
                     const msgEsc = escapeHtml(n.message).replace(/'/g, "\\'").replace(/\n/g, "\\n");
                     html += `<li>
-                        <a class="dropdown-item border-bottom py-2 ${bg}" href="${href}" onclick="handleNotificationClick(event, ${n.notificationId}, '${href}', '${titleEsc}', '${msgEsc}')">
+                        <a class="dropdown-item border-bottom py-2 ${bg}" href="${href}" onclick="handleNotificationClick(event, ${n.notificationId || n.notification_id}, '${href}', '${titleEsc}', '${msgEsc}')">
                             <div class="fw-bold" style="font-size:0.85rem">${escapeHtml(n.title)}</div>
                             <div class="text-wrap text-muted" style="font-size:0.8rem; line-height: 1.2;">${escapeHtml(n.message)}</div>
                         </a>
                     </li>`;
-                        });
-                        list.innerHTML = html;
-                    }
-                }
-            })
-            .catch(e => console.log('Could not fetch notifications', e));
-    };
+                });
+                list.innerHTML = html;
+            }
+        }
+      })
+      .catch(e => console.log('Could not fetch notifications', e));
+  };
 
     window.showToastAfterReload = function (message, type = 'success') {
         try {
