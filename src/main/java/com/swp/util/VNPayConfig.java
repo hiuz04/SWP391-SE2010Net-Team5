@@ -6,6 +6,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+/**
+ * Đọc cấu hình VNPay sandbox từ vnpay.properties và chuẩn hóa các URL callback.
+ * Lớp này được PaymentController dùng trước khi tạo request VNPay.
+ */
 public final class VNPayConfig {
 
     private static final String CONFIG_FILE = "vnpay.properties";
@@ -82,22 +86,34 @@ public final class VNPayConfig {
         }
     }
 
+    /**
+     * Kiểm tra các cấu hình bắt buộc trước khi tạo URL thanh toán.
+     */
     public static void validateRequired() {
         getTmnCode();
         getHashSecret();
         getPayUrl();
     }
 
+    /**
+     * Lấy Return URL cấu hình sẵn hoặc tự dựng từ request hiện tại khi chạy môi trường local/demo.
+     */
     public static String resolveReturnUrl(HttpServletRequest request) {
         String configured = getReturnUrl();
         return configured.isBlank() ? buildPublicUrl(request, "/payment/vnpay-return") : configured;
     }
 
+    /**
+     * Lấy IPN URL cấu hình sẵn hoặc tự dựng URL public tương ứng với ứng dụng hiện tại.
+     */
     public static String resolveIpnUrl(HttpServletRequest request) {
         String configured = getIpnUrl();
         return configured.isBlank() ? buildPublicUrl(request, "/payment/vnpay-ipn") : configured;
     }
 
+    /**
+     * Dựng URL tuyệt đối, ưu tiên các header reverse proxy để callback vẫn đúng khi chạy sau ngrok/proxy.
+     */
     private static String buildPublicUrl(HttpServletRequest request, String path) {
         String scheme = firstHeaderValue(request, "X-Forwarded-Proto");
         if (scheme == null || scheme.isBlank()) {

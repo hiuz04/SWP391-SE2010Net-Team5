@@ -37,6 +37,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * Điều phối các luồng đặt sân của Customer: xem lịch sân, xác nhận thông tin,
+ * tạo booking HOLD, đặt định kỳ, xem lịch sử, xem chi tiết và hủy booking.
+ * Controller chỉ chuẩn bị dữ liệu/validate đầu vào, còn việc khóa dữ liệu và ghi DB nằm ở {@link BookingDAO}.
+ */
 @WebServlet(name = "BookingController", urlPatterns = {"/booking"})
 /*
  * BookingController handles booking request validation, routing, and page data.
@@ -117,6 +122,10 @@ public class BookingController extends HttpServlet {
         }
     }
 
+    /**
+     * Hiển thị ma trận sân theo ngày để Customer chọn khung giờ còn trống.
+     * Dữ liệu booking và bảo trì được lấy từ DB trước, sau đó ghép thành từng slot 30 phút cho JSP.
+     */
     private void showSchedulePage(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException, SQLException {
 
@@ -142,6 +151,7 @@ public class BookingController extends HttpServlet {
             request.setAttribute("error", "Chỉ cho phép đặt sân trong giới hạn ngày đã cấu hình (Tối đa đến " + maxBookingDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ").");
         }
 
+        // Lịch hiển thị chỉ là ảnh chụp tại thời điểm render; DAO vẫn kiểm tra lại khi tạo booking.
         List<Field> fields = bookingDAO.getFieldsByComplex(complexId);
         List<FieldType> fieldTypes = fieldTypeDAO.getAllFieldTypes();
         Map<Long, String> fieldTypeNameByFieldId = buildFieldTypeNameByFieldId(fields, fieldTypes);
@@ -210,6 +220,10 @@ public class BookingController extends HttpServlet {
         return typeName;
     }
 
+    /**
+     * Hiển thị trang xác nhận booking sau khi đã parse giờ, kiểm tra slot và tính tiền tạm tính.
+     * Nếu Customer nhập voucher thì mã được validate ở đây để preview số tiền giảm.
+     */
     private void showConfirmationPage(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException, SQLException {
         //check login
@@ -226,6 +240,10 @@ public class BookingController extends HttpServlet {
     }
 
 
+    /**
+     * Tạo booking ở trạng thái HOLD sau khi xác nhận cuối cùng.
+     * Booking đơn lẻ và booking định kỳ đều dùng cùng context để tránh lệch logic tính tiền/giữ chỗ.
+     */
     private void createBookingHoldWithRepeat(HttpServletRequest request, HttpServletResponse response)
             throws IOException, SQLException, ServletException {
         //Check login
@@ -239,6 +257,7 @@ public class BookingController extends HttpServlet {
                 currentUser,
                 trim(request.getParameter("voucherCode"))
         );
+        // Nếu voucher không hợp lệ thì quay lại trang xác nhận, không ghi booking HOLD vào DB.
         if (context.voucherError() != null) {
             forwardConfirmationPage(request, response, context);
             return;
@@ -259,7 +278,7 @@ public class BookingController extends HttpServlet {
                     context.bookingPreview().getFieldId(),
                     context.bookingPreview().getStartTime(),
                     context.bookingPreview().getEndTime(),
-                    context.bookingPreview().getHoldExpiresAt(),
+                    context.bookingPreview().getHoldExpiresAt (),
                     context.amounts()
             );
             bookingId = bookingDAO.createBookingHold(
@@ -305,6 +324,10 @@ public class BookingController extends HttpServlet {
                 + "/booking?action=detail&id=" + bookingId + "&success=created");
     }
 
+    /**
+     * Hiển thị lịch sử booking của Customer hiện tại.
+     * DAO đã giới hạn theo customer_id, controller chỉ tính thêm quyền hủy để JSP render đúng nút thao tác.
+     */
     private void showBookingHistory(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException, SQLException {
 
@@ -322,6 +345,10 @@ public class BookingController extends HttpServlet {
         request.getRequestDispatcher("/WEB-INF/booking/booking-history.jsp").forward(request, response);
     }
 
+    /**
+     * Hiển thị chi tiết một booking nếu booking thuộc Customer đang đăng nhập.
+     * Việc lọc theo customer_id là lớp bảo vệ ownership trước khi cho xem QR, thanh toán hoặc hủy.
+     */
     private void showBookingDetail(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException, SQLException {
 
@@ -345,6 +372,10 @@ public class BookingController extends HttpServlet {
         request.getRequestDispatcher("/WEB-INF/booking/booking-details.jsp").forward(request, response);
     }
 
+    /**
+     * Xử lý Customer hủy booking.
+     * Controller kiểm tra quyền sở hữu và rule hủy để phản hồi thân thiện; DAO vẫn khóa bản ghi và kiểm tra lại trong transaction.
+     */
     private void cancelBooking(HttpServletRequest request, HttpServletResponse response)
             throws IOException, SQLException {
 
@@ -391,6 +422,10 @@ public class BookingController extends HttpServlet {
                 + "/booking?action=detail&id=" + bookingId + "&success=cancelled");
     }
 
+    /**
+     * Gom toàn bộ dữ liệu cần cho trang xác nhận: thông tin sân, slot đơn/định kỳ,
+     * trạng thái voucher, VIP discount và thời điểm hết hạn HOLD.
+     */
     private ConfirmationContext buildConfirmationContext(
             HttpServletRequest request,
             User currentUser,
@@ -412,6 +447,7 @@ public class BookingController extends HttpServlet {
         }
 
         List<BookingSlot> bookingSlots = buildBookingSlots(startTime, endTime, repeatRequest);
+        // Kiểm tra trước để báo lỗi nhanh trên trang xác nhận; transaction tạo booking sẽ kiểm tra lại để tránh race condition.
         for (BookingSlot slot : bookingSlots) {
             if (!bookingDAO.isFieldAvailable(fieldId, slot.startTime(), slot.endTime())) {
                 throw new IllegalArgumentException("Khung giờ đã được đặt hoặc sân đang bảo trì.");
@@ -434,6 +470,7 @@ public class BookingController extends HttpServlet {
             if (!REPEAT_NONE.equals(repeatRequest.repeatType())) {
                 voucherError = "Mã giảm giá hiện chưa hỗ trợ cho đặt lịch lặp lại.";
             } else {
+                // Voucher được validate bằng giá gốc của đơn, customer_id và số lượt dùng trước khi áp dụng vào preview.
                 VoucherValidationResult validationResult =
                         voucherDAO.validateVoucher(voucherCode, amounts.originalPrice(), currentUser.getUserId());
                 if (validationResult.isValid()) {
@@ -449,6 +486,7 @@ public class BookingController extends HttpServlet {
             amounts = applyVipDiscount(amounts, fullPaymentRequired);
         }
 
+        // HOLD chỉ giữ chỗ tạm thời; thanh toán thành công mới chuyển booking sang CONFIRMED.
         LocalDateTime holdExpiresAt = LocalDateTime.now().plusMinutes(HOLD_MINUTES);
         Booking bookingPreview = new Booking();
         bookingPreview.setFieldId(fieldId);
@@ -559,6 +597,10 @@ public class BookingController extends HttpServlet {
         return new RepeatRequest(repeatType, repeatUntil);
     }
 
+    /**
+     * Sinh các lần đặt cần tạo từ lựa chọn ban đầu.
+     * Thuê đơn tạo một slot, còn thuê theo tháng tạo các slot hằng tuần cho tới giới hạn ngày đặt sân.
+     */
     private List<BookingSlot> buildBookingSlots(
             LocalDateTime startTime,
             LocalDateTime endTime,
@@ -663,6 +705,10 @@ public class BookingController extends HttpServlet {
         return null;
     }
 
+    /**
+     * Chuyển dữ liệu sân, booking và bảo trì thành lưới slot 30 phút cho màn hình chọn giờ.
+     * Mỗi slot chỉ mang trạng thái hiển thị; không được xem là bằng chứng cuối cùng rằng sân còn trống.
+     */
     private Map<Long, List<FieldScheduleSlot>> buildScheduleMap(
             List<Field> fields,
             List<Booking> bookings,
@@ -738,6 +784,10 @@ public class BookingController extends HttpServlet {
         return headers;
     }
 
+    /**
+     * Xác định trạng thái hiển thị của một ô giờ theo thứ tự ưu tiên:
+     * quá khứ/sân khóa, lịch bảo trì, booking trùng, rồi mới đến còn trống.
+     */
     private String getSlotStatus(
             Field field,
             LocalDateTime slotStart,
@@ -847,6 +897,10 @@ public class BookingController extends HttpServlet {
         }
     }
 
+    /**
+     * Kiểm tra các ràng buộc thời gian trước khi tính tiền hoặc tạo booking:
+     * không đặt quá khứ, cùng ngày, đúng block 30 phút và nằm trong giờ hoạt động của sân.
+     */
     private String validateBookingTime(LocalDateTime startTime, LocalDateTime endTime) {
         if (startTime == null || endTime == null || !startTime.isBefore(endTime)) {
             return "Gi\u1edd b\u1eaft \u0111\u1ea7u ph\u1ea3i nh\u1ecf h\u01a1n gi\u1edd k\u1ebft th\u00fac.";
@@ -929,6 +983,10 @@ public class BookingController extends HttpServlet {
         );
     }
 
+    /**
+     * Cộng tiền của toàn bộ slot trong một request booking.
+     * Với booking định kỳ, VIP discount được tính theo từng slot để giá từng booking con nhất quán với DB.
+     */
     private BookingAmounts calculateAggregateBookingAmounts(
             Long fieldId,
             List<BookingSlot> bookingSlots,

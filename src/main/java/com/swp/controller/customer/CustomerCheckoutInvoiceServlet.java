@@ -13,12 +13,19 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.sql.SQLException;
 
+/**
+ * Cho phép Customer mở hóa đơn checkout từ notification hoặc lịch sử booking.
+ * Servlet chỉ render invoice thuộc đúng Customer đang đăng nhập.
+ */
 @WebServlet("/customer/checkout-invoice")
 public class CustomerCheckoutInvoiceServlet extends HttpServlet {
 
     private final StaffBillingDAO billingDAO = new StaffBillingDAO();
 
     @Override
+    /**
+     * Tải invoice checkout và kiểm tra ownership trước khi chuyển tới trang thanh toán.
+     */
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         req.setCharacterEncoding("UTF-8");
@@ -38,6 +45,7 @@ public class CustomerCheckoutInvoiceServlet extends HttpServlet {
 
         try {
             InvoiceView invoice = billingDAO.getInvoiceByInvoiceId(invoiceId);
+            // Customer chỉ được xem hóa đơn của chính mình và invoice checkout còn ý nghĩa thanh toán/đối soát.
             if (invoice == null
                     || invoice.getCustomerId() == null
                     || !invoice.getCustomerId().equals(user.getUserId())

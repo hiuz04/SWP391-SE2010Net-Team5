@@ -3,6 +3,10 @@ package com.swp.model;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+/**
+ * Entity audit log cho các lần đổi trạng thái booking như HOLD, CONFIRMED, CANCELLED,
+ * PENDING_CHECKOUT_PAYMENT và COMPLETED.
+ */
 public class BookingStatusLog implements Serializable {
     private static final long serialVersionUID = 1L;
     private Long logId;

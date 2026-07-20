@@ -4,6 +4,10 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Entity voucher lưu cấu hình giảm giá, thời gian hiệu lực, số lượng phát hành,
+ * số lượt đã dùng và trạng thái bật/tắt do Owner quản lý.
+ */
 public class Voucher implements Serializable {
     private static final long serialVersionUID = 1L;
 

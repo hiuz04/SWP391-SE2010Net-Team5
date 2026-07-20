@@ -242,6 +242,7 @@
       const params = new URLSearchParams();
       params.append('bookingId', '<%= checkout != null ? checkout.getBookingId() : "" %>');
 
+      // API server sẽ khóa booking, tạo invoice và gửi notification; client chỉ disable nút để tránh bấm lặp.
       const res = await fetch('<%= ctx %>/api/staff/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

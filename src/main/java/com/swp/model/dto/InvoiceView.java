@@ -3,6 +3,9 @@ package com.swp.model.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * DTO hiển thị hóa đơn checkout cho Staff/Owner/Customer và luồng thanh toán invoice.
+ */
 public class InvoiceView {
     private Long invoiceId;
     private String invoiceCode;
@@ -216,6 +219,9 @@ public class InvoiceView {
         this.paidAmount = paidAmount != null ? paidAmount : BigDecimal.ZERO;
     }
 
+    /**
+     * Tính số tiền còn phải trả, chặn âm khi paidAmount lớn hơn totalAmount.
+     */
     public BigDecimal getAmountDue() {
         BigDecimal due = totalAmount.subtract(paidAmount);
         return due.signum() < 0 ? BigDecimal.ZERO : due;
