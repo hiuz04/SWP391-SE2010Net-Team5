@@ -1,4 +1,4 @@
-package com.swp.controller.admin;
+package com.swp.controller.owner;
 
 import com.swp.dao.VoucherDAO;
 import com.swp.model.User;
@@ -17,9 +17,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 
-@WebServlet("/admin/vouchers")
+@WebServlet("/owner/vouchers")
 public class VoucherManagementServlet extends HttpServlet {
 
+    private static final String MANAGEMENT_PATH = "/owner/vouchers";
+    private static final String LIST_VIEW = "/WEB-INF/owner/vouchers/list.jsp";
+    private static final String FORM_VIEW = "/WEB-INF/owner/vouchers/form.jsp";
     private static final String STATUS_ACTIVE = "ACTIVE";
     private static final String STATUS_DISABLED = "DISABLED";
     private static final String TYPE_PERCENT = "PERCENT";
@@ -51,7 +54,7 @@ public class VoucherManagementServlet extends HttpServlet {
             } else {
                 List<Voucher> vouchers = voucherDAO.getAllVouchers();
                 request.setAttribute("vouchers", vouchers);
-                request.getRequestDispatcher("/WEB-INF/admin/vouchers/list.jsp").forward(request, response);
+                request.getRequestDispatcher(LIST_VIEW).forward(request, response);
             }
         } catch (SQLException e) {
             throw new ServletException("Không thể xử lý mã giảm giá.", e);
@@ -74,7 +77,7 @@ public class VoucherManagementServlet extends HttpServlet {
                 ensureUniqueCode(voucher.getCode(), 0);
                 voucherDAO.createVoucher(voucher);
                 session.setAttribute("successMessage", "Tạo mã giảm giá thành công.");
-                response.sendRedirect(request.getContextPath() + "/admin/vouchers");
+                response.sendRedirect(request.getContextPath() + MANAGEMENT_PATH);
             } else if ("edit".equals(action)) {
                 Voucher voucher = parseVoucher(request, true);
                 Voucher existingVoucher = voucherDAO.findById(voucher.getId());
@@ -86,7 +89,7 @@ public class VoucherManagementServlet extends HttpServlet {
                 ensureUniqueCode(voucher.getCode(), voucher.getId());
                 voucherDAO.updateVoucher(voucher);
                 session.setAttribute("successMessage", "Cập nhật mã giảm giá thành công.");
-                response.sendRedirect(request.getContextPath() + "/admin/vouchers");
+                response.sendRedirect(request.getContextPath() + MANAGEMENT_PATH);
             } else if ("toggle-status".equals(action)) {
                 int id = parsePositiveInt(request.getParameter("id"), "Mã giảm giá không hợp lệ.");
                 Voucher voucher = voucherDAO.findById(id);
@@ -98,14 +101,14 @@ public class VoucherManagementServlet extends HttpServlet {
                         : STATUS_ACTIVE;
                 voucherDAO.updateStatus(id, nextStatus);
                 session.setAttribute("successMessage", "Đã cập nhật trạng thái mã giảm giá.");
-                response.sendRedirect(request.getContextPath() + "/admin/vouchers");
+                response.sendRedirect(request.getContextPath() + MANAGEMENT_PATH);
             } else {
-                response.sendRedirect(request.getContextPath() + "/admin/vouchers");
+                response.sendRedirect(request.getContextPath() + MANAGEMENT_PATH);
             }
         } catch (IllegalArgumentException e) {
             if ("toggle-status".equals(action)) {
                 session.setAttribute("errorMessage", e.getMessage());
-                response.sendRedirect(request.getContextPath() + "/admin/vouchers");
+                response.sendRedirect(request.getContextPath() + MANAGEMENT_PATH);
                 return;
             }
             Voucher voucher = safeParseVoucherForReturn(request);
@@ -132,7 +135,7 @@ public class VoucherManagementServlet extends HttpServlet {
     ) throws ServletException, IOException {
         request.setAttribute("voucher", voucher);
         request.setAttribute("mode", mode);
-        request.getRequestDispatcher("/WEB-INF/admin/vouchers/form.jsp").forward(request, response);
+        request.getRequestDispatcher(FORM_VIEW).forward(request, response);
     }
 
     private Voucher parseVoucher(HttpServletRequest request, boolean requireId) {

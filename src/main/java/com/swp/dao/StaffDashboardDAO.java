@@ -66,7 +66,7 @@ public class StaffDashboardDAO {
                            WHERE i.booking_id = b.booking_id
                              AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
                        ) THEN 1 ELSE 0 END AS has_invoice,
-                       CASE WHEN b.status = 'CHECKED_IN' AND GETDATE() >= b.end_time THEN 1 ELSE 0 END AS checkout_due
+                       CASE WHEN b.status = 'CHECKED_IN' THEN 1 ELSE 0 END AS checkout_due
                 FROM bookings b
                 JOIN users u  ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id   = fi.field_id
@@ -344,7 +344,7 @@ public class StaffDashboardDAO {
                            WHERE i.booking_id = b.booking_id
                              AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
                        ) THEN 1 ELSE 0 END AS has_invoice,
-                       CASE WHEN b.status = 'CHECKED_IN' AND GETDATE() >= b.end_time THEN 1 ELSE 0 END AS checkout_due
+                       CASE WHEN b.status = 'CHECKED_IN' THEN 1 ELSE 0 END AS checkout_due
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id = fi.field_id
