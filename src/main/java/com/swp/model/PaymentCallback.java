@@ -3,6 +3,9 @@ package com.swp.model;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+/**
+ * Entity lưu payload callback từ gateway để audit chữ ký, trạng thái hợp lệ và thời điểm nhận.
+ */
 public class PaymentCallback implements Serializable {
     private static final long serialVersionUID = 1L;
     private Long callbackId;

@@ -23,6 +23,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Cung cấp toàn bộ truy vấn và transaction cho booking của Customer: dựng lịch sân,
+ * kiểm tra khả dụng, tính giá, tạo HOLD, tạo nhóm booking định kỳ, hủy booking và dọn HOLD hết hạn.
+ */
 /*
  * BookingDAO owns all SQL for booking screens, availability checks,
  * transactional HOLD creation, recurring groups, and cancellation updates.
@@ -126,6 +130,10 @@ public class BookingDAO {
         return fields;
     }
 
+    /**
+     * Lấy các booking còn ảnh hưởng đến lịch trong một ngày của complex.
+     * Trước khi đọc lịch, HOLD quá hạn được hủy để slot đã hết thời gian giữ chỗ có thể mở lại.
+     */
     public List<Booking> getBookingsByComplexAndDate(Long complexId, LocalDate date) throws SQLException {
         cancelExpiredHolds();
 
@@ -180,6 +188,10 @@ public class BookingDAO {
         return bookings;
     }
 
+    /**
+     * Lấy lịch bảo trì giao với ngày đang xem để đánh dấu slot không thể đặt.
+     * Điều kiện overlap dùng cùng nguyên tắc với booking để không bỏ sót bảo trì vắt qua ngày.
+     */
     public List<FieldMaintenanceSchedule> getMaintenanceByComplexAndDate(Long complexId, LocalDate date)
             throws SQLException {
 
@@ -231,6 +243,10 @@ public class BookingDAO {
         return schedules;
     }
 
+    /**
+     * Chuẩn bị thông tin sân và Customer cho trang xác nhận trước khi booking thật được tạo.
+     * Query chỉ trả về sân AVAILABLE để không preview một sân đã bị khóa.
+     */
     public BookingView getBookingPreviewInfoByFieldId(Long fieldId, Long customerId) throws SQLException {
         String sql = """
                 SELECT NULL AS booking_id,
@@ -296,12 +312,20 @@ public class BookingDAO {
         return null;
     }
 
+    /**
+     * Kiểm tra một khung giờ có còn đặt được hay không.
+     * Bản public dùng cho bước preview; bản trong transaction bên dưới mới là lớp bảo vệ cuối cùng khi ghi DB.
+     */
     public boolean isFieldAvailable(Long fieldId, LocalDateTime startTime, LocalDateTime endTime) throws SQLException {
         try (Connection conn = DBContext.getConnection()) {
             return isFieldAvailable(conn, fieldId, startTime, endTime);
         }
     }
 
+    /**
+     * Tính tiền thuê sân dựa trên price rule đang ACTIVE.
+     * Nếu nhiều rule phủ cùng đoạn giờ, rule có priority/specific date/giá/id cao hơn được chọn cho đoạn đó.
+     */
     public BigDecimal calculatePrice(Long fieldId, LocalDateTime startTime, LocalDateTime endTime) throws SQLException {
         FieldPricingContext pricingContext = getFieldPricingContext(fieldId);
         if (pricingContext == null) {
@@ -320,6 +344,7 @@ public class BookingDAO {
                     + ", thời gian " + startTime + " - " + endTime + ".");
         }
 
+        // Chia booking thành các đoạn nhỏ tại ranh giới của price rule để mỗi đoạn chỉ áp một đơn giá.
         List<LocalTime> boundaries = new ArrayList<>();
         LocalTime bookingStart = startTime.toLocalTime();
         LocalTime bookingEnd = endTime.toLocalTime();
@@ -446,6 +471,10 @@ public class BookingDAO {
         return rules;
     }
 
+    /**
+     * Tạo một booking HOLD và log trạng thái trong cùng transaction.
+     * Việc kiểm tra khả dụng được lặp lại trong transaction để tránh hai request đặt cùng slot.
+     */
     public long createBookingHold(Booking booking, Long changedBy, String note) throws SQLException {
         String insertBooking = """
                 INSERT INTO bookings (
@@ -554,6 +583,10 @@ public class BookingDAO {
         }
     }
 
+    /**
+     * Lấy chi tiết booking theo cả booking_id và customer_id để bảo đảm Customer chỉ xem dữ liệu của mình.
+     * HOLD hết hạn của Customer đó được xử lý trước để trạng thái trả về không bị cũ.
+     */
     public BookingView getBookingDetailByIdAndCustomerId(Long bookingId, Long customerId) throws SQLException {
         cancelExpiredHolds(customerId);
 
@@ -578,6 +611,10 @@ public class BookingDAO {
         return null;
     }
 
+    /**
+     * Tạo một nhóm booking định kỳ.
+     * Tất cả slot phải còn trống trước khi insert; nếu một slot lỗi thì rollback toàn bộ nhóm để không tạo lịch dở dang.
+     */
     public List<Long> createRecurringBookingHolds(
             List<Booking> bookings,
             String repeatType,
@@ -755,6 +792,10 @@ public class BookingDAO {
         return DEFAULT_CANCEL_BEFORE_HOURS;
     }
 
+    /**
+     * Hủy booking của Customer bằng transaction có khóa bản ghi.
+     * Method kiểm tra ownership, trạng thái hiện tại và mốc giờ hủy trước khi đổi sang CANCELLED và ghi log.
+     */
     public void cancelBooking(Long bookingId, Long customerId, String reason, Long changedBy) throws SQLException {
         String selectBooking = """
                 SELECT status,
@@ -869,6 +910,10 @@ public class BookingDAO {
         }
     }
 
+    /**
+     * Lấy lịch sử booking của Customer.
+     * Với booking định kỳ, chỉ chọn booking đại diện để lịch sử không bị lặp nhiều dòng cho cùng một nhóm.
+     */
     public List<BookingView> getBookingHistoryByCustomerId(Long customerId) throws SQLException {
         cancelExpiredHolds(customerId);
 
@@ -1065,6 +1110,10 @@ public class BookingDAO {
         return null;
     }
 
+    /**
+     * Kiểm tra khả dụng trong cùng connection transaction.
+     * UPDLOCK/HOLDLOCK trên sân giúp serialize các request cùng tranh một sân, còn hai NOT EXISTS chặn booking/bảo trì overlap.
+     */
     private boolean isFieldAvailable(Connection conn, Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
             throws SQLException {
         cancelExpiredHolds(conn, null);
@@ -1114,6 +1163,10 @@ public class BookingDAO {
         }
     }
 
+    /**
+     * SQL chung cho các màn hình booking.
+     * OUTER APPLY gom tiền nhóm recurring và lấy payment mới nhất để view có thể hiển thị đúng trạng thái thanh toán.
+     */
     private String baseBookingViewSql() {
         return """
                 SELECT b.booking_id,
@@ -1216,6 +1269,10 @@ public class BookingDAO {
         return cancelExpiredHolds(null);
     }
 
+    /**
+     * Hủy các booking HOLD đã quá hạn mà chưa có payment SUCCESS.
+     * Có thể giới hạn theo Customer để các màn hình cá nhân chỉ dọn dữ liệu liên quan tới người đang xem.
+     */
     private int cancelExpiredHolds(Long customerId) throws SQLException {
         Connection conn = null;
         boolean originalAutoCommit = true;
@@ -1241,6 +1298,10 @@ public class BookingDAO {
         }
     }
 
+    /**
+     * Cập nhật trạng thái HOLD quá hạn và ghi log bằng một câu SQL dùng bảng tạm.
+     * Cách này giữ danh sách booking vừa bị hủy để log chính xác trong cùng transaction.
+     */
     private int cancelExpiredHolds(Connection conn, Long customerId) throws SQLException {
         String customerFilter = customerId == null ? "" : "                  AND b.customer_id = ?\n";
         String sql = """

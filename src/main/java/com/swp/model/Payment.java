@@ -4,6 +4,10 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Entity payment đại diện cho một giao dịch đặt cọc, checkout hoặc membership.
+ * transactionRef dùng để liên kết request thanh toán với callback từ gateway.
+ */
 public class Payment implements Serializable {
     private static final long serialVersionUID = 1L;
     private Long paymentId;

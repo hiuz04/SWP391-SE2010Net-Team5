@@ -4,6 +4,9 @@ import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * Entity nhóm booking định kỳ, dùng để gom nhiều booking con cùng Customer và cùng quy tắc lặp.
+ */
 public class BookingRecurringGroup implements Serializable {
     private static final long serialVersionUID = 1L;
     private Long recurringGroupId;

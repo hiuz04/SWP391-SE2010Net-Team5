@@ -4,6 +4,9 @@ import com.swp.model.Voucher;
 
 import java.math.BigDecimal;
 
+/**
+ * DTO kết quả validate voucher, bao gồm thông báo lỗi/thành công và số tiền giảm đã tính.
+ */
 public class VoucherValidationResult {
     private boolean valid;
     private String message;

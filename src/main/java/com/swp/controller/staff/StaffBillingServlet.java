@@ -32,6 +32,10 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Điều phối các trang và API checkout/invoice cho Staff hoặc Owner.
+ * Servlet kiểm tra quyền thao tác theo vai trò, gọi StaffBillingDAO để tạo invoice và hỗ trợ xuất PDF hóa đơn.
+ */
 @WebServlet({
         "/staff/checkout",
         "/staff/invoice",
@@ -46,6 +50,9 @@ public class StaffBillingServlet extends HttpServlet {
     private final StaffBillingDAO billingDAO = new StaffBillingDAO();
 
     @Override
+    /**
+     * Điều hướng các request xem checkout, xem invoice và xuất PDF invoice.
+     */
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         req.setCharacterEncoding("UTF-8");
@@ -71,6 +78,9 @@ public class StaffBillingServlet extends HttpServlet {
     }
 
     @Override
+    /**
+     * API Staff/Owner xác nhận trả sân và gửi yêu cầu thanh toán checkout cho Customer.
+     */
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
         req.setCharacterEncoding("UTF-8");
@@ -105,6 +115,9 @@ public class StaffBillingServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Hiển thị preview checkout nếu booking hợp lệ và Staff có quyền thao tác tại complex đó.
+     */
     private void showCheckout(HttpServletRequest req, HttpServletResponse resp, User user)
             throws ServletException, IOException {
         Long bookingId = parsePageLong(req, req.getParameter("id"), "Mã đặt sân không được bỏ trống.");
@@ -132,6 +145,10 @@ public class StaffBillingServlet extends HttpServlet {
         req.getRequestDispatcher("/WEB-INF/staff/checkout.jsp").forward(req, resp);
     }
 
+    /**
+     * Hiển thị invoice checkout cho Staff/Owner.
+     * Staff chỉ được xem invoice thuộc complex mà họ có ca trong ngày.
+     */
     private void showInvoice(HttpServletRequest req, HttpServletResponse resp, User user)
             throws ServletException, IOException {
         Long bookingId = parsePageLong(req, req.getParameter("id"), "Mã đặt sân không được bỏ trống.");
@@ -155,6 +172,9 @@ public class StaffBillingServlet extends HttpServlet {
         req.getRequestDispatcher("/WEB-INF/staff/invoice.jsp").forward(req, resp);
     }
 
+    /**
+     * Xuất invoice thành PDF sau khi kiểm tra quyền xem hóa đơn.
+     */
     private void exportInvoice(HttpServletRequest req, HttpServletResponse resp, User user)
             throws IOException {
         try {
@@ -187,6 +207,9 @@ public class StaffBillingServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Cho phép export theo invoiceId trực tiếp hoặc theo bookingId để dùng chung với link từ trang invoice.
+     */
     private InvoiceView loadInvoiceForExport(HttpServletRequest req) throws SQLException {
         String invoiceId = trim(req.getParameter("invoiceId"));
         if (invoiceId != null && !invoiceId.isEmpty()) {
@@ -197,6 +220,9 @@ public class StaffBillingServlet extends HttpServlet {
         );
     }
 
+    /**
+     * Render hóa đơn PDF từ InvoiceView đã được load và kiểm quyền ở servlet.
+     */
     private void writeInvoicePdf(InvoiceView invoice, OutputStream out)
             throws DocumentException, IOException {
         PdfFonts fonts = loadPdfFonts();
