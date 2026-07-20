@@ -24,6 +24,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -86,6 +87,9 @@ public class FieldDetailAPIController extends HttpServlet {
 
         resp.setContentType("application/json;charset=UTF-8");
         Gson gson = new GsonBuilder()
+                .registerTypeAdapter(LocalDate.class,
+                        (JsonSerializer<LocalDate>) (src, typeOfSrc, context)
+                                -> new JsonPrimitive(src.toString()))
                 .registerTypeAdapter(LocalDateTime.class,
                         (JsonSerializer<LocalDateTime>) (src, typeOfSrc, context)
                                 -> new JsonPrimitive(src.toString()))

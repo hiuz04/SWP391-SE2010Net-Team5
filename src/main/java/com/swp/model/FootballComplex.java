@@ -21,14 +21,13 @@ public class FootballComplex implements Serializable {
     private LocalTime closingTime;
     private String generalRules;
     private String status;
-    private Boolean featured;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public FootballComplex() {
     }
 
-    public FootballComplex(Long complexId, String complexName, String description, String address, String ward, String district, String city, BigDecimal latitude, BigDecimal longitude, String hotline, LocalTime openingTime, LocalTime closingTime, String generalRules, String status, Boolean featured, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public FootballComplex(Long complexId, String complexName, String description, String address, String ward, String district, String city, BigDecimal latitude, BigDecimal longitude, String hotline, LocalTime openingTime, LocalTime closingTime, String generalRules, String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.complexId = complexId;
         this.complexName = complexName;
         this.description = description;
@@ -43,7 +42,6 @@ public class FootballComplex implements Serializable {
         this.closingTime = closingTime;
         this.generalRules = generalRules;
         this.status = status;
-        this.featured = featured;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -158,14 +156,6 @@ public class FootballComplex implements Serializable {
 
     public void setStatus(String status) {
         this.status = status;
-    }
-
-    public Boolean getFeatured() {
-        return featured;
-    }
-
-    public void setFeatured(Boolean featured) {
-        this.featured = featured;
     }
 
     public LocalDateTime getCreatedAt() {

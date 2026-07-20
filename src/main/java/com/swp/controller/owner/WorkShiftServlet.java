@@ -72,7 +72,7 @@ public class WorkShiftServlet extends HttpServlet {
         }
 
         // Standard Page Load
-        List<FootballComplex> complexes = footballComplexDAO.getAllComplex();
+        List<FootballComplex> complexes = footballComplexDAO.getAllActiveComplex();
         List<User> staffList = workShiftDAO.getAllActiveStaff();
         List<WorkShift> shifts = workShiftDAO.getAllShifts();
 

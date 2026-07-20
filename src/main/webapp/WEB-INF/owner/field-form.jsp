@@ -42,25 +42,6 @@
             </select>
           </div>
 
-          <div class="mb-3">
-            <label for="fc" class="form-label">Cơ sở sở hữu sân <span class="text-danger">*</span></label>
-            <select name="complexId" id="fc"
-                    class="form-select custom-input" required>
-            </select>
-          </div>
-
-          <div class="mb-3">
-            <label for="status" class="form-label">Trạng thái sân</label>
-            <select name="status" id="status"
-                    class="form-select custom-input" required>
-              <option value="AVAILABLE">Có sẵn</option>
-              <option value="OCCUPIED">Đã được chọn</option>
-              <option value="BOOKED">Đã đặt</option>
-              <option value="INACTIVE">Ngừng hoạt động</option>
-              <option value="MAINTENANCE">Bảo trì</option>
-            </select>
-          </div>
-
         </div>
 
         <div class="modal-footer">

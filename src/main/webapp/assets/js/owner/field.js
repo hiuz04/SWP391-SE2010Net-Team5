@@ -15,35 +15,100 @@ const ctx = window.APP_CTX || "";
 
 // Danh sách status
 const statusList = [
-    { status: "AVAILABLE", display: "Có sẵn", badge: "badge-soft-success" },
-    { status: "OCCUPIED", display: "Đã được chọn", badge: "badge-soft-info" },
-    { status: "BOOKED", display: "Đã đặt", badge: "badge-soft-primary" },
-    { status: "INACTIVE", display: "Ngừng hoạt động", badge: "badge-soft-secondary" },
-    { status: "MAINTENANCE", display: "Bảo trì", badge: "badge-soft-danger" }
+    {status: "AVAILABLE", display: "Có sẵn", badge: "badge-soft-success"},
+    {status: "INACTIVE", display: "Ngừng hoạt động", badge: "badge-soft-danger"},
+    {status: "MAINTENANCE", display: "Bảo trì", badge: "badge-soft-warning"},
+    {status: "REMOVED", display: "Loại bỏ", badge: "badge-soft-danger"}
 ];
 
-// Lấy danh sách sân
-function loadData(){
-    fetch(`${ctx}/api/fields`)
+function getComplex() {
+    const currentComplexId = Number(new URLSearchParams(window.location.search).get("complexId")) || 0;
+
+    fetch(`${ctx}/api/complexes`)
         .then(res => res.json())
         .then(data => {
+
+            const select = document.getElementById("complexSelect");
+
+            select.innerHTML = "";
+
+            data.forEach(complex => {
+
+                const option = document.createElement("option");
+
+                option.value = complex.complex.complexId;
+                option.textContent = `🏟️ ${complex.complex.complexName}`;
+
+                if (complex.complex.complexId === currentComplexId) {
+                    option.selected = true;
+                }
+
+                select.appendChild(option);
+            });
+
+        })
+        .catch(err => console.error(err));
+}
+
+function changeComplex(complexId) {
+    location.href = `${ctx}/owner/field?complexId=${complexId}`;
+}
+
+// Lấy danh sách sân
+function loadData() {
+    const currentComplexId =
+        new URLSearchParams(window.location.search).get("complexId");
+
+    const keyword = document.getElementById("keyword").value.trim();
+
+    const status = document.getElementById("status").value;
+
+    const fieldType = document.getElementById("fieldType").value;
+
+    const params = new URLSearchParams();
+
+    params.append("complexId", currentComplexId);
+
+    if(keyword){
+        params.append("keyword", keyword);
+    }
+
+    if(status){
+        params.append("status", status);
+    }
+
+    if(fieldType){
+        params.append("fieldTypeId", fieldType);
+    }
+
+    fetch(`${ctx}/api/fields?${params.toString()}`)
+        .then(res => res.json())
+        .then(data => {
+            const fieldCount = document.getElementById("field-count");
+            let html =
+                `
+                    <span class="text-muted">
+                        <strong>${data.length}</strong> sân
+                    </span>
+                `
+            fieldCount.innerHTML = html;
+
             const container = document.getElementById("field-data-container");
 
-            let html = "";
+            html = "";
 
-            if (data.length > 0){
+            if (data.length > 0) {
                 html += `
-                <table class="table align-middle mb-0">
-                    <thead>
-                      <tr>
-                        <th style="width: 10%">Tên sân</th>
-                        <th style="width: 7%">Loại sân</th>
-                        <th style="width: 20%">Cơ sở</th>
-                        <th style="width: 42%">Mô tả</th>
-                        <th class="text-center">Trạng thái</th>
-                        <th class="text-center">Sân Hot</th>
-                        <th class="text-center">Hành động</th>
-                      </tr>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th style="width:18%">Tên sân</th>
+                        <th style="width:12%">Loại sân</th>
+                        <th style="width:32%">Mô tả</th>
+                        <th class="text-center" style="width:12%">Trạng thái</th>
+                        <th class="text-center" style="width:10%">Hot</th>
+                        <th class="text-center" style="width:16%">Hành động</th>
+                    </tr>
                     </thead>
                     
                     <tbody>
@@ -54,36 +119,141 @@ function loadData(){
                     const statusBadgge = statusList.find(s => s.status === item.status)?.badge
                         ?? "badge-soft-secondary";
                     html += `
-                      <tr>
-                        <td>${item.fieldName}</td>
-                        <td style="color: grey;">${item.type}</td>
-                        <td>${item.complexName} sân</td>
-                        <td>${item.description}</td>
-                        <td class="text-center">
-                            <button class="badge ${statusBadgge} border-0" onclick="">
-                                ${statusDisplay}
-                            </button>
-                        </td>
-                        <td class="text-center">
-                            <button class="btn btn-sm ${item.isHot ? 'text-warning' : 'text-secondary'}" onclick="toggleHotStatus(${item.fieldId}, ${item.isHot})">
-                                <i class="bi bi-star-fill fs-5"></i>
-                            </button>
-                        </td>
-                        <td class="text-center">
-                          <button class="btn btn-sm" onclick="openModalToEdit(${item.fieldId})"><img class="icon" alt="editIcon" src="${ctx}/assets/images/icon/editIcon.png"></button>
-                          <button class="btn btn-sm" onclick="deleteField(${item.fieldId})"><img class="icon" alt="deleteIcon" src="${ctx}/assets/images/icon/deleteIcon.png"></button>
-                        </td>
-                      </tr>
-                `
+                                <tr>
+                                
+                                    <td>
+                                        <div class="fw-semibold fs-6">${item.fieldName}</div>
+                                        <small class="text-muted">
+                                            ID: #${item.fieldId}
+                                        </small>
+                                    </td>
+                                
+                                    <td>
+                                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle">
+                                            ${item.type}
+                                        </span>
+                                    </td>
+                                
+                                    <td>
+                                        <div class="description">
+                                            ${item.description ?? "-"}
+                                        </div>
+                                    </td>
+                                
+                                    <td class="text-center">
+                                       <button class="badge ${statusBadgge} border-0 dropdown-toggle"
+                                            type="button"
+                                            data-bs-toggle="dropdown"
+                                            aria-expanded="false"
+                                       >
+                                            ${statusDisplay}
+                                       </button>
+                                       
+                                       <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item"
+                                                   href="#"
+                                                   onclick="updateFieldStatus(${item.fieldId}, 'AVAILABLE')">
+                                                    Khả dụng
+                                                </a>
+                                            </li>
+                                    
+                                            <li>
+                                                <a class="dropdown-item"
+                                                   href="#"
+                                                   onclick="updateFieldStatus(${item.fieldId}, 'INACTIVE')">
+                                                    Tạm ngừng
+                                                </a>
+                                            </li>
+                                    
+                                            <li>
+                                                <a class="dropdown-item"
+                                                   href="#"
+                                                   onclick="updateFieldStatus(${item.fieldId}, 'MAINTENANCE')">
+                                                    Bảo trì
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </td>
+                                
+                                    <td class="text-center">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <button
+                                                class="btn btn-sm rounded-circle
+                                                ${item.isHot ? "btn-warning" : "btn-outline-secondary"}"
+                                                onclick="toggleHotStatus(${item.fieldId}, ${item.isHot})">
+                                    
+                                                <i class="bi bi-star-fill"></i>
+                                    
+                                            </button>
+                                        </div>
+                                
+                                    </td>
+                                
+                                    <td class="text-center">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <button
+                                                class="btn btn-outline-primary btn-sm rounded-circle me-2"
+                                                title="Chỉnh sửa"
+                                                onclick="openModalToEdit(${item.fieldId})">
+                                    
+                                                <i class="bi bi-pencil"></i>
+                                    
+                                            </button>
+                                    
+                                            <button
+                                                class="btn btn-outline-danger btn-sm rounded-circle"
+                                                title="Xóa"
+                                                onclick="deleteField(${item.fieldId})">
+                                    
+                                                <i class="bi bi-trash"></i>
+                                    
+                                            </button>
+                                        </div>
+                                    </td>
+                                
+                                </tr>
+                            `;
                 })
             } else {
                 html += `
-                    <div>Không có dữ liệu</div>
+                    <div class="text-center text-muted">Không có dữ liệu</div>
                 `
             }
             container.innerHTML = html;
         })
+}
 
+function loadFieldTypeDataForSearch() {
+    return fetch(`${ctx}/api/field-type`)
+        .then(response => response.json())
+        .then(data => {
+
+            const select = document.getElementById("fieldType");
+
+            // Giá trị đang được chọn (nếu có)
+            const selectedValue = select.value;
+
+            select.innerHTML = `
+                <option value="">Tất cả loại sân</option>
+            `;
+
+            data.forEach(type => {
+
+                const option = document.createElement("option");
+
+                option.value = type.fieldTypeId;
+                option.textContent = type.typeName;
+
+                // Giữ lại option đã chọn
+                if (String(type.fieldTypeId) === selectedValue) {
+                    option.selected = true;
+                }
+
+                select.appendChild(option);
+            });
+
+        });
 }
 
 // Lấy danh sách loại sân
@@ -99,25 +269,6 @@ function loadFieldTypeData() {
                 select.innerHTML += `
                     <option value="${type.fieldTypeId}">
                         ${type.typeName}
-                    </option>
-                `;
-            });
-        });
-}
-
-// Lấy danh sách cơ sở
-function loadComplexData() {
-    return fetch(`${ctx}/api/complexes`)
-        .then(response => response.json())
-        .then(data => {
-            const select = document.getElementById("fc");
-
-            select.innerHTML = `<option value="">-- Chọn cơ sở --</option>`;
-
-            data.forEach(fc => {
-                select.innerHTML += `
-                    <option value="${fc.complex.complexId}">
-                        ${fc.complex.complexName}
                     </option>
                 `;
             });
@@ -140,9 +291,6 @@ function getFieldData(id) {
 
             document.getElementById("typeF").value =
                 String(data.fieldTypeId);
-
-            document.getElementById("fc").value =
-                String(data.complexId);
         })
 }
 
@@ -156,7 +304,6 @@ async function openModal() {
     document.getElementById("modal").innerHTML = html;
 
     await loadFieldTypeData();
-    await loadComplexData();
     document.getElementById("fieldTitle").innerHTML = "Thêm sân bóng mới"
     document.getElementById("submitBtn").innerHTML = "Thêm mới"
 
@@ -180,7 +327,6 @@ async function openModalToEdit(id) {
 
     Promise.all([
         loadFieldTypeData(),
-        loadComplexData()
     ]).then(() => {
         getFieldData(id);
     });
@@ -199,6 +345,8 @@ async function openModalToEdit(id) {
 
 // Xử lý form submit
 function submitField() {
+    const currentComplexId = Number(new URLSearchParams(window.location.search).get("complexId")) || 0;
+
     const id = document.getElementById("fieldID").value;
 
     let url = !id
@@ -210,15 +358,13 @@ function submitField() {
         fieldName: document.getElementById("fieldName").value,
         description: document.getElementById("desc").value,
         fieldTypeID: document.getElementById("typeF").value,
-        complexId: document.getElementById("fc").value,
-        status: document.getElementById("status").value
+        complexId: currentComplexId
     };
 
     let errors = [];
 
     if (!data.fieldName) errors.push("Vui lòng nhập Tên sân bóng!");
-    if (data.fieldTypeID == "") errors.push("Vui lòng chọn Loại sân bóng!");
-    if (data.complexId == "") errors.push("Vui lòng chọn Cơ sở sỡ hữu sân!");
+    if (data.fieldTypeID === "") errors.push("Vui lòng chọn Loại sân bóng!");
 
     if (errors.length > 0) {
         alert(errors.join("\n"));
@@ -245,11 +391,37 @@ function submitField() {
         });
 }
 
+function updateFieldStatus(fieldId, status) {
+    // const currentComplexId = Number(new URLSearchParams(window.location.search).get("complexId")) || 0;
+
+    const params = new URLSearchParams();
+    params.append("fieldId", fieldId);
+    params.append("status", status);
+
+    fetch(`${ctx}/owner/field?action=status`, {
+        method: "POST",
+        body: params
+    })
+        .then(async res => {
+            if (!res.ok) {
+                throw new Error(await res.text());
+            }
+            return res.text();
+        })
+        .then(() => {
+            location.reload();
+        })
+        .catch(err => {
+            console.error(err);
+            alert(err.message);
+        });
+}
+
 // Xóa Field
 function deleteField(id) {
     const confirmed = window.confirm("Xóa dữ liệu sẽ làm mất toàn bộ thông tin liên quan đến sân bóng và không thể khôi phục. Bạn có muốn tiếp tục?");
 
-    if(!confirmed) return;
+    if (!confirmed) return;
 
     fetch(`${ctx}/owner/field?action=delete&id=${id}`, {
         method: "POST"
@@ -268,7 +440,7 @@ function deleteField(id) {
 }
 
 // Đảm bảo không còn để lại giá trị sau khi đóng modal
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
     const modalContainer = document.getElementById("fieldFormModal");
     if (modalContainer) {
         modalContainer.addEventListener("hidden.bs.modal", function () {
@@ -296,15 +468,25 @@ function toggleHotStatus(fieldId, currentStatus) {
         },
         body: `fieldId=${fieldId}&isHot=${newStatus}`
     })
-    .then(res => {
-        if (!res.ok) {
-            throw new Error("Cập nhật trạng thái thất bại");
-        }
-        return res.text();
-    })
-    .then(() => loadData()) // Reload data
-    .catch(err => {
-        console.error(err);
-        alert("Có lỗi xảy ra khi cập nhật trạng thái HOT!");
-    });
+        .then(res => {
+            if (!res.ok) {
+                throw new Error("Cập nhật trạng thái thất bại");
+            }
+            return res.text();
+        })
+        .then(() => loadData()) // Reload data
+        .catch(err => {
+            console.error(err);
+            alert("Có lỗi xảy ra khi cập nhật trạng thái HOT!");
+        });
+}
+
+let filterTimer;
+
+function scheduleLoadData() {
+    clearTimeout(filterTimer);
+
+    filterTimer = setTimeout(() => {
+        loadData();
+    }, 500);
 }

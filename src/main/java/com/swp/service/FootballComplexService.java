@@ -8,6 +8,7 @@ import com.swp.model.FootballComplexImage;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 public class FootballComplexService {
 
@@ -16,12 +17,19 @@ public class FootballComplexService {
     private static final FieldDAO fieldDao = new FieldDAO();
     private static final CloudinaryService cloudinaryService = new CloudinaryService();
 
+    private static final Set<String> ALLOWED_STATUS = Set.of(
+            "ACTIVE",
+            "INACTIVE",
+            "MAINTENANCE",
+            "CLOSED"
+    );
+
     public long addFootballComplex(FootballComplex fc) {
         return complexDao.addComplex(fc);
     }
 
     public List<FootballComplex>  getListFootballComplex() {
-        return complexDao.getAllComplex();
+        return complexDao.getAllComplexExceptDeleteOne();
     }
 
     public FootballComplex getFootballComplexInfo(long id) {
@@ -103,4 +111,21 @@ public class FootballComplexService {
         }
     }
 
+    public void changeStatus(long id, String status) {
+        FootballComplex complex = complexDao.getFootballComplexDataByID(id);
+
+        if (complex == null) {
+            throw new IllegalArgumentException("Không tìm thấy cụm sân.");
+        }
+
+        if (!ALLOWED_STATUS.contains(status)) {
+            throw new IllegalArgumentException("Trạng thái không hợp lệ.");
+        }
+
+        complexDao.updateStatus(id, status);
+    }
+
+    public List<FootballComplex> searchComplex(String keyword, String status) {
+        return complexDao.searchComplex(keyword, status);
+    }
 }

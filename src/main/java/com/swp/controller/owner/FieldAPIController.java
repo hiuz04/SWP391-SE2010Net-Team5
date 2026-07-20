@@ -2,7 +2,7 @@
  * Module: Field Management
  * File: FieldAPIController.java
  * Description: Xử lý chức năng lấy toàn bộ thông tin sân bóng để hiển thị dữ liệu trên front-end.
- *
+ * <p>
  * Author: Dương Hải Anh
  * Version: 1.0
  * Created date: 01/06/2026
@@ -39,38 +39,64 @@ public class FieldAPIController extends HttpServlet {
     private static final FieldTypeService fieldTypeService = new FieldTypeService();
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
 
-        List<Field> fields = fieldService.getAllField();
+        try {
 
-        List<FootballComplex> complexes = complexService.getListFootballComplex();
-        Map<Long, FootballComplex> complexMap = complexes.stream()
-                .collect(Collectors.toMap(FootballComplex::getComplexId, Function.identity()));
+            long complexId = Long.parseLong(req.getParameter("complexId"));
 
-        List<FieldType> fieldTypes = fieldTypeService.getAllType();
-        Map<Integer, FieldType> fieldTypeMap = fieldTypes.stream()
-                .collect(Collectors.toMap(FieldType::getFieldTypeId, Function.identity()));
-        List<FieldList> lists = new ArrayList<>();
+            String keyword = req.getParameter("keyword");
 
-        for(Field f : fields) {
-            FootballComplex fc = complexMap.get(f.getComplexId());
-            FieldType fT = fieldTypeMap.get(f.getFieldTypeId());
+            String status = req.getParameter("status");
 
-            lists.add(new FieldList(
-                    f.getFieldId(),
-                    f.getFieldName(),
-                    fT.getTypeName(),
-                    fc.getComplexName(),
-                    f.getDescription(),
-                    f.getStatus(),
-                    f.isHot()
-            ));
+            String fieldType = req.getParameter("fieldTypeId");
+
+            Long typeId = null;
+
+            if (fieldType != null && !fieldType.isBlank()) {
+                typeId = Long.parseLong(fieldType);
+            }
+
+            List<Field> fields = fieldService.searchField(
+                    keyword,
+                    status,
+                    typeId,
+                    complexId
+            );
+            FootballComplex complex = complexService.getFootballComplexInfo(complexId);
+            List<FieldType> fieldTypes = fieldTypeService.getAllType();
+
+            Map<Integer, FieldType> fieldTypeMap = fieldTypes.stream()
+                    .collect(Collectors.toMap(FieldType::getFieldTypeId, Function.identity()));
+
+            List<FieldList> lists = new ArrayList<>();
+
+            for (Field f : fields) {
+                FieldType ft = fieldTypeMap.get(f.getFieldTypeId());
+
+                lists.add(new FieldList(
+                        f.getFieldId(),
+                        f.getFieldName(),
+                        ft.getTypeName(),
+                        complex.getComplexName(), // hoặc bỏ hẳn thuộc tính complexName nếu không dùng
+                        f.getDescription(),
+                        f.getStatus(),
+                        f.isHot()
+                ));
+            }
+
+            resp.setContentType("application/json;charset=UTF-8");
+            resp.getWriter().write(new Gson().toJson(lists));
+
+        } catch (NumberFormatException e) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "complexId không hợp lệ.");
+
+        } catch (IllegalArgumentException e) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+
+        } catch (Exception e) {
+            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Lỗi hệ thống.");
         }
-
-        resp.setContentType("application/json;charset=UTF-8");
-
-        Gson gson = new Gson();
-
-        resp.getWriter().write(gson.toJson(lists));
     }
 }

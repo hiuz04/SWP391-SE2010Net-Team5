@@ -17,7 +17,7 @@ public class UserDAO {
 
     private static final String USER_SELECT = """
             SELECT u.user_id, u.role_id, u.full_name, u.email, u.phone, u.password_hash,
-                   u.avatar_url, u.google_id, u.status, u.created_at, u.updated_at,
+                   u.avatar_url, u.google_id, u.status, u.created_at, u.updated_at, u.available_reward_points,
                    u.is_vip, u.vip_valid_until, r.role_name
             FROM users u
             INNER JOIN roles r ON u.role_id = r.role_id
@@ -277,6 +277,7 @@ public class UserDAO {
         user.setRoleName(rs.getString("role_name"));
         user.setVip(rs.getBoolean("is_vip"));
         user.setVipValidUntil(toLocalDateTime(rs.getTimestamp("vip_valid_until")));
+        user.setRewardPoints(rs.getInt("available_reward_points"));
         return user;
     }
 
@@ -474,6 +475,30 @@ public class UserDAO {
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi cập nhật trạng thái VIP: " + e.getMessage(), e);
         }
+    }
+
+    public int getRewardPoint(long userId) {
+        String sql = """
+            SELECT available_reward_points
+            FROM users
+            WHERE user_id = ?
+            """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("available_reward_points");
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return 0;
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
