@@ -382,7 +382,8 @@ public class BookingController extends HttpServlet {
         
         try {
             com.swp.dao.NotificationDAO notificationDAO = new com.swp.dao.NotificationDAO();
-            String msg = "Khách hàng " + currentUser.getFullName() + " đã hủy lịch đặt sân (Mã đặt: " + bookingId + "). Lý do: " + reason;
+            String timeStr = booking.getStartTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
+            String msg = "Khách hàng " + currentUser.getFullName() + " đã hủy lịch đặt sân " + booking.getFieldName() + " (" + booking.getComplexName() + ") lúc " + timeStr + ". Lý do: " + reason;
             notificationDAO.notifyRole("OWNER", "Khách hàng hủy đặt sân", msg, "BOOKING", bookingId);
             notificationDAO.notifyRole("STAFF", "Khách hàng hủy đặt sân", msg, "BOOKING", bookingId);
         } catch (Exception ignored) {}

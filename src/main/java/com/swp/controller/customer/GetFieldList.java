@@ -29,16 +29,17 @@ public class GetFieldList extends HttpServlet {
     private static final FieldTypeDAO fieldTypeDao = new FieldTypeDAO();
 
     @Override
-    protected void doGet(HttpServletRequest req,
-                         HttpServletResponse resp)
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
             throws ServletException, IOException {
 
-//        String keyword = req.getParameter("keyword");
-        String province = req.getParameter("province");
-        String ward = req.getParameter("ward");
-        String fieldTypeId = req.getParameter("fieldTypeId");
-        String sortOrder = req.getParameter("sortOrder");
+        // Bước 1: Nhận các tham số tìm kiếm và bộ lọc từ request (Tỉnh/Thành, Quận/Huyện, Loại sân, Sắp xếp)
+        String province = request.getParameter("province");
+        String ward = request.getParameter("ward");
+        String fieldTypeId = request.getParameter("fieldTypeId");
+        String sortOrder = request.getParameter("sortOrder");
 
+        // Bước 2: Nạp toàn bộ danh sách Cơ sở, Sân nhỏ và Loại sân từ CSDL
         List<FootballComplex> complexes = FOOTBALL_COMPLEX_DAO.getAllComplex();
         List<Field> fields = fieldDAO.getAllField();
         List<FieldType> fieldTypes = fieldTypeDao.getAllFieldTypes();
@@ -51,9 +52,12 @@ public class GetFieldList extends HttpServlet {
                         Function.identity()
                 ));
 
+        // Bước 3: Xử lý và gom nhóm dữ liệu để hiển thị thành các Thẻ (Card) trên giao diện
         for (FootballComplex fc : complexes) {
+            // Lấy ảnh bìa (thumbnail) cho cơ sở
             FootballComplexImage thumbnail = FOOTBALL_COMPLEX_DAO.getThumbnail(fc.getComplexId());
 
+            // Tìm ra cơ sở này đang có những loại sân nào (VD: 5 người, 7 người)
             List<FieldType> typeOfFc = fields.stream()
                     .filter(f -> f.getComplexId() == fc.getComplexId())
                     .map(Field::getFieldTypeId)
@@ -62,35 +66,22 @@ public class GetFieldList extends HttpServlet {
                     .filter(Objects::nonNull)
                     .toList();
 
-//            // Search theo keyword
-//            if (keyword != null && !keyword.isBlank()) {
-//
-//                String kw = keyword.trim().toLowerCase();
-//
-//                boolean match =
-//                        fc.getComplexName().toLowerCase().contains(kw)
-//                                || fc.getAddress().toLowerCase().contains(kw);
-//
-//                if (!match) {
-//                    continue;
-//                }
-//            }
-
-            // Search theo province
+            // Bước 4: Thực hiện logic lọc (Filter)
+            // Lọc theo Tỉnh/Thành phố
             if (province != null
                     && !province.isBlank()
                     && !province.equalsIgnoreCase(fc.getCity())) {
                 continue;
             }
 
-            // Search theo ward
+            // Lọc theo Quận/Huyện
             if (ward != null
                     && !ward.isBlank()
                     && !ward.equalsIgnoreCase(fc.getWard())) {
                 continue;
             }
 
-            // Search theo loại sân
+            // Lọc theo loại sân (Nếu người dùng chọn Loại sân 5 người, bỏ qua cơ sở không có)
             if (fieldTypeId != null && !fieldTypeId.isBlank()) {
 
                 int typeId = Integer.parseInt(fieldTypeId);
@@ -103,6 +94,7 @@ public class GetFieldList extends HttpServlet {
                 }
             }
 
+            // Bước 5: Đóng gói dữ liệu thành đối tượng hiển thị (ComplexCard)
             ComplexCard card = new ComplexCard();
 
             card.setComplexId(fc.getComplexId());
@@ -113,12 +105,13 @@ public class GetFieldList extends HttpServlet {
             card.setFieldTypeList(typeOfFc);
             card.setOpeningTime(fc.getOpeningTime());
             card.setClosingTime(fc.getClosingTime());
-            card.setThumbnailUrl(thumbnail.getImageUrl());
+            card.setThumbnailUrl(thumbnail != null ? thumbnail.getImageUrl() : null);
             card.setCurrentPrice(FOOTBALL_COMPLEX_DAO.getCurrentPriceForComplex(fc.getComplexId()));
 
             lists.add(card);
         }
 
+        // Bước 6: Xử lý sắp xếp (VD: Sắp xếp theo giá tăng dần/giảm dần)
         if (sortOrder != null && !sortOrder.isBlank()) {
             if (sortOrder.equals("price_asc")) {
                 lists.sort((c1, c2) -> {
