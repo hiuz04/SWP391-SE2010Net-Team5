@@ -29,7 +29,7 @@
     <title>Tìm sân | Sport Field Booking</title>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Chi tiết sân"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Tìm sân"></div>
 
 <main class="py-4">
     <div class="container">

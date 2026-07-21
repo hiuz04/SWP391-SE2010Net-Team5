@@ -1,5 +1,8 @@
 package com.swp.model.dto;
 
+/**
+ * DTO kết quả khi Staff/Owner tạo hoặc gửi lại invoice checkout cho Customer.
+ */
 public class CheckoutResult {
     private final long invoiceId;
     private final long bookingId;

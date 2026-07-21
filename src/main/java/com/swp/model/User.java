@@ -19,24 +19,27 @@ public class User implements Serializable {
     private String roleName;
     private boolean isVip;
     private LocalDateTime vipValidUntil;
+    private int rewardPoints;
 
     public User() {
     }
 
-    public User(Long userId, Integer roleId, String fullName, String email, String phone, String passwordHash, String avatarUrl, String googleId, String status, LocalDateTime createdAt, LocalDateTime updatedAt, String roleName, int rewardPoints) {
-        this.userId = userId;
-        this.roleId = roleId;
-        this.fullName = fullName;
-        this.email = email;
-        this.phone = phone;
-        this.passwordHash = passwordHash;
-        this.avatarUrl = avatarUrl;
-        this.googleId = googleId;
-        this.status = status;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-        this.roleName = roleName;
+    public User(int rewardPoints, LocalDateTime vipValidUntil, boolean isVip, String roleName, LocalDateTime updatedAt, LocalDateTime createdAt, String status, String googleId, String avatarUrl, String passwordHash, String phone, String email, String fullName, Integer roleId, Long userId) {
         this.rewardPoints = rewardPoints;
+        this.vipValidUntil = vipValidUntil;
+        this.isVip = isVip;
+        this.roleName = roleName;
+        this.updatedAt = updatedAt;
+        this.createdAt = createdAt;
+        this.status = status;
+        this.googleId = googleId;
+        this.avatarUrl = avatarUrl;
+        this.passwordHash = passwordHash;
+        this.phone = phone;
+        this.email = email;
+        this.fullName = fullName;
+        this.roleId = roleId;
+        this.userId = userId;
     }
 
     public Long getUserId() {
@@ -149,5 +152,13 @@ public class User implements Serializable {
 
     public void setVipValidUntil(LocalDateTime vipValidUntil) {
         this.vipValidUntil = vipValidUntil;
+    }
+
+    public int getRewardPoints() {
+        return rewardPoints;
+    }
+
+    public void setRewardPoints(int rewardPoints) {
+        this.rewardPoints = rewardPoints;
     }
 }

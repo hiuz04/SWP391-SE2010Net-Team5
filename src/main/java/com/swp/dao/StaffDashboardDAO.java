@@ -53,6 +53,10 @@ public class StaffDashboardDAO {
         return selectBestShift(shifts);
     }
 
+    /**
+     * Lấy booking trong ngày cho dashboard Staff, kèm cờ hỗ trợ checkout/invoice.
+     * has_invoice giúp UI mở hóa đơn hiện có, checkout_due cho biết booking đã sẵn sàng gửi invoice checkout.
+     */
     public List<Map<String, Object>> getTodayBookings(long complexId) {
         String sql = """
                 SELECT b.booking_id, b.booking_code,
@@ -66,7 +70,7 @@ public class StaffDashboardDAO {
                            WHERE i.booking_id = b.booking_id
                              AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
                        ) THEN 1 ELSE 0 END AS has_invoice,
-                       CASE WHEN b.status = 'CHECKED_IN' AND GETDATE() >= b.end_time THEN 1 ELSE 0 END AS checkout_due
+                       CASE WHEN b.status = 'CHECKED_IN' THEN 1 ELSE 0 END AS checkout_due
                 FROM bookings b
                 JOIN users u  ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id   = fi.field_id
@@ -101,6 +105,9 @@ public class StaffDashboardDAO {
         return list;
     }
 
+    /**
+     * Tính KPI tiền thu từ invoice PAID do Staff lập trong khung giờ ca làm việc.
+     */
     public Map<String, Object> getCashKpi(long staffId, String shiftDateStr,
                                           String startTimeStr, String endTimeStr) {
         String sql = """
@@ -134,6 +141,9 @@ public class StaffDashboardDAO {
         return kpi;
     }
 
+    /**
+     * Tính số booking trong ngày và số booking đã COMPLETED sau checkout/payment.
+     */
     public Map<String, Object> getBookingKpi(long complexId) {
         String sql = """
                 SELECT
@@ -189,6 +199,9 @@ public class StaffDashboardDAO {
         return null;
     }
 
+    /**
+     * Lấy hoạt động gần đây cho dashboard, trong đó nhánh INVOICE phản ánh các hóa đơn checkout đã thanh toán.
+     */
     public List<Map<String, Object>> getRecentActivity(long complexId) {
         String sql = """
                 SELECT TOP 5 *
@@ -333,6 +346,9 @@ public class StaffDashboardDAO {
         return Collections.emptyMap();
     }
 
+    /**
+     * Lấy booking theo ngày cho lịch Staff, kèm cờ invoice/checkout để UI hiển thị nút Checkout hoặc Hóa đơn.
+     */
     public List<Map<String, Object>> getBookingsForDate(long complexId, String dateStr) {
         String sql = """
                 SELECT b.booking_id, b.booking_code, b.start_time, b.end_time, b.status, b.total_amount,
@@ -344,7 +360,7 @@ public class StaffDashboardDAO {
                            WHERE i.booking_id = b.booking_id
                              AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
                        ) THEN 1 ELSE 0 END AS has_invoice,
-                       CASE WHEN b.status = 'CHECKED_IN' AND GETDATE() >= b.end_time THEN 1 ELSE 0 END AS checkout_due
+                       CASE WHEN b.status = 'CHECKED_IN' THEN 1 ELSE 0 END AS checkout_due
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id = fi.field_id

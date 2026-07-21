@@ -36,12 +36,80 @@
 <div class="container">
     <main class="py-5 main-wrapper">
         <div class="container">
-            <div class="d-flex justify-content-between mb-4">
-                <h1 class="section-title">Quản lý sân bóng</h1>
-                <button class="btn btn-sf-primary" style="height: 40px; background: rgb(5, 150, 105);" onclick="openModal()">✛ Thêm sân mới</button>
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h1 class="section-title mb-2">Quản lý sân bóng</h1>
+
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted fw-semibold">
+                                    Đang quản lý:
+                                </span>
+
+                                <select id="complexSelect"
+                                        class="form-select form-select-sm"
+                                        style="width:320px"
+                                        onchange="changeComplex(this.value)">
+
+                                    <c:forEach items="${complexList}" var="c">
+                                        <option value="${c.complexId}"
+                                                ${c.complexId == currentComplexId ? "selected" : ""}>
+                                            🏟️ ${c.complexName}
+                                        </option>
+                                    </c:forEach>
+
+                                </select>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-success px-4"
+                                onclick="openModal()">
+                            <i class="bi bi-plus-lg me-1"></i>
+                            Thêm sân mới
+                        </button>
+                    </div>
+
+                    <div class="row g-3 align-items-center">
+
+                        <div class="col-lg-5">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-search"></i>
+                                </span>
+
+                                <input class="form-control"
+                                       id="keyword"
+                                       oninput="scheduleLoadData()"
+                                       placeholder="Tìm theo tên sân...">
+                            </div>
+                        </div>
+
+                        <div class="col-lg-3">
+                            <select class="form-select" id="status" onchange="scheduleLoadData()">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="AVAILABLE">Có sẵn</option>
+                                <option value="INACTIVE">Ngừng hoạt động</option>
+                                <option value="MAINTENANCE">Bảo trì</option>
+                            </select>
+                        </div>
+
+                        <div class="col-lg-2">
+                            <select class="form-select" id="fieldType" onchange="scheduleLoadData()">
+                                <option value="">Tất cả loại sân</option>
+                            </select>
+                        </div>
+
+                        <div class="col-lg-2 text-end" id="field-count">
+                        </div>
+
+                    </div>
+
+                </div>
             </div>
             <!-- Hiển thị danh sách sân -->
-            <div class="border-0 shadow-sm px-4 data-container pt-3" id="field-data-container"></div>
+            <div class="border-0 shadow-sm px-4 data-container py-3" id="field-data-container"></div>
 
             <!-- Hiển thị form modal dành cho field -->
             <div id="modal"></div>
@@ -56,6 +124,10 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/owner/field.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
-<script>loadData();</script>
+<script>
+    getComplex();
+    loadFieldTypeDataForSearch();
+    loadData();
+</script>
 </body>
 </html>

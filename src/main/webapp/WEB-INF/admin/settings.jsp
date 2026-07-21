@@ -98,12 +98,12 @@
                                         <input type="number" class="form-control" name="MIN_CANCELLATION_HOURS" value="<%= getVal(settingsMap, "MIN_CANCELLATION_HOURS") %>" min="0">
                                         <div class="form-text">Khách hàng được phép hủy không mất phí nếu cách giờ đá hơn số giờ này.</div>
                                     </div>
-                                    <div class="mb-3">
+                                    <div class="mb-3 d-none">
                                         <label class="form-label fw-semibold">Tỉ lệ cọc mặc định (%)</label>
                                         <input type="number" class="form-control" name="DEPOSIT_PERCENTAGE" value="<%= getVal(settingsMap, "DEPOSIT_PERCENTAGE") %>" min="0" max="100">
                                         <div class="form-text">Phần trăm số tiền khách phải cọc khi đặt sân.</div>
                                     </div>
-                                    <div class="mb-3">
+                                    <div class="mb-3 d-none">
                                         <label class="form-label fw-semibold">Thời gian giữ chỗ (Phút)</label>
                                         <input type="number" class="form-control" name="BOOKING_HOLD_MINUTES" value="<%= getVal(settingsMap, "BOOKING_HOLD_MINUTES") %>" min="1">
                                         <div class="form-text">Thời gian chờ thanh toán trước khi tự động hủy hóa đơn.</div>

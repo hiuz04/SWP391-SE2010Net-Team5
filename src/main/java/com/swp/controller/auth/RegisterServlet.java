@@ -56,6 +56,7 @@ public class RegisterServlet extends HttpServlet {
 
         request.setCharacterEncoding("UTF-8");
 
+        // Bước 1: Lấy và kiểm tra CSRF token từ form và session để chặn giả mạo request
         HttpSession currentSession = request.getSession(false);
         String sessionCsrf = currentSession != null ? (String) currentSession.getAttribute("csrfToken") : null;
         String requestCsrf = request.getParameter("csrfToken");
@@ -64,14 +65,17 @@ public class RegisterServlet extends HttpServlet {
             return;
         }
 
+        // Bước 2: Nhận dữ liệu đầu vào và làm sạch khoảng trắng
         String fullName = trim(request.getParameter("fullName"));
         String phone = trim(request.getParameter("phone"));
         String email = trim(request.getParameter("email"));
         String password = request.getParameter("password");
         String confirmPassword = request.getParameter("confirmPassword");
 
+        // Lưu lại dữ liệu trên request để khi bị lỗi form không bị reset trắng
         preserveForm(request, fullName, phone, email);
 
+        // Bước 3: Validate dữ liệu đầu vào (format email, độ dài sđt, password mạnh)
         ValidationResult validation = RegisterValidator.validate(
                 fullName, phone, email, password, confirmPassword);
 
@@ -82,7 +86,7 @@ public class RegisterServlet extends HttpServlet {
             return;
         }
 
-        // Validate reCAPTCHA
+        // Bước 4: Validate reCAPTCHA để chống spam / bot đăng ký ảo
         String recaptchaResponse = request.getParameter("g-recaptcha-response");
         if (recaptchaResponse == null || recaptchaResponse.isEmpty()) {
             request.setAttribute("error", "Vui lòng xác nhận bạn không phải người máy.");
@@ -96,6 +100,7 @@ public class RegisterServlet extends HttpServlet {
         }
 
         try {
+            // Bước 5: Kiểm tra tính duy nhất của Email và Số điện thoại trong CSDL
             if (userDAO.existsByEmail(email)) {
                 validation.addFieldError("email", "Email này đã được đăng ký.");
                 request.setAttribute("fieldErrors", validation.getFieldErrors());
@@ -111,6 +116,7 @@ public class RegisterServlet extends HttpServlet {
                 return;
             }
 
+            // Bước 6: Chuẩn bị đối tượng User mới với vai trò mặc định (CUSTOMER)
             int roleId = roleDAO.findRoleIdByName(RegisterValidator.DEFAULT_ROLE)
                     .orElseThrow(() -> new IllegalStateException(
                             "Vai trò CUSTOMER chưa có trong bảng roles. Chạy script INSERT roles trước."));
@@ -122,17 +128,17 @@ public class RegisterServlet extends HttpServlet {
             user.setPhone(phone);
             user.setPasswordHash(PasswordUtil.hashPassword(password));
 
-            // Generate OTP
+            // Bước 7: Sinh mã xác thực (OTP) 6 chữ số
             String otpCode = generateOtp();
             LocalDateTime expiryTime = LocalDateTime.now().plusMinutes(5);
 
-            // Save to Session
+            // Bước 8: Lưu tạm thông tin User và mã OTP vào Session để chờ xác minh
             HttpSession session = request.getSession(true);
             session.setAttribute("registrationUser", user);
             session.setAttribute("registrationOtp", otpCode);
             session.setAttribute("registrationExpiry", expiryTime);
 
-            // Send Email
+            // Bước 9: Gửi Email chứa mã OTP đến người dùng
             if (MailUtil.isConfigured()) {
                 String subject = "Xác thực tài khoản mới - Sport Field Booking";
                 String htmlBody = MailUtil.buildRegistrationOtpEmail(fullName, otpCode);

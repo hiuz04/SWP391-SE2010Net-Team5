@@ -3,6 +3,9 @@ package com.swp.model.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * DTO preview checkout cho Staff/Owner, gồm tiền sân, phụ phí quá giờ, tiền cọc và số còn phải thanh toán.
+ */
 public class CheckoutView {
     private Long bookingId;
     private String bookingCode;
@@ -230,6 +233,9 @@ public class CheckoutView {
         this.existingInvoiceStatus = existingInvoiceStatus;
     }
 
+    /**
+     * Tính phần còn lại sau khi trừ cọc nhưng chưa cộng phụ phí quá giờ.
+     */
     public BigDecimal getBaseRemainingAmount() {
         BigDecimal remaining = fieldFee.subtract(depositAmount);
         return remaining.signum() < 0 ? BigDecimal.ZERO : remaining;

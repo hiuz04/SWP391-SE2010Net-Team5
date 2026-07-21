@@ -4,6 +4,9 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * DTO gom thông tin booking, sân, Customer, payment và voucher để render lịch sử/chi tiết/xác nhận booking.
+ */
 public class BookingView implements Serializable {
     private static final long serialVersionUID = 1L;
 

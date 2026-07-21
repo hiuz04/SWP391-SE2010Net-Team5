@@ -18,6 +18,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Xử lý dữ liệu checkout và invoice cho Staff/Owner: lấy thông tin trả sân,
+ * tính phụ phí quá giờ, tạo hóa đơn, đổi trạng thái booking và gửi notification thanh toán cho Customer.
+ */
 public class StaffBillingDAO {
 
     private static final BigDecimal DEFAULT_OVERTIME_FEE_PER_MINUTE = BigDecimal.valueOf(5000);
@@ -30,6 +34,10 @@ public class StaffBillingDAO {
     private static final String INVOICE_PAID = "PAID";
     private static final String INVOICE_ACTIVE_LEGACY = "ACTIVE";
 
+    /**
+     * Lấy thông tin preview checkout cho một booking.
+     * Method tính số tiền còn lại ở server để Staff/Owner xem trước trước khi gửi hóa đơn cho Customer.
+     */
     public CheckoutView getCheckoutView(long bookingId) throws SQLException {
         String sql = """
                 SELECT b.booking_id, b.booking_code, b.customer_id, b.complex_id, b.field_id,
@@ -62,6 +70,9 @@ public class StaffBillingDAO {
         }
     }
 
+    /**
+     * Lấy invoice mới nhất của booking để Staff/Owner xem chi tiết hoặc Customer mở từ notification.
+     */
     public InvoiceView getInvoiceByBookingId(long bookingId) throws SQLException {
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(invoiceViewSql("i.booking_id = ?"))) {
@@ -89,18 +100,28 @@ public class StaffBillingDAO {
         }
     }
 
+    /**
+     * Kiểm tra Staff có ca làm việc đang hoạt động tại complex trước khi thực hiện checkout.
+     */
     public boolean canStaffCheckoutComplex(long staffId, long complexId) throws SQLException {
         try (Connection conn = DBContext.getConnection()) {
             return hasActiveShiftForComplex(conn, staffId, complexId);
         }
     }
 
+    /**
+     * Kiểm tra Staff có phân ca trong ngày tại complex trước khi xem/xuất invoice.
+     */
     public boolean canStaffViewComplexToday(long staffId, long complexId) throws SQLException {
         try (Connection conn = DBContext.getConnection()) {
             return hasAssignedShiftForComplexToday(conn, staffId, complexId);
         }
     }
 
+    /**
+     * Hoàn tất bước Staff/Owner trả sân.
+     * Booking được khóa, tính tiền sân/phụ phí, trừ cọc và tạo invoice trong một transaction.
+     */
     public CheckoutResult completeCheckout(long bookingId, long actorId, boolean staffRole) throws SQLException {
         try (Connection conn = DBContext.getConnection()) {
             conn.setAutoCommit(false);
@@ -113,6 +134,7 @@ public class StaffBillingDAO {
                     throw new SecurityException("Ban khong co ca lam viec dang hoat dong tai co so nay.");
                 }
 
+                // Nếu đã có invoice thì không tạo mới; chỉ gửi lại notification khi invoice còn PENDING.
                 InvoiceSummary existingInvoice = findLatestCheckoutInvoice(conn, bookingId, true);
                 if (existingInvoice != null) {
                     if (INVOICE_PENDING.equals(existingInvoice.status())) {
@@ -130,11 +152,8 @@ public class StaffBillingDAO {
                     throw new IllegalArgumentException("Chi lich da nhan san moi duoc checkout.");
                 }
 
+                // Số tiền checkout được tính từ booking trong DB và thời điểm trả sân thực tế.
                 LocalDateTime now = LocalDateTime.now();
-                if (booking.endTime() != null && now.isBefore(booking.endTime())) {
-                    throw new IllegalArgumentException("Chua den gio ket thuc tran, chua the tra san.");
-                }
-
                 BigDecimal overtimeFeePerMinute = getOvertimeFeePerMinute(conn);
                 long overtimeMinutes = calculateOvertimeMinutes(booking.endTime(), now);
                 BigDecimal overtimeFee = overtimeFeePerMinute.multiply(BigDecimal.valueOf(overtimeMinutes));
@@ -144,6 +163,7 @@ public class StaffBillingDAO {
                 String invoiceCode = generateInvoiceCode(bookingId);
 
                 if (finalAmount.signum() == 0) {
+                    // Khi tiền cọc đã đủ bù toàn bộ chi phí, invoice được đánh dấu PAID và booking hoàn tất ngay.
                     long invoiceId = insertInvoice(
                             conn,
                             invoiceCode,
@@ -165,6 +185,7 @@ public class StaffBillingDAO {
                             "Booking khong con so tien phai thanh toan. Da hoan tat checkout.");
                 }
 
+                // Còn tiền phải trả thì tạo invoice PENDING và chuyển booking sang chờ Customer thanh toán checkout.
                 long invoiceId = insertInvoice(
                         conn,
                         invoiceCode,
@@ -249,6 +270,9 @@ public class StaffBillingDAO {
         }
     }
 
+    /**
+     * SQL chung để hiển thị invoice, bao gồm thông tin booking, sân, Customer, Staff và payment checkout mới nhất.
+     */
     private String invoiceViewSql(String predicate) {
         return """
                 SELECT TOP 1
@@ -285,6 +309,9 @@ public class StaffBillingDAO {
                 """.formatted(predicate);
     }
 
+    /**
+     * Khóa booking trong transaction checkout để không có hai Staff/Owner tạo invoice cùng lúc.
+     */
     private BookingLock lockBooking(Connection conn, long bookingId) throws SQLException {
         String sql = """
                 SELECT booking_id, booking_code, customer_id, complex_id, field_id,
@@ -314,6 +341,9 @@ public class StaffBillingDAO {
         }
     }
 
+    /**
+     * Tìm invoice checkout mới nhất, tùy chọn khóa bản ghi khi chuẩn bị tạo/gửi lại invoice.
+     */
     private InvoiceSummary findLatestCheckoutInvoice(Connection conn, long bookingId, boolean forUpdate) throws SQLException {
         String lock = forUpdate ? " WITH (UPDLOCK, HOLDLOCK)" : "";
         String sql = """
@@ -339,6 +369,9 @@ public class StaffBillingDAO {
         }
     }
 
+    /**
+     * Bổ sung các số tiền checkout cho màn hình preview: phụ phí quá giờ, subtotal và số còn phải trả sau khi trừ cọc.
+     */
     private void enrichCheckoutAmounts(CheckoutView view, BigDecimal overtimeFeePerMinute, LocalDateTime now) {
         view.setCheckoutTime(now);
         view.setOvertimeFeePerMinute(overtimeFeePerMinute);
@@ -351,13 +384,13 @@ public class StaffBillingDAO {
         view.setOvertimeFee(overtimeFee);
         view.setSubtotal(subtotal);
         view.setFinalAmount(finalAmount);
-        boolean allowed = view.getEndTime() == null || !now.isBefore(view.getEndTime());
-        view.setCheckoutAllowed(allowed);
-        if (!allowed) {
-            view.setCheckoutBlockedReason("Chua den gio ket thuc tran, chua the tra san.");
-        }
+        view.setCheckoutAllowed(STATUS_CHECKED_IN.equals(view.getStatus()));
+        view.setCheckoutBlockedReason(null);
     }
 
+    /**
+     * Tính số phút quá giờ, làm tròn lên để chỉ cần quá một phần phút vẫn bị tính một phút.
+     */
     private long calculateOvertimeMinutes(LocalDateTime endTime, LocalDateTime now) {
         if (endTime == null || now == null || !now.isAfter(endTime)) {
             return 0;
@@ -420,6 +453,9 @@ public class StaffBillingDAO {
         }
     }
 
+    /**
+     * Tạo invoice checkout và trả về invoice_id để notification/payment tham chiếu.
+     */
     private long insertInvoice(
             Connection conn,
             String invoiceCode,
@@ -474,6 +510,9 @@ public class StaffBillingDAO {
         }
     }
 
+    /**
+     * Gửi notification cho Customer để mở hóa đơn checkout và chọn phương thức thanh toán.
+     */
     private void insertCheckoutPaymentNotification(Connection conn, BookingLock booking, long invoiceId, BigDecimal finalAmount)
             throws SQLException {
         insertNotification(conn,

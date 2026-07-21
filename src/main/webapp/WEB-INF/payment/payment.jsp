@@ -340,6 +340,7 @@
     const vnpayButton = document.getElementById('vnpayButton');
     if (vnpayButton) {
         vnpayButton.addEventListener('click', () => {
+            // Khi bấm VNPay, ép chọn đúng payment method VNPAY để controller tạo gateway transaction.
             const methodId = vnpayButton.dataset.vnpayMethodId;
             const radio = document.querySelector('input[name="paymentMethodId"][value="' + methodId + '"]');
             if (radio) {

@@ -4,6 +4,9 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * DTO hiển thị kết quả/lịch sử thanh toán cho Customer, bao gồm ngữ cảnh booking hoặc invoice checkout.
+ */
 public class PaymentView implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -179,6 +182,9 @@ public class PaymentView implements Serializable {
         this.holdExpiresAt = holdExpiresAt;
     }
 
+    /**
+     * Xác định Customer còn được thử lại payment thất bại hay không dựa trên loại payment và trạng thái booking/invoice.
+     */
     public boolean isRetryAllowed() {
         if (!"FAILED".equals(status)) {
             return false;

@@ -4,6 +4,10 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Entity booking lưu trạng thái đặt sân, thời gian giữ chỗ HOLD, tiền cọc,
+ * voucher áp dụng và thông tin hủy để các DAO cập nhật xuyên suốt booking/payment/checkout.
+ */
 public class Booking implements Serializable {
     private static final long serialVersionUID = 1L;
 

@@ -40,9 +40,12 @@ public class ComplexAPIController extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
+        String keyword = req.getParameter("keyword");
+        String status = req.getParameter("status");
+
         List<ComplexWithField> lists = new ArrayList<>();
         List<Field> fields = fieldService.getAllField();
-        List<FootballComplex> complexes = FOOTBALL_COMPLEX_SERVICE.getListFootballComplex();
+        List<FootballComplex> complexes = FOOTBALL_COMPLEX_SERVICE.searchComplex(keyword, status);
 
         for (FootballComplex fc : complexes) {
             List<Field> complexFields = fields.stream()

@@ -31,11 +31,12 @@ public class AdminUsersServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
-        // Lấy tham số tìm kiếm và phân trang
+        // Bước 1: Lấy các tham số tìm kiếm và bộ lọc từ request (VD: tên/email, role, trạng thái)
         String search = request.getParameter("search");
         String role = request.getParameter("role");
         String status = request.getParameter("status");
         
+        // Bước 2: Khởi tạo giá trị phân trang mặc định (trang 1, mỗi trang 10 dòng)
         int page = 1;
         int limit = 10;
         try {
@@ -48,10 +49,14 @@ public class AdminUsersServlet extends HttpServlet {
         
         int offset = (page - 1) * limit;
         
+        // Bước 3: Gọi DAO lấy danh sách người dùng theo bộ lọc và giới hạn phân trang
         List<User> userList = userDAO.getUsersPaginated(search, role, status, offset, limit);
+        
+        // Bước 4: Lấy tổng số lượng người dùng thỏa mãn điều kiện để tính tổng số trang
         int totalUsers = userDAO.countUsers(search, role, status);
         int totalPages = (int) Math.ceil((double) totalUsers / limit);
         
+        // Bước 5: Truyền toàn bộ dữ liệu (danh sách user, phân trang, bộ lọc hiện tại) sang JSP
         request.setAttribute("userList", userList);
         request.setAttribute("currentPage", page);
         request.setAttribute("totalPages", totalPages);
@@ -59,7 +64,7 @@ public class AdminUsersServlet extends HttpServlet {
         request.setAttribute("role", role);
         request.setAttribute("status", status);
 
-        // Forward to JSP
+        // Forward to JSP để hiển thị danh sách tài khoản
         request.getRequestDispatcher("/WEB-INF/admin/users.jsp").forward(request, response);
     }
 
@@ -68,6 +73,7 @@ public class AdminUsersServlet extends HttpServlet {
         HttpSession session = request.getSession(false);
         User currentUser = (User) session.getAttribute("user");
 
+        // Bước 1: Kiểm tra hành động admin muốn thực hiện (Thêm, Sửa, Khóa, Mở khóa, Xóa)
         String action = request.getParameter("action");
         if (action == null) {
             response.sendRedirect(request.getContextPath() + "/admin/users");
@@ -75,6 +81,7 @@ public class AdminUsersServlet extends HttpServlet {
         }
 
         try {
+            // Bước 2: Route request tới các hàm xử lý tương ứng
             switch (action) {
                 case "add":
                     addUser(request, session);
@@ -83,10 +90,12 @@ public class AdminUsersServlet extends HttpServlet {
                     editUser(request, session);
                     break;
                 case "ban":
+                    // Khóa tài khoản
                     changeStatus(request, session, currentUser.getUserId(), "BANNED");
                     break;
                 case "unban":
                 case "approve":
+                    // Mở khóa tài khoản
                     changeStatus(request, session, currentUser.getUserId(), "ACTIVE");
                     break;
                 case "delete":
@@ -94,12 +103,14 @@ public class AdminUsersServlet extends HttpServlet {
                     break;
             }
         } catch (IllegalArgumentException e) {
+            // Bắt lỗi logic (VD: trùng email, trùng số điện thoại) và gửi lại giao diện
             session.setAttribute("errorMessage", e.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
             session.setAttribute("errorMessage", "Đã xảy ra lỗi: " + e.getMessage());
         }
 
+        // Bước 3: Hoàn tất xử lý, reload lại trang danh sách người dùng
         response.sendRedirect(request.getContextPath() + "/admin/users");
     }
 

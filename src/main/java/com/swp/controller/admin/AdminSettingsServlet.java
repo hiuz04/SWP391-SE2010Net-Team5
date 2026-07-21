@@ -26,9 +26,10 @@ public class AdminSettingsServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         try {
+            // Bước 1: Gọi DAO lấy toàn bộ các dòng cấu hình từ database bảng system_settings
             List<SystemSetting> settings = systemSettingDAO.getAllSettings();
             
-            // Convert to map for easy access in JSP, handling null values and duplicates
+            // Bước 2: Chuyển đổi List thành Map (key là tên cấu hình, value là giá trị) để JSP dễ truy xuất
             Map<String, String> settingsMap = settings.stream()
                     .collect(Collectors.toMap(
                             SystemSetting::getSettingKey,
@@ -36,6 +37,7 @@ public class AdminSettingsServlet extends HttpServlet {
                             (v1, v2) -> v1 // In case of duplicate keys, keep the first one
                     ));
             
+            // Bước 3: Đẩy Map cấu hình sang View (settings.jsp) để hiển thị lên Form
             request.setAttribute("settings", settingsMap);
             request.getRequestDispatcher("/WEB-INF/admin/settings.jsp").forward(request, response);
         } catch (Exception e) {
@@ -48,7 +50,7 @@ public class AdminSettingsServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         request.setCharacterEncoding("UTF-8");
 
-        // Predefined setting keys
+        // Bước 1: Khai báo mảng chứa các Key cấu hình hệ thống cần cập nhật
         String[] keys = {
             "MAINTENANCE_MODE",
             "CONTACT_EMAIL",
@@ -61,21 +63,24 @@ public class AdminSettingsServlet extends HttpServlet {
             "BOOKING_HOLD_MINUTES"
         };
 
+        // Bước 2: Duyệt qua từng Key và lấy giá trị tương ứng từ request (form submit)
         for (String key : keys) {
             String value = request.getParameter(key);
             if (value != null) {
-                // If it's a checkbox (e.g., MAINTENANCE_MODE), it will be submitted as "true" or "on". 
-                // We handle that in the JSP, but let's just save the string value.
+                // Xử lý riêng cho checkbox: HTML form gửi "on" nếu được check
                 if (value.equals("on")) {
                     value = "true";
                 }
+                // Bước 3: Gọi DAO cập nhật giá trị vào CSDL
                 systemSettingDAO.updateSetting(key, value.trim());
             } else if (key.equals("MAINTENANCE_MODE")) {
-                // If checkbox is unchecked, it won't be sent in the request
+                // Nếu là checkbox (ví dụ Chế độ bảo trì) mà không được tick -> form sẽ không gửi tham số này
+                // Khi đó cần chủ động cập nhật thành false
                 systemSettingDAO.updateSetting(key, "false");
             }
         }
 
+        // Bước 4: Hoàn thành, chuyển hướng lại trang cấu hình kèm cờ thành công
         response.sendRedirect(request.getContextPath() + "/admin/settings?success=1");
     }
 }

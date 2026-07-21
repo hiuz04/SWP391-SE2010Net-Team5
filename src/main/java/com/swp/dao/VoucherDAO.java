@@ -17,12 +17,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Quản lý dữ liệu voucher cho cả Owner và Customer: CRUD voucher, validate khi booking,
+ * ghi nhận lượt sử dụng sau thanh toán và hỗ trợ đổi voucher bằng điểm thưởng.
+ */
 public class VoucherDAO {
 
     private static final String TYPE_PERCENT = "PERCENT";
     private static final String TYPE_FIXED = "FIXED";
     private static final String STATUS_ACTIVE = "ACTIVE";
 
+    /**
+     * Lấy toàn bộ voucher cho màn hình quản lý của Owner.
+     * Danh sách giữ cả voucher tạm tắt/hết hạn để Owner có thể kiểm tra số lượng đã dùng.
+     */
     public List<Voucher> getAllVouchers() throws SQLException {
         String sql = """
                 SELECT id,
@@ -36,6 +44,8 @@ public class VoucherDAO {
                        start_date,
                        end_date,
                        status,
+                       target_user,
+                       exchange_points,
                        created_at,
                        updated_at
                 FROM vouchers
@@ -81,6 +91,10 @@ public class VoucherDAO {
         }
     }
 
+    /**
+     * Tạo voucher mới từ form Owner.
+     * Số lượt đã dùng luôn bắt đầu từ 0; servlet chịu trách nhiệm validate dữ liệu trước khi gọi DAO.
+     */
     public boolean createVoucher(Voucher voucher) throws SQLException {
         String sql = """
                 INSERT INTO vouchers (
@@ -106,6 +120,10 @@ public class VoucherDAO {
         }
     }
 
+    /**
+     * Cập nhật thông tin voucher mà không thay đổi cột used.
+     * Rule không cho quantity thấp hơn used được kiểm tra ở servlet trước khi update.
+     */
     public boolean updateVoucher(Voucher voucher) throws SQLException {
         String sql = """
                 UPDATE vouchers
@@ -130,6 +148,10 @@ public class VoucherDAO {
         }
     }
 
+    /**
+     * Bật/tắt voucher theo thao tác của Owner.
+     * Chỉ đổi trạng thái, không chạm đến quantity/used để tránh ảnh hưởng lịch sử sử dụng.
+     */
     public boolean updateStatus(int id, String status) throws SQLException {
         String sql = """
                 UPDATE vouchers
@@ -146,6 +168,10 @@ public class VoucherDAO {
         }
     }
 
+    /**
+     * Tăng số lượt đã dùng sau khi payment thành công.
+     * Điều kiện used < quantity giúp chặn việc xác nhận voucher khi số lượt đã hết.
+     */
     public boolean incrementUsed(int voucherId, Connection conn) throws SQLException {
         String sql = """
                 UPDATE vouchers
@@ -172,6 +198,10 @@ public class VoucherDAO {
         return validateVoucher(code, orderAmount, null);
     }
 
+    /**
+     * Validate voucher Customer nhập khi xác nhận booking.
+     * Method kiểm tra tồn tại, trạng thái, thời gian hiệu lực, min order, số lượt còn lại và lịch sử dùng của Customer.
+     */
     public VoucherValidationResult validateVoucher(String code, BigDecimal orderAmount, Long customerId) throws SQLException {
         BigDecimal safeOrderAmount = money(orderAmount);
         Voucher voucher = findByCode(code);
@@ -209,6 +239,7 @@ public class VoucherDAO {
             return VoucherValidationResult.invalid("Giá trị mã giảm giá không hợp lệ.");
         }
 
+        // Tính số tiền giảm theo loại voucher, sau đó chặn mức giảm không vượt quá giá trị đơn hàng.
         String type = normalizeType(voucher.getDiscountType());
         BigDecimal discountAmount;
         if (TYPE_PERCENT.equals(type)) {
@@ -237,6 +268,10 @@ public class VoucherDAO {
         return hasCustomerUsedVoucher(voucherId, customerId, null);
     }
 
+    /**
+     * Kiểm tra Customer đã dùng voucher hay chưa.
+     * Khi truyền connection từ payment transaction, việc kiểm tra dùng chung snapshot/lock với bước ghi nhận usage.
+     */
     public boolean hasCustomerUsedVoucher(int voucherId, long customerId, Connection conn) throws SQLException {
         if (voucherId <= 0 || customerId <= 0) {
             return false;
@@ -269,6 +304,10 @@ public class VoucherDAO {
         }
     }
 
+    /**
+     * Ghi nhận một lần sử dụng voucher sau khi payment thành công.
+     * NOT EXISTS kèm UPDLOCK/HOLDLOCK đảm bảo cùng một Customer không thể ghi trùng voucher trong các callback song song.
+     */
     public boolean recordUsage(
             int voucherId,
             long customerId,
@@ -578,6 +617,8 @@ public class VoucherDAO {
                        start_date,
                        end_date,
                        status,
+                       target_user,
+                       exchange_points,
                        created_at,
                        updated_at
                 FROM vouchers
@@ -629,9 +670,10 @@ public class VoucherDAO {
         voucher.setStartDate(toLocalDateTime(rs.getTimestamp("start_date")));
         voucher.setEndDate(toLocalDateTime(rs.getTimestamp("end_date")));
         voucher.setStatus(rs.getString("status"));
+        voucher.setTargetUser(rs.getString("target_user"));
+        voucher.setExchangePoint(rs.getInt("exchange_points"));
         voucher.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
         voucher.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
-        voucher.setExchangePoint(rs.getInt("exchange_points"));
         return voucher;
     }
 

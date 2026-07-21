@@ -59,11 +59,17 @@ public class SystemSettingDAO {
     }
 
     public void updateSetting(String key, String value) {
-        String sql = "UPDATE system_settings SET setting_value = ?, updated_at = GETDATE() WHERE setting_key = ?";
+        String sql = "IF EXISTS (SELECT 1 FROM system_settings WHERE setting_key = ?) " +
+                     "UPDATE system_settings SET setting_value = ?, updated_at = GETDATE() WHERE setting_key = ? " +
+                     "ELSE " +
+                     "INSERT INTO system_settings (setting_key, setting_value, description, updated_at) VALUES (?, ?, '', GETDATE())";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, value);
-            ps.setString(2, key);
+            ps.setString(1, key);
+            ps.setString(2, value);
+            ps.setString(3, key);
+            ps.setString(4, key);
+            ps.setString(5, value);
             ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();

@@ -25,7 +25,7 @@ import java.util.List;
 @MultipartConfig
 public class ComplexController extends HttpServlet {
 
-    private static final FootballComplexService FOOTBALL_COMPLEX_SERVICE = new FootballComplexService();
+    private static final FootballComplexService complexService = new FootballComplexService();
     private static final CloudinaryService cloudinaryService = new CloudinaryService();
 
     @Override
@@ -50,6 +50,9 @@ public class ComplexController extends HttpServlet {
                 break;
             case "delete":
                 delete(req, resp);
+                break;
+            case "status":
+                changeStatus(req, resp);
                 break;
         }
     }
@@ -86,8 +89,6 @@ public class ComplexController extends HttpServlet {
                 : LocalTime.parse(closeStr);
 
         String generalRules = req.getParameter("generalRules");
-        String status = req.getParameter("status");
-        Boolean featured = Boolean.parseBoolean(req.getParameter("featured"));
 
         FootballComplex fc = new FootballComplex();
         fc.setComplexName(complexName);
@@ -102,10 +103,8 @@ public class ComplexController extends HttpServlet {
         fc.setOpeningTime(openingTime);
         fc.setClosingTime(closingTime);
         fc.setGeneralRules(generalRules);
-        fc.setStatus(status);
-        fc.setFeatured(featured);
 
-        long complexId = FOOTBALL_COMPLEX_SERVICE.addFootballComplex(fc);
+        long complexId = complexService.addFootballComplex(fc);
         addImage(req, resp, complexId);
     }
 
@@ -155,8 +154,6 @@ public class ComplexController extends HttpServlet {
                 : LocalTime.parse(closeStr);
 
         String generalRules = req.getParameter("generalRules");
-        String status = req.getParameter("status");
-        Boolean featured = Boolean.parseBoolean(req.getParameter("featured"));
 
         FootballComplex fc = new FootballComplex();
         fc.setComplexId(complexId);
@@ -172,10 +169,8 @@ public class ComplexController extends HttpServlet {
         fc.setOpeningTime(openingTime);
         fc.setClosingTime(closingTime);
         fc.setGeneralRules(generalRules);
-        fc.setStatus(status);
-        fc.setFeatured(featured);
 
-        FOOTBALL_COMPLEX_SERVICE.updateFootballComplex(fc);
+        complexService.updateFootballComplex(fc);
         updateImage(req, resp);
         addImage(req, resp, complexId);
     }
@@ -187,7 +182,7 @@ public class ComplexController extends HttpServlet {
                     req.getParameter("id")
             );
 
-            FOOTBALL_COMPLEX_SERVICE.deleteFootballComplex(id);
+            complexService.deleteFootballComplex(id);
 
             resp.setStatus(HttpServletResponse.SC_OK);
 
@@ -235,14 +230,14 @@ public class ComplexController extends HttpServlet {
             image.setThumbnail(
                     Boolean.parseBoolean(thumbnails[i]));
             image.setPublicId(result.getPublicId());
-            FOOTBALL_COMPLEX_SERVICE.addImg(image);
+            complexService.addImg(image);
         }
     }
 
     private void getInfo(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         long id = Long.parseLong(req.getParameter("id"));
-        FootballComplex fc = FOOTBALL_COMPLEX_SERVICE.getFootballComplexInfo(id);
-        List<FootballComplexImage> imgs = FOOTBALL_COMPLEX_SERVICE.getFootballComplexImg(id);
+        FootballComplex fc = complexService.getFootballComplexInfo(id);
+        List<FootballComplexImage> imgs = complexService.getFootballComplexImg(id);
         ComplexDetailDTO detail = new ComplexDetailDTO(fc, imgs);
 
         resp.setContentType("application/json;charset=UTF-8");
@@ -271,23 +266,44 @@ public class ComplexController extends HttpServlet {
         if (deleted != null) {
             for (String id : deleted) {
                 long imgId = Long.parseLong(id);
-                FootballComplexImage img = FOOTBALL_COMPLEX_SERVICE.getImgById(imgId);
+                FootballComplexImage img = complexService.getImgById(imgId);
                 if (img != null) {
                     if (img.getPublicId() != null && !img.getPublicId().trim().isEmpty()) {
                         cloudinaryService.delete(img.getPublicId());
                     }
-                    FOOTBALL_COMPLEX_SERVICE.deleteImg(imgId);
+                    complexService.deleteImg(imgId);
                 }
             }
         }
 
         if (imgOld != null && thumbnailOld != null) {
             for (int i = 0; i < imgOld.length; i++) {
-                FOOTBALL_COMPLEX_SERVICE.updateImg(
+                complexService.updateImg(
                         Long.parseLong(imgOld[i]),
                         Boolean.parseBoolean(thumbnailOld[i])
                 );
             }
+        }
+    }
+
+    private void changeStatus(HttpServletRequest req, HttpServletResponse resp)
+            throws IOException {
+
+        try {
+            long complexId = Long.parseLong(req.getParameter("complexId"));
+            String status = req.getParameter("status");
+
+            complexService.changeStatus(complexId, status);
+
+            resp.setStatus(HttpServletResponse.SC_OK);
+            resp.getWriter().write("SUCCESS");
+
+        } catch (IllegalArgumentException e) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+
+        } catch (Exception e) {
+            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Có lỗi xảy ra khi cập nhật trạng thái.");
         }
     }
 }
