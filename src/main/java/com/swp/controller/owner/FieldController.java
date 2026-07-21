@@ -5,7 +5,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
 import com.swp.model.Field;
+import com.swp.model.FootballComplex;
 import com.swp.service.FieldService;
+import com.swp.service.FootballComplexService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -14,11 +16,13 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @WebServlet("/owner/field")
 public class FieldController extends HttpServlet {
 
     private static final FieldService fieldService = new FieldService();
+    private static final FootballComplexService complexService = new FootballComplexService();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -27,6 +31,22 @@ public class FieldController extends HttpServlet {
             getInfo(req, resp);
             return;
         }
+
+        String complexId = req.getParameter("complexId");
+
+        if (complexId == null || complexId.isBlank()) {
+            List<FootballComplex> complexes = complexService.getListFootballComplex();
+
+            if (!complexes.isEmpty()) {
+                resp.sendRedirect(
+                        req.getContextPath()
+                                + "/owner/field?complexId="
+                                + complexes.get(0).getComplexId()
+                );
+                return;
+            }
+        }
+
         req.getRequestDispatcher("/WEB-INF/owner/field-list.jsp").forward(req, resp);
     }
 
@@ -43,6 +63,9 @@ public class FieldController extends HttpServlet {
             case "delete":
                 delete(req, resp);
                 break;
+            case "status":
+                changeStatus(req, resp);
+                break;
         }
     }
 
@@ -51,16 +74,14 @@ public class FieldController extends HttpServlet {
         String fieldDesc = req.getParameter("description");
         int fieldTypeID = Integer.parseInt(req.getParameter("fieldTypeID"));
         long complexId = Long.parseLong(req.getParameter("complexId"));
-        String status = req.getParameter("status");
 
         Field field = new Field();
         field.setFieldName(fieldName);
         field.setDescription(fieldDesc);
         field.setFieldTypeId(fieldTypeID);
         field.setComplexId(complexId);
-        field.setStatus(status);
 
-        fieldService.addField(field);
+        fieldService.insertField(field);
     }
 
     protected void edit(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -124,4 +145,24 @@ public class FieldController extends HttpServlet {
         resp.getWriter().write(gson.toJson(f));
     }
 
+    private void changeStatus(HttpServletRequest req, HttpServletResponse resp)
+            throws IOException {
+
+        try {
+            long fieldId = Long.parseLong(req.getParameter("fieldId"));
+            String status = req.getParameter("status");
+
+            fieldService.changeStatus(fieldId, status);
+
+            resp.setStatus(HttpServletResponse.SC_OK);
+            resp.getWriter().write("SUCCESS");
+
+        } catch (IllegalArgumentException e) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+
+        } catch (Exception e) {
+            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Có lỗi xảy ra khi cập nhật trạng thái.");
+        }
+    }
 }
