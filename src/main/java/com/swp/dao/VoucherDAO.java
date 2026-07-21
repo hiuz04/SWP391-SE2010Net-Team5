@@ -180,6 +180,7 @@ public class VoucherDAO {
                 WHERE id = ?
                   AND used < quantity
                 """;
+        // Business Rule BR-11: Chỉ payment success gọi hàm này, và SQL vẫn chặn tăng used vượt quantity.
         return updateUsedCounter(voucherId, conn, sql);
     }
 
@@ -205,31 +206,37 @@ public class VoucherDAO {
     public VoucherValidationResult validateVoucher(String code, BigDecimal orderAmount, Long customerId) throws SQLException {
         BigDecimal safeOrderAmount = money(orderAmount);
         Voucher voucher = findByCode(code);
+        // Business Rule BR-09: Voucher phải tồn tại trước khi xét các điều kiện áp dụng.
         if (voucher == null) {
             return VoucherValidationResult.invalid("Mã giảm giá không tồn tại.");
         }
 
+        // Business Rule BR-09: Voucher chỉ được áp dụng khi đang ACTIVE.
         if (!STATUS_ACTIVE.equalsIgnoreCase(voucher.getStatus())) {
             return VoucherValidationResult.invalid("Mã giảm giá không còn hoạt động.");
         }
 
         LocalDateTime now = LocalDateTime.now();
+        // Business Rule BR-09: Thời điểm hiện tại phải nằm trong khoảng start/end date của voucher.
         if (voucher.getStartDate() == null || voucher.getStartDate().isAfter(now)) {
             return VoucherValidationResult.invalid("Mã giảm giá chưa đến thời gian sử dụng.");
         }
         if (voucher.getEndDate() == null || voucher.getEndDate().isBefore(now)) {
             return VoucherValidationResult.invalid("Mã giảm giá đã hết hạn.");
         }
+        // Business Rule BR-09: Mỗi Customer chỉ được dùng một voucher cụ thể một lần.
         if (customerId != null
                 && customerId > 0
                 && hasCustomerUsedVoucher(voucher.getId(), customerId)) {
             return VoucherValidationResult.invalid("Bạn đã sử dụng mã giảm giá này.");
         }
+        // Business Rule BR-09: Voucher phải còn số lượng chưa sử dụng.
         if (voucher.getUsed() >= voucher.getQuantity()) {
             return VoucherValidationResult.invalid("Mã giảm giá đã hết lượt sử dụng.");
         }
 
         BigDecimal minOrder = money(voucher.getMinOrder());
+        // Business Rule BR-09: Giá trị đơn hàng phải đạt mức tối thiểu của voucher.
         if (safeOrderAmount.compareTo(minOrder) < 0) {
             return VoucherValidationResult.invalid("Đơn hàng chưa đạt giá trị tối thiểu để dùng mã giảm giá.");
         }
@@ -239,7 +246,7 @@ public class VoucherDAO {
             return VoucherValidationResult.invalid("Giá trị mã giảm giá không hợp lệ.");
         }
 
-        // Tính số tiền giảm theo loại voucher, sau đó chặn mức giảm không vượt quá giá trị đơn hàng.
+        // Business Rule BR-10: Tính số tiền giảm theo loại voucher, sau đó chặn mức giảm không vượt quá giá trị đơn hàng.
         String type = normalizeType(voucher.getDiscountType());
         BigDecimal discountAmount;
         if (TYPE_PERCENT.equals(type)) {
@@ -256,6 +263,7 @@ public class VoucherDAO {
             return VoucherValidationResult.invalid("Loại mã giảm giá không hợp lệ.");
         }
 
+        // Business Rule BR-10: Discount không được làm final amount âm.
         if (discountAmount.compareTo(safeOrderAmount) > 0) {
             discountAmount = safeOrderAmount;
         }
@@ -336,6 +344,7 @@ public class VoucherDAO {
                 )
                 """;
 
+        // Business Rule BR-11: Voucher usage chỉ được ghi từ transaction payment thành công.
         if (conn != null) {
             return insertUsage(conn, sql, voucherId, customerId, bookingId, paymentId);
         }

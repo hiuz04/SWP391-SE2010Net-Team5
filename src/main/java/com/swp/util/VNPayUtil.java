@@ -42,6 +42,7 @@ public final class VNPayUtil {
         params.put("vnp_Version", VNPayConfig.getVersion());
         params.put("vnp_Command", VNPayConfig.getCommand());
         params.put("vnp_TmnCode", VNPayConfig.getTmnCode());
+        // Business Rule BR-22: Amount gửi sang VNPay được lấy từ payment server-side và chuẩn hóa theo đơn vị VNPay.
         params.put("vnp_Amount", toVNPayAmount(payment.getAmount()));
         params.put("vnp_CurrCode", VNPayConfig.getCurrCode());
         params.put("vnp_TxnRef", transactionRef);
@@ -70,6 +71,7 @@ public final class VNPayUtil {
      * Kiểm tra chữ ký callback bằng cách loại bỏ SecureHash/SecureHashType rồi tự tính lại HMAC SHA512.
      */
     public static SignatureDebug verifySignatureDebug(Map<String, String> requestParams) {
+        // Business Rule BR-22: Callback thiếu SecureHash bị xem là không hợp lệ trước khi cập nhật payment.
         String receivedHash = requestParams.get("vnp_SecureHash");
         if (receivedHash == null || receivedHash.isBlank()) {
             return new SignatureDebug(false, "", "", "");
@@ -81,6 +83,7 @@ public final class VNPayUtil {
             if (key == null || !key.startsWith("vnp_")) {
                 continue;
             }
+            // Business Rule BR-22: SecureHash không được đưa vào payload tự tính lại chữ ký.
             if ("vnp_SecureHash".equalsIgnoreCase(key) || "vnp_SecureHashType".equalsIgnoreCase(key)) {
                 continue;
             }
@@ -91,6 +94,7 @@ public final class VNPayUtil {
         }
 
         String payload = buildHashData(signedParams);
+        // Business Rule BR-22: Hash tự tính phải trùng hash gateway gửi về thì callback mới hợp lệ.
         String expectedHash = hmacSHA512(VNPayConfig.getHashSecret(), payload);
         return new SignatureDebug(expectedHash.equalsIgnoreCase(receivedHash), payload, expectedHash, receivedHash);
     }

@@ -262,6 +262,10 @@ public class StaffDashboardDAO {
         return list;
     }
 
+    /**
+     * Check-in booking cho Staff.
+     * Method chỉ đổi trạng thái khi booking đang CONFIRMED và ghi bản ghi checkins trong cùng transaction.
+     */
     public boolean checkinBooking(long bookingId, long staffId, String note) {
         String updateSql = """
                 UPDATE bookings
@@ -274,12 +278,14 @@ public class StaffDashboardDAO {
             conn.setAutoCommit(false);
             try (PreparedStatement ps1 = conn.prepareStatement(updateSql);
                  PreparedStatement ps2 = conn.prepareStatement(insertSql)) {
+                // Business Rule BR-13: Chỉ booking CONFIRMED mới được chuyển sang CHECKED_IN.
                 ps1.setLong(1, bookingId);
                 int updated = ps1.executeUpdate();
                 if (updated == 0) {
                     conn.rollback();
                     return false;
                 }
+                // Business Rule BR-13: Check-in thành công phải tạo log nhận sân cho booking.
                 ps2.setLong(1, bookingId);
                 ps2.setLong(2, staffId);
                 ps2.setString(3, note != null ? note : "");

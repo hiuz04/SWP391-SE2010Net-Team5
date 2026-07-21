@@ -30,6 +30,10 @@ public class VoucherAPIController extends HttpServlet {
             .create();
 
     @Override
+    /**
+     * Trả dữ liệu JSON cho kho voucher đổi điểm hoặc danh sách voucher của Customer.
+     * Request phải có session đăng nhập; dữ liệu lọc theo tham số `to` và `status/type`.
+     */
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String page = req.getParameter("to");
 
@@ -43,6 +47,10 @@ public class VoucherAPIController extends HttpServlet {
 
     }
 
+    /**
+     * Lấy danh sách voucher còn hiệu lực để Customer có thể đổi bằng điểm thưởng.
+     * Kết quả trả về kèm số điểm hiện tại của user trong session.
+     */
     private void getVoucherExchange(HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
 
@@ -51,6 +59,7 @@ public class VoucherAPIController extends HttpServlet {
 
         User user = (User) req.getSession().getAttribute("user");
 
+        // Business Rule BR-01: Customer phải đăng nhập trước khi xem kho voucher đổi điểm.
         if (user == null) {
             resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             resp.getWriter().write("{\"success\":false,\"message\":\"Bạn chưa đăng nhập.\"}");
@@ -79,6 +88,10 @@ public class VoucherAPIController extends HttpServlet {
         }
     }
 
+    /**
+     * Lấy các voucher đã thuộc về Customer hiện tại.
+     * Tham số status chỉ lọc dữ liệu hiển thị, không thay đổi trạng thái voucher.
+     */
     private void getMyVoucher(HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
 
@@ -87,6 +100,7 @@ public class VoucherAPIController extends HttpServlet {
 
         User user = (User) req.getSession().getAttribute("user");
 
+        // Business Rule BR-01: Customer phải đăng nhập trước khi xem voucher thuộc tài khoản mình.
         if (user == null) {
             resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             resp.getWriter().write("{\"success\":false,\"message\":\"Bạn chưa đăng nhập.\"}");
