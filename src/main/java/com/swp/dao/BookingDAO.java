@@ -135,6 +135,7 @@ public class BookingDAO {
      * Trước khi đọc lịch, HOLD quá hạn được hủy để slot đã hết thời gian giữ chỗ có thể mở lại.
      */
     public List<Booking> getBookingsByComplexAndDate(Long complexId, LocalDate date) throws SQLException {
+        // Business Rule BR-05: Trước khi hiển thị lịch, dọn các booking HOLD đã quá hạn để giải phóng slot.
         cancelExpiredHolds();
 
         String sql = """
@@ -521,13 +522,15 @@ public class BookingDAO {
             originalAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
 
-            // Kiem tra lai trang thai san trong transaction de tranh trung lich.
+            // Business Rule BR-03: Kiểm tra lại trạng thái sân, bảo trì và booking trùng ngay trong transaction ghi HOLD.
+            // Kiểm tra lại trạng thái sân trong transaction để tránh trùng lịch.
             if (!isFieldAvailable(conn, booking.getFieldId(), booking.getStartTime(), booking.getEndTime())) {
                 throw new SQLException("Khung giờ đã được đặt hoặc sân đang bảo trì.");
             }
 
             long bookingId;
-            // Insert booking HOLD va lay booking_id vua tao bang OUTPUT INSERTED.
+            // Business Rule BR-04: Booking được insert ở trạng thái HOLD cùng hold_expires_at đã tính từ controller.
+            // Insert booking HOLD và lấy booking_id vừa tạo bằng OUTPUT INSERTED.
             try (PreparedStatement ps = conn.prepareStatement(insertBooking)) {
                 ps.setString(1, booking.getBookingCode());
                 ps.setLong(2, booking.getCustomerId());
@@ -553,7 +556,8 @@ public class BookingDAO {
                 }
             }
 
-            // Ghi lich su trang thai de audit duoc booking moi tao.
+            // Business Rule BR-24: Ghi log trạng thái HOLD để audit vòng đời booking đã triển khai.
+            // Ghi lịch sử trạng thái để audit được booking mới tạo.
             try (PreparedStatement ps = conn.prepareStatement(insertLog)) {
                 ps.setLong(1, bookingId);
                 // changedBy co the null neu log duoc sinh boi he thong.
@@ -679,12 +683,11 @@ public class BookingDAO {
             conn.setAutoCommit(false);
 
             /*
-             * Kiem tra thoi gian cho booking lap.
-             * Tat ca slot phai con trong; chi can mot slot bi trung lich/bao tri
-             * thi rollback ca nhom booking lap.
+             * Business Rule BR-03: Tất cả slot của booking lặp phải còn trống, sân khả dụng và không bảo trì.
+             * Chỉ cần một slot bị trùng lịch/bảo trì thì rollback cả nhóm booking lặp.
              */
             for (Booking booking : bookings) {
-                // Kiem tra tung lan dat truoc khi insert bat ky booking nao.
+                // Kiểm tra từng lần đặt trước khi insert bất kỳ booking nào.
                 if (!isFieldAvailable(conn, booking.getFieldId(), booking.getStartTime(), booking.getEndTime())) {
                     throw new SQLException("Khung gio " + booking.getStartTime()
                             + " - " + booking.getEndTime()
@@ -693,7 +696,7 @@ public class BookingDAO {
             }
             Long recurringGroupId;
             Booking firstBooking = bookings.get(0);
-            // Tao nhom recurring truoc de cac booking con tro ve cung mot group.
+            // Tạo nhóm recurring trước để các booking con trỏ về cùng một group.
             try (PreparedStatement ps = conn.prepareStatement(insertRecurringGroup)) {
                 ps.setLong(1, firstBooking.getCustomerId());
                 ps.setString(2, repeatType);
@@ -709,7 +712,8 @@ public class BookingDAO {
             }
 
             List<Long> bookingIds = new ArrayList<>();
-            // Insert tung booking HOLD thuoc nhom recurring.
+            // Business Rule BR-04: Mỗi booking con trong nhóm lặp cũng được tạo ở trạng thái HOLD.
+            // Insert từng booking HOLD thuộc nhóm recurring.
             for (Booking booking : bookings) {
                 // Luu booking con va lay booking_id vua tao.
                 try (PreparedStatement ps = conn.prepareStatement(insertBooking)) {
@@ -738,7 +742,8 @@ public class BookingDAO {
                     }
                 }
 
-                // Ghi log HOLD cho booking con vua insert.
+                // Business Rule BR-24: Mỗi booking con đều có log HOLD để theo dõi trạng thái đã triển khai.
+                // Ghi log HOLD cho booking con vừa insert.
                 try (PreparedStatement ps = conn.prepareStatement(insertLog)) {
                     ps.setLong(1, bookingIds.get(bookingIds.size() - 1));
                     // changedBy co the null neu log duoc sinh boi he thong.
@@ -854,23 +859,23 @@ public class BookingDAO {
             }
 
             /*
-             * Kiem tra quy tac huy booking.
-             * Chi cho huy khi booking chua bat dau, chua o trang thai ket thuc,
-             * va con truoc moc chan huy theo cau hinh.
+             * Business Rule BR-07: Chỉ cho hủy khi trạng thái booking và hạn hủy theo cấu hình còn hợp lệ.
+             * Booking phải chưa bắt đầu, chưa ở trạng thái kết thúc và còn trước mốc chặn hủy.
              */
             int cancelBeforeHours = getCancelBeforeHours();
             LocalDateTime latestCancelTime = startTime.minusHours(cancelBeforeHours);
             LocalDateTime now = LocalDateTime.now();
-            // Trang thai da ket thuc/dang check-in thi khong duoc huy.
+            // Trạng thái đã kết thúc hoặc đang check-in thì không được hủy.
             if (STATUS_CANCELLED.equals(oldStatus) || "COMPLETED".equals(oldStatus) || "CHECKED_IN".equals(oldStatus)) {
                 throw new SQLException("Booking khong the huy voi trang thai hien tai.");
             }
-            // Qua gio bat dau hoac qua moc cho phep huy thi chan request.
+            // Quá giờ bắt đầu hoặc quá mốc cho phép hủy thì chặn request.
             if (!now.isBefore(startTime) || now.isAfter(latestCancelTime)) {
                 throw new SQLException("Booking chi duoc huy truoc gio bat dau toi thieu "
                         + cancelBeforeHours + " gio.");
             }
-            // Update booking sang CANCELLED va luu ly do huy.
+            // Business Rule BR-24: Trạng thái CANCELLED được dùng khi booking bị Customer hủy hợp lệ.
+            // Update booking sang CANCELLED và lưu lý do hủy.
             try (PreparedStatement ps = conn.prepareStatement(updateBooking)) {
                 ps.setString(1, STATUS_CANCELLED);
                 ps.setString(2, reason);
@@ -1116,17 +1121,20 @@ public class BookingDAO {
      */
     private boolean isFieldAvailable(Connection conn, Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
             throws SQLException {
+        // Business Rule BR-05: Dọn HOLD hết hạn trước khi kiểm tra availability để slot quá hạn được mở lại.
         cancelExpiredHolds(conn, null);
 
         String sql = """
                 SELECT
                     CASE
+                        -- Business Rule BR-03: Sân phải ở trạng thái AVAILABLE.
                         WHEN EXISTS (
                             SELECT 1
                             FROM fields f WITH (UPDLOCK, HOLDLOCK)
                             WHERE f.field_id = ?
                               AND f.status = 'AVAILABLE'
                         )
+                        -- Business Rule BR-03: Không được trùng với booking còn chiếm slot.
                         AND NOT EXISTS (
                             SELECT 1
                             FROM bookings b
@@ -1135,6 +1143,7 @@ public class BookingDAO {
                               AND b.start_time < ?
                               AND b.end_time > ?
                         )
+                        -- Business Rule BR-03: Không được trùng lịch bảo trì chưa bị hủy.
                         AND NOT EXISTS (
                             SELECT 1
                             FROM field_maintenance_schedules m
@@ -1282,6 +1291,7 @@ public class BookingDAO {
             originalAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
 
+            // Business Rule BR-05: HOLD quá hạn được cập nhật trong transaction để trạng thái và log đi cùng nhau.
             int updatedRows = cancelExpiredHolds(conn, customerId);
             conn.commit();
             return updatedRows;
@@ -1309,6 +1319,7 @@ public class BookingDAO {
                     booking_id BIGINT NOT NULL
                 );
                 
+                -- Business Rule BR-05: Booking HOLD quá hạn và chưa có payment SUCCESS bị hủy để giải phóng slot.
                 UPDATE b
                 SET b.status = 'CANCELLED',
                     b.cancellation_reason = ?,
@@ -1328,6 +1339,7 @@ public class BookingDAO {
                         AND p.status = 'SUCCESS'
                   )
                 
+                -- Business Rule BR-24: Log trạng thái CANCELLED được ghi cho các HOLD bị hủy tự động.
                 INSERT INTO booking_status_logs (
                     booking_id,
                     old_status,

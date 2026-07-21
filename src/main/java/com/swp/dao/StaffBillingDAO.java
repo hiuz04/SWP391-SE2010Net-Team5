@@ -130,6 +130,7 @@ public class StaffBillingDAO {
                 if (booking == null) {
                     throw new IllegalArgumentException("Khong tim thay lich dat san.");
                 }
+                // Business Rule BR-12: Staff chỉ được checkout booking tại complex có ca trực đang hoạt động.
                 if (staffRole && !hasActiveShiftForComplex(conn, actorId, booking.complexId())) {
                     throw new SecurityException("Ban khong co ca lam viec dang hoat dong tai co so nay.");
                 }
@@ -148,6 +149,7 @@ public class StaffBillingDAO {
                             "Hoa don da duoc thanh toan.");
                 }
 
+                // Business Rule BR-15: Chỉ booking CHECKED_IN mới được checkout.
                 if (!STATUS_CHECKED_IN.equals(booking.status())) {
                     throw new IllegalArgumentException("Chi lich da nhan san moi duoc checkout.");
                 }
@@ -155,13 +157,16 @@ public class StaffBillingDAO {
                 // Số tiền checkout được tính từ booking trong DB và thời điểm trả sân thực tế.
                 LocalDateTime now = LocalDateTime.now();
                 BigDecimal overtimeFeePerMinute = getOvertimeFeePerMinute(conn);
+                // Business Rule BR-17: Phụ phí quá giờ được tính theo từng phút sau giờ kết thúc booking.
                 long overtimeMinutes = calculateOvertimeMinutes(booking.endTime(), now);
                 BigDecimal overtimeFee = overtimeFeePerMinute.multiply(BigDecimal.valueOf(overtimeMinutes));
                 BigDecimal fieldTotal = safe(booking.fieldFee());
                 BigDecimal subtotal = fieldTotal.add(overtimeFee);
+                // Business Rule BR-18: Số tiền còn lại = max(tổng tiền sân + phí quá giờ - tiền cọc, 0).
                 BigDecimal finalAmount = maxZero(subtotal.subtract(safe(booking.depositAmount())));
                 String invoiceCode = generateInvoiceCode(bookingId);
 
+                // Business Rule BR-19: Nếu không còn tiền phải trả thì invoice PAID và booking COMPLETED ngay.
                 if (finalAmount.signum() == 0) {
                     // Khi tiền cọc đã đủ bù toàn bộ chi phí, invoice được đánh dấu PAID và booking hoàn tất ngay.
                     long invoiceId = insertInvoice(
@@ -185,6 +190,7 @@ public class StaffBillingDAO {
                             "Booking khong con so tien phai thanh toan. Da hoan tat checkout.");
                 }
 
+                // Business Rule BR-20: Còn tiền phải trả thì invoice PENDING và booking chuyển sang PENDING_CHECKOUT_PAYMENT.
                 // Còn tiền phải trả thì tạo invoice PENDING và chuyển booking sang chờ Customer thanh toán checkout.
                 long invoiceId = insertInvoice(
                         conn,
@@ -225,12 +231,15 @@ public class StaffBillingDAO {
                 if (booking == null) {
                     throw new IllegalArgumentException("Khong tim thay lich dat san.");
                 }
+                // Business Rule BR-14: Chỉ booking CONFIRMED chưa check-in mới được hủy no-show.
                 if (!STATUS_CONFIRMED.equals(booking.status())) {
                     throw new IllegalArgumentException("Chi booking da xac nhan va chua check-in moi co the huy no-show.");
                 }
+                // Business Rule BR-14: Chỉ được hủy no-show sau 30 phút kể từ giờ bắt đầu booking.
                 if (booking.startTime() == null || LocalDateTime.now().isBefore(booking.startTime().plusMinutes(30))) {
                     throw new IllegalArgumentException("Booking chua qua 30 phut ke tu gio bat dau.");
                 }
+                // Business Rule BR-12: Staff hủy no-show cũng phải có ca đang hoạt động tại đúng complex.
                 if (staffRole && !hasActiveShiftForComplex(conn, actorId, booking.complexId())) {
                     throw new SecurityException("Ban khong co ca lam viec dang hoat dong tai co so nay.");
                 }
@@ -251,6 +260,7 @@ public class StaffBillingDAO {
                     }
                 }
 
+                // Business Rule BR-14: Hủy no-show giải phóng sân và ghi log CANCELLED.
                 releaseField(conn, booking.fieldId());
                 insertBookingStatusLog(conn, booking.bookingId(), STATUS_CONFIRMED, STATUS_CANCELLED,
                         actorId, "NO_SHOW_LATE_30_MINUTES");
@@ -375,9 +385,11 @@ public class StaffBillingDAO {
     private void enrichCheckoutAmounts(CheckoutView view, BigDecimal overtimeFeePerMinute, LocalDateTime now) {
         view.setCheckoutTime(now);
         view.setOvertimeFeePerMinute(overtimeFeePerMinute);
+        // Business Rule BR-17: Preview checkout cũng tính số phút quá giờ theo thời điểm hiện tại.
         long overtimeMinutes = calculateOvertimeMinutes(view.getEndTime(), now);
         BigDecimal overtimeFee = overtimeFeePerMinute.multiply(BigDecimal.valueOf(overtimeMinutes));
         BigDecimal subtotal = safe(view.getFieldFee()).add(overtimeFee);
+        // Business Rule BR-18: Preview số tiền còn lại không được nhỏ hơn 0 sau khi trừ tiền cọc.
         BigDecimal finalAmount = maxZero(subtotal.subtract(safe(view.getDepositAmount())));
 
         view.setOvertimeMinutes(overtimeMinutes);
@@ -392,6 +404,7 @@ public class StaffBillingDAO {
      * Tính số phút quá giờ, làm tròn lên để chỉ cần quá một phần phút vẫn bị tính một phút.
      */
     private long calculateOvertimeMinutes(LocalDateTime endTime, LocalDateTime now) {
+        // Business Rule BR-17: Chưa quá giờ kết thúc thì không phát sinh phụ phí quá giờ.
         if (endTime == null || now == null || !now.isAfter(endTime)) {
             return 0;
         }
@@ -429,6 +442,7 @@ public class StaffBillingDAO {
                 WHERE booking_id = ?
                   AND status = ?
                 """;
+        // Business Rule BR-24: Booking chỉ được chuyển trạng thái khi oldStatus khớp trạng thái hiện tại.
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, newStatus);
             ps.setLong(2, bookingId);
@@ -447,6 +461,7 @@ public class StaffBillingDAO {
                 WHERE field_id = ?
                   AND status NOT IN ('MAINTENANCE', 'DISABLED')
                 """;
+        // Business Rule BR-12: SQL kiểm tra ca trực cùng ngày, cùng complex và đang nằm trong khoảng giờ làm việc.
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, fieldId);
             ps.executeUpdate();

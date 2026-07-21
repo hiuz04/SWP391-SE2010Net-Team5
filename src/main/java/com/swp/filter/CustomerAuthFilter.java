@@ -25,7 +25,8 @@ public class CustomerAuthFilter implements Filter {
 
         HttpSession session = req.getSession(false);
 
-        // Chưa đăng nhập
+        // Business Rule BR-01: Customer phải đăng nhập trước khi vào các trang/chức năng trong /customer.
+        // Chưa đăng nhập.
         if (session == null || session.getAttribute("user") == null) {
             resp.sendRedirect(req.getContextPath() + "/login");
             return;
@@ -33,7 +34,8 @@ public class CustomerAuthFilter implements Filter {
 
         User user = (User) session.getAttribute("user");
 
-        // Không phải Customer
+        // Business Rule BR-01: Route Customer chỉ cho phép role CUSTOMER tiếp tục xử lý request.
+        // Không phải Customer.
         if (!CUSTOMER_ROLE_NAME.equalsIgnoreCase(user.getRoleName())) {
             resp.sendRedirect(req.getContextPath() + "/error/403.jsp");
             return;

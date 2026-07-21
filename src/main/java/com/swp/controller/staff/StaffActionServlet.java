@@ -20,6 +20,10 @@ public class StaffActionServlet extends HttpServlet {
     private static final int ROLE_OWNER = 2;
 
     @Override
+    /**
+     * Xử lý các API GET của Staff như tìm kiếm booking đã xác nhận trong ca trực hiện tại.
+     * Staff phải có ca hợp lệ trước khi lấy dữ liệu thao tác.
+     */
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         resp.setContentType("application/json;charset=UTF-8");
@@ -32,6 +36,7 @@ public class StaffActionServlet extends HttpServlet {
         String path = getPath(req);
         long staffId = user.getUserId();
 
+        // Business Rule BR-12: Staff chỉ được thao tác khi có ca trực đang hoạt động trong ngày.
         // Enforce shift time check for STAFF role (ROLE_STAFF = 3)
         if (user.getRoleId() == ROLE_STAFF) {
             java.util.Map<String, Object> shift = staffDAO.getCurrentShift(staffId);
@@ -91,6 +96,10 @@ public class StaffActionServlet extends HttpServlet {
     }
 
     @Override
+    /**
+     * Xử lý API POST cho check-in và cập nhật trạng thái sân.
+     * Các request của Staff được kiểm tra ca trực trước khi đi vào handler cụ thể.
+     */
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         resp.setContentType("application/json;charset=UTF-8");
@@ -103,6 +112,7 @@ public class StaffActionServlet extends HttpServlet {
         String path = getPath(req);
         long staffId = user.getUserId();
 
+        // Business Rule BR-12: Staff phải có ca đang hoạt động trước khi gọi API check-in/cập nhật sân.
         if (user.getRoleId() == ROLE_STAFF && !ensureActiveShift(resp, staffId)) {
             return;
         }
@@ -129,6 +139,10 @@ public class StaffActionServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Thực hiện check-in booking cho Staff đang trực.
+     * Method kiểm tra bookingId, complex của ca trực và trả JSON theo kết quả cập nhật trong DAO.
+     */
     private void handleCheckin(HttpServletRequest req, HttpServletResponse resp, long staffId) throws IOException {
         String bookingIdStr = req.getParameter("bookingId");
         String note = req.getParameter("note");
@@ -141,6 +155,7 @@ public class StaffActionServlet extends HttpServlet {
 
         long bookingId = Long.parseLong(bookingIdStr.trim());
 
+        // Business Rule BR-12: Staff không được check-in booking thuộc cơ sở khác với ca trực hiện tại.
         // Security check: Verify that the staff's current shift facility matches the booking's facility
         User user = getSessionUser(req);
         if (user != null && user.getRoleId() == ROLE_STAFF) {
@@ -157,6 +172,7 @@ public class StaffActionServlet extends HttpServlet {
             }
         }
 
+        // Business Rule BR-13: DAO chỉ check-in booking CONFIRMED và ghi log check-in khi cập nhật thành công.
         boolean success = staffDAO.checkinBooking(bookingId, staffId, note);
 
         if (success) {
@@ -186,6 +202,10 @@ public class StaffActionServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Kiểm tra Staff có ca làm việc hiện tại và thời gian hệ thống đang nằm trong ca đó.
+     * Trả false và ghi JSON lỗi nếu Staff chưa tới ca hoặc ca đã kết thúc.
+     */
     private boolean ensureActiveShift(HttpServletResponse resp, long staffId) throws IOException {
         java.util.Map<String, Object> shift = staffDAO.getCurrentShift(staffId);
         if (shift.isEmpty()) {
