@@ -1,4 +1,4 @@
-// Sử dụng context path động từ JSP, nếu không có mới fallback về mặc định
+// Lưu đường context của trang
 const ctx = window.APP_CTX;
 
 function renderData(data) {
