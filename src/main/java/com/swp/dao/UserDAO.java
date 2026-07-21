@@ -35,9 +35,13 @@ public class UserDAO {
             WHERE (u.email = ? OR u.phone = ?) AND u.status = 'ACTIVE'
             """;
 
+    private static final String FIND_BY_LOGIN_FOR_AUTH = USER_SELECT + """
+            WHERE (u.email = ? OR u.phone = ?)
+            """;
+
     /**
      * Xác thực đăng nhập: tìm user theo email hoặc số điện thoại kết hợp với mật
-     * khẩu.(user : active)
+     * khẩu.
      * Mật khẩu được kiểm tra an toàn bằng băm BCrypt qua PasswordUtil.
      * 
      * @return {@code Optional<User>} chứa user nếu thông tin hợp lệ, ngược lại
@@ -45,7 +49,7 @@ public class UserDAO {
      */
     public Optional<User> findByLoginAndPassword(String login, String password) {
         try (Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(FIND_BY_EMAIL_OR_PHONE)) {
+                PreparedStatement ps = conn.prepareStatement(FIND_BY_LOGIN_FOR_AUTH)) {
             ps.setString(1, login);
             ps.setString(2, login);
             try (ResultSet rs = ps.executeQuery()) {

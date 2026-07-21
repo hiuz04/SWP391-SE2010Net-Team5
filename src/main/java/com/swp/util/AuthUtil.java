@@ -47,7 +47,7 @@ public final class AuthUtil {
             case "ADMIN" -> "/admin/dashboard";
             case "OWNER" -> "/owner/dashboard";
             case "STAFF" -> "/staff/dashboard";
-            case "CUSTOMER" -> "/search";
+            case "CUSTOMER" -> "/index";
             default -> "/";
         };
     }
