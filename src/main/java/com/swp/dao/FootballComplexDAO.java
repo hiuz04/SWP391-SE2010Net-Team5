@@ -2,8 +2,11 @@ package com.swp.dao;
 
 import com.swp.model.FootballComplex;
 import com.swp.model.FootballComplexImage;
+import com.swp.model.PriceRule;
 import com.swp.util.DBContext;
+import com.swp.util.PriceCalculator;
 
+import java.math.BigDecimal;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,9 +27,8 @@ public class FootballComplexDAO {
                 "opening_time, " +
                 "closing_time, " +
                 "general_rules, " +
-                "status, " +
-                "featured" +
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "status " +
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -60,8 +62,7 @@ public class FootballComplexDAO {
             );
 
             ps.setString(12, fc.getGeneralRules());
-            ps.setString(13, fc.getStatus());
-            ps.setBoolean(14, fc.getFeatured());
+            ps.setString(13, "PENDING");
             ps.executeUpdate();
             ResultSet rs = ps.getGeneratedKeys();
 
@@ -88,8 +89,6 @@ public class FootballComplexDAO {
                 "opening_time=?, " +
                 "closing_time=?, " +
                 "general_rules=?, " +
-                "status=?, " +
-                "featured=? " +
                 "WHERE complex_id=?";
 
         try (Connection conn = DBContext.getConnection();
@@ -124,9 +123,7 @@ public class FootballComplexDAO {
             );
 
             ps.setString(12, fc.getGeneralRules());
-            ps.setString(13, fc.getStatus());
-            ps.setBoolean(14, fc.getFeatured());
-            ps.setLong(15, fc.getComplexId());
+            ps.setLong(13, fc.getComplexId());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi cập nhật dữ liệu: " + e.getMessage(), e);
@@ -174,7 +171,6 @@ public class FootballComplexDAO {
                                 : null,
                         rs.getString("general_rules"),
                         rs.getString("status"),
-                        rs.getBoolean("featured"),
                         rs.getTimestamp("created_at").toLocalDateTime(),
                         rs.getTimestamp("updated_at").toLocalDateTime()
                 );
@@ -187,9 +183,10 @@ public class FootballComplexDAO {
         }
     }
 
-    public List<FootballComplex> getAllComplex() {
+    public List<FootballComplex> getAllActiveComplex() {
         List<FootballComplex> list = new ArrayList<>();
-        String sql = "SELECT * FROM football_complexes";
+        String sql = "SELECT * FROM football_complexes WHERE status = 'ACTIVE'";
+
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ResultSet rs = ps.executeQuery();
@@ -213,7 +210,43 @@ public class FootballComplexDAO {
                                 : null,
                         rs.getString("general_rules"),
                         rs.getString("status"),
-                        rs.getBoolean("featured"),
+                        rs.getTimestamp("created_at").toLocalDateTime(),
+                        rs.getTimestamp("updated_at").toLocalDateTime()
+                ));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cố gắng truy cập dữ liệu: " + e.getMessage(), e);
+        }
+        return list;
+    }
+
+    public List<FootballComplex> getAllComplexExceptDeleteOne() {
+        List<FootballComplex> list = new ArrayList<>();
+        String sql = "SELECT * FROM football_complexes";
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                list.add(new FootballComplex(
+                        rs.getLong("complex_id"),
+                        rs.getString("complex_name"),
+                        rs.getString("description"),
+                        rs.getString("address"),
+                        rs.getString("ward"),
+                        rs.getString("district"),
+                        rs.getString("city"),
+                        rs.getBigDecimal("latitude"),
+                        rs.getBigDecimal("longitude"),
+                        rs.getString("hotline"),
+                        rs.getTime("opening_time") != null
+                                ? rs.getTime("opening_time").toLocalTime()
+                                : null,
+                        rs.getTime("closing_time") != null
+                                ? rs.getTime("closing_time").toLocalTime()
+                                : null,
+                        rs.getString("general_rules"),
+                        rs.getString("status"),
                         rs.getTimestamp("created_at").toLocalDateTime(),
                         rs.getTimestamp("updated_at").toLocalDateTime()
                 ));
@@ -450,9 +483,103 @@ public class FootballComplexDAO {
         return null;
     }
 
-    public java.math.BigDecimal getCurrentPriceForComplex(Long complexId) {
+    public BigDecimal getCurrentPriceForComplex(Long complexId) {
         PriceRuleDAO priceRuleDAO = new PriceRuleDAO();
-        java.util.List<com.swp.model.PriceRule> rules = priceRuleDAO.getByComplexId(complexId);
-        return com.swp.util.PriceCalculator.calculateCurrentPrice(rules, null, null);
+        List<PriceRule> rules = priceRuleDAO.getByComplexId(complexId);
+
+        if (rules == null || rules.isEmpty()) {
+            return null;
+        }
+
+        return PriceCalculator.calculateCurrentPrice(rules, null, null);
+    }
+
+    public void updateStatus(long complexId, String status) {
+        String sql = """
+        UPDATE football_complexes
+        SET status = ?,
+            updated_at = GETDATE()
+        WHERE complex_id = ?
+        """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, status);
+            ps.setLong(2, complexId);
+
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cập nhật trạng thái cụm sân.", e);
+        }
+    }
+
+    public List<FootballComplex> searchComplex(String keyword, String status) {
+        List<FootballComplex> list = new ArrayList<>();
+
+        StringBuilder sql = new StringBuilder("""
+        SELECT *
+        FROM football_complexes
+        WHERE 1 = 1
+        """);
+
+        List<Object> params = new ArrayList<>();
+
+        if (keyword != null && !keyword.isBlank()) {
+            sql.append(" AND complex_name LIKE ?");
+            params.add("%" + keyword.trim() + "%");
+        }
+
+        if (status != null && !status.isBlank()) {
+            sql.append(" AND status = ?");
+            params.add(status);
+        }
+
+        sql.append(" ORDER BY created_at DESC");
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                list.add(new FootballComplex(
+                        rs.getLong("complex_id"),
+                        rs.getString("complex_name"),
+                        rs.getString("description"),
+                        rs.getString("address"),
+                        rs.getString("ward"),
+                        rs.getString("district"),
+                        rs.getString("city"),
+                        rs.getBigDecimal("latitude"),
+                        rs.getBigDecimal("longitude"),
+                        rs.getString("hotline"),
+                        rs.getTime("opening_time") != null
+                                ? rs.getTime("opening_time").toLocalTime()
+                                : null,
+                        rs.getTime("closing_time") != null
+                                ? rs.getTime("closing_time").toLocalTime()
+                                : null,
+                        rs.getString("general_rules"),
+                        rs.getString("status"),
+                        rs.getTimestamp("created_at") != null
+                                ? rs.getTimestamp("created_at").toLocalDateTime()
+                                : null,
+                        rs.getTimestamp("updated_at") != null
+                                ? rs.getTimestamp("updated_at").toLocalDateTime()
+                                : null
+                ));
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi tìm kiếm cơ sở.", e);
+        }
+
+        return list;
     }
 }

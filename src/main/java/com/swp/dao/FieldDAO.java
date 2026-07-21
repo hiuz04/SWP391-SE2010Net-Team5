@@ -14,24 +14,70 @@ import java.util.List;
 
 public class FieldDAO {
 
-    public void addField(Field f) {
-        String sql = "INSERT INTO fields(complex_id, field_type_id, field_name, description, status) VALUES (?,?,?,?,?)";
+    public void insertField(Field f) {
+        String insertFieldSql =
+        """
+        INSERT INTO fields
+        (complex_id, field_type_id, field_name, description, status)
+        VALUES (?, ?, ?, ?, ?)
+        """;
 
-        try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, f.getComplexId());
-            ps.setInt(2, f.getFieldTypeId());
-            ps.setString(3, f.getFieldName());
-            ps.setString(4, f.getDescription());
-            ps.setString(5, f.getStatus());
-            ps.executeUpdate();
+        String updateComplexSql =
+        """
+        UPDATE football_complexes
+        SET status = 'ACTIVE'
+        WHERE complex_id = ?
+          AND status = 'PENDING'
+        """;
+
+        Connection conn = null;
+
+        try {
+            conn = DBContext.getConnection();
+            conn.setAutoCommit(false);
+
+            // Thêm sân
+            try (PreparedStatement ps = conn.prepareStatement(insertFieldSql)) {
+                ps.setLong(1, f.getComplexId());
+                ps.setInt(2, f.getFieldTypeId());
+                ps.setString(3, f.getFieldName());
+                ps.setString(4, f.getDescription());
+                ps.setString(5, "AVAILABLE");
+
+                ps.executeUpdate();
+            }
+
+            // Nếu cụm đang PENDING thì chuyển sang ACTIVE
+            try (PreparedStatement ps = conn.prepareStatement(updateComplexSql)) {
+                ps.setLong(1, f.getComplexId());
+                ps.executeUpdate();
+            }
+
+            conn.commit();
+
         } catch (SQLException e) {
-            throw new RuntimeException("Lỗi khi tạo mới dữ liệu: " + e.getMessage(), e);
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
+            throw new RuntimeException("Lỗi khi thêm sân.", e);
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
-    public void editField(Field f) {
-        String sql = "UPDATE fields SET field_name=?, description=?, field_type_id=?, complex_id=?, status=? WHERE field_id=?";
+    public void updateField(Field f) {
+        String sql = "UPDATE fields SET field_name=?, description=?, field_type_id=?, complex_id=? WHERE field_id=?";
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -39,8 +85,7 @@ public class FieldDAO {
             ps.setString(2, f.getDescription());
             ps.setInt(3, f.getFieldTypeId());
             ps.setLong(4, f.getComplexId());
-            ps.setString(5, f.getStatus());
-            ps.setLong(6, f.getFieldId());
+            ps.setLong(5, f.getFieldId());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi thay đổi thông tin dữ liệu: " + e.getMessage(), e);
@@ -290,5 +335,85 @@ public class FieldDAO {
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi cập nhật trạng thái HOT của sân: " + e.getMessage(), e);
         }
+    }
+
+    public void updateStatus(long fieldId, String status) {
+        String sql = """
+        UPDATE fields
+        SET status = ?,
+            updated_at = GETDATE()
+        WHERE field_id = ?
+        """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, status);
+            ps.setLong(2, fieldId);
+
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cập nhật trạng thái cụm sân.", e);
+        }
+    }
+
+    public List<Field> searchField(String fieldName, String status, Long typeId, long complexId) {
+        List<Field> list = new ArrayList<>();
+
+        StringBuilder sql = new StringBuilder("""
+        SELECT *
+        FROM fields
+        WHERE complex_id = ?
+        """);
+
+        List<Object> params = new ArrayList<>();
+        params.add(complexId);
+
+        if (fieldName != null && !fieldName.isBlank()) {
+            sql.append(" AND field_name LIKE ?");
+            params.add("%" + fieldName.trim() + "%");
+        }
+
+        if (status != null && !status.isBlank()) {
+            sql.append(" AND status = ?");
+            params.add(status);
+        }
+
+        if (typeId != null) {
+            sql.append(" AND field_type_id = ?");
+            params.add(typeId);
+        }
+
+        sql.append(" ORDER BY field_name");
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Field field = new Field();
+
+                field.setFieldId(rs.getLong("field_id"));
+                field.setComplexId(rs.getLong("complex_id"));
+                field.setFieldTypeId(rs.getInt("field_type_id"));
+                field.setFieldName(rs.getString("field_name"));
+                field.setDescription(rs.getString("description"));
+                field.setStatus(rs.getString("status"));
+                field.setHot(rs.getBoolean("is_hot"));
+
+                list.add(field);
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi tìm kiếm sân.", e);
+        }
+
+        return list;
     }
 }

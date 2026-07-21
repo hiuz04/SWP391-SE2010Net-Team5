@@ -16,7 +16,8 @@ const ctx = window.APP_CTX || "";
 // Danh sách status
 const statusList = [
     {status: "ACTIVE", display: "Hoạt động", badge: "badge-soft-success"},
-    {status: "INACTIVE", display: "Ngừng hoạt động", badge: "badge-soft-secondary"},
+    {status: "INACTIVE", display: "Ngừng hoạt động", badge: "badge-soft-danger"},
+    {status: "PENDING", display: "Đang thiết lập", badge: "badge-soft-secondary"},
     {status: "MAINTENANCE", display: "Bảo trì", badge: "badge-soft-warning"},
     {status: "CLOSED", display: "Đóng cửa", badge: "badge-soft-danger"}
 ]
@@ -45,8 +46,6 @@ async function loadComplexData() {
                 document.getElementById("opTime").value = data.complex.openingTime?.slice(0, 5);
                 document.getElementById("clsTime").value = data.complex.closingTime?.slice(0, 5);
                 document.getElementById("rule").value = data.complex.generalRules;
-                document.getElementById("status").value = data.complex.status;
-                document.getElementById("feat").checked = !!data.complex.featured;
 
                 data.img.forEach((img) => {
                     selectedImg.push({
@@ -87,53 +86,167 @@ async function loadForm() {
 
 // Lấy danh sách thông tin của complex
 function loadData() {
-    fetch(`${ctx}/api/complexes`)
+    const keyword = document.getElementById("keyword").value.trim();
+
+    const status = document.getElementById("status").value;
+
+    const params = new URLSearchParams();
+
+    if(keyword){
+        params.append("keyword", keyword);
+    }
+
+    if(status){
+        params.append("status", status);
+    }
+
+    fetch(`${ctx}/api/complexes?${params}`)
         .then(res => res.json())
         .then(data => {
             const container = document.getElementById("complex-data-container");
 
             let html = "";
+
             if (data.length > 0) {
                 html += `
-                <table class="table align-middle mb-0">
-                    <thead>
-                      <tr>
-                        <th style="width: 20%">Tên cơ sở</th>
-                        <th style="width: 36%">Địa chỉ</th>
-                        <th style="width: 12%">Số sân</th>
-                        <th style="width: 23%">Trạng thái</th>
-                        <th class="text-center">Hành động</th>
-                      </tr>
-                    </thead>
-                    
-                    <tbody>
-`
+                    <div class="card border-0 shadow-sm">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:28%">Cơ sở</th>
+                                        <th style="width:36%">Địa chỉ</th>
+                                        <th class="text-center" style="width:10%">Số sân</th>
+                                        <th class="text-center" style="width:14%">Trạng thái</th>
+                                        <th class="text-center" style="width:12%">Hành động</th>
+                                    </tr>
+                                </thead>
+                
+                                <tbody>
+                    `;
+
                 data.forEach(item => {
-                    const statusDisplay = statusList.find(s => s.status === item.complex.status)?.display
+                    const statusDisplay =
+                        statusList.find(s => s.status === item.complex.status)?.display
                         ?? "Không xác định";
-                    const statusBadgge = statusList.find(s => s.status === item.complex.status)?.badge
+
+                    const statusBadge =
+                        statusList.find(s => s.status === item.complex.status)?.badge
                         ?? "badge-soft-secondary";
+
                     html += `
-                      <tr>
-                        <td>${item.complex.complexName}</td>
-                        <td style="color: grey;"><img class="icon" alt="editIcon" src="${ctx}/assets/images/icon/locationIcon.png"> ${item.complex.address}, ${item.complex.ward}, ${item.complex.district}, ${item.complex.city}</td>
-                        <td>${item.fields.length} sân</td>
-                        <td>
-                            <button class="badge ${statusBadgge} border-0" onclick="">
-                                ${statusDisplay}
-                            </button>
-                        </td>
-                        <td class="text-center">
-                          <button class="btn btn-sm" onclick="navigateComplexFormWithID(${item.complex.complexId})"><img class="icon" alt="editIcon" src="${ctx}/assets/images/icon/editIcon.png"></button>
-                          <button class="btn btn-sm" onclick="deleteComplex(${item.complex.complexId})"><img class="icon" alt="deleteIcon" src="${ctx}/assets/images/icon/deleteIcon.png"></button>
-                        </td>
-                      </tr>
-                `
-                })
-            } else {
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold fs-6">
+                                                <i class="bi bi-building me-1 text-success"></i>
+                                                ${item.complex.complexName}
+                                            </div>
+                            
+                                            <small class="text-muted">
+                                                ID: #${item.complex.complexId}
+                                            </small>
+                                        </td>
+                            
+                                        <td>
+                                            <div class="text-muted">
+                                                <i class="bi bi-geo-alt-fill text-danger me-1"></i>
+                                                ${item.complex.address},
+                                                ${item.complex.ward},
+                                                ${item.complex.district},
+                                                ${item.complex.city}
+                                            </div>
+                                        </td>
+                            
+                                        <td class="text-center">
+                                            <span class="badge rounded-pill bg-success-subtle text-success border">
+                                                <i class="bi bi-grid-3x3-gap-fill me-1"></i>
+                                                ${item.fields.length} sân
+                                            </span>
+                                        </td>
+                            
+                                        <td class="text-center">
+                                            <button
+                                                class="badge ${statusBadge} border-0 dropdown-toggle px-3 py-2"
+                                                data-bs-toggle="dropdown"
+                                            >
+                                                ${statusDisplay}
+                                            </button>
+                            
+                                            <ul class="dropdown-menu shadow-sm">
+                                                <li>
+                                                    <a class="dropdown-item"
+                                                       href="#"
+                                                       onclick="updateComplexStatus(${item.complex.complexId}, 'ACTIVE')"
+                                                    >
+                                                        <i class="bi bi-check-circle text-success me-2"></i>
+                                                        Hoạt động
+                                                    </a>
+                                                </li>
+                            
+                                                <li>
+                                                    <a class="dropdown-item"
+                                                       href="#"
+                                                       onclick="updateComplexStatus(${item.complex.complexId}, 'INACTIVE')">
+                                                        <i class="bi bi-pause-circle text-secondary me-2"></i>
+                                                        Tạm ngừng
+                                                    </a>
+                                                </li>
+                            
+                                                <li>
+                                                    <a class="dropdown-item"
+                                                       href="#"
+                                                       onclick="updateComplexStatus(${item.complex.complexId}, 'MAINTENANCE')">
+                                                        <i class="bi bi-tools text-warning me-2"></i>
+                                                        Bảo trì
+                                                    </a>
+                                                </li>
+                            
+                                            </ul>
+                            
+                                        </td>
+                            
+                                        <td class="text-center">
+                                            <div class="d-flex justify-content-center gap-2">
+                                                <button
+                                                    class="btn btn-outline-primary btn-sm rounded-circle"
+                                                    title="Chỉnh sửa"
+                                                    onclick="navigateComplexFormWithID(${item.complex.complexId})"
+                                                >
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                            
+                                                <button
+                                                    class="btn btn-outline-danger btn-sm rounded-circle"
+                                                    title="Xóa"
+                                                    onclick="deleteComplex(${item.complex.complexId})"
+                                                >
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    `;
+                });
+
                 html += `
-                    <div>Không có dữ liệu</div>
-                `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    `;
+
+            } else {
+                html = `
+                    <div class="text-center py-5">
+                        <i class="bi bi-building display-4 text-secondary"></i>
+                        <h5 class="mt-3">
+                            Chưa có cơ sở nào
+                        </h5>
+                        <p class="text-muted">
+                            Hãy thêm cơ sở đầu tiên để bắt đầu quản lý.
+                        </p>
+                    </div>
+                `;
             }
             container.innerHTML = html;
         })
@@ -161,9 +274,7 @@ function submitForm() {
         hotline: document.getElementById("hotln").value,
         openingTime: document.getElementById("opTime").value,
         closingTime: document.getElementById("clsTime").value,
-        generalRules: document.getElementById("rule").value,
-        status: document.getElementById("status").value,
-        featured: document.getElementById("feat").checked
+        generalRules: document.getElementById("rule").value
     };
 
     let errors = [];
@@ -377,4 +488,38 @@ function toggleMenu(event, index){
     });
     document.getElementById(`menu-${index}`)
         .classList.toggle("show");
+}
+
+function updateComplexStatus(complexId, status) {
+    const params = new URLSearchParams();
+    params.append("complexId", complexId);
+    params.append("status", status);
+
+    fetch(`${ctx}/owner/complex?action=status`, {
+        method: "POST",
+        body: params
+    })
+        .then(async res => {
+            if (!res.ok) {
+                throw new Error(await res.text());
+            }
+            return res.text();
+        })
+        .then(() => {
+            location.reload();
+        })
+        .catch(err => {
+            console.error(err);
+            alert(err.message);
+        });
+}
+
+let filterTimer;
+
+function scheduleLoadData() {
+    clearTimeout(filterTimer);
+
+    filterTimer = setTimeout(() => {
+        loadData();
+    }, 500);
 }

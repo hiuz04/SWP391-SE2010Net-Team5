@@ -1037,6 +1037,31 @@ public class PaymentDAO {
                 insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
 
                 conn.commit();
+                
+                try {
+                    com.swp.dao.BookingDAO bookingDAO = new com.swp.dao.BookingDAO();
+                    com.swp.dao.NotificationDAO notificationDAO = new com.swp.dao.NotificationDAO();
+                    for (Long id : bookingIds) {
+                        com.swp.model.dto.BookingView bv = bookingDAO.getBookingDetailByIdAndCustomerId(id, payment.customerId());
+                        if (bv != null) {
+                            String timeStr = bv.getStartTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
+                            com.swp.model.Notification notif = new com.swp.model.Notification();
+                            notif.setUserId(payment.customerId());
+                            notif.setTitle("Đặt sân thành công");
+                            notif.setMessage("Bạn đã thanh toán thành công và đặt sân " + bv.getFieldName() + " (" + bv.getComplexName() + ") lúc " + timeStr + ". Mã giao dịch: " + transactionRef);
+                            notif.setNotificationType("BOOKING");
+                            notif.setReferenceId(id);
+                            notificationDAO.insertNotification(notif);
+
+                            String staffMsg = "Khách hàng " + bv.getCustomerName() + " đã đặt sân " + bv.getFieldName() + " (" + bv.getComplexName() + ") lúc " + timeStr + ". Mã giao dịch: " + transactionRef;
+                            notificationDAO.notifyRole("OWNER", "Có khách hàng đặt sân mới", staffMsg, "BOOKING", id);
+                            notificationDAO.notifyRole("STAFF", "Có khách hàng đặt sân mới", staffMsg, "BOOKING", id);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
                 return PaymentUpdateResult.UPDATED_SUCCESS;
             } catch (SQLException | RuntimeException e) {
                 rollback(conn, e);

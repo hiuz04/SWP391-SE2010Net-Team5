@@ -41,12 +41,15 @@ public class ProfileServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        
+        // Bước 1: Kiểm tra xem người dùng đã đăng nhập chưa, nếu chưa thì đẩy về trang login
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("user") == null) {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
 
+        // Bước 2: Lấy thông tin user hiện tại và query Database để lấy dữ liệu mới nhất (phòng trường hợp vừa bị đổi bởi admin)
         User sessionUser = (User) session.getAttribute("user");
         Optional<User> freshUserOpt = userDAO.findByEmail(sessionUser.getEmail());
         if (freshUserOpt.isEmpty()) {
@@ -55,8 +58,10 @@ public class ProfileServlet extends HttpServlet {
         }
 
         User user = freshUserOpt.get();
+        // Cập nhật lại session với dữ liệu mới
         session.setAttribute("user", user);
 
+        // Bước 3: Thống kê số lượng lịch đặt sân (Booking) của người dùng này
         int bookingCount = 0;
         try {
             bookingCount = bookingDAO.getBookingCountByCustomerId(user.getUserId());
@@ -64,6 +69,7 @@ public class ProfileServlet extends HttpServlet {
             e.printStackTrace();
         }
 
+        // Bước 4: Đẩy dữ liệu ra view profile.jsp
         request.setAttribute("bookingCount", bookingCount);
         request.setAttribute("currentUser", user);
         request.getRequestDispatcher("/profile.jsp").forward(request, response);
@@ -78,6 +84,8 @@ public class ProfileServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         request.setCharacterEncoding("UTF-8");
+        
+        // Bước 1: Kiểm tra đăng nhập
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("user") == null) {
             response.sendRedirect(request.getContextPath() + "/login");
@@ -87,6 +95,7 @@ public class ProfileServlet extends HttpServlet {
         User sessionUser = (User) session.getAttribute("user");
         long userId = sessionUser.getUserId();
 
+        // Bước 2: Lấy dữ liệu gửi lên từ form chỉnh sửa hồ sơ
         String fullName = trim(request.getParameter("fullName"));
         String phone = trim(request.getParameter("phone"));
         String email = trim(request.getParameter("email"));
@@ -95,6 +104,7 @@ public class ProfileServlet extends HttpServlet {
         Map<String, String> errors = new HashMap<>();
 
         // Business Rule BR-26: Hồ sơ cũng áp dụng giới hạn họ tên 2-100 ký tự theo mẫu tên hệ thống.
+        // Bước 3: Validate dữ liệu đầu vào (Tên, Email, SDT)
         if (fullName == null || fullName.isBlank()) {
             errors.put("fullName", "Họ tên không được để trống.");
         } else if (fullName.length() < 2 || fullName.length() > 100) {
@@ -111,6 +121,7 @@ public class ProfileServlet extends HttpServlet {
         } else if (!EMAIL_PATTERN.matcher(email).matches()) {
             errors.put("email", "Email không đúng định dạng.");
         } else if (userDAO.existsByEmailExcludeUser(email, userId)) {
+            // Đảm bảo không đổi sang email của người khác
             errors.put("email", "Email này đã được sử dụng bởi tài khoản khác.");
         }
 
@@ -120,9 +131,11 @@ public class ProfileServlet extends HttpServlet {
         } else if (!PHONE_PATTERN.matcher(phone).matches()) {
             errors.put("phone", "Số điện thoại phải bắt đầu bằng 0 và có 10–11 chữ số.");
         } else if (userDAO.existsByPhoneExcludeUser(phone, userId)) {
+            // Đảm bảo không đổi sang SĐT của người khác
             errors.put("phone", "Số điện thoại này đã được sử dụng bởi tài khoản khác.");
         }
 
+        // Bước 4: Validate Mật khẩu mới (Nếu có đổi)
         boolean changePassword = false;
         if (password != null && !password.isEmpty()) {
             changePassword = true;
@@ -132,6 +145,7 @@ public class ProfileServlet extends HttpServlet {
             }
         }
 
+        // Lấy lại user cũ từ CSDL để update
         Optional<User> freshUserOpt = userDAO.findByEmail(sessionUser.getEmail());
         if (freshUserOpt.isEmpty()) {
             response.sendRedirect(request.getContextPath() + "/logout");
@@ -139,6 +153,7 @@ public class ProfileServlet extends HttpServlet {
         }
         User user = freshUserOpt.get();
 
+        // Bước 5: Nếu có lỗi validation, trả về trang kèm thông báo lỗi
         if (!errors.isEmpty()) {
             user.setFullName(fullName);
             user.setPhone(phone);
@@ -158,6 +173,7 @@ public class ProfileServlet extends HttpServlet {
             return;
         }
 
+        // Bước 6: Nếu hợp lệ, gán các trường và cập nhật xuống Database
         user.setFullName(fullName);
         user.setPhone(phone);
         user.setEmail(email);
@@ -167,13 +183,14 @@ public class ProfileServlet extends HttpServlet {
 
         try {
             userDAO.updateProfile(user);
-            session.setAttribute("user", user);
+            session.setAttribute("user", user); // update session
 
             request.setAttribute("success", "Cập nhật hồ sơ thành công!");
         } catch (RuntimeException e) {
             request.setAttribute("error", "Lỗi hệ thống: Không thể cập nhật thông tin.");
         }
 
+        // Bước 7: Thống kê lại booking để hiển thị dashboard cá nhân
         int bookingCount = 0;
         try {
             bookingCount = bookingDAO.getBookingCountByCustomerId(user.getUserId());

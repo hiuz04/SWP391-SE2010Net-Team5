@@ -17,7 +17,7 @@ public class UserDAO {
 
     private static final String USER_SELECT = """
             SELECT u.user_id, u.role_id, u.full_name, u.email, u.phone, u.password_hash,
-                   u.avatar_url, u.google_id, u.status, u.created_at, u.updated_at,
+                   u.avatar_url, u.google_id, u.status, u.created_at, u.updated_at, u.available_reward_points,
                    u.is_vip, u.vip_valid_until, r.role_name
             FROM users u
             INNER JOIN roles r ON u.role_id = r.role_id
@@ -35,9 +35,13 @@ public class UserDAO {
             WHERE (u.email = ? OR u.phone = ?) AND u.status = 'ACTIVE'
             """;
 
+    private static final String FIND_BY_LOGIN_FOR_AUTH = USER_SELECT + """
+            WHERE (u.email = ? OR u.phone = ?)
+            """;
+
     /**
      * Xác thực đăng nhập: tìm user theo email hoặc số điện thoại kết hợp với mật
-     * khẩu.(user : active)
+     * khẩu.
      * Mật khẩu được kiểm tra an toàn bằng băm BCrypt qua PasswordUtil.
      * 
      * @return {@code Optional<User>} chứa user nếu thông tin hợp lệ, ngược lại
@@ -45,7 +49,7 @@ public class UserDAO {
      */
     public Optional<User> findByLoginAndPassword(String login, String password) {
         try (Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(FIND_BY_EMAIL_OR_PHONE)) {
+                PreparedStatement ps = conn.prepareStatement(FIND_BY_LOGIN_FOR_AUTH)) {
             ps.setString(1, login);
             ps.setString(2, login);
             try (ResultSet rs = ps.executeQuery()) {
@@ -277,6 +281,7 @@ public class UserDAO {
         user.setRoleName(rs.getString("role_name"));
         user.setVip(rs.getBoolean("is_vip"));
         user.setVipValidUntil(toLocalDateTime(rs.getTimestamp("vip_valid_until")));
+        user.setRewardPoints(rs.getInt("available_reward_points"));
         return user;
     }
 
@@ -474,6 +479,30 @@ public class UserDAO {
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi cập nhật trạng thái VIP: " + e.getMessage(), e);
         }
+    }
+
+    public int getRewardPoint(long userId) {
+        String sql = """
+            SELECT available_reward_points
+            FROM users
+            WHERE user_id = ?
+            """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("available_reward_points");
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return 0;
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {

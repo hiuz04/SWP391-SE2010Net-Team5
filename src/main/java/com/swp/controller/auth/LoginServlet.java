@@ -53,6 +53,7 @@ public class LoginServlet extends HttpServlet {
 
         request.setCharacterEncoding("UTF-8");
 
+        // Bước 1: Kiểm tra bảo mật CSRF Token để chống giả mạo request
         HttpSession currentSession = request.getSession(false);
         String sessionCsrf = currentSession != null ? (String) currentSession.getAttribute("csrfToken") : null;
         String requestCsrf = request.getParameter("csrfToken");
@@ -61,6 +62,7 @@ public class LoginServlet extends HttpServlet {
             return;
         }
 
+        // Bước 2: Nhận dữ liệu đầu vào từ form
         String login = trim(request.getParameter("login"));
         String password = request.getParameter("password");
 
@@ -72,6 +74,7 @@ public class LoginServlet extends HttpServlet {
             return;
         }
 
+        // Bước 3: Kiểm tra cơ chế khóa tài khoản tạm thời (chống brute-force)
         if (LoginAttemptUtil.isLocked(login)) {
             long remaining = LoginAttemptUtil.getRemainingLockTimeInMinutes(login);
             request.setAttribute("error",
@@ -84,22 +87,39 @@ public class LoginServlet extends HttpServlet {
         }
 
         try {
+            // Bước 4: Gọi Database (UserDAO) để xác thực tài khoản và mật khẩu
             Optional<User> user = userDAO.findByLoginAndPassword(login, password);
             if (user.isPresent()) {
-                LoginAttemptUtil.loginSucceeded(login);
-                HttpSession session = request.getSession(true);
                 User loggedIn = user.get();
+                
+                // Bước 5: Kiểm tra trạng thái tài khoản (chỉ cho phép ACTIVE)
+                if (!"ACTIVE".equals(loggedIn.getStatus())) {
+                    request.setAttribute("error", "Tài khoản của bạn đã bị khóa .");
+                    request.setAttribute("login", login);
+                    prepareLoginPage(request);
+                    request.getRequestDispatcher("/login.jsp").forward(request, response);
+                    return;
+                }
+
+                // Bước 6: Đăng nhập thành công -> Xóa bộ đếm sai mật khẩu
+                LoginAttemptUtil.loginSucceeded(login);
+                
+                // Bước 7: Khởi tạo Session và lưu thông tin người dùng
+                HttpSession session = request.getSession(true);
                 session.setAttribute("user", loggedIn);
                 session.setAttribute("navRole", AuthUtil.toNavRole(loggedIn.getRoleName()));
-                
+
+                // Bước 8: Xử lý chức năng "Ghi nhớ đăng nhập" (Remember Me)
                 if (request.getParameter("remember") != null) {
                     com.swp.util.RememberMeUtil.setRememberMeCookie(response, loggedIn);
                 }
-                
+
+                // Bước 9: Chuyển hướng người dùng về trang đích (Dashboard) tương ứng với chức vụ (Role)
                 response.sendRedirect(request.getContextPath() + AuthUtil.dashboardPath(loggedIn.getRoleName()));
                 return;
             }
 
+            // Bước 10: Nếu sai thông tin đăng nhập -> Tăng bộ đếm và khóa nếu quá 5 lần
             LoginAttemptUtil.loginFailed(login);
             if (LoginAttemptUtil.isLocked(login)) {
                 request.setAttribute("error", "Bạn đã nhập sai 5 lần liên tiếp. Tài khoản bị khóa trong 30 phút.");
@@ -112,6 +132,7 @@ public class LoginServlet extends HttpServlet {
             request.setAttribute("login", login);
         }
 
+        // Bước 11: Render lại trang đăng nhập kèm lỗi (nếu có)
         prepareLoginPage(request);
         request.getRequestDispatcher("/login.jsp").forward(request, response);
     }
@@ -134,7 +155,7 @@ public class LoginServlet extends HttpServlet {
             }
         }
         request.setAttribute("googleEnabled", GoogleConfig.isConfigured());
-        
+
         HttpSession session = request.getSession(true);
         if (session.getAttribute("csrfToken") == null) {
             session.setAttribute("csrfToken", UUID.randomUUID().toString());
