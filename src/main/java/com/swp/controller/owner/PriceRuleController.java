@@ -27,12 +27,15 @@ public class PriceRuleController extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // Bước 1: Lấy danh sách cơ sở thể thao mà Owner đang quản lý
         List<FootballComplex> complexes = complexService.getListFootballComplex();
         req.setAttribute("complexes", complexes);
         
+        // Bước 2: Nạp danh sách các loại sân (VD: sân 5, sân 7) để hiện trên Form
         FieldTypeService fieldTypeService = new FieldTypeService();
         req.setAttribute("fieldTypes", fieldTypeService.getAllType());
 
+        // Bước 3: Xác định cơ sở đang được chọn (lấy từ param hoặc mặc định là cơ sở đầu tiên)
         long complexId = -1;
         String complexIdParam = req.getParameter("complexId");
         if (complexIdParam != null && !complexIdParam.trim().isEmpty()) {
@@ -41,6 +44,7 @@ public class PriceRuleController extends HttpServlet {
             complexId = complexes.get(0).getComplexId();
         }
 
+        // Bước 4: Lấy danh sách luật giá và danh sách sân nhỏ thuộc cơ sở đang chọn
         if (complexId != -1) {
             List<PriceRule> priceRules = priceRuleDAO.getByComplexId(complexId);
             req.setAttribute("priceRules", priceRules);
@@ -50,17 +54,20 @@ public class PriceRuleController extends HttpServlet {
             req.setAttribute("fields", fieldService.getFieldOfThisComplex(complexId));
         }
 
+        // Bước 5: Render trang quản lý bảng giá (JSP)
         req.getRequestDispatcher("/WEB-INF/owner/price-rules.jsp").forward(req, resp);
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // Bước 1: Xác định hành động (Thêm/Sửa/Xóa) từ form submit
         String action = req.getParameter("action");
         if (action == null) action = "";
         
         long complexId = Long.parseLong(req.getParameter("complexId"));
 
         try {
+            // Bước 2: Dựa vào action, gọi các hàm DAO tương ứng và thiết lập thông báo thành công
             switch (action) {
                 case "add":
                     handleAdd(req);
@@ -81,6 +88,7 @@ public class PriceRuleController extends HttpServlet {
             req.getSession().setAttribute("errorMsg", "Lỗi: " + e.getMessage());
         }
 
+        // Bước 3: Chuyển hướng lại trang danh sách (tránh submit lại form khi F5)
         resp.sendRedirect(req.getContextPath() + "/owner/price-rules?complexId=" + complexId);
     }
 

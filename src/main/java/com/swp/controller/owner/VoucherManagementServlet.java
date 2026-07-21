@@ -17,6 +17,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Xử lý các thao tác quản lý voucher của Owner: xem danh sách, tạo mới, cập nhật và bật/tắt voucher.
+ * Servlet validate dữ liệu form trước khi gọi {@link VoucherDAO}, đặc biệt là rule quantity không được nhỏ hơn used.
+ */
 @WebServlet("/owner/vouchers")
 public class VoucherManagementServlet extends HttpServlet {
 
@@ -36,6 +40,9 @@ public class VoucherManagementServlet extends HttpServlet {
     }
 
     @Override
+    /**
+     * Hiển thị danh sách voucher hoặc form tạo/sửa theo action trên query string.
+     */
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
@@ -64,6 +71,10 @@ public class VoucherManagementServlet extends HttpServlet {
     }
 
     @Override
+    /**
+     * Nhận thao tác lưu voucher hoặc đổi trạng thái.
+     * Nếu validate fail ở create/edit thì giữ lại dữ liệu người dùng đã nhập để render lại form.
+     */
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         request.setCharacterEncoding("UTF-8");
@@ -84,6 +95,7 @@ public class VoucherManagementServlet extends HttpServlet {
                 if (existingVoucher == null) {
                     throw new IllegalArgumentException("Không tìm thấy mã giảm giá.");
                 }
+                // Không tin giá trị used gửi từ form; luôn lấy used hiện tại trong DB trước khi kiểm tra quantity.
                 voucher.setUsed(existingVoucher.getUsed());
                 validateEditableQuantity(voucher, existingVoucher.getUsed());
                 ensureUniqueCode(voucher.getCode(), voucher.getId());
@@ -138,6 +150,9 @@ public class VoucherManagementServlet extends HttpServlet {
         request.getRequestDispatcher(FORM_VIEW).forward(request, response);
     }
 
+    /**
+     * Chuẩn hóa dữ liệu form thành Voucher và chạy các validate nghiệp vụ cơ bản.
+     */
     private Voucher parseVoucher(HttpServletRequest request, boolean requireId) {
         Voucher voucher = new Voucher();
         if (requireId) {
@@ -182,6 +197,10 @@ public class VoucherManagementServlet extends HttpServlet {
         return voucher;
     }
 
+    /**
+     * Kiểm tra các ràng buộc tạo/sửa voucher: loại giảm, giá trị giảm, đơn tối thiểu,
+     * thời gian hiệu lực và trạng thái được phép.
+     */
     private void validateVoucher(Voucher voucher) {
         if (!TYPE_PERCENT.equals(voucher.getDiscountType()) && !TYPE_FIXED.equals(voucher.getDiscountType())) {
             throw new IllegalArgumentException("Loại giảm giá chỉ được là phần trăm hoặc số tiền cố định.");
@@ -204,6 +223,9 @@ public class VoucherManagementServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Ngăn Owner giảm quantity thấp hơn số lượt đã sử dụng để dữ liệu used/quantity không mâu thuẫn.
+     */
     private void validateEditableQuantity(Voucher voucher, int currentUsed) {
         if (voucher.getQuantity() < currentUsed) {
             throw new IllegalArgumentException("Số lượng mã giảm giá không được nhỏ hơn số lượt đã dùng hiện tại.");
@@ -221,6 +243,9 @@ public class VoucherManagementServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Bảo đảm mã voucher là duy nhất, nhưng vẫn cho phép bản ghi hiện tại giữ nguyên code khi edit.
+     */
     private void ensureUniqueCode(String code, int currentId) throws SQLException {
         Voucher existing = voucherDAO.findByCode(code);
         if (existing != null && existing.getId() != currentId) {

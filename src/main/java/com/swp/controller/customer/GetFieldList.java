@@ -29,8 +29,8 @@ public class GetFieldList extends HttpServlet {
     private static final FieldTypeDAO fieldTypeDao = new FieldTypeDAO();
 
     @Override
-    protected void doGet(HttpServletRequest req,
-                         HttpServletResponse resp)
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
             throws ServletException, IOException {
         try {
             String province = req.getParameter("province");

@@ -22,6 +22,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Cung cấp các transaction thanh toán cho đặt cọc booking, checkout invoice và membership.
+ * DAO luôn lấy amount từ database, khóa payment/booking/invoice khi cập nhật và ghi callback để audit gateway.
+ */
 public class PaymentDAO {
 
     private final VoucherDAO voucherDAO = new VoucherDAO();
@@ -40,6 +44,10 @@ public class PaymentDAO {
 
     private final UserDAO userDAO = new UserDAO();
 
+    /**
+     * Lấy booking còn hiệu lực để Customer thanh toán tiền cọc.
+     * Query giới hạn theo customer_id, trạng thái HOLD, thời gian giữ chỗ và chưa có payment SUCCESS.
+     */
     public BookingView getBookingForPayment(long bookingId, long customerId) throws SQLException {
         String sql = """
                 SELECT b.booking_id,
@@ -185,6 +193,10 @@ public class PaymentDAO {
         }
     }
 
+    /**
+     * Tạo hoặc tái sử dụng payment PENDING cho tiền cọc booking.
+     * Booking/nhóm recurring được khóa để số tiền và trạng thái không đổi trong lúc tạo transactionRef.
+     */
     public Payment createPendingDepositPayment(long bookingId, long customerId, int paymentMethodId)
             throws SQLException {
         String selectBooking = """
@@ -302,6 +314,7 @@ public class PaymentDAO {
         try (Connection conn = DBContext.getConnection()) {
             conn.setAutoCommit(false);
             try {
+                // Amount được tính từ booking trong DB, không nhận từ request để tránh chỉnh sửa số tiền ở client.
                 BigDecimal amount;
                 Integer voucherId;
                 try (PreparedStatement ps = conn.prepareStatement(selectBooking)) {
@@ -326,6 +339,7 @@ public class PaymentDAO {
                     }
                 }
 
+                // Kiểm tra voucher trong cùng transaction để Customer không dùng lại mã đã ghi nhận trước đó.
                 if (voucherId != null && voucherDAO.hasCustomerUsedVoucher(voucherId, customerId, conn)) {
                     throw new IllegalArgumentException("B\u1ea1n \u0111\u00e3 s\u1eed d\u1ee5ng m\u00e3 gi\u1ea3m gi\u00e1 n\u00e0y.");
                 }
@@ -343,6 +357,7 @@ public class PaymentDAO {
                     }
                 }
 
+                // Nếu đã có payment PENDING cho cùng booking/nhóm, tái sử dụng để callback không bị phân mảnh.
                 try (PreparedStatement ps = conn.prepareStatement(selectExistingDepositPayment)) {
                     ps.setLong(1, customerId);
                     ps.setLong(2, bookingId);
@@ -382,6 +397,10 @@ public class PaymentDAO {
         }
     }
 
+    /**
+     * Lấy invoice checkout để Customer chọn phương thức thanh toán.
+     * Điều kiện customer_id bảo vệ ownership trước khi hiển thị số tiền còn lại.
+     */
     public InvoiceView getCheckoutInvoiceForPayment(long invoiceId, long customerId) throws SQLException {
         String sql = """
                 SELECT TOP 1
@@ -425,6 +444,10 @@ public class PaymentDAO {
         }
     }
 
+    /**
+     * Tạo hoặc tái sử dụng payment PENDING cho hóa đơn checkout.
+     * Invoice và booking được khóa để tránh Staff/Customer tạo hai giao dịch checkout cùng lúc.
+     */
     public Payment createPendingCheckoutPayment(long invoiceId, long customerId, int paymentMethodId)
             throws SQLException {
         String selectInvoice = """
@@ -492,6 +515,7 @@ public class PaymentDAO {
         try (Connection conn = DBContext.getConnection()) {
             conn.setAutoCommit(false);
             try {
+                // Amount checkout lấy từ invoice PENDING trong DB; trạng thái booking cũng được xác minh tại đây.
                 long bookingId;
                 BigDecimal amount;
                 try (PreparedStatement ps = conn.prepareStatement(selectInvoice)) {
@@ -527,6 +551,7 @@ public class PaymentDAO {
                     }
                 }
 
+                // Callback hoặc submit lặp sẽ dùng lại payment PENDING; invoice đã SUCCESS thì chặn tạo mới.
                 try (PreparedStatement ps = conn.prepareStatement(selectExistingPayment)) {
                     ps.setLong(1, bookingId);
                     ps.setLong(2, customerId);
@@ -567,6 +592,10 @@ public class PaymentDAO {
         }
     }
 
+    /**
+     * Tạo payment PENDING cho gói membership VIP.
+     * Nếu Customer đã có payment membership PENDING thì tái sử dụng để không sinh nhiều transaction đang chờ.
+     */
     public Payment createPendingMembershipPayment(long customerId, int paymentMethodId, BigDecimal amount) throws SQLException {
         String selectMethod = """
                 SELECT payment_method_id
@@ -674,6 +703,9 @@ public class PaymentDAO {
         }
     }
 
+    /**
+     * Hoàn tất payment membership: cập nhật payment SUCCESS, gia hạn VIP và gửi notification trong cùng transaction.
+     */
     private PaymentUpdateResult markMembershipPaymentSuccess(
             Connection conn,
             PaymentLock payment,
@@ -735,6 +767,9 @@ public class PaymentDAO {
         return PaymentUpdateResult.UPDATED_SUCCESS;
     }
 
+    /**
+     * Lấy payment theo transactionRef để IPN đối chiếu số tiền trước khi cập nhật trạng thái.
+     */
     public GatewayPaymentView findPaymentByTransactionRef(String transactionRef) throws SQLException {
         if (transactionRef == null || transactionRef.isBlank()) {
             return null;
@@ -775,6 +810,10 @@ public class PaymentDAO {
         }
     }
 
+    /**
+     * Lưu callback gateway kể cả khi chữ ký không hợp lệ, miễn là tìm được transactionRef.
+     * Việc lưu payload giúp audit và debug các lần callback lỗi.
+     */
     public boolean savePaymentCallbackByTransactionRef(
             String transactionRef,
             String gatewayCode,
@@ -821,6 +860,10 @@ public class PaymentDAO {
                 || result == PaymentUpdateResult.ALREADY_SUCCESS;
     }
 
+    /**
+     * Xử lý callback thành công cho mọi loại payment.
+     * Method idempotent: payment đã SUCCESS/FAILED chỉ ghi thêm callback và trả trạng thái đã xử lý.
+     */
     public PaymentUpdateResult markPaymentSuccessAndConfirmBooking(
             String transactionRef,
             String gatewayTransactionId,
@@ -902,11 +945,13 @@ public class PaymentDAO {
                     return PaymentUpdateResult.NOT_FOUND;
                 }
                 if (STATUS_SUCCESS.equals(payment.paymentStatus())) {
+                    // Callback có thể tới nhiều lần; giữ nguyên trạng thái đã thành công và chỉ lưu payload mới.
                     insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
                     conn.commit();
                     return PaymentUpdateResult.ALREADY_SUCCESS;
                 }
                 if (STATUS_FAILED.equals(payment.paymentStatus())) {
+                    // Nếu giao dịch đã thất bại trước đó, không đổi lại booking/invoice bằng một callback muộn.
                     insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
                     conn.commit();
                     return PaymentUpdateResult.ALREADY_FAILED;
@@ -945,6 +990,7 @@ public class PaymentDAO {
                     return PaymentUpdateResult.INVALID_STATE;
                 }
 
+                // Với booking định kỳ, một payment đặt cọc xác nhận toàn bộ booking con còn HOLD trong cùng group.
                 List<Long> bookingIds = getScopedBookingIds(conn, payment);
                 if (bookingIds.isEmpty() || bookingIds.size() != payment.bookingCount()) {
                     conn.commit();
@@ -974,10 +1020,36 @@ public class PaymentDAO {
                         ps.executeUpdate();
                     }
                 }
+                // Ghi nhận voucher và payment success chung transaction để tránh booking CONFIRMED nhưng voucher chưa trừ lượt.
                 recordVoucherUsage(conn, bookingIds, payment);
                 insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
 
                 conn.commit();
+                
+                try {
+                    com.swp.dao.BookingDAO bookingDAO = new com.swp.dao.BookingDAO();
+                    com.swp.dao.NotificationDAO notificationDAO = new com.swp.dao.NotificationDAO();
+                    for (Long id : bookingIds) {
+                        com.swp.model.dto.BookingView bv = bookingDAO.getBookingDetailByIdAndCustomerId(id, payment.customerId());
+                        if (bv != null) {
+                            String timeStr = bv.getStartTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
+                            com.swp.model.Notification notif = new com.swp.model.Notification();
+                            notif.setUserId(payment.customerId());
+                            notif.setTitle("Đặt sân thành công");
+                            notif.setMessage("Bạn đã thanh toán thành công và đặt sân " + bv.getFieldName() + " (" + bv.getComplexName() + ") lúc " + timeStr + ". Mã giao dịch: " + transactionRef);
+                            notif.setNotificationType("BOOKING");
+                            notif.setReferenceId(id);
+                            notificationDAO.insertNotification(notif);
+
+                            String staffMsg = "Khách hàng " + bv.getCustomerName() + " đã đặt sân " + bv.getFieldName() + " (" + bv.getComplexName() + ") lúc " + timeStr + ". Mã giao dịch: " + transactionRef;
+                            notificationDAO.notifyRole("OWNER", "Có khách hàng đặt sân mới", staffMsg, "BOOKING", id);
+                            notificationDAO.notifyRole("STAFF", "Có khách hàng đặt sân mới", staffMsg, "BOOKING", id);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
                 return PaymentUpdateResult.UPDATED_SUCCESS;
             } catch (SQLException | RuntimeException e) {
                 rollback(conn, e);
@@ -986,6 +1058,10 @@ public class PaymentDAO {
         }
     }
 
+    /**
+     * Hoàn tất payment checkout: payment SUCCESS, invoice PAID, booking COMPLETED,
+     * trả sân về AVAILABLE và gửi notification cho Customer trong cùng transaction.
+     */
     private PaymentUpdateResult markCheckoutPaymentSuccess(
             Connection conn,
             PaymentLock payment,
@@ -1097,6 +1173,10 @@ public class PaymentDAO {
                 || result == PaymentUpdateResult.ALREADY_FAILED;
     }
 
+    /**
+     * Đánh dấu payment thất bại theo transactionRef.
+     * Method cũng idempotent để callback thất bại lặp lại không làm thay đổi payment đã xử lý.
+     */
     public PaymentUpdateResult markPaymentFailed(
             String transactionRef,
             String rawPayload,
@@ -1390,6 +1470,10 @@ public class PaymentDAO {
         }
     }
 
+    /**
+     * Lấy danh sách booking cần xác nhận cho payment đặt cọc.
+     * Booking đơn chỉ có một id, booking recurring lấy toàn bộ id trong cùng group của Customer.
+     */
     private List<Long> getScopedBookingIds(Connection conn, PaymentLock payment) throws SQLException {
         String sql;
         if (payment.recurringGroupId() == null) {
@@ -1432,6 +1516,10 @@ public class PaymentDAO {
         return bookingIds;
     }
 
+    /**
+     * Ghi nhận lượt dùng voucher cho các booking được xác nhận bởi payment.
+     * Mỗi voucher chỉ ghi một lần cho Customer dù payment xác nhận nhiều booking con trong cùng group.
+     */
     private void recordVoucherUsage(Connection conn, List<Long> bookingIds, PaymentLock payment) throws SQLException {
         Map<Integer, Long> voucherBookingIds = new LinkedHashMap<>();
         for (Long bookingId : bookingIds) {

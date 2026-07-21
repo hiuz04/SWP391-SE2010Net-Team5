@@ -2,6 +2,9 @@ package com.swp.model;
 
 import java.io.Serializable;
 
+/**
+ * Entity phương thức thanh toán đang được hệ thống bật/tắt, ví dụ VNPay hoặc phương thức mô phỏng.
+ */
 public class PaymentMethod implements Serializable {
     private static final long serialVersionUID = 1L;
     private Integer paymentMethodId;

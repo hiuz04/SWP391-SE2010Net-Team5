@@ -537,6 +537,7 @@
         fieldTypeFilter.addEventListener('change', applyFieldTypeFilter);
     }
 
+    // Phần chọn slot ở client chỉ giúp Customer preview nhanh; server vẫn validate lại trước khi tạo HOLD.
     document.querySelectorAll('.slot-cell').forEach(cell => {
         cell.addEventListener('click', function () {
             if (this.dataset.status !== 'AVAILABLE') {
@@ -566,6 +567,7 @@
         const from = Math.min(startIndex, endIndex);
         const to = Math.max(startIndex, endIndex);
 
+        // Một booking chỉ được chọn các slot AVAILABLE liên tiếp trên cùng một sân.
         for (let i = from; i <= to; i++) {
             if (cells[i].dataset.status !== 'AVAILABLE') {
                 alert('Khoảng giờ bạn chọn có ô đã bận hoặc sân đang bảo trì.');
@@ -638,6 +640,7 @@
 
     continueButton.addEventListener('click', function () {
         if (startCell !== null && endCell !== null) {
+            // Chuyển sang trang xác nhận để controller tính tiền, voucher/VIP và kiểm tra trùng lịch từ DB.
             window.location.href =
                 ctx
                 + '/booking?action=confirm'

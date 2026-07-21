@@ -2,6 +2,9 @@ package com.swp.model.dto;
 
 import java.time.LocalDateTime;
 
+/**
+ * DTO biểu diễn một ô 30 phút trên lịch sân, dùng cho màn hình chọn khung giờ đặt sân.
+ */
 public class FieldScheduleSlot {
     private Long fieldId;
     private String fieldName;
@@ -71,6 +74,9 @@ public class FieldScheduleSlot {
         this.title = title;
     }
 
+    /**
+     * Chuyển trạng thái nghiệp vụ của slot sang CSS class để JSP không phải lặp lại mapping hiển thị.
+     */
     public String getCssClass() {
         if (status == null) {
             return "slot-disabled";

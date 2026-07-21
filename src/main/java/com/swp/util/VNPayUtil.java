@@ -15,6 +15,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Tạo URL thanh toán VNPay và kiểm chữ ký callback.
+ * Tất cả tham số VNPay được sắp xếp ổn định trước khi ký để request/response khớp chuẩn gateway.
+ */
 public final class VNPayUtil {
 
     private static final DateTimeFormatter VNPAY_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
@@ -26,6 +30,10 @@ public final class VNPayUtil {
         return buildPaymentUrlDebug(payment, bookingId, request).paymentUrl();
     }
 
+    /**
+     * Dựng URL redirect sang VNPay từ payment PENDING đã tạo trong DB.
+     * transactionRef là khóa đối chiếu duy nhất giữa hệ thống và callback VNPay.
+     */
     public static PaymentUrlDebug buildPaymentUrlDebug(Payment payment, long bookingId, HttpServletRequest request) {
         String transactionRef = payment.getTransactionRef();
         String orderInfo = "Thanh toan booking " + bookingId + " - " + transactionRef;
@@ -46,6 +54,7 @@ public final class VNPayUtil {
         params.put("vnp_CreateDate", formatDate(createDate));
         params.put("vnp_ExpireDate", formatDate(createDate.plusMinutes(VNPayConfig.getExpireMinutes())));
 
+        // VNPay yêu cầu số tiền gửi lên theo đơn vị nhân 100 và chữ ký tính trên bộ tham số đã sort.
         String query = buildQueryString(params);
         String hashData = buildHashData(params);
         String secureHash = hmacSHA512(VNPayConfig.getHashSecret(), hashData);
@@ -57,6 +66,9 @@ public final class VNPayUtil {
         return verifySignatureDebug(requestParams).valid();
     }
 
+    /**
+     * Kiểm tra chữ ký callback bằng cách loại bỏ SecureHash/SecureHashType rồi tự tính lại HMAC SHA512.
+     */
     public static SignatureDebug verifySignatureDebug(Map<String, String> requestParams) {
         String receivedHash = requestParams.get("vnp_SecureHash");
         if (receivedHash == null || receivedHash.isBlank()) {
@@ -114,6 +126,9 @@ public final class VNPayUtil {
         return buildQueryString(new TreeMap<>(params));
     }
 
+    /**
+     * Chuyển amount VND sang định dạng VNPay: số nguyên bằng amount * 100.
+     */
     public static String toVNPayAmount(BigDecimal amount) {
         if (amount == null || amount.signum() <= 0) {
             throw new IllegalArgumentException("So tien thanh toan khong hop le.");
@@ -123,6 +138,9 @@ public final class VNPayUtil {
                 .toPlainString();
     }
 
+    /**
+     * Lấy IP gửi sang VNPay, ưu tiên X-Forwarded-For khi ứng dụng chạy sau proxy/ngrok.
+     */
     public static String getClientIp(HttpServletRequest request) {
         String forwardedFor = request.getHeader("X-Forwarded-For");
         if (forwardedFor != null && !forwardedFor.isBlank()) {
@@ -136,6 +154,9 @@ public final class VNPayUtil {
         return dateTime.format(VNPAY_DATE_FORMATTER);
     }
 
+    /**
+     * Tạo query string redirect, bỏ qua tham số rỗng và encode UTF-8 từng key/value.
+     */
     private static String buildQueryString(Map<String, String> params) {
         StringBuilder query = new StringBuilder();
         for (Map.Entry<String, String> entry : params.entrySet()) {
@@ -152,6 +173,9 @@ public final class VNPayUtil {
         return query.toString();
     }
 
+    /**
+     * Tạo chuỗi dữ liệu ký theo cùng thứ tự tham số với query string để HMAC khớp VNPay.
+     */
     private static String buildHashData(Map<String, String> params) {
         StringBuilder hashData = new StringBuilder();
         for (Map.Entry<String, String> entry : params.entrySet()) {

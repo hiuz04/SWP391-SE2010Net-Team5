@@ -55,16 +55,17 @@ public class ForgotPasswordServlet extends HttpServlet {
             throws ServletException, IOException {
 
         request.setCharacterEncoding("UTF-8");
+        // Bước 1: Nhận và chuẩn bị dữ liệu đầu vào (Email hoặc Số điện thoại)
         String input = trim(request.getParameter("contact"));
 
-        // Validate đầu vào trống
+        // Bước 2: Validate đầu vào trống
         if (input == null || input.isBlank()) {
             request.setAttribute("error", "Vui lòng nhập email hoặc số điện thoại.");
             request.getRequestDispatcher("/forgot-password.jsp").forward(request, response);
             return;
         }
 
-        // Validate định dạng email / SĐT
+        // Bước 3: Validate định dạng email / SĐT bằng Regex
         boolean isEmail = EMAIL_PATTERN.matcher(input).matches();
         boolean isPhone = PHONE_PATTERN.matcher(input).matches();
         if (!isEmail && !isPhone) {
@@ -74,12 +75,13 @@ public class ForgotPasswordServlet extends HttpServlet {
         }
 
         try {
+            // Bước 4: Kiểm tra sự tồn tại của Email hoặc SĐT trong CSDL
             Optional<User> userOpt = userDAO.findByEmailOrPhone(input);
 
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
 
-                // Kiểm tra user có email hay không
+                // Bước 5: Kiểm tra xem tài khoản có email để nhận mã OTP hay không
                 String toEmail = user.getEmail();
                 if (toEmail == null || toEmail.isBlank()) {
                     request.setAttribute("error",
@@ -88,17 +90,17 @@ public class ForgotPasswordServlet extends HttpServlet {
                     return;
                 }
 
-                // Vô hiệu hóa các OTP cũ của user này
+                // Bước 6: Vô hiệu hóa (Invalidate) tất cả các mã OTP cũ của user này
                 tokenDAO.invalidateOldTokens(user.getUserId());
 
-                // Sinh mã OTP ngẫu nhiên
+                // Bước 7: Sinh mã OTP ngẫu nhiên mới gồm 6 chữ số và set thời hạn 5 phút
                 String otpCode = generateOtp();
                 java.time.LocalDateTime expiresAt = java.time.LocalDateTime.now().plusMinutes(5);
 
-                // Lưu OTP vào DB
+                // Bước 8: Lưu OTP vào database (bảng password_reset_tokens)
                 tokenDAO.insertToken(user.getUserId(), otpCode, expiresAt);
 
-                // Gửi email
+                // Bước 9: Gửi mã OTP qua email cho người dùng
                 if (MailUtil.isConfigured()) {
                     String subject = "Mã OTP Đặt lại mật khẩu – Sport Field Booking";
                     String body = MailUtil.buildOtpEmail(user.getFullName(), otpCode);
@@ -113,7 +115,7 @@ public class ForgotPasswordServlet extends HttpServlet {
                     return;
                 }
                 
-                // Lưu lại session để check bước tiếp theo, chuyển hướng sang nhập OTP
+                // Bước 10: Lưu thông tin vào session để truyền sang trang nhập OTP và chuyển hướng
                 request.getSession().setAttribute("resetEmail", input);
                 response.sendRedirect(request.getContextPath() + "/verify-otp");
                 return;
