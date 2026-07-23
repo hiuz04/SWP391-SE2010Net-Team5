@@ -96,10 +96,12 @@ public class StaffBillingServlet extends HttpServlet {
 
         try {
             long bookingId = requirePositiveLong(req.getParameter("bookingId"), "Mã đặt sân không được bỏ trống.");
+            String checkoutPaymentMethod = trim(req.getParameter("checkoutPaymentMethod"));
             CheckoutResult result = billingDAO.completeCheckout(
                     bookingId,
                     user.getUserId(),
-                    user.getRoleId() == ROLE_STAFF
+                    user.getRoleId() == ROLE_STAFF,
+                    checkoutPaymentMethod
             );
             writeCheckoutSuccess(resp, result, req.getContextPath() + "/staff/invoice?id=" + result.getBookingId());
         } catch (SecurityException e) {

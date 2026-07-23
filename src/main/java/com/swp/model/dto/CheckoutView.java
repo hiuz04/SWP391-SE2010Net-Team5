@@ -28,10 +28,13 @@ public class CheckoutView {
     private BigDecimal overtimeFee = BigDecimal.ZERO;
     private BigDecimal subtotal = BigDecimal.ZERO;
     private BigDecimal finalAmount = BigDecimal.ZERO;
+    private BigDecimal paidAmountBeforeCheckout = BigDecimal.ZERO;
     private boolean checkoutAllowed;
     private String checkoutBlockedReason;
     private Long existingInvoiceId;
     private String existingInvoiceStatus;
+    private Long pendingPaymentRequestId;
+    private String pendingPaymentRequestStatus;
 
     public Long getBookingId() {
         return bookingId;
@@ -201,6 +204,14 @@ public class CheckoutView {
         this.finalAmount = finalAmount != null ? finalAmount : BigDecimal.ZERO;
     }
 
+    public BigDecimal getPaidAmountBeforeCheckout() {
+        return paidAmountBeforeCheckout;
+    }
+
+    public void setPaidAmountBeforeCheckout(BigDecimal paidAmountBeforeCheckout) {
+        this.paidAmountBeforeCheckout = paidAmountBeforeCheckout != null ? paidAmountBeforeCheckout : BigDecimal.ZERO;
+    }
+
     public boolean isCheckoutAllowed() {
         return checkoutAllowed;
     }
@@ -231,6 +242,22 @@ public class CheckoutView {
 
     public void setExistingInvoiceStatus(String existingInvoiceStatus) {
         this.existingInvoiceStatus = existingInvoiceStatus;
+    }
+
+    public Long getPendingPaymentRequestId() {
+        return pendingPaymentRequestId;
+    }
+
+    public void setPendingPaymentRequestId(Long pendingPaymentRequestId) {
+        this.pendingPaymentRequestId = pendingPaymentRequestId;
+    }
+
+    public String getPendingPaymentRequestStatus() {
+        return pendingPaymentRequestStatus;
+    }
+
+    public void setPendingPaymentRequestStatus(String pendingPaymentRequestStatus) {
+        this.pendingPaymentRequestStatus = pendingPaymentRequestStatus;
     }
 
     /**

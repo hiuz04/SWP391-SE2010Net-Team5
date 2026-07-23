@@ -4,6 +4,7 @@ import com.swp.model.Payment;
 import com.swp.model.PaymentMethod;
 import com.swp.model.User;
 import com.swp.model.dto.BookingView;
+import com.swp.model.dto.CheckoutPaymentRequestView;
 import com.swp.model.dto.InvoiceView;
 import com.swp.model.dto.PaymentView;
 import com.swp.util.DBContext;
@@ -40,6 +41,7 @@ public class PaymentDAO {
     private static final String PAYMENT_TYPE_DEPOSIT = "DEPOSIT";
     private static final String PAYMENT_TYPE_CHECKOUT = "CHECKOUT";
     private static final String PAYMENT_TYPE_MEMBERSHIP = "MEMBERSHIP";
+    private static final String METHOD_CASH = "CASH";
     private static final String GATEWAY_SIMULATED = "SIMULATED";
 
     private final UserDAO userDAO = new UserDAO();
@@ -178,6 +180,32 @@ public class PaymentDAO {
         return methods;
     }
 
+    public List<PaymentMethod> getActiveOnlinePaymentMethods() throws SQLException {
+        String sql = """
+                SELECT payment_method_id, method_code, method_name, status
+                FROM payment_methods
+                WHERE status = 'ACTIVE'
+                  AND UPPER(method_code) <> 'CASH'
+                ORDER BY CASE
+                             WHEN UPPER(method_code) = 'VNPAY' THEN 0
+                             WHEN UPPER(method_code) = 'SIMULATED' THEN 1
+                             ELSE 2
+                         END,
+                         payment_method_id
+                """;
+        List<PaymentMethod> methods = new ArrayList<>();
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                methods.add(mapPaymentMethod(rs));
+            }
+        }
+
+        return methods;
+    }
+
     public PaymentMethod getPaymentMethodById(int paymentMethodId) throws SQLException {
         String sql = """
                 SELECT payment_method_id, method_code, method_name, status
@@ -253,7 +281,7 @@ public class PaymentDAO {
                   AND b.customer_id = ?
                 """;
         String selectMethod = """
-                SELECT payment_method_id
+                SELECT payment_method_id, method_code
                 FROM payment_methods
                 WHERE payment_method_id = ?
                   AND status = 'ACTIVE'
@@ -357,6 +385,9 @@ public class PaymentDAO {
                     try (ResultSet rs = ps.executeQuery()) {
                         if (!rs.next()) {
                             throw new IllegalArgumentException("Ph\u01b0\u01a1ng th\u1ee9c thanh to\u00e1n kh\u00f4ng h\u1ee3p l\u1ec7.");
+                        }
+                        if (METHOD_CASH.equalsIgnoreCase(rs.getString("method_code"))) {
+                            throw new IllegalArgumentException("Phuong thuc tien mat chi duoc Staff ghi nhan tai quay Check-out.");
                         }
                     }
                 }
@@ -467,7 +498,7 @@ public class PaymentDAO {
                   AND i.customer_id = ?
                 """;
         String selectMethod = """
-                SELECT payment_method_id
+                SELECT payment_method_id, method_code
                 FROM payment_methods
                 WHERE payment_method_id = ?
                   AND status = 'ACTIVE'
@@ -554,6 +585,9 @@ public class PaymentDAO {
                         if (!rs.next()) {
                             throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
                         }
+                        if (METHOD_CASH.equalsIgnoreCase(rs.getString("method_code"))) {
+                            throw new IllegalArgumentException("Phuong thuc tien mat chi duoc Staff ghi nhan tai quay Check-out.");
+                        }
                     }
                 }
 
@@ -567,6 +601,9 @@ public class PaymentDAO {
                             if (STATUS_SUCCESS.equals(existing.getStatus())) {
                                 throw new IllegalArgumentException("Hoa don checkout da duoc thanh toan.");
                             }
+                            updatePendingPaymentMethod(conn, existing.getPaymentId(), paymentMethodId, amount);
+                            existing.setPaymentMethodId(paymentMethodId);
+                            existing.setAmount(amount);
                             conn.commit();
                             return existing;
                         }
@@ -594,6 +631,32 @@ public class PaymentDAO {
             } catch (SQLException | RuntimeException e) {
                 rollback(conn, e);
                 throw e;
+            }
+        }
+    }
+
+    private void updatePendingPaymentMethod(
+            Connection conn,
+            Long paymentId,
+            int paymentMethodId,
+            BigDecimal amount
+    ) throws SQLException {
+        if (paymentId == null) {
+            throw new SQLException("Khong tim thay payment checkout dang cho.");
+        }
+        String sql = """
+                UPDATE payments
+                SET payment_method_id = ?,
+                    amount = ?
+                WHERE payment_id = ?
+                  AND status = 'PENDING'
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, paymentMethodId);
+            ps.setBigDecimal(2, amount);
+            ps.setLong(3, paymentId);
+            if (ps.executeUpdate() != 1) {
+                throw new SQLException("Khong cap nhat duoc phuong thuc thanh toan checkout.");
             }
         }
     }
@@ -664,6 +727,9 @@ public class PaymentDAO {
                     try (ResultSet rs = ps.executeQuery()) {
                         if (!rs.next()) {
                             throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
+                        }
+                        if (METHOD_CASH.equalsIgnoreCase(rs.getString("method_code"))) {
+                            throw new IllegalArgumentException("Phuong thuc tien mat chi duoc Staff ghi nhan tai quay Check-out.");
                         }
                     }
                 }
@@ -889,6 +955,7 @@ public class PaymentDAO {
                        b.recurring_group_id,
                        ci.invoice_id,
                        ci.invoice_status,
+                       ci.checkout_staff_id,
                        scope.booking_count,
                        CASE
                            WHEN scope.invalid_booking_count = 0
@@ -900,7 +967,8 @@ public class PaymentDAO {
                 LEFT JOIN bookings b WITH (UPDLOCK, HOLDLOCK) ON p.booking_id = b.booking_id
                 OUTER APPLY (
                     SELECT TOP 1 i.invoice_id,
-                           i.status AS invoice_status
+                           i.status AS invoice_status,
+                           i.staff_id AS checkout_staff_id
                     FROM invoices i WITH (UPDLOCK, HOLDLOCK)
                     WHERE i.booking_id = p.booking_id
                       AND i.customer_id = p.customer_id
@@ -1173,6 +1241,15 @@ public class PaymentDAO {
                 "Hoa don checkout cua booking da duoc thanh toan thanh cong. Ma giao dich: " + transactionRef,
                 "CHECKOUT_PAYMENT_SUCCESS",
                 payment.invoiceId());
+        if (payment.checkoutStaffId() != null) {
+            insertNotification(conn,
+                    payment.checkoutStaffId(),
+                    "Khach da thanh toan checkout",
+                    "Khach hang da thanh toan thanh cong " + payment.amount()
+                            + " cho booking #" + payment.bookingId() + ".",
+                    "CHECKOUT_PAYMENT_SUCCESS",
+                    payment.invoiceId());
+        }
         insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
         return PaymentUpdateResult.UPDATED_SUCCESS;
     }
@@ -1211,6 +1288,7 @@ public class PaymentDAO {
                        b.recurring_group_id,
                        CAST(NULL AS BIGINT) AS invoice_id,
                        CAST(NULL AS VARCHAR(50)) AS invoice_status,
+                       CAST(NULL AS BIGINT) AS checkout_staff_id,
                        1 AS booking_count,
                        CASE WHEN b.hold_expires_at > GETDATE() THEN 1 ELSE 0 END AS hold_valid
                 FROM payments p WITH (UPDLOCK, HOLDLOCK)
@@ -1327,6 +1405,77 @@ public class PaymentDAO {
         return payments;
     }
 
+    public List<CheckoutPaymentRequestView> getPendingCheckoutPaymentRequests(long customerId) throws SQLException {
+        String sql = """
+                SELECT p.payment_id,
+                       ci.invoice_id,
+                       p.booking_id,
+                       b.booking_code,
+                       fa.complex_name,
+                       f.field_name,
+                       b.start_time,
+                       b.end_time,
+                       ci.subtotal AS checkout_total_amount,
+                       paid.paid_amount,
+                       p.amount AS remaining_amount,
+                       p.status,
+                       p.created_at
+                FROM payments p
+                INNER JOIN bookings b ON p.booking_id = b.booking_id
+                INNER JOIN football_complexes fa ON b.complex_id = fa.complex_id
+                INNER JOIN fields f ON b.field_id = f.field_id
+                OUTER APPLY (
+                    SELECT TOP 1 i.invoice_id,
+                           i.subtotal
+                    FROM invoices i
+                    WHERE i.booking_id = p.booking_id
+                      AND i.customer_id = p.customer_id
+                      AND i.status = 'PENDING'
+                    ORDER BY i.issued_at DESC, i.invoice_id DESC
+                ) ci
+                OUTER APPLY (
+                    SELECT COALESCE(SUM(prev.amount), 0) AS paid_amount
+                    FROM payments prev
+                    WHERE prev.booking_id = p.booking_id
+                      AND prev.customer_id = p.customer_id
+                      AND prev.status = 'SUCCESS'
+                ) paid
+                WHERE p.customer_id = ?
+                  AND p.payment_type = 'CHECKOUT'
+                  AND p.status = 'PENDING'
+                  AND ci.invoice_id IS NOT NULL
+                  AND b.status = 'PENDING_CHECKOUT_PAYMENT'
+                ORDER BY p.created_at DESC, p.payment_id DESC
+                """;
+        List<CheckoutPaymentRequestView> requests = new ArrayList<>();
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, customerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    CheckoutPaymentRequestView request = new CheckoutPaymentRequestView();
+                    request.setPaymentRequestId(rs.getLong("payment_id"));
+                    request.setInvoiceId(rs.getLong("invoice_id"));
+                    request.setBookingId(rs.getLong("booking_id"));
+                    request.setBookingCode(rs.getString("booking_code"));
+                    request.setComplexName(rs.getString("complex_name"));
+                    request.setFieldName(rs.getString("field_name"));
+                    request.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
+                    request.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
+                    request.setCheckoutTotalAmount(rs.getBigDecimal("checkout_total_amount"));
+                    request.setPaidAmount(rs.getBigDecimal("paid_amount"));
+                    request.setRemainingAmount(rs.getBigDecimal("remaining_amount"));
+                    request.setStatus(rs.getString("status"));
+                    request.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+                    requests.add(request);
+                }
+            }
+        }
+
+        return requests;
+    }
+
     private String paymentViewSql() {
         return """
                 SELECT p.payment_id,
@@ -1340,7 +1489,7 @@ public class PaymentDAO {
                        p.paid_at,
                        p.created_at,
                        ci.invoice_id,
-                       pm.method_name AS payment_method_name,
+                       CASE WHEN UPPER(pm.method_code) = 'CASH' THEN N'Tiền mặt' ELSE pm.method_name END AS payment_method_name,
                        b.booking_code,
                        b.status AS booking_status,
                        b.hold_expires_at,
@@ -1483,6 +1632,7 @@ public class PaymentDAO {
                         rs.getInt("booking_count"),
                         rs.getString("payment_status"),
                         rs.getString("booking_status"),
+                        getLongOrNull(rs, "checkout_staff_id"),
                         rs.getInt("hold_valid") == 1
                 );
             }
@@ -1710,6 +1860,7 @@ public class PaymentDAO {
             int bookingCount,
             String paymentStatus,
             String bookingStatus,
+            Long checkoutStaffId,
             boolean holdValid
     ) {
     }

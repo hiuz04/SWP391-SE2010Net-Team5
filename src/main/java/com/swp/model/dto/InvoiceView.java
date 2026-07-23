@@ -33,6 +33,9 @@ public class InvoiceView {
     private String bookingStatus;
     private String paymentStatus;
     private String paymentMethodName;
+    private BigDecimal checkoutPaymentAmount = BigDecimal.ZERO;
+    private LocalDateTime checkoutPaidAt;
+    private String depositPaymentMethodName;
     private String staffName;
 
     public Long getInvoiceId() {
@@ -249,6 +252,30 @@ public class InvoiceView {
 
     public void setPaymentMethodName(String paymentMethodName) {
         this.paymentMethodName = paymentMethodName;
+    }
+
+    public BigDecimal getCheckoutPaymentAmount() {
+        return checkoutPaymentAmount;
+    }
+
+    public void setCheckoutPaymentAmount(BigDecimal checkoutPaymentAmount) {
+        this.checkoutPaymentAmount = checkoutPaymentAmount != null ? checkoutPaymentAmount : BigDecimal.ZERO;
+    }
+
+    public LocalDateTime getCheckoutPaidAt() {
+        return checkoutPaidAt;
+    }
+
+    public void setCheckoutPaidAt(LocalDateTime checkoutPaidAt) {
+        this.checkoutPaidAt = checkoutPaidAt;
+    }
+
+    public String getDepositPaymentMethodName() {
+        return depositPaymentMethodName;
+    }
+
+    public void setDepositPaymentMethodName(String depositPaymentMethodName) {
+        this.depositPaymentMethodName = depositPaymentMethodName;
     }
 
     public String getStaffName() {
