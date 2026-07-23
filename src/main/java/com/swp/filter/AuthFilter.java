@@ -29,6 +29,7 @@ public class AuthFilter implements Filter {
         HttpServletResponse res = (HttpServletResponse) response;
         HttpSession session = req.getSession(false);
 
+        // Business Rule BR-01: Nếu chưa có session đăng nhập thì thử khôi phục bằng remember-me token hợp lệ.
         // Check if user is already logged in
         if (session == null || session.getAttribute("user") == null) {
             String token = RememberMeUtil.getRememberMeCookie(req);
@@ -40,8 +41,9 @@ public class AuthFilter implements Filter {
                         Optional<User> userOpt = userDAO.getUserById(userId);
                         if (userOpt.isPresent()) {
                             User user = userOpt.get();
+                            // Business Rule BR-01: Chỉ user ACTIVE và token đúng chữ ký mới được tự động đăng nhập.
                             if ("ACTIVE".equals(user.getStatus()) && RememberMeUtil.verifyToken(token, user)) {
-                                // Auto login
+                                // Tự động tạo session đăng nhập từ remember-me token hợp lệ.
                                 session = req.getSession(true);
                                 session.setAttribute("user", user);
                                 session.setAttribute("navRole", AuthUtil.toNavRole(user.getRoleName()));

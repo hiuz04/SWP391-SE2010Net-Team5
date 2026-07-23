@@ -15,10 +15,15 @@ public final class RegisterValidator {
     private RegisterValidator() {
     }
 
+    /**
+     * Validate dữ liệu đăng ký tài khoản Customer.
+     * Method gom lỗi theo từng field để servlet/JSP hiển thị lại đúng ô nhập bị sai.
+     */
     public static ValidationResult validate(String fullName, String phone, String email,
                                            String password, String confirmPassword) {
         ValidationResult result = new ValidationResult();
 
+        // Business Rule BR-26: Họ tên bắt buộc, dài 2-100 ký tự và chỉ theo mẫu tên được hệ thống cho phép.
         if (fullName == null || fullName.isBlank()) {
             result.addFieldError("fullName", "Họ tên không được để trống.");
         } else if (fullName.length() < 2 || fullName.length() > 100) {
@@ -27,6 +32,7 @@ public final class RegisterValidator {
             result.addFieldError("fullName", "Họ tên chỉ được chứa chữ cái và khoảng trắng.");
         }
 
+        // Business Rule BR-27: Email bắt buộc, tối đa 100 ký tự và phải khớp định dạng email.
         if (email == null || email.isBlank()) {
             result.addFieldError("email", "Email không được để trống.");
         } else if (email.length() > 100) {
@@ -35,6 +41,7 @@ public final class RegisterValidator {
             result.addFieldError("email", "Email không đúng định dạng (vd: name@example.com).");
         }
 
+        // Business Rule BR-28: Số điện thoại bắt buộc và được kiểm tra theo regex số điện thoại hệ thống.
         if (phone == null || phone.isBlank()) {
             result.addFieldError("phone", "Số điện thoại không được để trống.");
         } else if (!PHONE_PATTERN.matcher(phone).matches()) {

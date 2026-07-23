@@ -114,6 +114,7 @@ public class PaymentDAO {
                 ) lp
                 WHERE b.booking_id = ?
                   AND b.customer_id = ?
+                  -- Business Rule BR-08: Chỉ booking HOLD còn hạn mới được lấy để thanh toán đặt cọc.
                   AND b.status = 'HOLD'
                   AND grp.hold_expires_at > GETDATE()
                   AND NOT EXISTS (
@@ -237,6 +238,7 @@ public class PaymentDAO {
                 LEFT JOIN booking_recurring_groups rg ON b.recurring_group_id = rg.recurring_group_id
                 OUTER APPLY (
                     SELECT SUM(COALESCE(sb.final_amount, sb.total_amount)) AS total_amount,
+                           -- Business Rule BR-06: Tiền cọc booking thường bằng 30% final amount.
                            SUM(ROUND(COALESCE(sb.final_amount, sb.total_amount) * 0.30, 2)) AS deposit_amount,
                            SUM(CASE WHEN sb.status <> 'HOLD' THEN 1 ELSE 0 END) AS invalid_booking_count,
                            SUM(CASE WHEN sb.hold_expires_at > GETDATE() THEN 0 ELSE 1 END) AS hold_expired_count
@@ -314,7 +316,7 @@ public class PaymentDAO {
         try (Connection conn = DBContext.getConnection()) {
             conn.setAutoCommit(false);
             try {
-                // Amount được tính từ booking trong DB, không nhận từ request để tránh chỉnh sửa số tiền ở client.
+                // Business Rule BR-06: Amount đặt cọc được tính từ booking trong DB, không nhận từ request để tránh chỉnh sửa số tiền ở client.
                 BigDecimal amount;
                 Integer voucherId;
                 try (PreparedStatement ps = conn.prepareStatement(selectBooking)) {
@@ -324,9 +326,11 @@ public class PaymentDAO {
                         if (!rs.next()) {
                             throw new IllegalArgumentException("Kh\u00f4ng t\u00ecm th\u1ea5y booking h\u1ee3p l\u1ec7.");
                         }
+                        // Business Rule BR-08: Payment đặt cọc chỉ hợp lệ khi booking vẫn ở trạng thái HOLD.
                         if (!STATUS_HOLD.equals(rs.getString("status"))) {
                             throw new IllegalArgumentException("Booking kh\u00f4ng c\u00f2n \u1edf tr\u1ea1ng th\u00e1i ch\u1edd thanh to\u00e1n.");
                         }
+                        // Business Rule BR-05: HOLD hết hạn thì không được tạo payment và slot sẽ được giải phóng ở flow dọn trạng thái.
                         if (rs.getInt("hold_valid") != 1) {
                             throw new IllegalArgumentException("Th\u1eddi gian gi\u1eef ch\u1ed7 c\u1ee7a booking \u0111\u00e3 h\u1ebft h\u1ea1n.");
                         }
@@ -339,7 +343,7 @@ public class PaymentDAO {
                     }
                 }
 
-                // Kiểm tra voucher trong cùng transaction để Customer không dùng lại mã đã ghi nhận trước đó.
+                // Business Rule BR-09: Kiểm tra voucher trong cùng transaction để Customer không dùng lại mã đã ghi nhận trước đó.
                 if (voucherId != null && voucherDAO.hasCustomerUsedVoucher(voucherId, customerId, conn)) {
                     throw new IllegalArgumentException("B\u1ea1n \u0111\u00e3 s\u1eed d\u1ee5ng m\u00e3 gi\u1ea3m gi\u00e1 n\u00e0y.");
                 }
@@ -357,7 +361,7 @@ public class PaymentDAO {
                     }
                 }
 
-                // Nếu đã có payment PENDING cho cùng booking/nhóm, tái sử dụng để callback không bị phân mảnh.
+                // Business Rule BR-23: Nếu đã có payment PENDING cho cùng booking/nhóm, tái sử dụng để callback không bị phân mảnh.
                 try (PreparedStatement ps = conn.prepareStatement(selectExistingDepositPayment)) {
                     ps.setLong(1, customerId);
                     ps.setLong(2, bookingId);
@@ -525,10 +529,12 @@ public class PaymentDAO {
                         if (!rs.next()) {
                             throw new IllegalArgumentException("Khong tim thay hoa don checkout hop le.");
                         }
+                        // Business Rule BR-20: Chỉ invoice PENDING mới được tạo payment checkout.
                         if (!STATUS_PENDING.equals(rs.getString("invoice_status"))) {
                             throw new IllegalArgumentException("Hoa don nay khong con o trang thai cho thanh toan.");
                         }
                         String bookingStatus = rs.getString("booking_status");
+                        // Business Rule BR-20: Booking phải đang chờ thanh toán checkout hoặc còn CHECKED_IN theo luồng hiện tại.
                         if (!STATUS_PENDING_CHECKOUT_PAYMENT.equals(bookingStatus)
                                 && !"CHECKED_IN".equals(bookingStatus)) {
                             throw new IllegalArgumentException("Booking khong con hop le de thanh toan checkout.");
@@ -551,7 +557,7 @@ public class PaymentDAO {
                     }
                 }
 
-                // Callback hoặc submit lặp sẽ dùng lại payment PENDING; invoice đã SUCCESS thì chặn tạo mới.
+                // Business Rule BR-23: Callback hoặc submit lặp sẽ dùng lại payment PENDING; payment đã SUCCESS thì chặn tạo mới.
                 try (PreparedStatement ps = conn.prepareStatement(selectExistingPayment)) {
                     ps.setLong(1, bookingId);
                     ps.setLong(2, customerId);
@@ -944,18 +950,21 @@ public class PaymentDAO {
                     conn.commit();
                     return PaymentUpdateResult.NOT_FOUND;
                 }
+                // Business Rule BR-23: Callback thành công lặp lại không đổi trạng thái lần nữa, chỉ lưu payload để audit.
                 if (STATUS_SUCCESS.equals(payment.paymentStatus())) {
                     // Callback có thể tới nhiều lần; giữ nguyên trạng thái đã thành công và chỉ lưu payload mới.
                     insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
                     conn.commit();
                     return PaymentUpdateResult.ALREADY_SUCCESS;
                 }
+                // Business Rule BR-23: Callback muộn cho payment đã FAILED không được đảo trạng thái booking/invoice.
                 if (STATUS_FAILED.equals(payment.paymentStatus())) {
                     // Nếu giao dịch đã thất bại trước đó, không đổi lại booking/invoice bằng một callback muộn.
                     insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
                     conn.commit();
                     return PaymentUpdateResult.ALREADY_FAILED;
                 }
+                // Business Rule BR-21: Checkout payment thành công chuyển sang nhánh cập nhật invoice PAID và booking COMPLETED.
                 if (PAYMENT_TYPE_CHECKOUT.equals(payment.paymentType())) {
                     PaymentUpdateResult result = markCheckoutPaymentSuccess(
                             conn,
@@ -982,6 +991,7 @@ public class PaymentDAO {
                     conn.commit();
                     return result;
                 }
+                // Business Rule BR-08: Chỉ payment PENDING của booking HOLD còn hạn mới được xác nhận sang CONFIRMED.
                 if (!STATUS_PENDING.equals(payment.paymentStatus())
                         || !STATUS_HOLD.equals(payment.bookingStatus())
                         || !payment.holdValid()) {
@@ -990,13 +1000,14 @@ public class PaymentDAO {
                     return PaymentUpdateResult.INVALID_STATE;
                 }
 
-                // Với booking định kỳ, một payment đặt cọc xác nhận toàn bộ booking con còn HOLD trong cùng group.
+                // Business Rule BR-08: Với booking định kỳ, một payment đặt cọc xác nhận toàn bộ booking con còn HOLD trong cùng group.
                 List<Long> bookingIds = getScopedBookingIds(conn, payment);
                 if (bookingIds.isEmpty() || bookingIds.size() != payment.bookingCount()) {
                     conn.commit();
                     return PaymentUpdateResult.INVALID_STATE;
                 }
 
+                // Business Rule BR-08: Thanh toán thành công cập nhật từng booking HOLD sang CONFIRMED.
                 for (Long bookingId : bookingIds) {
                     try (PreparedStatement ps = conn.prepareStatement(updateBooking)) {
                         ps.setLong(1, bookingId);
@@ -1005,6 +1016,7 @@ public class PaymentDAO {
                         }
                     }
                 }
+                // Business Rule BR-25: Payment sau callback thành công được chuyển từ PENDING sang SUCCESS.
                 try (PreparedStatement ps = conn.prepareStatement(updatePayment)) {
                     ps.setString(1, gatewayTransactionId);
                     ps.setLong(2, payment.paymentId());
@@ -1020,7 +1032,7 @@ public class PaymentDAO {
                         ps.executeUpdate();
                     }
                 }
-                // Ghi nhận voucher và payment success chung transaction để tránh booking CONFIRMED nhưng voucher chưa trừ lượt.
+                // Business Rule BR-11: Ghi nhận voucher và payment success chung transaction để tránh booking CONFIRMED nhưng voucher chưa trừ lượt.
                 recordVoucherUsage(conn, bookingIds, payment);
                 insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
 
@@ -1071,6 +1083,7 @@ public class PaymentDAO {
             String signature,
             String gatewayCode
     ) throws SQLException {
+        // Business Rule BR-21: Chỉ payment checkout PENDING của invoice PENDING mới được hoàn tất.
         if (!STATUS_PENDING.equals(payment.paymentStatus())
                 || payment.invoiceId() == null
                 || !STATUS_PENDING.equals(payment.invoiceStatus())
@@ -1118,6 +1131,7 @@ public class PaymentDAO {
                 VALUES (?, ?, 'COMPLETED', ?, ?, GETDATE())
                 """;
 
+        // Business Rule BR-25: Payment checkout thành công được cập nhật sang SUCCESS.
         try (PreparedStatement ps = conn.prepareStatement(updatePayment)) {
             ps.setString(1, gatewayTransactionId);
             ps.setLong(2, payment.paymentId());
@@ -1125,6 +1139,7 @@ public class PaymentDAO {
                 throw new SQLException("Khong cap nhat duoc checkout payment.");
             }
         }
+        // Business Rule BR-21: Checkout payment thành công cập nhật invoice sang PAID.
         try (PreparedStatement ps = conn.prepareStatement(updateInvoice)) {
             ps.setBigDecimal(1, payment.amount());
             ps.setBigDecimal(2, payment.amount());
@@ -1133,6 +1148,7 @@ public class PaymentDAO {
                 throw new SQLException("Khong cap nhat duoc hoa don checkout.");
             }
         }
+        // Business Rule BR-21: Checkout payment thành công hoàn tất booking và giải phóng sân.
         try (PreparedStatement ps = conn.prepareStatement(updateBooking)) {
             ps.setLong(1, payment.bookingId());
             if (ps.executeUpdate() != 1) {
@@ -1216,11 +1232,13 @@ public class PaymentDAO {
                     conn.commit();
                     return PaymentUpdateResult.NOT_FOUND;
                 }
+                // Business Rule BR-23: Callback thất bại lặp lại chỉ lưu callback, không đổi thêm trạng thái.
                 if (STATUS_FAILED.equals(payment.paymentStatus())) {
                     insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
                     conn.commit();
                     return PaymentUpdateResult.ALREADY_FAILED;
                 }
+                // Business Rule BR-23: Payment đã SUCCESS không bị đổi ngược thành FAILED bởi callback muộn.
                 if (STATUS_SUCCESS.equals(payment.paymentStatus())) {
                     insertCallback(conn, payment.paymentId(), rawPayload, signature, true, gatewayCode);
                     conn.commit();
@@ -1232,6 +1250,7 @@ public class PaymentDAO {
                     return PaymentUpdateResult.INVALID_STATE;
                 }
 
+                // Business Rule BR-25: Payment thất bại được đánh dấu FAILED khi còn PENDING.
                 try (PreparedStatement ps = conn.prepareStatement(updatePayment)) {
                     ps.setLong(1, payment.paymentId());
                     if (ps.executeUpdate() != 1) {
@@ -1529,6 +1548,7 @@ public class PaymentDAO {
             }
         }
 
+        // Business Rule BR-11: Chỉ sau khi payment SUCCESS mới ghi usage và tăng used của voucher.
         for (Map.Entry<Integer, Long> entry : voucherBookingIds.entrySet()) {
             int voucherId = entry.getKey();
             long bookingId = entry.getValue();
