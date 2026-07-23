@@ -9,10 +9,6 @@
  * Updated date: 04/06/2026
  * Update Notes: Tách biệt logic quản lý cơ sở từ file chung thành file độc lập để dễ dàng bảo trì.
  */
-
-// Lưu đường context của trang
-const ctx = window.APP_CTX || "";
-
 // Danh sách status
 const statusList = [
     {status: "AVAILABLE", display: "Có sẵn", badge: "badge-soft-success"},
@@ -60,172 +56,125 @@ function loadData() {
         new URLSearchParams(window.location.search).get("complexId");
 
     const keyword = document.getElementById("keyword").value.trim();
-
     const status = document.getElementById("status").value;
-
     const fieldType = document.getElementById("fieldType").value;
 
     const params = new URLSearchParams();
-
     params.append("complexId", currentComplexId);
+    if (keyword) params.append("keyword", keyword);
+    if (status)  params.append("status", status);
+    if (fieldType) params.append("fieldTypeId", fieldType);
 
-    if(keyword){
-        params.append("keyword", keyword);
-    }
-
-    if(status){
-        params.append("status", status);
-    }
-
-    if(fieldType){
-        params.append("fieldTypeId", fieldType);
-    }
-
-    fetch(`${ctx}/api/fields?${params.toString()}`)
+    fetch(`${ctx}/owner/api/fields?${params.toString()}`)
         .then(res => res.json())
         .then(data => {
+            // Update count pill
             const fieldCount = document.getElementById("field-count");
-            let html =
-                `
-                    <span class="text-muted">
-                        <strong>${data.length}</strong> sân
-                    </span>
-                `
-            fieldCount.innerHTML = html;
+            fieldCount.innerHTML = `
+                <i class="bi bi-dribbble"></i>
+                <strong>${data.length}</strong> sân
+            `;
 
             const container = document.getElementById("field-data-container");
 
-            html = "";
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="bi bi-dribbble"></i>
+                        <p>Chưa có sân bóng nào trong cơ sở này.</p>
+                    </div>
+                `;
+                return;
+            }
 
-            if (data.length > 0) {
-                html += `
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
+            let html = `
+                <table class="table">
+                    <thead>
                     <tr>
-                        <th style="width:18%">Tên sân</th>
-                        <th style="width:12%">Loại sân</th>
-                        <th style="width:32%">Mô tả</th>
-                        <th class="text-center" style="width:12%">Trạng thái</th>
-                        <th class="text-center" style="width:10%">Hot</th>
-                        <th class="text-center" style="width:16%">Hành động</th>
+                        <th style="width:22%">Tên sân</th>
+                        <th style="width:13%">Loại sân</th>
+                        <th style="width:30%">Mô tả</th>
+                        <th class="text-center" style="width:14%">Trạng thái</th>
+                        <th class="text-center" style="width:9%">Hot</th>
+                        <th class="text-center" style="width:12%">Hành động</th>
                     </tr>
                     </thead>
-                    
                     <tbody>
-`
-                data.forEach(item => {
-                    const statusDisplay = statusList.find(s => s.status === item.status)?.display
-                        ?? "Không xác định";
-                    const statusBadgge = statusList.find(s => s.status === item.status)?.badge
-                        ?? "badge-soft-secondary";
-                    html += `
-                                <tr>
-                                
-                                    <td>
-                                        <div class="fw-semibold fs-6">${item.fieldName}</div>
-                                        <small class="text-muted">
-                                            ID: #${item.fieldId}
-                                        </small>
-                                    </td>
-                                
-                                    <td>
-                                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle">
-                                            ${item.type}
-                                        </span>
-                                    </td>
-                                
-                                    <td>
-                                        <div class="description">
-                                            ${item.description ?? "-"}
-                                        </div>
-                                    </td>
-                                
-                                    <td class="text-center">
-                                       <button class="badge ${statusBadgge} border-0 dropdown-toggle"
-                                            type="button"
-                                            data-bs-toggle="dropdown"
-                                            aria-expanded="false"
-                                       >
-                                            ${statusDisplay}
-                                       </button>
-                                       
-                                       <ul class="dropdown-menu">
-                                            <li>
-                                                <a class="dropdown-item"
-                                                   href="#"
-                                                   onclick="updateFieldStatus(${item.fieldId}, 'AVAILABLE')">
-                                                    Khả dụng
-                                                </a>
-                                            </li>
-                                    
-                                            <li>
-                                                <a class="dropdown-item"
-                                                   href="#"
-                                                   onclick="updateFieldStatus(${item.fieldId}, 'INACTIVE')">
-                                                    Tạm ngừng
-                                                </a>
-                                            </li>
-                                    
-                                            <li>
-                                                <a class="dropdown-item"
-                                                   href="#"
-                                                   onclick="updateFieldStatus(${item.fieldId}, 'MAINTENANCE')">
-                                                    Bảo trì
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </td>
-                                
-                                    <td class="text-center">
-                                        <div class="d-flex align-items-center justify-content-center">
-                                            <button
-                                                class="btn btn-sm rounded-circle
-                                                ${item.isHot ? "btn-warning" : "btn-outline-secondary"}"
-                                                onclick="toggleHotStatus(${item.fieldId}, ${item.isHot})">
-                                    
-                                                <i class="bi bi-star-fill"></i>
-                                    
-                                            </button>
-                                        </div>
-                                
-                                    </td>
-                                
-                                    <td class="text-center">
-                                        <div class="d-flex align-items-center justify-content-center">
-                                            <button
-                                                class="btn btn-outline-primary btn-sm rounded-circle me-2"
-                                                title="Chỉnh sửa"
-                                                onclick="openModalToEdit(${item.fieldId})">
-                                    
-                                                <i class="bi bi-pencil"></i>
-                                    
-                                            </button>
-                                    
-                                            <button
-                                                class="btn btn-outline-danger btn-sm rounded-circle"
-                                                title="Xóa"
-                                                onclick="deleteField(${item.fieldId})">
-                                    
-                                                <i class="bi bi-trash"></i>
-                                    
-                                            </button>
-                                        </div>
-                                    </td>
-                                
-                                </tr>
-                            `;
-                })
-            } else {
+            `;
+
+            data.forEach(item => {
+                const statusDisplay = statusList.find(s => s.status === item.status)?.display ?? 'Không xác định';
+                const statusBadge   = statusList.find(s => s.status === item.status)?.badge  ?? 'badge-soft-secondary';
+
                 html += `
-                    <div class="text-center text-muted">Không có dữ liệu</div>
-                `
-            }
+                    <tr>
+                        <td>
+                            <div class="field-name-cell">
+                                <div class="fw-semibold">${item.fieldName}</div>
+                                <small>ID: #${item.fieldId}</small>
+                            </div>
+                        </td>
+
+                        <td>
+                            <span class="field-type-badge">${item.type}</span>
+                        </td>
+
+                        <td>
+                            <div class="description">${item.description ?? '—'}</div>
+                        </td>
+
+                        <td class="text-center">
+                            <div class="dropdown">
+                                <button class="status-dropdown-btn ${statusBadge} dropdown-toggle"
+                                        type="button"
+                                        data-bs-toggle="dropdown"
+                                        aria-expanded="false">
+                                    <span class="status-dot" style="background:currentColor"></span>
+                                    ${statusDisplay}
+                                </button>
+                                <ul class="dropdown-menu shadow-sm" style="border-radius:12px;min-width:160px;padding:6px 0">
+                                    <li><a class="dropdown-item" href="#" onclick="updateFieldStatus(${item.fieldId}, 'AVAILABLE')">✅ Khả dụng</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="updateFieldStatus(${item.fieldId}, 'INACTIVE')">🔴 Tạm ngưng</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="updateFieldStatus(${item.fieldId}, 'MAINTENANCE')">🔵 Bảo trì</a></li>
+                                </ul>
+                            </div>
+                        </td>
+
+                        <td class="text-center">
+                            <button
+                                class="hot-toggle-btn ${item.isHot ? 'is-hot' : ''}"
+                                title="${item.isHot ? 'Bỏ đánh dấu hot' : 'Đánh dấu hot'}"
+                                onclick="toggleHotStatus(${item.fieldId}, ${item.isHot})">
+                                <i class="bi bi-star-fill"></i>
+                            </button>
+                        </td>
+
+                        <td class="text-center">
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                <button class="action-btn action-btn-edit"
+                                        title="Chỉnh sửa"
+                                        onclick="openModalToEdit(${item.fieldId})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="action-btn action-btn-delete"
+                                        title="Xóa"
+                                        onclick="deleteField(${item.fieldId})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
             container.innerHTML = html;
         })
+        .catch(err => console.error('Field load error:', err));
 }
 
 function loadFieldTypeDataForSearch() {
-    return fetch(`${ctx}/api/field-type`)
+    return fetch(`${ctx}/owner/api/field-type`)
         .then(response => response.json())
         .then(data => {
 
@@ -258,7 +207,7 @@ function loadFieldTypeDataForSearch() {
 
 // Lấy danh sách loại sân
 function loadFieldTypeData() {
-    return fetch(`${ctx}/api/field-type`)
+    return fetch(`${ctx}/owner/api/field-type`)
         .then(response => response.json())
         .then(data => {
             const select = document.getElementById("typeF");

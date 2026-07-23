@@ -15,7 +15,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.LocalDate;
 
-@WebServlet("/api/dashboard")
+@WebServlet("/owner/api/dashboard")
 public class DashboardApiController extends HttpServlet {
 
     private static final OwnerDashboardService dashboardService = new OwnerDashboardService();

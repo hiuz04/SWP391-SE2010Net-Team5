@@ -209,7 +209,7 @@ public class FieldDAO {
 
     /**
      * Lấy các sân nổi bật (hot).
-     * Loại trừ các sân đang bảo trì (status = MAINTENANCE) và phải được đánh dấu là hot (is_hot = 1).
+     * Chỉ lấy các sân có trạng thái đang Hoạt động (status = ACTIVE) và phải được đánh dấu là hot (is_hot = 1).
      * Join với bảng bookings để đếm, complex để lấy địa chỉ, field_types để lấy tên loại sân.
      */
     public List<TopFieldSummary> getHotFields() {
@@ -217,7 +217,7 @@ public class FieldDAO {
         String sql =
             "SELECT " +
             "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, f.field_type_id, " +
-            "  fc.complex_name, fc.address, fc.district, fc.city, " +
+            "  fc.complex_name, fc.address, fc.city, " +
             "  COALESCE(ft.type_name, '') AS field_type_name, " +
             "  SUM(CASE WHEN b.status IN ('PAID', 'CONFIRMED', 'COMPLETED') THEN 1 ELSE 0 END) AS booking_count, " +
             "  fi.image_url " +
@@ -226,9 +226,9 @@ public class FieldDAO {
             "LEFT JOIN football_complexes fc ON fc.complex_id = f.complex_id " +
             "LEFT JOIN field_types ft ON ft.field_type_id = f.field_type_id " +
             "OUTER APPLY (SELECT TOP 1 image_url FROM football_complex_images fi2 WHERE fi2.complex_id = f.complex_id ORDER BY thumbnail DESC, image_id DESC) fi " +
-            "WHERE f.status <> 'MAINTENANCE' AND f.is_hot = 1 " +
+            "WHERE f.status = 'AVAILABLE' AND fc.status = 'ACTIVE' AND f.is_hot = 1 " +
             "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, f.field_type_id, " +
-            "         fc.complex_name, fc.address, fc.district, fc.city, ft.type_name, fi.image_url " +
+            "         fc.complex_name, fc.address, fc.city, ft.type_name, fi.image_url " +
             "ORDER BY booking_count DESC";
 
         try (Connection conn = DBContext.getConnection();
@@ -253,7 +253,6 @@ public class FieldDAO {
                     cId,
                     rs.getString("complex_name"),
                     rs.getString("address"),
-                    rs.getString("district"),
                     rs.getString("city"),
                     rs.getInt("booking_count"),
                     rs.getString("image_url"),
@@ -276,7 +275,7 @@ public class FieldDAO {
         String sql =
             "SELECT " +
             "  f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, f.field_type_id, " +
-            "  fc.complex_name, fc.address, fc.district, fc.city, " +
+            "  fc.complex_name, fc.address, fc.city, " +
             "  COALESCE(ft.type_name, '') AS field_type_name, " +
             "  SUM(CASE WHEN b.status IN ('PAID', 'CONFIRMED', 'COMPLETED') THEN 1 ELSE 0 END) AS booking_count, " +
             "  fi.image_url " +
@@ -287,7 +286,7 @@ public class FieldDAO {
             "OUTER APPLY (SELECT TOP 1 image_url FROM football_complex_images fi2 WHERE fi2.complex_id = f.complex_id ORDER BY thumbnail DESC, image_id DESC) fi " +
             "WHERE f.status <> 'MAINTENANCE' AND fc.city = ? " +
             "GROUP BY f.field_id, f.field_name, f.description, f.status, f.is_hot, f.complex_id, f.field_type_id, " +
-            "         fc.complex_name, fc.address, fc.district, fc.city, ft.type_name, fi.image_url " +
+            "         fc.complex_name, fc.address, fc.city, ft.type_name, fi.image_url " +
             "ORDER BY booking_count DESC";
 
         try (Connection conn = DBContext.getConnection();
@@ -310,7 +309,6 @@ public class FieldDAO {
                         cId,
                         rs.getString("complex_name"),
                         rs.getString("address"),
-                        rs.getString("district"),
                         rs.getString("city"),
                         rs.getInt("booking_count"),
                         rs.getString("image_url"),

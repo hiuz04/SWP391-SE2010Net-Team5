@@ -415,7 +415,7 @@ public class PaymentDAO {
                        b.field_id, b.total_amount AS field_fee, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_name,
-                       fc.complex_id, fc.complex_name, fc.address, fc.ward, fc.district, fc.city,
+                       fc.complex_id, fc.complex_name, fc.address, fc.ward, fc.city,
                        lp.payment_status,
                        lp.payment_method_name
                 FROM invoices i
@@ -1682,7 +1682,6 @@ public class PaymentDAO {
         List<String> parts = new ArrayList<>();
         addPart(parts, rs.getString("address"));
         addPart(parts, rs.getString("ward"));
-        addPart(parts, rs.getString("district"));
         addPart(parts, rs.getString("city"));
         return String.join(", ", parts);
     }

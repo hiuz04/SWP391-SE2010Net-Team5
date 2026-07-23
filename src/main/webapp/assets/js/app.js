@@ -92,7 +92,7 @@
             ['Dashboard', 'staff/dashboard'], ['Lịch trong ngày', 'staff/schedule'], ['Check-in', 'staff/checkin']
         ],
         owner: [
-            ['Dashboard', 'owner'], ['Cơ sở', 'owner/complex'], ['Sân bóng', 'owner/field'], ['Quản lý ca trực', 'owner/work-shift'], ['Bảng giá', 'owner/price-rules'], ['Mã giảm giá', 'owner/vouchers']
+            ['Dashboard', 'owner'], ['Cụm sân', 'owner/complex'], ['Sân bóng', 'owner/field'], ['Quản lý ca trực', 'owner/work-shift'], ['Bảng giá', 'owner/price-rules'], ['Mã giảm giá', 'owner/vouchers']
         ],
         admin: [
             ['Dashboard', 'admin/dashboard'], ['Người dùng', 'admin/users'], ['Cài đặt', 'admin/settings']
@@ -109,7 +109,6 @@
         if (!target) return;
         const root = target.dataset.root || '';
         const role = target.dataset.role || 'guest';
-        console.log(">>> role ", role);
         const name = target.dataset.name || 'Người dùng';
         const active = target.dataset.active || '';
         const roleLinks = pages[role] || pages.customer;

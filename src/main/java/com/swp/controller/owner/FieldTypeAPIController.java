@@ -21,7 +21,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 
-@WebServlet("/api/field-type")
+@WebServlet("/owner/api/field-type")
 public class FieldTypeAPIController extends HttpServlet {
 
     private static final FieldTypeService fieldTypeService = new FieldTypeService();
