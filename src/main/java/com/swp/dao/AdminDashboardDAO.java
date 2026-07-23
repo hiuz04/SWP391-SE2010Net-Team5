@@ -43,8 +43,8 @@ public class AdminDashboardDAO {
             e.printStackTrace();
         }
 
-        // 3. Khách hàng mới trong tuần
-        String newCustSql = "SELECT COUNT(*) FROM users u JOIN roles r ON u.role_id = r.role_id WHERE r.role_name = 'Customer' AND u.created_at >= DATEADD(day, -7, GETDATE())";
+        // 3. Khách hàng mới trong tuần (đã đổi thành hôm nay)
+        String newCustSql = "SELECT COUNT(*) FROM users u JOIN roles r ON u.role_id = r.role_id WHERE r.role_name = 'Customer' AND CAST(u.created_at AS DATE) = CAST(GETDATE() AS DATE)";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(newCustSql);
              ResultSet rs = ps.executeQuery()) {

@@ -13,7 +13,7 @@
                 .replace("'", "&#39;");
     }
 
-    private String notificationLink(String ctx, Notification notif) {
+    private String notificationLink(String ctx, Notification notif, String role) {
         if (notif == null || notif.getReferenceId() == null) return "#";
         String type = notif.getNotificationType();
         Long ref = notif.getReferenceId();
@@ -21,6 +21,9 @@
             return ctx + "/customer/checkout-invoice?id=" + ref;
         }
         if ("BOOKING".equals(type) || "REMINDER".equals(type)) {
+            if ("admin".equals(role)) return ctx + "/admin/booking-detail?id=" + ref;
+            if ("staff".equals(role)) return ctx + "/staff/checkin?id=" + ref;
+            if ("owner".equals(role)) return ctx + "/owner/booking-detail?id=" + ref;
             return ctx + "/booking?action=detail&id=" + ref;
         }
         return "#";
@@ -68,13 +71,13 @@
                     <% if (notifications != null && !notifications.isEmpty()) {
                         for (Notification notif : notifications) {
                             String bgClass = Boolean.TRUE.equals(notif.getIsRead()) ? "bg-white" : "bg-light";
-                            String href = notificationLink(ctx, notif);
+                            String href = notificationLink(ctx, notif, navRole);
                             java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM");
                             String createdText = notif.getCreatedAt() != null ? notif.getCreatedAt().format(formatter) : "";
                     %>
                     <li class="list-group-item p-0 <%= bgClass %>" id="notif-<%= notif.getNotificationId() %>">
                         <a href="<%= esc(href) %>" class="d-block p-3 text-decoration-none text-dark"
-                           onclick="openNotification(event, <%= notif.getNotificationId() %>, '<%= esc(href) %>', '<%= esc(notif.getTitle()).replace("'", "\\'").replace("\n", "\\n") %>', '<%= esc(notif.getMessage()).replace("'", "\\'").replace("\n", "\\n") %>')">
+                           onclick="openNotification(event, <%= notif.getNotificationId() %>, '<%= esc(href) %>', '<%= esc(notif.getTitle()).replace("'", "\\'").replace("\r", "\\r").replace("\n", "\\n") %>', '<%= esc(notif.getMessage()).replace("'", "\\'").replace("\r", "\\r").replace("\n", "\\n") %>')">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <h6 class="mb-1 fw-bold <%= Boolean.TRUE.equals(notif.getIsRead()) ? "text-secondary" : "text-dark" %>">
                                     <% if (!Boolean.TRUE.equals(notif.getIsRead())) { %><span class="text-danger me-1">●</span><% } %>
