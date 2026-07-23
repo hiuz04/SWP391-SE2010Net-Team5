@@ -667,7 +667,7 @@ public class PaymentDAO {
      */
     public Payment createPendingMembershipPayment(long customerId, int paymentMethodId, BigDecimal amount) throws SQLException {
         String selectMethod = """
-                SELECT payment_method_id
+                SELECT payment_method_id, method_code
                 FROM payment_methods
                 WHERE payment_method_id = ?
                   AND status = 'ACTIVE'
