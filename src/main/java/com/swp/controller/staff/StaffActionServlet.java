@@ -67,13 +67,7 @@ public class StaffActionServlet extends HttpServlet {
         try {
             if (path.startsWith("/api/staff/checkin/search")) {
                 String query = req.getParameter("query");
-                if (query == null) {
-                    query = "";
-                }
-                query = query.trim();
-                if (query.startsWith("#")) {
-                    query = query.substring(1).trim();
-                }
+                String pendingOnly = req.getParameter("pendingOnly");
 
                 java.util.Map<String, Object> shift = staffDAO.getCurrentShift(staffId);
                 if (shift.isEmpty()) {
@@ -82,7 +76,19 @@ public class StaffActionServlet extends HttpServlet {
                 }
                 long complexId = (Long) shift.get("complexId");
 
-                java.util.List<java.util.Map<String, Object>> list = staffDAO.searchConfirmedBookings(complexId, query);
+                java.util.List<java.util.Map<String, Object>> list;
+                if ("true".equalsIgnoreCase(pendingOnly)) {
+                    list = staffDAO.getPendingCheckinBookings(complexId);
+                } else {
+                    if (query == null) {
+                        query = "";
+                    }
+                    query = query.trim();
+                    if (query.startsWith("#")) {
+                        query = query.substring(1).trim();
+                    }
+                    list = staffDAO.searchConfirmedBookings(complexId, query);
+                }
                 write(resp, toJson(list));
                 return;
             }
