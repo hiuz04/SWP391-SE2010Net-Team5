@@ -27,7 +27,20 @@ public class WorkShiftServlet extends HttpServlet {
 
     private final WorkShiftDAO workShiftDAO = new WorkShiftDAO();
     private final FootballComplexDAO footballComplexDAO = new FootballComplexDAO();
+    private final com.swp.dao.NotificationDAO notificationDAO = new com.swp.dao.NotificationDAO();
     private final Gson gson = new Gson();
+
+    private void notifyStaffAssigned(long staffId, String shiftName, LocalDate shiftDate, long shiftId) {
+        com.swp.model.Notification notif = new com.swp.model.Notification();
+        notif.setUserId(staffId);
+        notif.setTitle("Phân công ca trực");
+        notif.setMessage("Bạn đã được phân công ca trực: " + shiftName + " vào ngày " + shiftDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        notif.setNotificationType("SYSTEM");
+        notif.setReferenceId(shiftId);
+        notif.setIsRead(false);
+        notif.setCreatedAt(java.time.LocalDateTime.now());
+        notificationDAO.insertNotification(notif);
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -299,6 +312,7 @@ public class WorkShiftServlet extends HttpServlet {
                         if (shiftId > 0) {
                             if (staffId > 0) {
                                 workShiftDAO.assignStaffToShift(shiftId, staffId);
+                                notifyStaffAssigned(staffId, shiftName, curDate, shiftId);
                             }
                             successCount++;
                         } else {
@@ -350,6 +364,7 @@ public class WorkShiftServlet extends HttpServlet {
                 try {
                     long staffId = Long.parseLong(staffIdStr.trim());
                     workShiftDAO.assignStaffToShift(shiftId, staffId);
+                    notifyStaffAssigned(staffId, shiftName, shiftDate, shiftId);
                 } catch (NumberFormatException ignored) {
                 }
             }
@@ -432,6 +447,7 @@ public class WorkShiftServlet extends HttpServlet {
                     }
                     if (!alreadyAssigned) {
                         workShiftDAO.assignStaffToShift(shiftId, staffId);
+                        notifyStaffAssigned(staffId, shiftName, shiftDate, shiftId);
                     }
                 } catch (NumberFormatException ignored) {
                 }
@@ -528,6 +544,7 @@ public class WorkShiftServlet extends HttpServlet {
         boolean success = workShiftDAO.assignStaffToShift(shiftId, staffId);
 
         if (success) {
+            notifyStaffAssigned(staffId, ws.getShiftName(), ws.getShiftDate(), shiftId);
             writeSuccess(resp);
         } else {
             writeError(resp, "Không thể phân công nhân viên.");

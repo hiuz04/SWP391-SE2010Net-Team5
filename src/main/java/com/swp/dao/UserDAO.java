@@ -300,7 +300,7 @@ public class UserDAO {
         return users;
     }
 
-    public java.util.List<User> getUsersPaginated(String search, String role, String status, int offset, int limit) {
+    public java.util.List<User> getUsersPaginated(String search, String role, String status, String joinDate, int offset, int limit) {
         java.util.List<User> users = new java.util.ArrayList<>();
         StringBuilder sql = new StringBuilder(USER_SELECT + " WHERE 1=1 ");
 
@@ -312,6 +312,13 @@ public class UserDAO {
         }
         if (status != null && !status.trim().isEmpty()) {
             sql.append(" AND u.status = ? ");
+        }
+        if (joinDate != null && !joinDate.trim().isEmpty()) {
+            if ("today".equalsIgnoreCase(joinDate.trim())) {
+                sql.append(" AND CAST(u.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
+            } else {
+                sql.append(" AND CAST(u.created_at AS DATE) = CAST(? AS DATE) ");
+            }
         }
         sql.append(" ORDER BY u.created_at DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY ");
 
@@ -331,6 +338,9 @@ public class UserDAO {
             if (status != null && !status.trim().isEmpty()) {
                 ps.setString(paramIndex++, status.trim());
             }
+            if (joinDate != null && !joinDate.trim().isEmpty() && !"today".equalsIgnoreCase(joinDate.trim())) {
+                ps.setString(paramIndex++, joinDate.trim());
+            }
             ps.setInt(paramIndex++, offset);
             ps.setInt(paramIndex++, limit);
 
@@ -345,7 +355,7 @@ public class UserDAO {
         return users;
     }
 
-    public int countUsers(String search, String role, String status) {
+    public int countUsers(String search, String role, String status, String joinDate) {
         StringBuilder sql = new StringBuilder(
                 "SELECT COUNT(*) FROM users u INNER JOIN roles r ON u.role_id = r.role_id WHERE 1=1 ");
 
@@ -357,6 +367,13 @@ public class UserDAO {
         }
         if (status != null && !status.trim().isEmpty()) {
             sql.append(" AND u.status = ? ");
+        }
+        if (joinDate != null && !joinDate.trim().isEmpty()) {
+            if ("today".equalsIgnoreCase(joinDate.trim())) {
+                sql.append(" AND CAST(u.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
+            } else {
+                sql.append(" AND CAST(u.created_at AS DATE) = CAST(? AS DATE) ");
+            }
         }
 
         try (Connection conn = DBContext.getConnection();
@@ -374,6 +391,9 @@ public class UserDAO {
             }
             if (status != null && !status.trim().isEmpty()) {
                 ps.setString(paramIndex++, status.trim());
+            }
+            if (joinDate != null && !joinDate.trim().isEmpty() && !"today".equalsIgnoreCase(joinDate.trim())) {
+                ps.setString(paramIndex++, joinDate.trim());
             }
 
             try (ResultSet rs = ps.executeQuery()) {

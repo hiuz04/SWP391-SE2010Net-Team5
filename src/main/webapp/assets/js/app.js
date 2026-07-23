@@ -95,7 +95,7 @@
             ['Dashboard', 'owner'], ['Cụm sân', 'owner/complex'], ['Sân bóng', 'owner/field'], ['Quản lý ca trực', 'owner/work-shift'], ['Bảng giá', 'owner/price-rules'], ['Mã giảm giá', 'owner/vouchers']
         ],
         admin: [
-            ['Dashboard', 'admin/dashboard'], ['Người dùng', 'admin/users'], ['Cài đặt', 'admin/settings']
+            ['Dashboard', 'admin/dashboard'], ['Người dùng', 'admin/users'], ['Lịch đặt sân', 'admin/bookings'], ['Cài đặt', 'admin/settings'], ['Thông báo', 'admin/notifications']
         ]
     };
 
@@ -119,16 +119,15 @@
                    <i class="bi bi-bell"></i>
                    <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none; font-size: 0.6rem;">0</span>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow" id="notifDropdown" style="width: 300px; max-height: 400px; overflow-y: auto;">
-                   <li><h6 class="dropdown-header d-flex justify-content-between align-items-center">
-                       <span>Thông báo</span>
+                <ul class="dropdown-menu dropdown-menu-end shadow p-0" id="notifDropdown" style="width: 320px; overflow: hidden;">
+                   <li class="p-2 border-bottom"><h6 class="dropdown-header d-flex justify-content-between align-items-center m-0">
+                       <span class="text-dark fw-bold">Thông báo</span>
                        <button class="btn btn-sm text-primary p-0" onclick="markAllAsRead(event)" style="font-size: 0.8rem;">Đánh dấu đã đọc</button>
                    </h6></li>
-                   <div id="notifList">
+                   <div id="notifList" style="max-height: 350px; overflow-y: auto;">
                        <li><span class="dropdown-item text-center text-muted py-3">Đang tải...</span></li>
                    </div>
-                   <li><hr class="dropdown-divider"></li>
-                   <li><a class="dropdown-item text-center text-primary" href="${link(root, 'notifications')}">Xem tất cả</a></li>
+                   <li class="border-top"><a class="dropdown-item text-center text-primary py-2 fw-semibold bg-light" href="${link(root, role === 'admin' ? 'admin/notifications' : 'notifications')}">Xem tất cả</a></li>
                 </ul>
              </div>
              <div class="dropdown">
@@ -278,13 +277,16 @@
           .replaceAll("'", '&#39;');
   }
 
-  function notificationHref(root, notification) {
+  function notificationHref(root, notification, role) {
       const type = notification.notificationType || notification.notification_type;
       const ref = notification.referenceId || notification.reference_id;
       if ((type === 'CHECKOUT_PAYMENT' || type === 'CHECKOUT_PAYMENT_SUCCESS') && ref) {
           return link(root, 'customer/checkout-invoice?id=' + encodeURIComponent(ref));
       }
       if ((type === 'BOOKING' || type === 'REMINDER') && ref) {
+          if (role === 'admin') return link(root, 'admin/booking-detail?id=' + encodeURIComponent(ref));
+          if (role === 'staff') return link(root, 'staff/checkin?id=' + encodeURIComponent(ref));
+          if (role === 'owner') return link(root, 'owner/booking-detail?id=' + encodeURIComponent(ref));
           return link(root, 'booking?action=detail&id=' + encodeURIComponent(ref));
       }
       return '#';
@@ -346,9 +348,9 @@
                 let html = '';
                 data.notifications.forEach(n => {
                     const bg = n.isRead ? '' : 'bg-light';
-                    const href = notificationHref(root, n);
-                    const titleEsc = escapeHtml(n.title).replace(/'/g, "\\'");
-                    const msgEsc = escapeHtml(n.message).replace(/'/g, "\\'").replace(/\n/g, "\\n");
+                    const href = notificationHref(root, n, role);
+                    const titleEsc = escapeHtml(n.title).replace(/'/g, "\\'").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+                    const msgEsc = escapeHtml(n.message).replace(/'/g, "\\'").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
                     html += `<li>
                         <a class="dropdown-item border-bottom py-2 ${bg}" href="${href}" onclick="handleNotificationClick(event, ${n.notificationId || n.notification_id}, '${href}', '${titleEsc}', '${msgEsc}')">
                             <div class="fw-bold" style="font-size:0.85rem">${escapeHtml(n.title)}</div>

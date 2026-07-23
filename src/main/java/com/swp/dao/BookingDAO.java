@@ -1430,6 +1430,85 @@ public class BookingDAO {
         }
     }
 
+    public java.util.List<BookingView> getAdminBookingsPaginated(String search, String filter, int offset, int limit) throws SQLException {
+        StringBuilder sql = new StringBuilder(baseBookingViewSql() + " WHERE b.status NOT IN ('EXPIRED') ");
+
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (b.booking_code LIKE ? OR u.full_name LIKE ? OR u.phone LIKE ?) ");
+        }
+
+        if (filter != null && !filter.trim().isEmpty()) {
+            if ("revenue_today".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND CAST(i.issued_at AS DATE) = CAST(GETDATE() AS DATE)) ");
+            } else if ("revenue_7days".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -7, GETDATE())) ");
+            } else if ("bookings_today".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
+            }
+        }
+
+        sql.append(" ORDER BY b.created_at DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY ");
+
+        java.util.List<BookingView> bookings = new java.util.ArrayList<>();
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            int paramIndex = 1;
+            if (search != null && !search.trim().isEmpty()) {
+                String likeSearch = "%" + search.trim() + "%";
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+            }
+            ps.setInt(paramIndex++, offset);
+            ps.setInt(paramIndex++, limit);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    bookings.add(mapBookingView(rs));
+                }
+            }
+        }
+        return bookings;
+    }
+
+    public int countAdminBookings(String search, String filter) throws SQLException {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM bookings b JOIN users u ON b.customer_id = u.user_id WHERE b.status NOT IN ('EXPIRED') ");
+
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (b.booking_code LIKE ? OR u.full_name LIKE ? OR u.phone LIKE ?) ");
+        }
+
+        if (filter != null && !filter.trim().isEmpty()) {
+            if ("revenue_today".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND CAST(i.issued_at AS DATE) = CAST(GETDATE() AS DATE)) ");
+            } else if ("revenue_7days".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -7, GETDATE())) ");
+            } else if ("bookings_today".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
+            }
+        }
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            int paramIndex = 1;
+            if (search != null && !search.trim().isEmpty()) {
+                String likeSearch = "%" + search.trim() + "%";
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        return 0;
+    }
+
     /**
      * Cập nhật trạng thái HOLD quá hạn và ghi log bằng một câu SQL dùng bảng tạm.
      * Cách này giữ danh sách booking vừa bị hủy để log chính xác trong cùng transaction.
@@ -1575,6 +1654,24 @@ public class BookingDAO {
         view.setReviewed(rs.getBoolean("reviewed"));
 
         return view;
+    }
+
+    public BookingView getAdminBookingDetailById(Long bookingId) throws SQLException {
+        String sql = baseBookingViewSql() + " WHERE b.booking_id = ? ";
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, bookingId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapBookingView(rs);
+                }
+            }
+        }
+
+        return null;
     }
 
     private Long getLongOrNull(ResultSet rs, String column) throws SQLException {
