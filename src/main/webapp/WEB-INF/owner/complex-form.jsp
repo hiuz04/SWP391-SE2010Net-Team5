@@ -30,12 +30,9 @@
     <link href="<%= ctx %>/assets/css/owner/complex.css" rel="stylesheet">
     <title>Thêm / Sửa cụm sân | Sport Field Booking</title>
 </head>
-<body style="background:#f0f4f8;">
-<div class="owner-layout">
-    <aside class="owner-sidebar" id="owner-sidebar"></aside>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Cơ sở"></div>
 
-    <main class="owner-content">
-        <div class="topbar" id="topbar"></div>
+<main class="owner-content">
 
         <div class="complex-form-page">
             <!-- Back button -->
@@ -204,7 +201,6 @@
             </div>
         </div>
     </main>
-</div>
 
 <script>
     window.APP_CTX = '<%= ctx %>';
@@ -212,15 +208,11 @@
     current_role = '<%= navRole %>';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<%= ctx %>/assets/js/owner/dashboard.js"></script>
+<script src="<%= ctx %>/assets/js/app.js"></script>
 <script src="<%= ctx %>/assets/js/owner/complex.js"></script>
 <script>
     dynamicLabel();
     loadForm();
-    renderTopbar({
-        title: "Thêm / Sửa cụm sân",
-        subtitle: "Điền thông tin để thêm mới hoặc cập nhật cụm sân."
-    });
 </script>
 </body>
 </html>

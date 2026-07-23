@@ -32,10 +32,9 @@
     <title>Quản lý sân bóng | Sport Field Booking</title>
 </head>
 <body>
-<div class="owner-layout">
-    <aside class="owner-sidebar" id="owner-sidebar"></aside>
-    <main class="main-wrapper owner-content">
-        <div class="topbar" id="topbar"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Sân bóng"></div>
+
+<main class="main-wrapper owner-content">
 
         <!-- Page Header -->
         <div class="page-header">
@@ -106,7 +105,6 @@
         <!-- Modal container -->
         <div id="modal"></div>
     </main>
-</div>
 <div id="footer" data-root="../../"></div>
 
 <script>
@@ -115,17 +113,12 @@
     current_role = '<%= navRole %>';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<%= ctx %>/assets/js/owner/dashboard.js"></script>
 <script src="<%= ctx %>/assets/js/owner/field.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script>
     getComplex();
     loadFieldTypeDataForSearch();
     loadData();
-    renderTopbar({
-        title: "Quản lý sân bóng",
-        subtitle: "Quản lý danh sách sân bóng của cơ sở."
-    });
 </script>
 </body>
 </html>

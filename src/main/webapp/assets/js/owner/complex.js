@@ -9,6 +9,8 @@
  * Updated date: 04/06/2026
  * Update Notes: Tách biệt logic quản lý cơ sở từ file chung thành file độc lập để dễ dàng bảo trì.
  */
+const ctx = window.APP_CTX || "";
+
 // Danh sách status
 const statusList = [
     {status: "ACTIVE", display: "Hoạt động", badge: "badge-soft-success"},
