@@ -1,11 +1,16 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="com.swp.model.User" %>
 <%@ page import="com.swp.model.dto.BookingView" %>
+<%@ page import="com.swp.model.dto.SkippedBookingSlot" %>
 <%@ page import="jakarta.servlet.http.HttpServletResponse" %>
 <%@ page import="java.math.BigDecimal" %>
 <%@ page import="java.text.NumberFormat" %>
+<%@ page import="java.time.LocalDate" %>
 <%@ page import="java.time.LocalDateTime" %>
+<%@ page import="java.time.LocalTime" %>
 <%@ page import="java.time.format.DateTimeFormatter" %>
+<%@ page import="java.util.ArrayList" %>
+<%@ page import="java.util.List" %>
 <%@ page import="java.util.Locale" %>
 
 <%!
@@ -26,6 +31,16 @@
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
+    private String dateOnly(LocalDateTime value) {
+        if (value == null) return "";
+        return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+    }
+
+    private String dateOnly(LocalDate value) {
+        if (value == null) return "";
+        return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+    }
+
     private BigDecimal vipDiscount(BigDecimal originalPrice, BigDecimal voucherDiscount, BigDecimal finalAmount) {
         BigDecimal original = originalPrice == null ? BigDecimal.ZERO : originalPrice;
         BigDecimal voucher = voucherDiscount == null ? BigDecimal.ZERO : voucherDiscount;
@@ -35,6 +50,11 @@
     }
 
     private String timeOnly(LocalDateTime value) {
+        if (value == null) return "";
+        return value.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private String timeOnly(LocalTime value) {
         if (value == null) return "";
         return value.format(DateTimeFormatter.ofPattern("HH:mm"));
     }
@@ -140,10 +160,15 @@
 <%
     String ctx = request.getContextPath();
     BookingView booking = (BookingView) request.getAttribute("booking");
+    List<BookingView> recurringBookings = (List<BookingView>) request.getAttribute("recurringBookings");
+    List<SkippedBookingSlot> recurringSkippedSlots = (List<SkippedBookingSlot>) request.getAttribute("recurringSkippedSlots");
+    String recurringSuccessMessage = (String) request.getAttribute("recurringSuccessMessage");
     if (booking == null) {
         response.sendError(HttpServletResponse.SC_NOT_FOUND, "Khong tim thay booking.");
         return;
     }
+    if (recurringBookings == null) recurringBookings = new ArrayList<>();
+    if (recurringSkippedSlots == null) recurringSkippedSlots = new ArrayList<>();
     User currentUser = (User) session.getAttribute("user");
     String currentName = currentUser != null && currentUser.getFullName() != null
             ? currentUser.getFullName()
@@ -191,9 +216,23 @@
 <div id="navbar" data-root="<%= ctx %>/" data-role="customer" data-name="<%= esc(currentName) %>" data-active="L&#7883;ch s&#7917; &#273;&#7863;t s&#226;n"></div>
 
 <main class="py-5">
-    <div class="container">
+        <div class="container">
         <% if (created) { %>
-        <div class="alert alert-success">&#272;&#227; t&#7841;o booking v&#224; gi&#7919; s&#226;n th&#224;nh c&#244;ng. Vui l&#242;ng ho&#224;n t&#7845;t thanh to&#225;n trong th&#7901;i gian gi&#7919; ch&#7895;.</div>
+        <div class="alert alert-success">
+            <%= recurringSuccessMessage != null && !recurringSuccessMessage.isBlank()
+                    ? esc(recurringSuccessMessage)
+                    : "&#272;&#227; t&#7841;o booking v&#224; gi&#7919; s&#226;n th&#224;nh c&#244;ng. Vui l&#242;ng ho&#224;n t&#7845;t thanh to&#225;n trong th&#7901;i gian gi&#7919; ch&#7895;." %>
+            <% if (!recurringSkippedSlots.isEmpty()) { %>
+            <div class="mt-2">
+                <% for (SkippedBookingSlot skipped : recurringSkippedSlots) { %>
+                <div>
+                    <%= dateOnly(skipped.getDate()) %>, <%= timeOnly(skipped.getStartTime()) %>-<%= timeOnly(skipped.getEndTime()) %>
+                    - <%= esc(skipped.getReason()) %>.
+                </div>
+                <% } %>
+            </div>
+            <% } %>
+        </div>
         <% } %>
         <% if (cancelled) { %>
         <div class="alert alert-success">&#272;&#227; h&#7911;y booking th&#224;nh c&#244;ng.</div>
@@ -262,6 +301,51 @@
                         <% } %>
                     </div>
                 </div>
+
+                <% if (monthly(booking) && !recurringBookings.isEmpty()) { %>
+                <div class="card soft-card p-4 mt-4">
+                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+                        <div>
+                            <h5 class="mb-1">L&#7883;ch &#273;&#7863;t s&#226;n theo th&#225;ng</h5>
+                            <p class="text-muted mb-0">To&#224;n b&#7897; booking trong c&#249;ng nh&#243;m, s&#7855;p x&#7871;p theo ng&#224;y t&#259;ng d&#7847;n.</p>
+                        </div>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                            <%= recurringBookings.size() %> bu&#7893;i
+                        </span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th>STT</th>
+                                <th>M&#227; booking</th>
+                                <th>Ng&#224;y &#273;&#7863;t</th>
+                                <th>Th&#7901;i gian</th>
+                                <th>Gi&#225; ti&#7873;n</th>
+                                <th>Tr&#7841;ng th&#225;i booking</th>
+                                <th>Tr&#7841;ng th&#225;i thanh to&#225;n</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <% for (int i = 0; i < recurringBookings.size(); i++) {
+                                BookingView item = recurringBookings.get(i);
+                                BigDecimal itemAmount = item.getFinalAmount() != null ? item.getFinalAmount() : item.getTotalAmount();
+                            %>
+                            <tr>
+                                <td><%= i + 1 %></td>
+                                <td><strong><%= esc(item.getBookingCode()) %></strong></td>
+                                <td><%= dateOnly(item.getStartTime()) %></td>
+                                <td><%= timeOnly(item.getStartTime()) %>-<%= timeOnly(item.getEndTime()) %></td>
+                                <td><%= money(itemAmount) %></td>
+                                <td><span class="badge <%= statusBadgeClass(item.getStatus()) %>"><%= statusLabel(item.getStatus()) %></span></td>
+                                <td><%= paymentLabel(item.getPaymentStatus()) %></td>
+                            </tr>
+                            <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <% } %>
             </div>
 
             <aside class="col-lg-4">
