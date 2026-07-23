@@ -95,7 +95,7 @@
             ['Dashboard', 'owner'], ['Cụm sân', 'owner/complex'], ['Sân bóng', 'owner/field'], ['Quản lý ca trực', 'owner/work-shift'], ['Bảng giá', 'owner/price-rules'], ['Mã giảm giá', 'owner/vouchers']
         ],
         admin: [
-            ['Dashboard', 'admin/dashboard'], ['Người dùng', 'admin/users'], ['Cài đặt', 'admin/settings']
+            ['Dashboard', 'admin/dashboard'], ['Người dùng', 'admin/users'], ['Lịch đặt sân', 'admin/bookings'], ['Cài đặt', 'admin/settings'], ['Thông báo', 'admin/notifications']
         ]
     };
 
@@ -119,16 +119,15 @@
                    <i class="bi bi-bell"></i>
                    <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none; font-size: 0.6rem;">0</span>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow" id="notifDropdown" style="width: 300px; max-height: 400px; overflow-y: auto;">
-                   <li><h6 class="dropdown-header d-flex justify-content-between align-items-center">
-                       <span>Thông báo</span>
+                <ul class="dropdown-menu dropdown-menu-end shadow p-0" id="notifDropdown" style="width: 320px; overflow: hidden;">
+                   <li class="p-2 border-bottom"><h6 class="dropdown-header d-flex justify-content-between align-items-center m-0">
+                       <span class="text-dark fw-bold">Thông báo</span>
                        <button class="btn btn-sm text-primary p-0" onclick="markAllAsRead(event)" style="font-size: 0.8rem;">Đánh dấu đã đọc</button>
                    </h6></li>
-                   <div id="notifList">
+                   <div id="notifList" style="max-height: 350px; overflow-y: auto;">
                        <li><span class="dropdown-item text-center text-muted py-3">Đang tải...</span></li>
                    </div>
-                   <li><hr class="dropdown-divider"></li>
-                   <li><a class="dropdown-item text-center text-primary" href="${link(root, 'notifications')}">Xem tất cả</a></li>
+                   <li class="border-top"><a class="dropdown-item text-center text-primary py-2 fw-semibold bg-light" href="${link(root, role === 'admin' ? 'admin/notifications' : 'notifications')}">Xem tất cả</a></li>
                 </ul>
              </div>
              <div class="dropdown">
@@ -278,13 +277,16 @@
           .replaceAll("'", '&#39;');
   }
 
-  function notificationHref(root, notification) {
+  function notificationHref(root, notification, role) {
       const type = notification.notificationType || notification.notification_type;
       const ref = notification.referenceId || notification.reference_id;
       if ((type === 'CHECKOUT_PAYMENT' || type === 'CHECKOUT_PAYMENT_SUCCESS') && ref) {
           return link(root, 'customer/checkout-invoice?id=' + encodeURIComponent(ref));
       }
       if ((type === 'BOOKING' || type === 'REMINDER') && ref) {
+          if (role === 'admin') return link(root, 'admin/booking-detail?id=' + encodeURIComponent(ref));
+          if (role === 'staff') return link(root, 'staff/checkin?id=' + encodeURIComponent(ref));
+          if (role === 'owner') return link(root, 'owner/booking-detail?id=' + encodeURIComponent(ref));
           return link(root, 'booking?action=detail&id=' + encodeURIComponent(ref));
       }
       return '#';
@@ -346,9 +348,9 @@
                 let html = '';
                 data.notifications.forEach(n => {
                     const bg = n.isRead ? '' : 'bg-light';
-                    const href = notificationHref(root, n);
-                    const titleEsc = escapeHtml(n.title).replace(/'/g, "\\'");
-                    const msgEsc = escapeHtml(n.message).replace(/'/g, "\\'").replace(/\n/g, "\\n");
+                    const href = notificationHref(root, n, role);
+                    const titleEsc = escapeHtml(n.title).replace(/'/g, "\\'").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+                    const msgEsc = escapeHtml(n.message).replace(/'/g, "\\'").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
                     html += `<li>
                         <a class="dropdown-item border-bottom py-2 ${bg}" href="${href}" onclick="handleNotificationClick(event, ${n.notificationId || n.notification_id}, '${href}', '${titleEsc}', '${msgEsc}')">
                             <div class="fw-bold" style="font-size:0.85rem">${escapeHtml(n.title)}</div>
@@ -452,11 +454,180 @@
     new bootstrap.Modal(modalEl).show();
   };
 
+  function formatVnd(value) {
+    const amount = Number(value || 0);
+    return amount.toLocaleString('vi-VN') + 'đ';
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  }
+
+  function formatTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  function dismissedCheckoutRequestIds() {
+    try {
+      return JSON.parse(sessionStorage.getItem('dismissed_checkout_payment_requests') || '[]');
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function rememberDismissedCheckoutRequest(id) {
+    if (!id) return;
+    const ids = dismissedCheckoutRequestIds();
+    if (!ids.includes(id)) {
+      ids.push(id);
+      sessionStorage.setItem('dismissed_checkout_payment_requests', JSON.stringify(ids));
+    }
+  }
+
+  function showCheckoutPaymentPopup(root, request) {
+    if (!request || !request.paymentRequestId) return;
+    if (document.body.dataset.checkoutPaymentPopupOpen === String(request.paymentRequestId)) return;
+
+    let modalEl = document.getElementById('checkoutPaymentRequestModal');
+    if (!modalEl) {
+      modalEl = document.createElement('div');
+      modalEl.id = 'checkoutPaymentRequestModal';
+      modalEl.className = 'modal fade';
+      modalEl.setAttribute('tabindex', '-1');
+      modalEl.setAttribute('aria-hidden', 'true');
+      modalEl.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content shadow border-0" style="border-radius: 12px;">
+            <div class="modal-header border-0 pb-0">
+              <h5 class="modal-title fw-bold text-dark">
+                <i class="bi bi-credit-card-2-front text-success me-2"></i>Yêu cầu thanh toán Check-out
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="vstack gap-2 small">
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Mã booking</span><strong id="checkoutPopupBookingCode"></strong></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Sân</span><strong id="checkoutPopupField"></strong></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Thời gian</span><strong id="checkoutPopupTime"></strong></div>
+                <hr class="my-2">
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Tổng tiền sau Check-out</span><strong id="checkoutPopupTotal"></strong></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Đã thanh toán</span><strong id="checkoutPopupPaid"></strong></div>
+                <div class="d-flex justify-content-between gap-3 fs-6"><span>Còn lại</span><strong class="text-success" id="checkoutPopupRemaining"></strong></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Thời gian gửi</span><strong id="checkoutPopupCreated"></strong></div>
+              </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+              <a class="btn btn-sf-primary btn-sm" id="checkoutPopupPayNow" href="#"><i class="bi bi-credit-card me-1"></i>Thanh toán ngay</a>
+              <a class="btn btn-outline-secondary btn-sm" id="checkoutPopupDetail" href="#">Xem chi tiết</a>
+              <button type="button" class="btn btn-light btn-sm" id="checkoutPopupLater" data-bs-dismiss="modal">Để sau</button>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modalEl);
+    }
+
+    const paymentUrl = link(root, 'payment?action=method&type=checkout'
+      + '&invoiceId=' + encodeURIComponent(request.invoiceId)
+      + '&paymentRequestId=' + encodeURIComponent(request.paymentRequestId)
+      + '&bookingId=' + encodeURIComponent(request.bookingId)
+      + '&amount=' + encodeURIComponent(request.remainingAmount)
+      + '&paymentPurpose=CHECKOUT_REMAINING');
+    const detailUrl = link(root, 'customer/checkout-invoice?id=' + encodeURIComponent(request.invoiceId));
+
+    document.getElementById('checkoutPopupBookingCode').textContent = request.bookingCode || '';
+    document.getElementById('checkoutPopupField').textContent = [request.complexName, request.fieldName].filter(Boolean).join(' - ');
+    document.getElementById('checkoutPopupTime').textContent = formatDateTime(request.startTime) + ' - ' + formatTime(request.endTime);
+    document.getElementById('checkoutPopupTotal').textContent = formatVnd(request.checkoutTotalAmount);
+    document.getElementById('checkoutPopupPaid').textContent = formatVnd(request.paidAmount);
+    document.getElementById('checkoutPopupRemaining').textContent = formatVnd(request.remainingAmount);
+    document.getElementById('checkoutPopupCreated').textContent = formatDateTime(request.createdAt);
+    document.getElementById('checkoutPopupPayNow').href = paymentUrl;
+    document.getElementById('checkoutPopupDetail').href = detailUrl;
+
+    const payNowLink = document.getElementById('checkoutPopupPayNow');
+    const newPayNowLink = payNowLink.cloneNode(true);
+    payNowLink.parentNode.replaceChild(newPayNowLink, payNowLink);
+    newPayNowLink.href = paymentUrl;
+    newPayNowLink.addEventListener('click', () => rememberDismissedCheckoutRequest(request.paymentRequestId));
+
+    const detailLink = document.getElementById('checkoutPopupDetail');
+    const newDetailLink = detailLink.cloneNode(true);
+    detailLink.parentNode.replaceChild(newDetailLink, detailLink);
+    newDetailLink.href = detailUrl;
+    newDetailLink.addEventListener('click', () => rememberDismissedCheckoutRequest(request.paymentRequestId));
+
+    const laterBtn = document.getElementById('checkoutPopupLater');
+    const newLaterBtn = laterBtn.cloneNode(true);
+    laterBtn.parentNode.replaceChild(newLaterBtn, laterBtn);
+    newLaterBtn.addEventListener('click', () => rememberDismissedCheckoutRequest(request.paymentRequestId));
+
+    const modal = new bootstrap.Modal(modalEl);
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      rememberDismissedCheckoutRequest(request.paymentRequestId);
+      delete document.body.dataset.checkoutPaymentPopupOpen;
+    }, {once: true});
+    document.body.dataset.checkoutPaymentPopupOpen = String(request.paymentRequestId);
+    modal.show();
+  }
+
+  function initCheckoutPaymentPolling() {
+    const target = document.getElementById('navbar');
+    if (!target) return;
+    const root = target.dataset.root || '';
+    const role = target.dataset.role || 'guest';
+    if (role !== 'customer') return;
+
+    let polling = false;
+    const poll = function () {
+      if (polling || document.hidden) return;
+      polling = true;
+      fetch(link(root, 'api/customer/pending-payment-requests'), {credentials: 'include'})
+        .then(res => {
+          if (!res.ok) throw new Error('Cannot load pending payment requests');
+          return res.json();
+        })
+        .then(data => {
+          const dismissed = dismissedCheckoutRequestIds();
+          const requests = Array.isArray(data.requests) ? data.requests : [];
+          const next = requests.find(item => item.status === 'PENDING'
+            && !dismissed.includes(item.paymentRequestId)
+            && Number(item.remainingAmount || 0) > 0);
+          if (next) {
+            showCheckoutPaymentPopup(root, next);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          polling = false;
+        });
+    };
+
+    window.setTimeout(poll, 1200);
+    window.setInterval(poll, 8000);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     renderNavbar();
     renderFooter();
     initDemoActions();
     updateNotificationCount();
+    initCheckoutPaymentPolling();
     
     // Check and show pending toast
     try {

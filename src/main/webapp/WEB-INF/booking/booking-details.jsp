@@ -395,6 +395,54 @@
                     <% if (booking.getPaymentMethodName() != null) { %>
                     <div class="text-muted small mt-2"><%= esc(booking.getPaymentMethodName()) %></div>
                     <% } %>
+                    <% if (booking.getCheckoutInvoiceId() != null) { %>
+                    <hr>
+                    <div class="text-start">
+                        <div class="fw-bold mb-2">Thanh toán Check-out</div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Tổng Check-out</span>
+                            <strong><%= money(booking.getCheckoutTotalAmount()) %></strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Đã thanh toán</span>
+                            <strong><%= money(booking.getCheckoutPaidAmount()) %></strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Còn phải thanh toán</span>
+                            <strong class="text-success"><%= money(booking.getCheckoutRemainingAmount()) %></strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Trạng thái</span>
+                            <strong><%= "PENDING".equals(booking.getCheckoutInvoiceStatus()) ? "Đang chờ" : "Đã thanh toán" %></strong>
+                        </div>
+                        <% if (booking.getCheckoutPaymentMethodName() != null) { %>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Phương thức</span>
+                            <strong><%= esc(booking.getCheckoutPaymentMethodName()) %></strong>
+                        </div>
+                        <% } %>
+                        <% if (booking.getCheckoutPaidAt() != null) { %>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Thời gian</span>
+                            <strong><%= dateTime(booking.getCheckoutPaidAt()) %></strong>
+                        </div>
+                        <% } %>
+                        <% if (booking.getCheckoutStaffName() != null) { %>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Người ghi nhận</span>
+                            <strong><%= esc(booking.getCheckoutStaffName()) %></strong>
+                        </div>
+                        <% } %>
+                        <a class="btn btn-outline-success w-100 mt-2" href="<%= ctx %>/customer/checkout-invoice?id=<%= booking.getCheckoutInvoiceId() %>">
+                            Xem hóa đơn Check-out
+                        </a>
+                        <% if ("PENDING".equals(booking.getCheckoutInvoiceStatus())) { %>
+                        <a class="btn btn-sf-primary w-100 mt-2" href="<%= ctx %>/payment?action=method&type=checkout&invoiceId=<%= booking.getCheckoutInvoiceId() %>&bookingId=<%= booking.getBookingId() %>&paymentPurpose=CHECKOUT_REMAINING">
+                            Thanh toán phần còn lại
+                        </a>
+                        <% } %>
+                    </div>
+                    <% } %>
                     <% if (paymentSuccess || "CONFIRMED".equals(booking.getStatus())) { %>
                     <div class="alert alert-success mt-3 mb-0">
                         <i class="bi bi-check-circle"></i> &#272;&#227; thanh to&#225;n / booking &#273;&#227; x&#225;c nh&#7853;n.

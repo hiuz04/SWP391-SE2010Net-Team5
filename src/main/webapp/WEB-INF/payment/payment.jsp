@@ -247,18 +247,23 @@
                         <% } %>
                         <h5 class="mb-3">Phương thức</h5>
                         <div class="vstack gap-2">
-                            <% for (int i = 0; i < paymentMethods.size(); i++) {
-                                PaymentMethod method = paymentMethods.get(i); %>
+                            <% int visibleMethodIndex = 0;
+                               for (int i = 0; i < paymentMethods.size(); i++) {
+                                PaymentMethod method = paymentMethods.get(i);
+                                if ("CASH".equalsIgnoreCase(method.getMethodCode())) {
+                                    continue;
+                                }
+                            %>
                             <label class="border rounded p-3 d-flex gap-3 align-items-center">
                                 <input class="form-check-input m-0" type="radio" name="paymentMethodId"
-                                       value="<%= method.getPaymentMethodId() %>" <%= i == 0 ? "checked" : "" %>>
+                                       value="<%= method.getPaymentMethodId() %>" <%= visibleMethodIndex == 0 ? "checked" : "" %>>
                                 <i class="bi bi-credit-card fs-4 text-success"></i>
                                 <span>
                                     <strong><%= esc(method.getMethodName()) %></strong>
                                     <span class="d-block text-muted small"><%= esc(method.getMethodCode()) %></span>
                                 </span>
                             </label>
-                            <% } %>
+                            <% visibleMethodIndex++; } %>
                         </div>
 
                         <div class="d-flex flex-wrap gap-2 mt-4">

@@ -99,6 +99,10 @@
     String searchVal = request.getAttribute("search") != null ? (String) request.getAttribute("search") : "";
     String roleVal = request.getAttribute("role") != null ? (String) request.getAttribute("role") : "";
     String statusVal = request.getAttribute("status") != null ? (String) request.getAttribute("status") : "";
+    String joinDateVal = request.getAttribute("joinDate") != null ? (String) request.getAttribute("joinDate") : "";
+    if ("today".equalsIgnoreCase(joinDateVal)) {
+        joinDateVal = java.time.LocalDate.now().toString();
+    }
 %>
 
         <!-- Filters & Toolbar -->
@@ -106,7 +110,7 @@
             <div class="card-body p-3">
                 <form method="GET" action="<%= ctx %>/admin/users">
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="input-group">
                             <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
                             <input type="text" name="search" value="<%= esc(searchVal) %>" class="form-control border-start-0 ps-0" placeholder="Tìm theo tên, email, SĐT...">
@@ -128,6 +132,9 @@
                             <option value="PENDING" <%= "PENDING".equals(statusVal) ? "selected" : "" %>>Chờ xác minh</option>
                             <option value="BANNED" <%= "BANNED".equals(statusVal) ? "selected" : "" %>>Bị khóa</option>
                         </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="joinDate" class="form-control" value="<%= esc(joinDateVal) %>" title="Ngày tham gia">
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-outline-secondary w-100"><i class="bi bi-funnel me-1"></i> Lọc</button>
@@ -246,7 +253,8 @@
     String searchParam = searchVal != null && !searchVal.isEmpty() ? "&search=" + esc(searchVal) : "";
     String roleParam = roleVal != null && !roleVal.isEmpty() ? "&role=" + esc(roleVal) : "";
     String statusParam = statusVal != null && !statusVal.isEmpty() ? "&status=" + esc(statusVal) : "";
-    String queryParams = searchParam + roleParam + statusParam;
+    String joinDateParam = joinDateVal != null && !joinDateVal.isEmpty() ? "&joinDate=" + esc(joinDateVal) : "";
+    String queryParams = searchParam + roleParam + statusParam + joinDateParam;
 %>
             <div class="card-footer bg-white border-top p-3">
                 <div class="d-flex justify-content-between align-items-center">

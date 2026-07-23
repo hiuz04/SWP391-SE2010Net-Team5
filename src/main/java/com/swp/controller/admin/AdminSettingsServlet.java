@@ -17,10 +17,12 @@ import java.util.stream.Collectors;
 public class AdminSettingsServlet extends HttpServlet {
 
     private SystemSettingDAO systemSettingDAO;
+    private com.swp.dao.NotificationDAO notificationDAO;
 
     @Override
     public void init() throws ServletException {
         systemSettingDAO = new SystemSettingDAO();
+        notificationDAO = new com.swp.dao.NotificationDAO();
     }
 
     @Override
@@ -63,7 +65,28 @@ public class AdminSettingsServlet extends HttpServlet {
             "BOOKING_HOLD_MINUTES"
         };
 
-        // Bước 2: Duyệt qua từng Key và lấy giá trị tương ứng từ request (form submit)
+        // Bước 2: Lấy các giá trị cũ để so sánh
+        java.util.List<com.swp.model.SystemSetting> oldSettingsList = systemSettingDAO.getAllSettings();
+        java.util.Map<String, String> oldSettings = new java.util.HashMap<>();
+        for (com.swp.model.SystemSetting s : oldSettingsList) {
+            oldSettings.put(s.getSettingKey(), s.getSettingValue());
+        }
+
+        java.util.Map<String, String> keyLabels = new java.util.HashMap<>();
+        keyLabels.put("MAINTENANCE_MODE", "Chế độ bảo trì hệ thống");
+        keyLabels.put("CONTACT_EMAIL", "Email liên hệ");
+        keyLabels.put("CONTACT_PHONE", "Số điện thoại hỗ trợ");
+        keyLabels.put("MAX_BOOKING_DAYS_AHEAD", "Giới hạn đặt trước (ngày)");
+        keyLabels.put("MIN_CANCELLATION_HOURS", "Thời gian hủy miễn phí (giờ)");
+        keyLabels.put("VIP_SUBSCRIPTION_PRICE_MONTHLY", "Giá gói VIP 1 tháng");
+        keyLabels.put("VIP_DISCOUNT_PERCENTAGE", "Giảm giá VIP (%)");
+        keyLabels.put("DEPOSIT_PERCENTAGE", "Tỉ lệ đặt cọc (%)");
+        keyLabels.put("BOOKING_HOLD_MINUTES", "Thời gian giữ chỗ (phút)");
+
+        StringBuilder changes = new StringBuilder("Admin vừa cập nhật cài đặt hệ thống:\n");
+        boolean hasChanges = false;
+
+        // Bước 3: Duyệt qua từng Key và lấy giá trị tương ứng từ request (form submit)
         for (String key : keys) {
             String value = request.getParameter(key);
             if (value != null) {
@@ -71,16 +94,43 @@ public class AdminSettingsServlet extends HttpServlet {
                 if (value.equals("on")) {
                     value = "true";
                 }
-                // Bước 3: Gọi DAO cập nhật giá trị vào CSDL
-                systemSettingDAO.updateSetting(key, value.trim());
+                value = value.trim();
             } else if (key.equals("MAINTENANCE_MODE")) {
                 // Nếu là checkbox (ví dụ Chế độ bảo trì) mà không được tick -> form sẽ không gửi tham số này
                 // Khi đó cần chủ động cập nhật thành false
-                systemSettingDAO.updateSetting(key, "false");
+                value = "false";
+            }
+
+            if (value != null) {
+                String oldValue = oldSettings.get(key);
+                if (oldValue == null) oldValue = "";
+                
+                if (!oldValue.equals(value)) {
+                    systemSettingDAO.updateSetting(key, value);
+                    
+                    String displayOld = oldValue;
+                    String displayNew = value;
+                    if ("MAINTENANCE_MODE".equals(key)) {
+                        displayOld = "true".equals(oldValue) ? "Bật" : "Tắt";
+                        displayNew = "true".equals(value) ? "Bật" : "Tắt";
+                    } else {
+                        if (displayOld.isEmpty()) displayOld = "trống";
+                    }
+
+                    String label = keyLabels.getOrDefault(key, key);
+                    changes.append("- ").append(label).append(": từ [").append(displayOld).append("] thành [").append(displayNew).append("]\n");
+                    hasChanges = true;
+                }
             }
         }
 
-        // Bước 4: Hoàn thành, chuyển hướng lại trang cấu hình kèm cờ thành công
+        // Bước 4: Thông báo cho Owner về việc thay đổi hệ thống nếu có thay đổi
+        if (hasChanges) {
+            notificationDAO.notifyRole("OWNER", "Thay đổi hệ thống", changes.toString().trim(), "SYSTEM", null);
+            notificationDAO.notifyRole("ADMIN", "Thay đổi hệ thống", changes.toString().trim(), "SYSTEM", null);
+        }
+
+        // Bước 5: Hoàn thành, chuyển hướng lại trang cấu hình kèm cờ thành công
         response.sendRedirect(request.getContextPath() + "/admin/settings?success=1");
     }
 }

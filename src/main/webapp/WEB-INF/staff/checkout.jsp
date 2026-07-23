@@ -37,6 +37,8 @@
     CheckoutView checkout = (CheckoutView) request.getAttribute("checkout");
     String error = (String) request.getAttribute("error");
     boolean canConfirm = checkout != null && checkout.isCheckoutAllowed();
+    BigDecimal remainingAmount = checkout == null ? BigDecimal.ZERO : checkout.getFinalAmount();
+    boolean requiresPaymentMethod = remainingAmount != null && remainingAmount.signum() > 0;
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -78,7 +80,7 @@
     <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
       <div>
         <h1 class="fw-bold mb-1">Trả sân</h1>
-        <p class="text-muted mb-0">Tính phụ thu quá giờ và gửi yêu cầu thanh toán hóa đơn còn lại cho khách.</p>
+        <p class="text-muted mb-0">Tính phụ thu quá giờ, ghi nhận tiền mặt hoặc gửi yêu cầu thanh toán online cho khách.</p>
       </div>
       <a href="<%= ctx %>/staff/schedule" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left me-1"></i>Quay lại lịch
@@ -167,11 +169,11 @@
                 <input class="form-control readonly-money" value="<%= money(checkout.getOvertimeFee()) %>" readonly>
               </div>
               <div class="col-md-4">
-                <label class="form-label small fw-bold text-muted">Tiền cọc đã thanh toán</label>
-                <input class="form-control readonly-money" value="<%= money(checkout.getDepositAmount()) %>" readonly>
+                <label class="form-label small fw-bold text-muted">Đã thanh toán trước</label>
+                <input class="form-control readonly-money" value="<%= money(checkout.getPaidAmountBeforeCheckout()) %>" readonly>
               </div>
               <div class="col-md-4">
-                <label class="form-label small fw-bold text-muted">Khách cần thanh toán</label>
+                <label class="form-label small fw-bold text-muted">Số tiền còn lại</label>
                 <input class="form-control readonly-money" value="<%= money(checkout.getFinalAmount()) %>" readonly>
               </div>
             </div>
@@ -194,19 +196,43 @@
               <strong><%= money(checkout.getSubtotal()) %></strong>
             </div>
             <div class="summary-line text-success">
-              <span>Tiền cọc đã thanh toán</span>
-              <strong>- <%= money(checkout.getDepositAmount()) %></strong>
+              <span>Đã thanh toán trước</span>
+              <strong>- <%= money(checkout.getPaidAmountBeforeCheckout()) %></strong>
             </div>
             <div class="summary-line summary-total">
-              <span>Khách cần thanh toán</span>
+              <span>Số tiền còn lại</span>
               <span class="text-success"><%= money(checkout.getFinalAmount()) %></span>
             </div>
+
+            <% if (requiresPaymentMethod) { %>
+            <div class="mt-4">
+              <div class="small fw-bold text-muted mb-2">Phương thức xử lý</div>
+              <label class="border rounded p-3 d-flex gap-3 align-items-start mb-2 checkout-method-option">
+                <input class="form-check-input mt-1" type="radio" name="checkoutPaymentMethod" value="CASH">
+                <span>
+                  <strong>Thanh toán tiền mặt</strong>
+                  <span class="d-block text-muted small">Xác nhận đã nhận đủ <%= money(checkout.getFinalAmount()) %> tại quầy.</span>
+                </span>
+              </label>
+              <label class="border rounded p-3 d-flex gap-3 align-items-start checkout-method-option">
+                <input class="form-check-input mt-1" type="radio" name="checkoutPaymentMethod" value="ONLINE_REQUEST">
+                <span>
+                  <strong>Gửi yêu cầu thanh toán online cho khách</strong>
+                  <span class="d-block text-muted small">Khách sẽ thấy popup và chọn phương thức online để thanh toán.</span>
+                </span>
+              </label>
+            </div>
+            <% } else { %>
+            <div class="alert alert-info border-0 mt-4 mb-0">
+              Booking đã được thanh toán đủ, có thể hoàn tất checkout mà không cần chọn phương thức thanh toán.
+            </div>
+            <% } %>
 
             <div id="checkout-error" class="alert alert-danger d-none mt-4 mb-0"></div>
             <div id="checkout-success" class="alert alert-success d-none mt-4 mb-0"></div>
 
             <button type="button" id="confirmCheckoutBtn" class="btn btn-sf-primary btn-lg w-100 mt-4" <%= canConfirm ? "" : "disabled" %>>
-              <i class="bi bi-send-check me-2"></i>Gửi yêu cầu thanh toán cho khách
+              <i class="bi bi-check2-circle me-2"></i><%= requiresPaymentMethod ? "Chọn phương thức xử lý" : "Hoàn tất checkout" %>
             </button>
             <a href="<%= ctx %>/staff/schedule" class="btn btn-outline-secondary w-100 mt-2">Quay lại</a>
           </div>
@@ -222,6 +248,9 @@
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script>
   const confirmBtn = document.getElementById('confirmCheckoutBtn');
+  const requiresPaymentMethod = <%= requiresPaymentMethod ? "true" : "false" %>;
+  const remainingAmountText = '<%= money(checkout != null ? checkout.getFinalAmount() : BigDecimal.ZERO) %>';
+  const defaultButtonHtml = '<i class="bi bi-check2-circle me-2"></i><%= requiresPaymentMethod ? "Chọn phương thức xử lý" : "Hoàn tất checkout" %>';
 
   function showCheckoutMessage(id, message) {
     const el = document.getElementById(id);
@@ -230,10 +259,41 @@
     el.classList.remove('d-none');
   }
 
+  function selectedCheckoutMethod() {
+    return document.querySelector('input[name="checkoutPaymentMethod"]:checked')?.value || '';
+  }
+
+  function refreshCheckoutButton() {
+    if (!confirmBtn) return;
+    if (!requiresPaymentMethod) {
+      confirmBtn.innerHTML = '<i class="bi bi-check2-circle me-2"></i>Hoàn tất checkout';
+      return;
+    }
+    const method = selectedCheckoutMethod();
+    if (method === 'CASH') {
+      confirmBtn.innerHTML = '<i class="bi bi-cash-coin me-2"></i>Xác nhận đã nhận ' + remainingAmountText;
+    } else if (method === 'ONLINE_REQUEST') {
+      confirmBtn.innerHTML = '<i class="bi bi-send-check me-2"></i>Gửi yêu cầu thanh toán ' + remainingAmountText;
+    } else {
+      confirmBtn.innerHTML = defaultButtonHtml;
+    }
+  }
+
   async function submitCheckout() {
     if (!confirmBtn) return;
     document.getElementById('checkout-error')?.classList.add('d-none');
     document.getElementById('checkout-success')?.classList.add('d-none');
+
+    const method = selectedCheckoutMethod();
+    if (requiresPaymentMethod && !method) {
+      showCheckoutMessage('checkout-error', 'Vui lòng chọn thanh toán tiền mặt hoặc gửi yêu cầu thanh toán online.');
+      return;
+    }
+
+    if (method === 'CASH') {
+      const accepted = window.confirm('Xác nhận đã nhận ' + remainingAmountText + ' tiền mặt từ khách?');
+      if (!accepted) return;
+    }
 
     confirmBtn.disabled = true;
     confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang gửi...';
@@ -241,8 +301,11 @@
     try {
       const params = new URLSearchParams();
       params.append('bookingId', '<%= checkout != null ? checkout.getBookingId() : "" %>');
+      if (method) {
+        params.append('checkoutPaymentMethod', method);
+      }
 
-      // API server sẽ khóa booking, tạo invoice và gửi notification; client chỉ disable nút để tránh bấm lặp.
+      // API server sẽ khóa booking và tự tính lại số tiền còn lại; client không gửi amount làm nguồn dữ liệu.
       const res = await fetch('<%= ctx %>/api/staff/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -262,13 +325,17 @@
     } catch (err) {
       showCheckoutMessage('checkout-error', err.message || 'Không thể gửi yêu cầu thanh toán.');
       confirmBtn.disabled = false;
-      confirmBtn.innerHTML = '<i class="bi bi-send-check me-2"></i>Gửi yêu cầu thanh toán cho khách';
+      refreshCheckoutButton();
     }
   }
 
   if (confirmBtn) {
     confirmBtn.addEventListener('click', submitCheckout);
   }
+  document.querySelectorAll('input[name="checkoutPaymentMethod"]').forEach(input => {
+    input.addEventListener('change', refreshCheckoutButton);
+  });
+  refreshCheckoutButton();
 </script>
 </body>
 </html>

@@ -56,32 +56,32 @@
             <!-- 1. KPI Cards -->
             <div class="row g-4 mb-4">
                 <div class="col-md-3">
-                    <div class="stat-card p-4 position-relative h-100">
+                    <div class="stat-card p-4 position-relative h-100" style="cursor: pointer;" onclick="location.href='<%= ctx %>/admin/bookings?filter=revenue_today'">
                         <i class="bi bi-currency-dollar stat-icon"></i>
                         <div class="text-muted fw-semibold">Doanh thu hôm nay</div>
                         <h3 class="fw-bold mt-2"><%= currencyFormat.format(todayRevenue) %>₫</h3>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card p-4 position-relative h-100" style="border-left-color: #20c997;">
+                    <div class="stat-card p-4 position-relative h-100" style="border-left-color: #20c997; cursor: pointer;" onclick="location.href='<%= ctx %>/admin/bookings?filter=revenue_7days'">
                         <i class="bi bi-wallet2 stat-icon"></i>
                         <div class="text-muted fw-semibold">Doanh thu 7 ngày</div>
                         <h3 class="fw-bold mt-2"><%= currencyFormat.format(last7DaysRevenue) %>₫</h3>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card p-4 position-relative h-100" style="border-left-color: #0dcaf0;">
+                    <div class="stat-card p-4 position-relative h-100" style="border-left-color: #0dcaf0; cursor: pointer;" onclick="location.href='<%= ctx %>/admin/bookings?filter=bookings_today'">
                         <i class="bi bi-calendar-check stat-icon"></i>
                         <div class="text-muted fw-semibold">Lượt đặt sân hôm nay</div>
                         <h3 class="fw-bold mt-2"><%= todayBookings %></h3>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card p-4 position-relative h-100" style="border-left-color: #ffc107;">
+                    <div class="stat-card p-4 position-relative h-100" style="border-left-color: #ffc107; cursor: pointer;" onclick="location.href='<%= ctx %>/admin/users?joinDate=today'">
                         <i class="bi bi-people stat-icon"></i>
                         <div class="text-muted fw-semibold">Khách hàng mới</div>
                         <h3 class="fw-bold mt-2"><%= newCustomers %></h3>
-                        <span class="text-muted small">Trong 7 ngày qua</span>
+                        <span class="text-muted small">Hôm nay</span>
                     </div>
                 </div>
             </div>
@@ -171,19 +171,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-lg-4">
-                    <div class="card soft-card border-0 shadow-sm mb-4">
-                        <div class="card-body text-center p-4">
-                            <div class="display-1 text-warning mb-2">
-                                <i class="bi bi-clock-history"></i>
-                            </div>
-                            <h5 class="fw-bold">Yêu cầu chờ xử lý</h5>
-                            <p class="text-muted mb-3">Có <strong><%= pendingBookings %></strong> lượt đặt sân đang chờ thanh toán.</p>
-                            <a href="<%= ctx %>/admin/bookings" class="btn btn-warning text-dark w-100">Xử lý ngay</a>
-                        </div>
-                    </div>
-
                 </div>
             </div>
         </div>
