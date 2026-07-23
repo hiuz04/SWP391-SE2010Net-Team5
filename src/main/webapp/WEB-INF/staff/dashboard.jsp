@@ -311,44 +311,52 @@
       <!-- KPI Row -->
       <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
-          <div class="kpi-card">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <div class="kpi-icon green"><i class="bi bi-cash-stack"></i></div>
-              <span class="badge text-bg-success bg-opacity-10 text-success" style="font-size:.72rem;">Ca này</span>
+          <a href="#cash-card-section" class="text-decoration-none text-dark d-block h-100">
+            <div class="kpi-card h-100">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="kpi-icon green"><i class="bi bi-cash-stack"></i></div>
+                <span class="badge text-bg-success bg-opacity-10 text-success" style="font-size:.72rem;">Ca này</span>
+              </div>
+              <div class="fs-4 fw-bold mb-0" style="font-weight:800;" id="kpi-cash">—</div>
+              <div class="text-muted small mt-1">Tiền mặt thu được</div>
             </div>
-            <div class="fs-4 fw-bold mb-0" style="font-weight:800;" id="kpi-cash">—</div>
-            <div class="text-muted small mt-1">Tiền mặt thu được</div>
-          </div>
+          </a>
         </div>
         <div class="col-6 col-md-3">
-          <div class="kpi-card">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <div class="kpi-icon blue"><i class="bi bi-calendar-check"></i></div>
-              <span class="badge" style="background:#e0f2fe;color:#0284c7;font-size:.72rem;">Hôm nay</span>
+          <a href="#bookings-table-section" class="text-decoration-none text-dark d-block h-100">
+            <div class="kpi-card h-100">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="kpi-icon blue"><i class="bi bi-calendar-check"></i></div>
+                <span class="badge" style="background:#e0f2fe;color:#0284c7;font-size:.72rem;">Hôm nay</span>
+              </div>
+              <div class="fs-4 fw-bold mb-0" style="font-weight:800;" id="kpi-bookings">—</div>
+              <div class="text-muted small mt-1">Booking hoàn thành</div>
             </div>
-            <div class="fs-4 fw-bold mb-0" style="font-weight:800;" id="kpi-bookings">—</div>
-            <div class="text-muted small mt-1">Booking hoàn thành</div>
-          </div>
+          </a>
         </div>
         <div class="col-6 col-md-3">
-          <div class="kpi-card">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <div class="kpi-icon orange"><i class="bi bi-person-lines-fill"></i></div>
-              <span class="badge" style="background:#fff7ed;color:#ea580c;font-size:.72rem;">Chờ xử lý</span>
+          <a href="<%= ctx %>/staff/checkin?pending=true" class="text-decoration-none text-dark d-block h-100">
+            <div class="kpi-card h-100">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="kpi-icon orange"><i class="bi bi-person-lines-fill"></i></div>
+                <span class="badge" style="background:#fff7ed;color:#ea580c;font-size:.72rem;">Chờ xử lý</span>
+              </div>
+              <div class="fs-4 fw-bold mb-0" style="font-weight:800;" id="kpi-pending">—</div>
+              <div class="text-muted small mt-1">Khách chờ check-in</div>
             </div>
-            <div class="fs-4 fw-bold mb-0" style="font-weight:800;" id="kpi-pending">—</div>
-            <div class="text-muted small mt-1">Khách chờ check-in</div>
-          </div>
+          </a>
         </div>
         <div class="col-6 col-md-3">
-          <div class="kpi-card">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <div class="kpi-icon purple"><i class="bi bi-star-fill"></i></div>
-              <span class="badge" style="background:#f5f3ff;color:#7c3aed;font-size:.72rem;">TB hôm nay</span>
+          <a href="<%= ctx %>/staff/schedule" class="text-decoration-none text-dark d-block h-100">
+            <div class="kpi-card h-100">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="kpi-icon purple"><i class="bi bi-calendar2-week-fill"></i></div>
+                <span class="badge" style="background:#f5f3ff;color:#7c3aed;font-size:.72rem;">Hôm nay</span>
+              </div>
+              <div class="fs-4 fw-bold mb-0" style="font-weight:800;color: var(--sf-primary);">Xem Lịch</div>
+              <div class="text-muted small mt-1">Biểu đồ lịch sân</div>
             </div>
-            <div class="fs-4 fw-bold mb-0" style="font-weight:800;" id="kpi-rating">N/A</div>
-            <div class="text-muted small mt-1">Đánh giá khách hàng</div>
-          </div>
+          </a>
         </div>
       </div>
 
@@ -356,7 +364,7 @@
       <div class="row g-4">
 
         <!-- Left: today's bookings -->
-        <div class="col-lg-7">
+        <div class="col-lg-7" id="bookings-table-section">
           <div class="soft-card p-4">
             <div class="d-flex align-items-center justify-content-between mb-3">
               <h5 class="mb-0 fw-bold"><i class="bi bi-calendar2-week text-success me-2"></i>Lịch sân trong ca</h5>
@@ -386,7 +394,7 @@
         <div class="col-lg-5 d-flex flex-column gap-4">
 
           <!-- Cash card -->
-          <div class="cash-card">
+          <div class="cash-card" id="cash-card-section">
             <div class="d-flex align-items-start justify-content-between mb-3">
               <div>
                 <div style="opacity:.8;font-size:.85rem;margin-bottom:4px;"><i class="bi bi-wallet2 me-1"></i>Tiền mặt thu được — <span id="cash-shift-name">Ca này</span></div>
@@ -447,11 +455,114 @@
   </div>
 </main>
 
+<!-- Booking Details Modal -->
+<div class="modal fade" id="bookingDetailModal" tabindex="-1" aria-labelledby="bookingDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 24px; overflow: hidden; background: #ffffff;">
+      <!-- Header -->
+      <div class="modal-header border-0 px-4 pt-4 pb-0 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle bg-success-subtle p-2 text-success d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background-color: #dcfce7;">
+            <i class="bi bi-calendar-check-fill fs-4" style="color: #16a34a;"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold text-dark fs-5 mb-0" id="bookingDetailModalLabel">Chi tiết lịch đặt sân</h5>
+            <span class="text-muted small" style="font-size: 0.8rem;">Mã đặt sân: <strong class="text-success" id="det-code">—</strong></span>
+          </div>
+        </div>
+        <button type="button" class="btn-close bg-light rounded-circle p-2" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body p-4">
+        <div class="row g-4">
+          <!-- Left Column: Customer & Match Details -->
+          <div class="col-md-7">
+            <!-- Customer Block -->
+            <div class="mb-4">
+              <h6 class="fw-bold text-muted uppercase small mb-3 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-person-fill me-2" style="color: #16a34a;"></i>THÔNG TIN KHÁCH HÀNG</h6>
+              <div class="p-3 bg-light rounded-4 border border-light-subtle" style="background-color: #f8fafc !important;">
+                <div class="mb-2">
+                  <span class="text-muted small d-block" style="font-size: 0.75rem;">Tên khách hàng</span>
+                  <span class="fw-bold text-dark fs-6" id="det-name">—</span>
+                </div>
+                <div>
+                  <span class="text-muted small d-block" style="font-size: 0.75rem;">Số điện thoại</span>
+                  <span class="fw-bold text-success fs-6" id="det-phone">—</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Match Details Block -->
+            <div>
+              <h6 class="fw-bold text-muted uppercase small mb-3 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-heptagon-fill me-2" style="color: #16a34a;"></i>THÔNG TIN TRẬN ĐẤU</h6>
+              <div class="p-3 bg-light rounded-4 border border-light-subtle" style="background-color: #f8fafc !important;">
+                <div class="row g-3">
+                  <div class="col-6">
+                    <span class="text-muted small d-block" style="font-size: 0.75rem;">Sân bóng</span>
+                    <span class="fw-bold text-dark" id="det-field">—</span>
+                  </div>
+                  <div class="col-6">
+                    <span class="text-muted small d-block" style="font-size: 0.75rem;">Trạng thái</span>
+                    <div id="det-status-badge">—</div>
+                  </div>
+                  <div class="col-12">
+                    <span class="text-muted small d-block" style="font-size: 0.75rem;">Khung giờ sử dụng</span>
+                    <span class="fw-bold text-dark fs-6"><i class="bi bi-clock me-2 text-muted"></i><span id="det-time">—</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Cost Details -->
+          <div class="col-md-5">
+            <h6 class="fw-bold text-muted uppercase small mb-3 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-receipt-cutoff me-2" style="color: #16a34a;"></i>CHI TIẾT THANH TOÁN</h6>
+            <div class="p-4 rounded-4 shadow-sm border border-success-subtle d-flex flex-column justify-content-between" style="background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border-color: #bbf7d0 !important; border: 1px solid; min-height: 230px;">
+              <div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <span class="text-muted small" style="font-size: 0.8rem;">Giá gốc sân:</span>
+                  <span class="fw-bold text-dark" id="det-orig-price">—</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <span class="text-muted small">Đã đặt cọc trước:</span>
+                  <span class="fw-bold text-danger" id="det-deposit">—</span>
+                </div>
+                <hr class="my-3 border-secondary-subtle">
+              </div>
+              <div class="text-center py-2">
+                <span class="text-muted small d-block mb-1" style="font-size: 0.72rem; letter-spacing: 0.05em; font-weight: 700;">CẦN THANH TOÁN CÒN LẠI</span>
+                <span class="fw-bold text-success display-6" style="font-weight: 800; font-size: 1.8rem;" id="det-total-amount">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex justify-content-end gap-2" id="det-modal-footer">
+        <button type="button" class="btn btn-light px-4 py-2 rounded-3" data-bs-dismiss="modal" style="font-weight: 600;">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="footer" data-root="<%= ctx %>/"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script>
+// ── Global Dashboard state ──────────────────────────────────────────────────
+let todayBookings = [];
+let bookingDetailModalInstance = null;
+
+function handleRowClick(event, bookingId) {
+  if (event.target.closest('button') || event.target.closest('a')) {
+    return;
+  }
+  showBookingDetails(bookingId);
+}
+
 // ── Live clock & date ──────────────────────────────────────────────────────
 function updateClock() {
   const now = new Date();
@@ -635,8 +746,11 @@ async function loadDashboard() {
     document.getElementById('kpi-pending').textContent  = (data.pendingCheckin !== undefined && data.pendingCheckin !== null) ? data.pendingCheckin : 0;
 
     const rating = data.avgRating;
-    document.getElementById('kpi-rating').innerHTML = rating != null
-      ? `${rating} <span class="text-warning" style="font-size:1rem;">★</span>` : 'N/A';
+    const ratingEl = document.getElementById('kpi-rating');
+    if (ratingEl) {
+      ratingEl.innerHTML = rating != null
+        ? `${rating} <span class="text-warning" style="font-size:1rem;">★</span>` : 'N/A';
+    }
 
     // Checkin count (completed bookings = checked-in)
     document.getElementById('checkin-count').textContent = bkpi.completed || 0;
@@ -653,6 +767,14 @@ async function loadDashboard() {
     // ── Bookings table ────────────────────────────────────────────────────
     const tbody = document.getElementById('booking-tbody');
     const bookings = data.bookings || [];
+    todayBookings = bookings;
+    
+    // Initialize booking detail modal if not done yet
+    const modalDetailEl = document.getElementById('bookingDetailModal');
+    if (modalDetailEl && !bookingDetailModalInstance) {
+      bookingDetailModalInstance = new bootstrap.Modal(modalDetailEl);
+    }
+
     if (bookings.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Không có booking nào hôm nay</td></tr>';
     } else {
@@ -661,7 +783,7 @@ async function loadDashboard() {
         const isExpired = isBookingExpired(b.endTime);
         const rowClass   = nowPlaying ? 'booking-row now-playing' : 'booking-row';
         const timeBgStyle = nowPlaying ? 'background:#dcfce7;color:#15803d;' : '';
-        return `<tr class="${rowClass}">
+        return `<tr class="${rowClass}" onclick="handleRowClick(event, ${b.bookingId})" style="cursor:pointer;">
           <td style="white-space: nowrap;"><span class="time-badge" style="${timeBgStyle}">${timeOnly(b.startTime)}–${timeOnly(b.endTime)}</span></td>
           <td style="white-space: nowrap;"><strong>${b.bookingCode || '—'}</strong></td>
           <td style="white-space: nowrap;"><strong>${b.fieldName || '—'}</strong></td>
@@ -675,24 +797,78 @@ async function loadDashboard() {
     // ── Recent activity ───────────────────────────────────────────────────
     const actEl   = document.getElementById('activity-list');
     const activity = data.recentActivity || [];
-    if (activity.length === 0) {
-      actEl.innerHTML = '<p class="text-muted small mb-0">Chưa có hoạt động nào hôm nay.</p>';
-    } else {
-      actEl.innerHTML = activity.map(a => `
-        <div class="d-flex gap-3">
-          <div class="activity-dot" style="background:${activityColor(a.type)};"></div>
-          <div style="font-size:.87rem;">
-            <div class="fw-bold">${activityIcon(a.type)} #${a.refCode || ''} · ${a.fieldName || ''}</div>
-            <div class="text-muted" style="font-size:.78rem;">${timeOnly(a.eventTime)} · ${a.customerName || ''}${a.amount > 0 ? ' · ' + fmt(a.amount) : ''}</div>
-          </div>
-        </div>`).join('');
+    if (actEl) {
+      if (activity.length === 0) {
+        actEl.innerHTML = '<p class="text-muted small mb-0">Chưa có hoạt động nào hôm nay.</p>';
+      } else {
+        actEl.innerHTML = activity.map(a => 
+          '<div class="d-flex gap-3">' +
+            '<div class="activity-dot" style="background:' + activityColor(a.type) + ';"></div>' +
+            '<div style="font-size:.87rem;">' +
+              '<div class="fw-bold">' + activityIcon(a.type) + ' #' + (a.refCode || '') + ' · ' + (a.fieldName || '') + '</div>' +
+              '<div class="text-muted" style="font-size:.78rem;">' + timeOnly(a.eventTime) + ' · ' + (a.customerName || '') + (a.amount > 0 ? ' · ' + fmt(a.amount) : '') + '</div>' +
+            '</div>' +
+          '</div>').join('');
+      }
     }
-
   } catch (err) {
     const loadingState = document.getElementById('loading-state');
     if (loadingState) {
       loadingState.innerHTML = `<div class="alert alert-danger">Không thể tải dữ liệu: ${err.message}</div>`;
     }
+  }
+}
+
+function showBookingDetails(bookingId) {
+  const b = todayBookings.find(x => x.bookingId === bookingId);
+  if (!b) return;
+
+  const nowPlaying = b.nowPlaying && b.status === 'CHECKED_IN';
+  const isExpired = isBookingExpired(b.endTime);
+
+  document.getElementById('det-code').textContent = b.bookingCode || '—';
+  document.getElementById('det-name').textContent = b.customerName || '—';
+  document.getElementById('det-phone').textContent = b.customerPhone || 'Không có SĐT';
+  document.getElementById('det-field').textContent = b.fieldName || '—';
+  document.getElementById('det-time').textContent = timeOnly(b.startTime) + " - " + timeOnly(b.endTime);
+  document.getElementById('det-status-badge').innerHTML = statusBadge(b.status, nowPlaying, isExpired);
+
+  document.getElementById('det-orig-price').textContent = fmt(b.totalAmount);
+  document.getElementById('det-deposit').textContent = fmt(b.depositAmount);
+  const remaining = (b.totalAmount || 0) - (b.depositAmount || 0);
+  document.getElementById('det-total-amount').textContent = fmt(remaining >= 0 ? remaining : 0);
+
+  const footer = document.getElementById('det-modal-footer');
+  let btnHtml = '<button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>';
+
+  if (currentShiftStatus === 'UPCOMING') {
+    if (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN') {
+      btnHtml += '<button class="btn btn-secondary px-3" disabled title="Chưa đến giờ làm việc"><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>';
+    }
+  } else if (currentShiftStatus === 'COMPLETED') {
+    if (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN') {
+      btnHtml += '<button class="btn btn-secondary px-3" disabled title="Ca trực đã kết thúc"><i class="bi bi-lock-fill me-1"></i>Hết ca trực</button>';
+    }
+  } else {
+    if (b.status === 'CONFIRMED') {
+      if (isExpired) {
+        btnHtml += '<button class="btn btn-secondary px-3" disabled><i class="bi bi-exclamation-circle me-1"></i>Quá giờ nhận</button>';
+      } else {
+        btnHtml += '<a href="<%= ctx %>/staff/checkin?id=' + b.bookingId + '" class="btn btn-success px-4">Check-in</a>';
+      }
+    } else if (b.status === 'CHECKED_IN') {
+      btnHtml += b.checkoutDue
+        ? ('<a href="<%= ctx %>/staff/checkout?id=' + b.bookingId + '" class="btn btn-success px-4">Checkout</a>')
+        : '<button class="btn btn-secondary px-3" disabled>Đang sử dụng</button>';
+    } else if ((b.status === 'PENDING_CHECKOUT_PAYMENT' || b.status === 'COMPLETED') && b.hasInvoice) {
+      btnHtml += '<a href="<%= ctx %>/staff/invoice?id=' + b.bookingId + '" class="btn btn-outline-secondary px-4"><i class="bi bi-file-earmark-text me-1"></i>Hóa đơn</a>';
+    }
+  }
+
+  footer.innerHTML = btnHtml;
+
+  if (bookingDetailModalInstance) {
+    bookingDetailModalInstance.show();
   }
 }
 
