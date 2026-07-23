@@ -269,11 +269,9 @@
   </style>
 </head>
 <body>
-<div class="owner-layout">
-    <aside class="owner-sidebar" id="owner-sidebar"></aside>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Ca trực"></div>
 
-    <main class="owner-content">
-      <div class="topbar" id="topbar"></div>
+<main class="owner-content">
 
       <div class="container">
 
@@ -571,7 +569,6 @@
         </div>
       </div>
     </main>
-</div>
 
 <!-- Modal: Thêm / Sửa ca làm việc -->
 <div class="modal fade" id="shiftModal" tabindex="-1" aria-labelledby="shiftModalTitle" aria-hidden="true">
@@ -724,12 +721,9 @@
 
 <script>
     window.APP_CTX = '<%= ctx %>';
-    display_name = '<%= displayName %>';
-    current_role = '<%= navRole %>';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
-<script src="<%= ctx %>/assets/js/owner/dashboard.js"></script>
 <script>
   let shiftModal = null;
   let assignModal = null;
@@ -1201,14 +1195,8 @@
     }
   }
 
-  // Auto-reload shift UI when modal is closed to refresh assigned badges/avatars on the main table
   document.getElementById('assignModal').addEventListener('hidden.bs.modal', function () {
     window.location.reload();
-  });
-
-  renderTopbar({
-      title: "Owner Dashboard",
-      subtitle: "Theo dõi hiệu quả kinh doanh cơ sở sân."
   });
 </script>
 </body>
