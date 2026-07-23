@@ -1,13 +1,18 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="com.swp.model.Booking" %>
 <%@ page import="com.swp.model.User" %>
+<%@ page import="com.swp.model.dto.BookingSlotPreview" %>
 <%@ page import="com.swp.model.dto.BookingView" %>
+<%@ page import="com.swp.model.dto.SkippedBookingSlot" %>
 <%@ page import="jakarta.servlet.http.HttpServletResponse" %>
 <%@ page import="java.math.BigDecimal" %>
 <%@ page import="java.text.NumberFormat" %>
 <%@ page import="java.time.LocalDate" %>
 <%@ page import="java.time.LocalDateTime" %>
+<%@ page import="java.time.LocalTime" %>
 <%@ page import="java.time.format.DateTimeFormatter" %>
+<%@ page import="java.util.ArrayList" %>
+<%@ page import="java.util.List" %>
 <%@ page import="java.util.Locale" %>
 
 <%!
@@ -26,6 +31,36 @@
     private String dateTime(LocalDateTime value) {
         if (value == null) return "";
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+    }
+
+    private String dateOnly(LocalDate value) {
+        if (value == null) return "";
+        return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+    }
+
+    private String timeOnly(LocalTime value) {
+        if (value == null) return "";
+        return value.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private String dayOfWeek(LocalDate value) {
+        if (value == null) return "";
+        switch (value.getDayOfWeek().getValue()) {
+            case 1:
+                return "Th&#7913; 2";
+            case 2:
+                return "Th&#7913; 3";
+            case 3:
+                return "Th&#7913; 4";
+            case 4:
+                return "Th&#7913; 5";
+            case 5:
+                return "Th&#7913; 6";
+            case 6:
+                return "Th&#7913; 7";
+            default:
+                return "Ch&#7911; nh&#7853;t";
+        }
     }
 
     private BigDecimal vipDiscount(BigDecimal originalPrice, BigDecimal voucherDiscount, BigDecimal finalAmount) {
@@ -48,10 +83,21 @@
     String voucherCode = (String) request.getAttribute("voucherCode");
     String voucherError = (String) request.getAttribute("voucherError");
     String voucherMessage = (String) request.getAttribute("voucherMessage");
+    String creationError = (String) request.getAttribute("creationError");
+    List<BookingSlotPreview> slotPreviews = (List<BookingSlotPreview>) request.getAttribute("slotPreviews");
+    List<SkippedBookingSlot> creationSkippedSlots = (List<SkippedBookingSlot>) request.getAttribute("creationSkippedSlots");
+    Integer totalExpectedSlots = (Integer) request.getAttribute("totalExpectedSlots");
+    Integer validSlotCount = (Integer) request.getAttribute("validSlotCount");
+    Integer skippedSlotCount = (Integer) request.getAttribute("skippedSlotCount");
 
     if (repeatType == null || repeatType.isBlank()) repeatType = "NONE";
     if (recurringCount == null) recurringCount = 1;
     if (voucherCode == null) voucherCode = "";
+    if (slotPreviews == null) slotPreviews = new ArrayList<>();
+    if (creationSkippedSlots == null) creationSkippedSlots = new ArrayList<>();
+    if (totalExpectedSlots == null) totalExpectedSlots = slotPreviews.isEmpty() ? recurringCount : slotPreviews.size();
+    if (validSlotCount == null) validSlotCount = Math.max(0, recurringCount);
+    if (skippedSlotCount == null) skippedSlotCount = Math.max(0, totalExpectedSlots - validSlotCount);
 
     User currentUser = (User) session.getAttribute("user");
     String currentName = currentUser != null && currentUser.getFullName() != null
@@ -69,6 +115,8 @@
     boolean hasDiscount = discountAmount.compareTo(BigDecimal.ZERO) > 0;
     boolean hasVipDiscount = vipDiscountAmount.compareTo(BigDecimal.ZERO) > 0;
     boolean hasAnyDiscount = hasDiscount || hasVipDiscount;
+    boolean monthly = "MONTHLY".equals(repeatType);
+    boolean noAvailableMonthlySlot = monthly && validSlotCount == 0;
 %>
 
 <!DOCTYPE html>
@@ -112,6 +160,76 @@
                         </div>
                     </div>
                 </div>
+
+                <% if (monthly) { %>
+                <div class="card soft-card p-4 mt-4">
+                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+                        <div>
+                            <h5 class="mb-1">L&#7883;ch &#273;&#7863;t s&#226;n theo th&#225;ng</h5>
+                            <p class="text-muted mb-0">C&#225;c bu&#7893;i kh&#7843; d&#7909;ng s&#7869; &#273;&#432;&#7907;c t&#7841;o khi b&#7841;n x&#225;c nh&#7853;n.</p>
+                        </div>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                            <%= validSlotCount %>/<%= totalExpectedSlots %> kh&#7843; d&#7909;ng
+                        </span>
+                    </div>
+
+                    <% if (creationError != null && !creationError.isBlank()) { %>
+                    <div class="alert alert-warning"><%= esc(creationError) %></div>
+                    <% } %>
+
+                    <% if (!creationSkippedSlots.isEmpty()) { %>
+                    <div class="alert alert-info">
+                        <div class="fw-semibold mb-2">C&#225;c bu&#7893;i v&#7915;a b&#7883; b&#7887; qua khi x&#225;c nh&#7853;n:</div>
+                        <% for (SkippedBookingSlot skipped : creationSkippedSlots) { %>
+                        <div>
+                            <%= dateOnly(skipped.getDate()) %>, <%= timeOnly(skipped.getStartTime()) %>-<%= timeOnly(skipped.getEndTime()) %>
+                            - <%= esc(skipped.getReason()) %>
+                        </div>
+                        <% } %>
+                    </div>
+                    <% } %>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th>STT</th>
+                                <th>Ng&#224;y</th>
+                                <th>Th&#7913;</th>
+                                <th>Gi&#7901; b&#7855;t &#273;&#7847;u</th>
+                                <th>Gi&#7901; k&#7871;t th&#250;c</th>
+                                <th>Gi&#225; bu&#7893;i</th>
+                                <th>Tr&#7841;ng th&#225;i</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <% for (int i = 0; i < slotPreviews.size(); i++) {
+                                BookingSlotPreview slot = slotPreviews.get(i);
+                                boolean available = slot.isAvailable();
+                            %>
+                            <tr class="<%= available ? "" : "table-warning" %>">
+                                <td><%= i + 1 %></td>
+                                <td><%= dateOnly(slot.getDate()) %></td>
+                                <td><%= dayOfWeek(slot.getDate()) %></td>
+                                <td><%= timeOnly(slot.getStartTime()) %></td>
+                                <td><%= timeOnly(slot.getEndTime()) %></td>
+                                <td><%= money(available ? slot.getPrice() : BigDecimal.ZERO) %></td>
+                                <td>
+                                    <% if (available) { %>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Kh&#7843; d&#7909;ng</span>
+                                    <% } else { %>
+                                    <span class="badge bg-warning-subtle text-warning text-dark border border-warning-subtle">
+                                        B&#7887; qua - <%= esc(slot.getReason()) %>
+                                    </span>
+                                    <% } %>
+                                </td>
+                            </tr>
+                            <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <% } %>
             </div>
 
             <aside class="col-lg-4">
@@ -146,10 +264,25 @@
                     </div>
                     <% } %>
                     <div class="d-flex justify-content-between mb-2">
-                        <span><%= "MONTHLY".equals(repeatType) ? "Thanh to&#225;n to&#224;n b&#7897; (100%)" : "Ti&#7873;n c&#7885;c c&#7847;n thanh to&#225;n (30%)" %></span>
+                        <span><%= monthly ? "S&#7889; ti&#7873;n c&#7847;n thanh to&#225;n (100%)" : "Ti&#7873;n c&#7885;c c&#7847;n thanh to&#225;n (30%)" %></span>
                         <strong class="text-primary"><%= money(bookingPreview.getDepositAmount()) %></strong>
                     </div>
                     <hr>
+                    <% if (monthly) { %>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>S&#7889; bu&#7893;i d&#7921; ki&#7871;n</span>
+                        <strong><%= totalExpectedSlots %></strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 text-success">
+                        <span>S&#7889; bu&#7893;i kh&#7843; d&#7909;ng</span>
+                        <strong><%= validSlotCount %></strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 text-warning">
+                        <span>S&#7889; bu&#7893;i b&#7883; b&#7887; qua</span>
+                        <strong><%= skippedSlotCount %></strong>
+                    </div>
+                    <hr>
+                    <% } %>
                     <div class="d-flex justify-content-between fs-5 mb-3">
                         <span>T&#7893;ng ti&#7873;n s&#226;n</span>
                         <strong class="text-success"><%= money(finalAmount) %></strong>
@@ -157,8 +290,12 @@
                     <p class="text-muted small">Booking s&#7869; &#273;&#432;&#7907;c gi&#7919; trong 15 ph&#250;t, &#273;&#7871;n <%= dateTime(bookingPreview.getHoldExpiresAt()) %>.</p>
                     <div class="alert alert-info py-2 small">
                         <strong>Lo&#7841;i thu&#234;:</strong>
-                        <%= "MONTHLY".equals(repeatType) ? "Thu&#234; theo th&#225;ng" : "Thu&#234; &#273;&#417;n l&#7867;" %>.
-                        H&#7879; th&#7889;ng s&#7869; t&#7841;o <%= recurringCount %> booking trong th&#225;ng n&#224;y v&#224; th&#225;ng sau n&#7871;u c&#225;c khung gi&#7901; &#273;&#7873;u c&#242;n tr&#7889;ng.
+                        <%= monthly ? "Thu&#234; theo th&#225;ng" : "Thu&#234; &#273;&#417;n l&#7867;" %>.
+                        <% if (monthly) { %>
+                        H&#7879; th&#7889;ng ch&#7881; t&#7841;o c&#225;c bu&#7893;i kh&#7843; d&#7909;ng trong c&#249;ng th&#225;ng v&#7899;i ng&#224;y &#273;&#7847;u ti&#234;n.
+                        <% } else { %>
+                        H&#7879; th&#7889;ng s&#7869; t&#7841;o booking cho khung gi&#7901; &#273;&#227; ch&#7885;n.
+                        <% } %>
                     </div>
 
                     <form method="post" action="<%= ctx %>/booking">
@@ -180,7 +317,12 @@
                             <div class="text-success small mt-2"><%= esc(voucherMessage) %></div>
                             <% } %>
                         </div>
-                        <button type="submit" class="btn btn-sf-primary w-100">T&#7841;o booking</button>
+                        <% if (noAvailableMonthlySlot) { %>
+                        <div class="alert alert-warning py-2 small">
+                            Kh&#244;ng c&#243; bu&#7893;i n&#224;o kh&#7843; d&#7909;ng trong th&#225;ng &#273;&#227; ch&#7885;n.
+                        </div>
+                        <% } %>
+                        <button type="submit" class="btn btn-sf-primary w-100" <%= noAvailableMonthlySlot ? "disabled" : "" %>>T&#7841;o booking</button>
                     </form>
                     <a href="<%= ctx %>/booking?action=create&complexId=<%= bookingPreview.getComplexId() %>&date=<%= bookingPreview.getStartTime().toLocalDate() %>"
                        class="btn btn-outline-secondary w-100 mt-2">Quay l&#7841;i ch&#7885;n gi&#7901;</a>
