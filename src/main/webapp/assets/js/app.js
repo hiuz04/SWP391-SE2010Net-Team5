@@ -452,11 +452,180 @@
     new bootstrap.Modal(modalEl).show();
   };
 
+  function formatVnd(value) {
+    const amount = Number(value || 0);
+    return amount.toLocaleString('vi-VN') + 'đ';
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  }
+
+  function formatTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  function dismissedCheckoutRequestIds() {
+    try {
+      return JSON.parse(sessionStorage.getItem('dismissed_checkout_payment_requests') || '[]');
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function rememberDismissedCheckoutRequest(id) {
+    if (!id) return;
+    const ids = dismissedCheckoutRequestIds();
+    if (!ids.includes(id)) {
+      ids.push(id);
+      sessionStorage.setItem('dismissed_checkout_payment_requests', JSON.stringify(ids));
+    }
+  }
+
+  function showCheckoutPaymentPopup(root, request) {
+    if (!request || !request.paymentRequestId) return;
+    if (document.body.dataset.checkoutPaymentPopupOpen === String(request.paymentRequestId)) return;
+
+    let modalEl = document.getElementById('checkoutPaymentRequestModal');
+    if (!modalEl) {
+      modalEl = document.createElement('div');
+      modalEl.id = 'checkoutPaymentRequestModal';
+      modalEl.className = 'modal fade';
+      modalEl.setAttribute('tabindex', '-1');
+      modalEl.setAttribute('aria-hidden', 'true');
+      modalEl.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content shadow border-0" style="border-radius: 12px;">
+            <div class="modal-header border-0 pb-0">
+              <h5 class="modal-title fw-bold text-dark">
+                <i class="bi bi-credit-card-2-front text-success me-2"></i>Yêu cầu thanh toán Check-out
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="vstack gap-2 small">
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Mã booking</span><strong id="checkoutPopupBookingCode"></strong></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Sân</span><strong id="checkoutPopupField"></strong></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Thời gian</span><strong id="checkoutPopupTime"></strong></div>
+                <hr class="my-2">
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Tổng tiền sau Check-out</span><strong id="checkoutPopupTotal"></strong></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Đã thanh toán</span><strong id="checkoutPopupPaid"></strong></div>
+                <div class="d-flex justify-content-between gap-3 fs-6"><span>Còn lại</span><strong class="text-success" id="checkoutPopupRemaining"></strong></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-muted">Thời gian gửi</span><strong id="checkoutPopupCreated"></strong></div>
+              </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+              <a class="btn btn-sf-primary btn-sm" id="checkoutPopupPayNow" href="#"><i class="bi bi-credit-card me-1"></i>Thanh toán ngay</a>
+              <a class="btn btn-outline-secondary btn-sm" id="checkoutPopupDetail" href="#">Xem chi tiết</a>
+              <button type="button" class="btn btn-light btn-sm" id="checkoutPopupLater" data-bs-dismiss="modal">Để sau</button>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modalEl);
+    }
+
+    const paymentUrl = link(root, 'payment?action=method&type=checkout'
+      + '&invoiceId=' + encodeURIComponent(request.invoiceId)
+      + '&paymentRequestId=' + encodeURIComponent(request.paymentRequestId)
+      + '&bookingId=' + encodeURIComponent(request.bookingId)
+      + '&amount=' + encodeURIComponent(request.remainingAmount)
+      + '&paymentPurpose=CHECKOUT_REMAINING');
+    const detailUrl = link(root, 'customer/checkout-invoice?id=' + encodeURIComponent(request.invoiceId));
+
+    document.getElementById('checkoutPopupBookingCode').textContent = request.bookingCode || '';
+    document.getElementById('checkoutPopupField').textContent = [request.complexName, request.fieldName].filter(Boolean).join(' - ');
+    document.getElementById('checkoutPopupTime').textContent = formatDateTime(request.startTime) + ' - ' + formatTime(request.endTime);
+    document.getElementById('checkoutPopupTotal').textContent = formatVnd(request.checkoutTotalAmount);
+    document.getElementById('checkoutPopupPaid').textContent = formatVnd(request.paidAmount);
+    document.getElementById('checkoutPopupRemaining').textContent = formatVnd(request.remainingAmount);
+    document.getElementById('checkoutPopupCreated').textContent = formatDateTime(request.createdAt);
+    document.getElementById('checkoutPopupPayNow').href = paymentUrl;
+    document.getElementById('checkoutPopupDetail').href = detailUrl;
+
+    const payNowLink = document.getElementById('checkoutPopupPayNow');
+    const newPayNowLink = payNowLink.cloneNode(true);
+    payNowLink.parentNode.replaceChild(newPayNowLink, payNowLink);
+    newPayNowLink.href = paymentUrl;
+    newPayNowLink.addEventListener('click', () => rememberDismissedCheckoutRequest(request.paymentRequestId));
+
+    const detailLink = document.getElementById('checkoutPopupDetail');
+    const newDetailLink = detailLink.cloneNode(true);
+    detailLink.parentNode.replaceChild(newDetailLink, detailLink);
+    newDetailLink.href = detailUrl;
+    newDetailLink.addEventListener('click', () => rememberDismissedCheckoutRequest(request.paymentRequestId));
+
+    const laterBtn = document.getElementById('checkoutPopupLater');
+    const newLaterBtn = laterBtn.cloneNode(true);
+    laterBtn.parentNode.replaceChild(newLaterBtn, laterBtn);
+    newLaterBtn.addEventListener('click', () => rememberDismissedCheckoutRequest(request.paymentRequestId));
+
+    const modal = new bootstrap.Modal(modalEl);
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      rememberDismissedCheckoutRequest(request.paymentRequestId);
+      delete document.body.dataset.checkoutPaymentPopupOpen;
+    }, {once: true});
+    document.body.dataset.checkoutPaymentPopupOpen = String(request.paymentRequestId);
+    modal.show();
+  }
+
+  function initCheckoutPaymentPolling() {
+    const target = document.getElementById('navbar');
+    if (!target) return;
+    const root = target.dataset.root || '';
+    const role = target.dataset.role || 'guest';
+    if (role !== 'customer') return;
+
+    let polling = false;
+    const poll = function () {
+      if (polling || document.hidden) return;
+      polling = true;
+      fetch(link(root, 'api/customer/pending-payment-requests'), {credentials: 'include'})
+        .then(res => {
+          if (!res.ok) throw new Error('Cannot load pending payment requests');
+          return res.json();
+        })
+        .then(data => {
+          const dismissed = dismissedCheckoutRequestIds();
+          const requests = Array.isArray(data.requests) ? data.requests : [];
+          const next = requests.find(item => item.status === 'PENDING'
+            && !dismissed.includes(item.paymentRequestId)
+            && Number(item.remainingAmount || 0) > 0);
+          if (next) {
+            showCheckoutPaymentPopup(root, next);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          polling = false;
+        });
+    };
+
+    window.setTimeout(poll, 1200);
+    window.setInterval(poll, 8000);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     renderNavbar();
     renderFooter();
     initDemoActions();
     updateNotificationCount();
+    initCheckoutPaymentPolling();
     
     // Check and show pending toast
     try {

@@ -184,6 +184,45 @@
 
         <div class="dash-line my-4"></div>
 
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold mb-1">TRẠNG THÁI THANH TOÁN</div>
+            <div class="fw-bold"><%= pending ? "Đang chờ khách thanh toán" : "Đã thanh toán" %></div>
+            <% if (invoice.getPaymentStatus() != null) { %>
+            <div class="text-muted small">Giao dịch checkout: <%= esc(invoice.getPaymentStatus()) %></div>
+            <% } %>
+          </div>
+          <div class="col-md-6 text-md-end">
+            <div class="text-muted small fw-bold mb-1">PHƯƠNG THỨC CUỐI</div>
+            <div class="fw-bold"><%= esc(invoice.getPaymentMethodName() != null ? invoice.getPaymentMethodName() : (pending ? "Thanh toán online" : "")) %></div>
+            <% if (invoice.getCheckoutPaidAt() != null) { %>
+            <div class="text-muted small"><%= esc(dateTime(invoice.getCheckoutPaidAt())) %></div>
+            <% } %>
+          </div>
+          <div class="col-12">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <tbody>
+                  <tr>
+                    <td>Cọc<% if (invoice.getDepositPaymentMethodName() != null) { %> qua <%= esc(invoice.getDepositPaymentMethodName()) %><% } %></td>
+                    <td class="text-end fw-bold"><%= money(invoice.getDepositAmount()) %></td>
+                  </tr>
+                  <tr>
+                    <td><%= pending ? "Phần còn lại đang chờ thanh toán online" : "Phần còn lại" %><% if (!pending && invoice.getPaymentMethodName() != null) { %> bằng <%= esc(invoice.getPaymentMethodName()) %><% } %></td>
+                    <td class="text-end fw-bold"><%= money(pending ? invoice.getAmountDue() : invoice.getCheckoutPaymentAmount()) %></td>
+                  </tr>
+                  <tr class="table-light">
+                    <td class="fw-bold">Tổng đã thanh toán</td>
+                    <td class="text-end fw-bold text-success"><%= money(invoice.getDepositAmount().add(invoice.getPaidAmount())) %></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-line my-4"></div>
+
         <div class="d-flex justify-content-between flex-wrap gap-3 small text-muted">
           <div>Ngày lập: <strong class="text-dark"><%= esc(dateTime(invoice.getIssuedAt())) %></strong></div>
           <div>Nhân viên: <strong class="text-dark"><%= esc(invoice.getStaffName()) %></strong></div>

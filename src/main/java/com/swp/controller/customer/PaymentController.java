@@ -44,6 +44,7 @@ public class PaymentController extends HttpServlet {
     private static final String GATEWAY_VNPAY = "VNPAY";
     private static final String MODE_VNPAY = "VNPAY";
     private static final String MODE_SIMULATED = "SIMULATED";
+    private static final String METHOD_CASH = "CASH";
     private static final String PAYMENT_TYPE_CHECKOUT = "CHECKOUT";
     private static final String PAYMENT_TYPE_MEMBERSHIP = "MEMBERSHIP";
 
@@ -163,7 +164,7 @@ public class PaymentController extends HttpServlet {
             return;
         }
 
-        List<PaymentMethod> methods = paymentDAO.getActivePaymentMethods();
+        List<PaymentMethod> methods = paymentDAO.getActiveOnlinePaymentMethods();
         request.setAttribute("booking", booking);
         request.setAttribute("paymentContext", "DEPOSIT");
         request.setAttribute("paymentMethods", methods);
@@ -173,7 +174,7 @@ public class PaymentController extends HttpServlet {
 
     private void showMembershipPaymentMethod(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws IOException, ServletException, SQLException {
-        List<PaymentMethod> methods = paymentDAO.getActivePaymentMethods();
+        List<PaymentMethod> methods = paymentDAO.getActiveOnlinePaymentMethods();
         request.setAttribute("paymentContext", PAYMENT_TYPE_MEMBERSHIP);
         request.setAttribute("amountToPay", getVipPrice());
         request.setAttribute("paymentMethods", methods);
@@ -197,7 +198,7 @@ public class PaymentController extends HttpServlet {
             return;
         }
 
-        List<PaymentMethod> methods = paymentDAO.getActivePaymentMethods();
+        List<PaymentMethod> methods = paymentDAO.getActiveOnlinePaymentMethods();
         request.setAttribute("paymentContext", PAYMENT_TYPE_CHECKOUT);
         request.setAttribute("invoice", invoice);
         request.setAttribute("amountToPay", invoice.getTotalAmount());
@@ -234,10 +235,7 @@ public class PaymentController extends HttpServlet {
                 "Vui long chon phuong thuc thanh toan.");
 
         PaymentMethod selectedMethod = paymentDAO.getPaymentMethodById(paymentMethodId);
-        // Chỉ cho phép dùng phương thức thanh toán đang ACTIVE để tránh tạo payment bằng kênh đã tắt.
-        if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
-            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
-        }
+        validateOnlinePaymentMethod(selectedMethod);
 
         // paymentMode quyết định đi VNPay thật hay mô phỏng; payment method vẫn phải ACTIVE trong DB.
         String paymentMode = trim(request.getParameter("paymentMode"));
@@ -275,10 +273,7 @@ public class PaymentController extends HttpServlet {
                 "Vui long chon phuong thuc thanh toan.");
 
         PaymentMethod selectedMethod = paymentDAO.getPaymentMethodById(paymentMethodId);
-        // Chỉ cho phép thanh toán checkout bằng phương thức đang ACTIVE trong DB.
-        if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
-            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
-        }
+        validateOnlinePaymentMethod(selectedMethod);
 
         String paymentMode = trim(request.getParameter("paymentMode"));
         String simulateStatus = trim(request.getParameter("simulateStatus"));
@@ -314,10 +309,7 @@ public class PaymentController extends HttpServlet {
                 "Vui long chon phuong thuc thanh toan.");
 
         PaymentMethod selectedMethod = paymentDAO.getPaymentMethodById(paymentMethodId);
-        // Chỉ tạo giao dịch membership khi phương thức thanh toán vẫn đang ACTIVE.
-        if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
-            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
-        }
+        validateOnlinePaymentMethod(selectedMethod);
 
         String paymentMode = trim(request.getParameter("paymentMode"));
         String simulateStatus = trim(request.getParameter("simulateStatus"));
@@ -748,6 +740,16 @@ public class PaymentController extends HttpServlet {
         return user;
     }
 
+    private void validateOnlinePaymentMethod(PaymentMethod selectedMethod) {
+        if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
+            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
+        }
+        // Business Rule BR-26: CASH chỉ được Staff ghi nhận tại quầy checkout, không thuộc flow Customer online.
+        if (METHOD_CASH.equalsIgnoreCase(selectedMethod.getMethodCode())) {
+            throw new IllegalArgumentException("Phuong thuc tien mat chi duoc Staff ghi nhan tai quay Check-out.");
+        }
+    }
+
     private void redirectToMethodWithError(
             HttpServletRequest request,
             HttpServletResponse response,
@@ -762,6 +764,12 @@ public class PaymentController extends HttpServlet {
             }
             response.sendRedirect(request.getContextPath()
                     + "/payment?action=method&type=checkout&invoiceId=" + rawInvoiceId
+                    + "&error=" + URLEncoder.encode(message, StandardCharsets.UTF_8));
+            return;
+        }
+        if (PAYMENT_TYPE_MEMBERSHIP.equalsIgnoreCase(paymentType)) {
+            response.sendRedirect(request.getContextPath()
+                    + "/payment?action=method&type=membership"
                     + "&error=" + URLEncoder.encode(message, StandardCharsets.UTF_8));
             return;
         }

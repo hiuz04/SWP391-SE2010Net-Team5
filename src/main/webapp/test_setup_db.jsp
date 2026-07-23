@@ -72,6 +72,11 @@
                     "DELETE FROM payment_callbacks WHERE payment_id IN (SELECT payment_id FROM payments WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "'))"
                 );
                 stmt.executeUpdate(
+                    "IF OBJECT_ID('voucher_usages', 'U') IS NOT NULL " +
+                    "DELETE FROM voucher_usages WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "') " +
+                    "OR payment_id IN (SELECT payment_id FROM payments WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "'))"
+                );
+                stmt.executeUpdate(
                     "IF OBJECT_ID('payments', 'U') IS NOT NULL " +
                     "DELETE FROM payments WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
                 );
