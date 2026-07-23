@@ -1167,6 +1167,8 @@ public class PaymentDAO {
             ps.executeUpdate();
         }
 
+        userDAO.awardRewardPoints(conn, payment.customerId, payment.bookingId);
+
         insertNotification(conn,
                 payment.customerId(),
                 "Thanh toan hoa don thanh cong",

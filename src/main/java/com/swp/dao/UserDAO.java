@@ -4,6 +4,8 @@ import com.swp.model.User;
 import com.swp.util.DBContext;
 import com.swp.util.PasswordUtil;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -503,6 +505,59 @@ public class UserDAO {
         }
 
         return 0;
+    }
+
+    public void awardRewardPoints(Connection conn,
+                                  long userId,
+                                  long bookingId)
+            throws SQLException {
+
+        String sql = """
+        SELECT b.total_amount, u.is_vip
+        FROM bookings b
+        JOIN users u ON b.customer_id = u.user_id
+        WHERE b.booking_id = ?
+          AND u.user_id = ?
+        """;
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        boolean isVip = false;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            ps.setLong(2, userId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("Không tìm thấy booking hoặc user.");
+                }
+
+                totalAmount = rs.getBigDecimal("total_amount");
+                isVip = rs.getBoolean("is_vip");
+            }
+        }
+
+        // 1.000đ = 1 điểm
+        int earnedPoints = totalAmount
+                .divide(new BigDecimal("1000"), RoundingMode.DOWN)
+                .intValue();
+
+        // VIP được cộng thêm 2.5%
+        if (isVip) {
+            earnedPoints += (int) Math.floor(earnedPoints * 0.025);
+        }
+
+        String updateSql = """
+        UPDATE users
+        SET available_reward_points = available_reward_points + ?
+        WHERE user_id = ?
+        """;
+
+        try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+            ps.setInt(1, earnedPoints);
+            ps.setLong(2, userId);
+            ps.executeUpdate();
+        }
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {

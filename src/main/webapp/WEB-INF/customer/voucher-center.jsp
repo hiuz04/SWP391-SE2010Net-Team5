@@ -7,6 +7,7 @@
         navRole = "guest";
     }
     String displayName = sessionUser != null ? sessionUser.getFullName() : "";
+    boolean isVip = sessionUser != null && sessionUser.isVip();
     String ctx = request.getContextPath();
 %>
 <!DOCTYPE html>
@@ -71,11 +72,21 @@
         </div>
     </div>
 
+    <% if (isVip) { %>
     <div class="mb-4" id="voucherTypeFilter">
-        <button class="btn btn-success filter-btn me-2 active" data-type="ALL_TYPE">Tất cả</button>
-        <button class="btn btn-outline-success filter-btn me-2" data-type="ALL">Voucher thường</button>
-        <button class="btn btn-outline-warning filter-btn" data-type="MEMBER">Voucher hội viên</button>
+        <button class="btn btn-success filter-btn me-2 active" data-type="ALL_TYPE">
+            Tất cả
+        </button>
+
+        <button class="btn btn-outline-success filter-btn me-2" data-type="ALL">
+            Voucher thường
+        </button>
+
+        <button class="btn btn-outline-warning filter-btn" data-type="MEMBER">
+            Voucher hội viên
+        </button>
     </div>
+    <% } %>
 
     <div class="row g-4" id="voucher-list"></div>
 
