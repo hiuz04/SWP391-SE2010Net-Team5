@@ -61,8 +61,8 @@ public class StaffDashboardDAO {
         String sql = """
                 SELECT b.booking_id, b.booking_code,
                        b.start_time, b.end_time,
-                       b.status, b.total_amount,
-                       u.full_name AS customer_name,
+                       b.status, b.total_amount, b.deposit_amount,
+                       u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_name,
                        CASE WHEN EXISTS (
                            SELECT 1
@@ -92,7 +92,9 @@ public class StaffDashboardDAO {
                     row.put("endTime", rs.getString("end_time"));
                     row.put("status", rs.getString("status"));
                     row.put("totalAmount", rs.getBigDecimal("total_amount"));
+                    row.put("depositAmount", rs.getBigDecimal("deposit_amount"));
                     row.put("customerName", rs.getString("customer_name"));
+                    row.put("customerPhone", rs.getString("customer_phone"));
                     row.put("fieldName", rs.getString("field_name"));
                     row.put("hasInvoice", rs.getInt("has_invoice") == 1);
                     row.put("checkoutDue", rs.getInt("checkout_due") == 1);
@@ -179,7 +181,7 @@ public class StaffDashboardDAO {
                 WHERE complex_id = ?
                   AND CAST(start_time AS DATE) = CAST(GETDATE() AS DATE)
                   AND status = 'CONFIRMED'
-                  AND start_time <= GETDATE()
+                  AND end_time > GETDATE()
                 """;
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -357,7 +359,7 @@ public class StaffDashboardDAO {
      */
     public List<Map<String, Object>> getBookingsForDate(long complexId, String dateStr) {
         String sql = """
-                SELECT b.booking_id, b.booking_code, b.start_time, b.end_time, b.status, b.total_amount,
+                SELECT b.booking_id, b.booking_code, b.start_time, b.end_time, b.status, b.total_amount, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_id, fi.field_name,
                        CASE WHEN EXISTS (
@@ -389,6 +391,7 @@ public class StaffDashboardDAO {
                     row.put("endTime", rs.getString("end_time"));
                     row.put("status", rs.getString("status"));
                     row.put("totalAmount", rs.getBigDecimal("total_amount"));
+                    row.put("depositAmount", rs.getBigDecimal("deposit_amount"));
                     row.put("customerName", rs.getString("customer_name"));
                     row.put("customerPhone", rs.getString("customer_phone"));
                     row.put("fieldId", rs.getLong("field_id"));
@@ -470,6 +473,47 @@ public class StaffDashboardDAO {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi tìm kiếm booking: " + e.getMessage(), e);
+        }
+        return list;
+    }
+
+    public List<Map<String, Object>> getPendingCheckinBookings(long complexId) {
+        String sql = """
+                SELECT b.booking_id, b.booking_code,
+                       b.start_time, b.end_time,
+                       b.status, b.total_amount,
+                       u.full_name AS customer_name, u.phone AS customer_phone,
+                       fi.field_name
+                FROM bookings b
+                JOIN users u  ON b.customer_id = u.user_id
+                JOIN fields fi ON b.field_id   = fi.field_id
+                WHERE b.complex_id = ?
+                  AND b.status = 'CONFIRMED'
+                  AND CAST(b.start_time AS DATE) = CAST(GETDATE() AS DATE)
+                  AND b.end_time > GETDATE()
+                ORDER BY b.start_time
+                """;
+        List<Map<String, Object>> list = new ArrayList<>();
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, complexId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("bookingId", rs.getLong("booking_id"));
+                    row.put("bookingCode", rs.getString("booking_code"));
+                    row.put("startTime", rs.getString("start_time"));
+                    row.put("endTime", rs.getString("end_time"));
+                    row.put("status", rs.getString("status"));
+                    row.put("totalAmount", rs.getBigDecimal("total_amount"));
+                    row.put("customerName", rs.getString("customer_name"));
+                    row.put("customerPhone", rs.getString("customer_phone"));
+                    row.put("fieldName", rs.getString("field_name"));
+                    list.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi lấy danh sách check-in chờ: " + e.getMessage(), e);
         }
         return list;
     }
