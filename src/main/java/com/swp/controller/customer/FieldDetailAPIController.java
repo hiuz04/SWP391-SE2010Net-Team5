@@ -69,7 +69,6 @@ public class FieldDetailAPIController extends HttpServlet {
         detail.setComplexAddress(String.join(", ",
                 complex.getAddress(),
                 complex.getWard(),
-                complex.getDistrict(),
                 complex.getCity()
         ));
         detail.setDescription(complex.getDescription());

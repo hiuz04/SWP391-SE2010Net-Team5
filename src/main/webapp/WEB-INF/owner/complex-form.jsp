@@ -121,25 +121,22 @@
                                    placeholder="Số nhà, tên đường..." required>
                         </div>
 
-                        <div class="col-md-4">
-                            <label for="ward" class="form-label">
-                                Phường/Xã <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" class="form-control" id="ward" required>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="dist" class="form-label">
-                                Quận/Huyện <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" class="form-control" id="dist" required>
-                        </div>
-
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label for="city" class="form-label">
                                 Tỉnh/Thành phố <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="city" required>
+                            <select class="form-select" id="city" required>
+                                <option value="">-- Chọn Tỉnh/Thành phố --</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="ward" class="form-label">
+                                Phường/Xã <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="ward" required disabled>
+                                <option value="">-- Chọn Phường/Xã --</option>
+                            </select>
                         </div>
 
                         <div class="col-md-6">
@@ -170,14 +167,14 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label for="opTime" class="form-label">
-                                <i class="bi bi-sunrise me-1 text-warning"></i>Giờ mở cửa
+                                <i class="bi bi-sunrise me-1 text-warning"></i>Giờ mở cửa <span class="text-danger">*</span>
                             </label>
                             <input type="time" class="form-control" id="opTime">
                         </div>
 
                         <div class="col-md-6">
                             <label for="clsTime" class="form-label">
-                                <i class="bi bi-sunset me-1 text-danger"></i>Giờ đóng cửa
+                                <i class="bi bi-sunset me-1 text-danger"></i>Giờ đóng cửa <span class="text-danger">*</span>
                             </label>
                             <input type="time" class="form-control" id="clsTime">
                         </div>

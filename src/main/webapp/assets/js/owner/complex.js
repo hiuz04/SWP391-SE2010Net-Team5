@@ -14,14 +14,61 @@ const statusList = [
     {status: "ACTIVE", display: "Hoạt động", badge: "badge-soft-success"},
     {status: "INACTIVE", display: "Ngừng hoạt động", badge: "badge-soft-danger"},
     {status: "PENDING", display: "Đang thiết lập", badge: "badge-soft-secondary"},
-    {status: "MAINTENANCE", display: "Bảo trì", badge: "badge-soft-warning"},
-    {status: "CLOSED", display: "Đóng cửa", badge: "badge-soft-danger"}
+    {status: "MAINTENANCE", display: "Bảo trì", badge: "badge-soft-warning"}
 ]
 
 let selectedImg = [];
 let deletedImg = [];
 const imgInput = document.getElementById("images");
 const preview = document.getElementById("preview");
+
+let provincesList = [];
+
+async function fetchProvinces() {
+    const citySelect = document.getElementById("city");
+    if (!citySelect) return;
+    try {
+        const res = await fetch("https://provinces.open-api.vn/api/v2/p/");
+        if (!res.ok) throw new Error("Lỗi kết nối API tỉnh thành");
+        provincesList = await res.json();
+        citySelect.innerHTML = '<option value="">-- Chọn Tỉnh/Thành phố --</option>';
+        provincesList.forEach(p => {
+            const opt = document.createElement("option");
+            opt.value = p.name;
+            opt.dataset.code = p.code;
+            opt.textContent = p.name;
+            citySelect.appendChild(opt);
+        });
+    } catch (err) {
+        console.error("Lỗi khi tải danh sách Tỉnh/Thành phố:", err);
+    }
+}
+
+async function loadWardsForProvince(provinceCode) {
+    const wardSelect = document.getElementById("ward");
+    if (!wardSelect) return;
+    wardSelect.disabled = true;
+    wardSelect.innerHTML = '<option value="">Đang tải Phường/Xã...</option>';
+    try {
+        const res = await fetch(`https://provinces.open-api.vn/api/v2/p/${provinceCode}?depth=2`);
+        if (!res.ok) throw new Error("Lỗi kết nối API phường xã");
+        const data = await res.json();
+        wardSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+        if (data.wards && data.wards.length > 0) {
+            data.wards.forEach(w => {
+                const opt = document.createElement("option");
+                opt.value = w.name;
+                opt.textContent = w.name;
+                wardSelect.appendChild(opt);
+            });
+        }
+        wardSelect.disabled = false;
+    } catch (err) {
+        console.error("Lỗi khi tải danh sách Phường/Xã:", err);
+        wardSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+        wardSelect.disabled = false;
+    }
+}
 
 // Lấy data của complex để edit
 async function loadComplexData() {
@@ -30,14 +77,53 @@ async function loadComplexData() {
     if (!id) return;
     await fetch(`${ctx}/owner/complex?action=get&id=${id}`)
         .then(res => res.json())
-        .then(data => {
+        .then(async data => {
                 document.getElementById("complexId").value = data.complex.complexId;
                 document.getElementById("complexName").value = data.complex.complexName;
                 document.getElementById("desc").value = data.complex.description;
                 document.getElementById("adrs").value = data.complex.address;
-                document.getElementById("ward").value = data.complex.ward;
-                document.getElementById("dist").value = data.complex.district;
-                document.getElementById("city").value = data.complex.city;
+
+                const citySelect = document.getElementById("city");
+                const wardSelect = document.getElementById("ward");
+
+                if (data.complex.city && citySelect) {
+                    let matchedCityOpt = Array.from(citySelect.options).find(opt => opt.value === data.complex.city);
+                    if (matchedCityOpt) {
+                        citySelect.value = data.complex.city;
+                        const code = matchedCityOpt.dataset.code;
+                        if (code) {
+                            await loadWardsForProvince(code);
+                            if (data.complex.ward && wardSelect) {
+                                let matchedWardOpt = Array.from(wardSelect.options).find(opt => opt.value === data.complex.ward);
+                                if (matchedWardOpt) {
+                                    wardSelect.value = data.complex.ward;
+                                } else {
+                                    const opt = document.createElement("option");
+                                    opt.value = data.complex.ward;
+                                    opt.textContent = data.complex.ward;
+                                    opt.selected = true;
+                                    wardSelect.appendChild(opt);
+                                }
+                            }
+                        }
+                    } else {
+                        const opt = document.createElement("option");
+                        opt.value = data.complex.city;
+                        opt.textContent = data.complex.city;
+                        opt.selected = true;
+                        citySelect.appendChild(opt);
+
+                        if (data.complex.ward && wardSelect) {
+                            wardSelect.disabled = false;
+                            const wardOpt = document.createElement("option");
+                            wardOpt.value = data.complex.ward;
+                            wardOpt.textContent = data.complex.ward;
+                            wardOpt.selected = true;
+                            wardSelect.appendChild(wardOpt);
+                        }
+                    }
+                }
+
                 document.getElementById("hotln").value = data.complex.hotline;
                 document.getElementById("opTime").value = data.complex.openingTime?.slice(0, 5);
                 document.getElementById("clsTime").value = data.complex.closingTime?.slice(0, 5);
@@ -56,6 +142,41 @@ async function loadComplexData() {
 }
 
 async function loadForm() {
+    await fetchProvinces();
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+
+    const citySelect = document.getElementById("city");
+    const wardSelect = document.getElementById("ward");
+
+    if (citySelect) {
+
+        // Chỉ mặc định Hà Nội khi Add
+        if (!id) {
+            const haNoiOption = Array.from(citySelect.options)
+                .find(opt => opt.dataset.code === "1");
+
+            if (haNoiOption) {
+                citySelect.value = haNoiOption.value;
+                await loadWardsForProvince("1");
+            }
+        }
+
+        citySelect.addEventListener("change", async () => {
+            const selectedOpt = citySelect.options[citySelect.selectedIndex];
+            const code = selectedOpt?.dataset.code;
+
+            if (code) {
+                await loadWardsForProvince(code);
+            } else {
+                wardSelect.innerHTML =
+                    '<option value="">-- Chọn Phường/Xã --</option>';
+                wardSelect.disabled = true;
+            }
+        });
+    }
+
     await loadComplexData();
     renderPreview();
 
@@ -66,18 +187,20 @@ async function loadForm() {
         });
     });
 
-    imgInput.addEventListener("change", (e) => {
-        const newFiles = Array.from(e.target.files);
-        newFiles.forEach(file => {
-            selectedImg.push({
-                file: file,
-                thumbnail: selectedImg.length === 0,
-                isOld: false,
+    if (imgInput) {
+        imgInput.addEventListener("change", (e) => {
+            const newFiles = Array.from(e.target.files);
+            newFiles.forEach(file => {
+                selectedImg.push({
+                    file: file,
+                    thumbnail: selectedImg.length === 0,
+                    isOld: false,
+                });
             });
+            renderPreview();
+            e.target.value = "";
         });
-        renderPreview();
-        e.target.value = "";
-    });
+    }
 }
 
 // Lấy danh sách thông tin của complex
@@ -131,7 +254,7 @@ function loadData() {
                 const statusDisplay = statusList.find(s => s.status === item.complex.status)?.display ?? 'Không xác định';
                 const statusClass   = item.complex.status ? `status-${item.complex.status.toLowerCase()}` : 'status-inactive';
 
-                const address = [item.complex.address, item.complex.ward, item.complex.district, item.complex.city]
+                const address = [item.complex.address, item.complex.ward, item.complex.city]
                     .filter(Boolean).join(', ');
 
                 const timeDisplay = item.complex.openingTime
@@ -225,7 +348,6 @@ function submitForm() {
         description: document.getElementById("desc").value,
         address: document.getElementById("adrs").value,
         ward: document.getElementById("ward").value,
-        district: document.getElementById("dist").value,
         city: document.getElementById("city").value,
         latitude: document.getElementById("lat").value,
         longitude: document.getElementById("long").value,
@@ -239,9 +361,11 @@ function submitForm() {
 
     if (!data.complexName) errors.push("Vui lòng nhập Tên cơ sở!");
     if (!data.address) errors.push("Vui lòng nhập Địa chỉ!");
-    if (!data.ward) errors.push("Vui lòng nhập Phường/Xã!");
-    if (!data.district) errors.push("Vui lòng nhập Quận/Huyện!");
-    if (!data.city) errors.push("Vui lòng nhập Tỉnh/Thành phố!");
+    if (!data.city) errors.push("Vui lòng chọn Tỉnh/Thành phố!");
+    if (!data.ward) errors.push("Vui lòng chọn Phường/Xã!");
+    if (!data.openingTime) errors.push("Vui lòng đặt thời gian Mở cửa!");
+    if (!data.closingTime) errors.push("Vui lòng đặt thời gian Đóng cửa!");
+    if(data.openingTime > data.closingTime) errors.push("Vui lòng đặt thời gian Mở cửa lớn hơn thời gian Đóng cửa!")
 
     if (errors.length > 0) {
         alert(errors.join("\n"));

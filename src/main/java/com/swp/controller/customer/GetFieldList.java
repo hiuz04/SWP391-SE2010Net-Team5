@@ -33,6 +33,7 @@ public class GetFieldList extends HttpServlet {
                          HttpServletResponse resp)
             throws ServletException, IOException {
         try {
+            String complexName = req.getParameter("complexName");
             String province = req.getParameter("province");
             String ward = req.getParameter("ward");
             String fieldTypeId = req.getParameter("fieldTypeId");
@@ -62,6 +63,15 @@ public class GetFieldList extends HttpServlet {
                             .map(fieldTypeMap::get)
                             .filter(Objects::nonNull)
                             .toList();
+
+                    // Filter Address
+                    if (complexName != null
+                            && !complexName.isBlank()
+                            && (fc.getComplexName() == null
+                            || !fc.getComplexName().toLowerCase()
+                            .contains(complexName.toLowerCase()))) {
+                        continue;
+                    }
 
                     // Filter province
                     if (province != null

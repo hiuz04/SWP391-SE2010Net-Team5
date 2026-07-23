@@ -19,7 +19,6 @@ public class FootballComplexDAO {
                 "description, " +
                 "address, " +
                 "ward, " +
-                "district, " +
                 "city, " +
                 "latitude, " +
                 "longitude, " +
@@ -28,7 +27,7 @@ public class FootballComplexDAO {
                 "closing_time, " +
                 "general_rules, " +
                 "status " +
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -36,33 +35,32 @@ public class FootballComplexDAO {
             ps.setString(2, fc.getDescription());
             ps.setString(3, fc.getAddress());
             ps.setString(4, fc.getWard());
-            ps.setString(5, fc.getDistrict());
-            ps.setString(6, fc.getCity());
+            ps.setString(5, fc.getCity());
 
             if(fc.getLatitude() != null) {
-                ps.setBigDecimal(7, fc.getLatitude());
-            } else {ps.setNull(7, Types.DECIMAL);}
+                ps.setBigDecimal(6, fc.getLatitude());
+            } else {ps.setNull(6, Types.DECIMAL);}
 
             if(fc.getLongitude() != null) {
-                ps.setBigDecimal(8, fc.getLongitude());
-            } else {ps.setNull(8, Types.DECIMAL);}
+                ps.setBigDecimal(7, fc.getLongitude());
+            } else {ps.setNull(7, Types.DECIMAL);}
 
-            ps.setString(9, fc.getHotline());
+            ps.setString(8, fc.getHotline());
 
-            ps.setTime(10,
+            ps.setTime(9,
                     fc.getOpeningTime() != null
                             ? Time.valueOf(fc.getOpeningTime())
                             : null
             );
 
-            ps.setTime(11,
+            ps.setTime(10,
                     fc.getClosingTime() != null
                             ? Time.valueOf(fc.getClosingTime())
                             : null
             );
 
-            ps.setString(12, fc.getGeneralRules());
-            ps.setString(13, "PENDING");
+            ps.setString(11, fc.getGeneralRules());
+            ps.setString(12, "PENDING");
             ps.executeUpdate();
             ResultSet rs = ps.getGeneratedKeys();
 
@@ -81,7 +79,6 @@ public class FootballComplexDAO {
                 "description=?, " +
                 "address=?, " +
                 "ward=?, " +
-                "district=?, " +
                 "city=?, " +
                 "latitude=?, " +
                 "longitude=?, " +
@@ -97,33 +94,32 @@ public class FootballComplexDAO {
             ps.setString(2, fc.getDescription());
             ps.setString(3, fc.getAddress());
             ps.setString(4, fc.getWard());
-            ps.setString(5, fc.getDistrict());
-            ps.setString(6, fc.getCity());
+            ps.setString(5, fc.getCity());
 
             if(fc.getLatitude() != null) {
-                ps.setBigDecimal(7, fc.getLatitude());
-            } else {ps.setNull(7, Types.DECIMAL);}
+                ps.setBigDecimal(6, fc.getLatitude());
+            } else {ps.setNull(6, Types.DECIMAL);}
 
             if(fc.getLongitude() != null) {
-                ps.setBigDecimal(8, fc.getLongitude());
-            } else {ps.setNull(8, Types.DECIMAL);}
+                ps.setBigDecimal(7, fc.getLongitude());
+            } else {ps.setNull(7, Types.DECIMAL);}
 
-            ps.setString(9, fc.getHotline());
+            ps.setString(8, fc.getHotline());
 
-            ps.setTime(10,
+            ps.setTime(9,
                     fc.getOpeningTime() != null
                             ? Time.valueOf(fc.getOpeningTime())
                             : null
             );
 
-            ps.setTime(11,
+            ps.setTime(10,
                     fc.getClosingTime() != null
                             ? Time.valueOf(fc.getClosingTime())
                             : null
             );
 
-            ps.setString(12, fc.getGeneralRules());
-            ps.setLong(13, fc.getComplexId());
+            ps.setString(11, fc.getGeneralRules());
+            ps.setLong(12, fc.getComplexId());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi khi cập nhật dữ liệu: " + e.getMessage(), e);
@@ -158,7 +154,6 @@ public class FootballComplexDAO {
                         rs.getString("description"),
                         rs.getString("address"),
                         rs.getString("ward"),
-                        rs.getString("district"),
                         rs.getString("city"),
                         rs.getBigDecimal("latitude"),
                         rs.getBigDecimal("longitude"),
@@ -197,7 +192,6 @@ public class FootballComplexDAO {
                         rs.getString("description"),
                         rs.getString("address"),
                         rs.getString("ward"),
-                        rs.getString("district"),
                         rs.getString("city"),
                         rs.getBigDecimal("latitude"),
                         rs.getBigDecimal("longitude"),
@@ -234,7 +228,6 @@ public class FootballComplexDAO {
                         rs.getString("description"),
                         rs.getString("address"),
                         rs.getString("ward"),
-                        rs.getString("district"),
                         rs.getString("city"),
                         rs.getBigDecimal("latitude"),
                         rs.getBigDecimal("longitude"),
@@ -554,7 +547,6 @@ public class FootballComplexDAO {
                         rs.getString("description"),
                         rs.getString("address"),
                         rs.getString("ward"),
-                        rs.getString("district"),
                         rs.getString("city"),
                         rs.getBigDecimal("latitude"),
                         rs.getBigDecimal("longitude"),

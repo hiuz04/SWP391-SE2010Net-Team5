@@ -62,7 +62,6 @@ public class ComplexController extends HttpServlet {
         String description = req.getParameter("description");
         String address = req.getParameter("address");
         String ward = req.getParameter("ward");
-        String district = req.getParameter("district");
         String city = req.getParameter("city");
 
         String latStr = req.getParameter("latitude");
@@ -95,7 +94,6 @@ public class ComplexController extends HttpServlet {
         fc.setDescription(description);
         fc.setAddress(address);
         fc.setWard(ward);
-        fc.setDistrict(district);
         fc.setCity(city);
         fc.setLatitude(latitude);
         fc.setLongitude(longitude);
@@ -127,7 +125,6 @@ public class ComplexController extends HttpServlet {
         String description = req.getParameter("description");
         String address = req.getParameter("address");
         String ward = req.getParameter("ward");
-        String district = req.getParameter("district");
         String city = req.getParameter("city");
 
         String latStr = req.getParameter("latitude");
@@ -161,7 +158,6 @@ public class ComplexController extends HttpServlet {
         fc.setDescription(description);
         fc.setAddress(address);
         fc.setWard(ward);
-        fc.setDistrict(district);
         fc.setCity(city);
         fc.setLatitude(latitude);
         fc.setLongitude(longitude);

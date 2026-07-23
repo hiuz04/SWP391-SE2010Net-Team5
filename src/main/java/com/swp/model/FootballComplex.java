@@ -12,7 +12,6 @@ public class FootballComplex implements Serializable {
     private String description;
     private String address;
     private String ward;
-    private String district;
     private String city;
     private BigDecimal latitude;
     private BigDecimal longitude;
@@ -27,13 +26,12 @@ public class FootballComplex implements Serializable {
     public FootballComplex() {
     }
 
-    public FootballComplex(Long complexId, String complexName, String description, String address, String ward, String district, String city, BigDecimal latitude, BigDecimal longitude, String hotline, LocalTime openingTime, LocalTime closingTime, String generalRules, String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public FootballComplex(Long complexId, String complexName, String description, String address, String ward, String city, BigDecimal latitude, BigDecimal longitude, String hotline, LocalTime openingTime, LocalTime closingTime, String generalRules, String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.complexId = complexId;
         this.complexName = complexName;
         this.description = description;
         this.address = address;
         this.ward = ward;
-        this.district = district;
         this.city = city;
         this.latitude = latitude;
         this.longitude = longitude;
@@ -84,14 +82,6 @@ public class FootballComplex implements Serializable {
 
     public void setWard(String ward) {
         this.ward = ward;
-    }
-
-    public String getDistrict() {
-        return district;
-    }
-
-    public void setDistrict(String district) {
-        this.district = district;
     }
 
     public String getCity() {

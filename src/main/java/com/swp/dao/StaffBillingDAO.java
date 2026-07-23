@@ -44,7 +44,7 @@ public class StaffBillingDAO {
                        b.status, b.start_time, b.end_time, b.total_amount, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_name,
-                       fc.complex_name, fc.address, fc.ward, fc.district, fc.city
+                       fc.complex_name, fc.address, fc.ward, fc.city
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id = fi.field_id
@@ -283,7 +283,7 @@ public class StaffBillingDAO {
                        b.field_id, b.total_amount AS field_fee, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_name,
-                       fc.complex_id, fc.complex_name, fc.address, fc.ward, fc.district, fc.city,
+                       fc.complex_id, fc.complex_name, fc.address, fc.ward, fc.city,
                        staff.full_name AS staff_name,
                        lp.payment_status,
                        lp.payment_method_name
@@ -685,7 +685,6 @@ public class StaffBillingDAO {
         List<String> parts = new ArrayList<>();
         addPart(parts, rs.getString("address"));
         addPart(parts, rs.getString("ward"));
-        addPart(parts, rs.getString("district"));
         addPart(parts, rs.getString("city"));
         return String.join(", ", parts);
     }

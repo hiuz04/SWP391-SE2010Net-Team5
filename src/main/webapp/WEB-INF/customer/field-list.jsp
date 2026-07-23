@@ -38,22 +38,28 @@
                 <div class="card soft-card p-3 sidebar-card">
                     <h5>Bộ lọc tìm kiếm</h5>
 
+                    <label for="complexName" class="form-label">
+                        Tên sân bóng
+                    </label>
+                    <input type="text" class="form-control" id="complexName" placeholder="Nhập tên sân bóng..." oninput="scheduleLoadData()">
+
                     <label class="form-label mt-3" for="province">Tỉnh/Thành phố</label>
-                    <select class="form-control" id="province">
-                        <option value="">Tất cả tỉnh thành</option>
+                    <select class="form-select" id="province" onchange="scheduleLoadData()">
+                        <option value="">-- Chọn Tỉnh/Thành phố --</option>
                     </select>
 
                     <label class="form-label mt-3" for="ward">Phường/Xã</label>
-                    <select class="form-control" id="ward">
-                        <option value="">Tất cả xã phường</option>
+                    <select class="form-select" id="ward" onchange="scheduleLoadData()">
+                        <option value="">-- Chọn Phường/Xã --</option>
                     </select>
 
                     <label class="form-label mt-3" for="type">Loại sân</label>
-                    <select class="form-select" id="type">
-                        <option value="">Tất cả</option>
+                    <select class="form-select" id="fieldType" onchange="scheduleLoadData()">
+                        <option value="">-- Chọn loại sân --</option>
                         <option value="1">Sân 5</option>
                         <option value="2">Sân 7</option>
                         <option value="3">Sân 11</option>
+                        <option value="4">Sân futsal</option>
                     </select>
 
                     <div class="d-grid mt-3">
@@ -70,10 +76,6 @@
                         <option value="price_asc">Giá: Thấp đến Cao</option>
                         <option value="price_desc">Giá: Cao đến Thấp</option>
                     </select></div>
-<%--                <div class="map-placeholder mb-4">--%>
-<%--                    <div><i class="bi bi-map display-4"></i><h5 class="mt-2">Khu vực bản đồ</h5>--%>
-<%--                        <p class="mb-0">Có thể tích hợp Google Maps/OpenStreetMap khi nối backend.</p></div>--%>
-<%--                </div>--%>
                 <div class="row g-4" id="list-container"></div>
             </section>
         </div>
