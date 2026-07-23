@@ -1,98 +1,321 @@
 /**
  * Module: Field Management
  * File: field.css
- * Description: Định dạng giao diện cho trang danh sách và trang nhập liệu sân bóng.
- *
- * Author: Dương Hải Anh
- * Version: 1.1
- * Created date: 01/06/2026
- * Updated date: 04/06/2026
- * Update Notes: Bổ sung thêm các thuộc tính CSS để tối ưu hóa giao diện.
+ * Version: 2.0
  */
+
 :root {
-    --main-color: rgb(32, 145, 74);
-    --main-hover: rgb(25, 120, 62);
+    --field-primary:   #16a34a;
+    --field-accent:    #22c55e;
+    --field-glow:      rgba(34,197,94,.18);
 }
 
-.custom-header {
-    background: var(--main-color);
-    color: white;
-    border-bottom: none;
-    height: 45px;
-}
-
-.field-modal .modal-content {
-    border-radius: 12px;
+/* ==================== FIELD TABLE ==================== */
+#field-data-container {
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 4px 16px rgba(15,23,42,.07);
+    border: 1px solid rgba(15,23,42,.07);
     overflow: hidden;
+}
+
+.table {
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.table thead th {
+    background: #f8fafc;
+    font-weight: 600;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(15,23,42,.07);
+    white-space: nowrap;
+    border-top: none;
+}
+
+.table tbody tr {
+    transition: all 0.18s ease;
+    border-bottom: 1px solid rgba(15,23,42,.05);
+}
+
+.table tbody tr:last-child { border-bottom: none; }
+
+.table tbody tr:hover { background: rgba(34,197,94,.04); }
+
+.table td {
+    padding: 14px 16px;
+    vertical-align: middle;
+    color: #0f172a;
     border: none;
 }
 
-.custom-input:focus {
-    border-color: var(--main-color);
-    box-shadow: 0 0 0 0.2rem rgba(32, 145, 74, 0.25);
+/* Field name cell */
+.field-name-cell .fw-semibold {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 2px;
 }
 
-.custom-btn {
-    background: var(--main-color);
-    color: white;
-    border: none;
-    padding: 8px 18px;
-    transition: 0.2s;
-}
-
-.custom-btn:hover {
-    background: var(--main-hover);
-    color: white;
-}
-
-.form-label {
+.field-name-cell small {
+    font-size: 0.73rem;
+    color: #94a3b8;
     font-weight: 500;
 }
 
-.table tbody tr{
-    transition: .2s;
+/* Field type badge */
+.field-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+    color: #16a34a;
+    border: 1px solid rgba(34,197,94,.25);
 }
 
-.table tbody tr:hover{
-    background:#f8fafc;
+/* Description */
+.description {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 0.82rem;
+    line-height: 1.4;
 }
 
-.table td{
-    vertical-align: middle;
+/* Status dropdown button */
+.status-dropdown-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: 20px;
+    border: none;
+    font-size: 0.73rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
 }
 
-.table th{
-    font-weight:600;
-    color:#6b7280;
-    font-size:14px;
+.status-dropdown-btn::after {
+    display: none;
 }
 
-.text-truncate{
+.status-dropdown-btn .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.badge-soft-success { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+.badge-soft-danger  { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.badge-soft-warning { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+.badge-soft-secondary { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+
+/* Hot toggle button */
+.hot-toggle-btn {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 2px solid #e2e8f0;
+    background: #f8fafc;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #94a3b8;
+    transition: all 0.22s cubic-bezier(.4,0,.2,1);
+}
+
+.hot-toggle-btn:hover {
+    border-color: #f59e0b;
+    background: #fef3c7;
+    color: #f59e0b;
+    transform: scale(1.1) rotate(15deg);
+}
+
+.hot-toggle-btn.is-hot {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-color: #f59e0b;
+    color: #d97706;
+    box-shadow: 0 4px 12px rgba(245,158,11,.25);
+}
+
+.hot-toggle-btn.is-hot:hover {
+    transform: scale(1.1) rotate(-15deg);
+}
+
+/* Action buttons */
+.action-btn {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1.5px solid transparent;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.18s;
+}
+
+.action-btn-edit {
+    border-color: #bfdbfe;
+    color: #2563eb;
+    background: #eff6ff;
+}
+
+.action-btn-edit:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+    transform: scale(1.05);
+}
+
+.action-btn-delete {
+    border-color: #fecaca;
+    color: #dc2626;
+    background: #fff5f5;
+}
+
+.action-btn-delete:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #fff;
+    transform: scale(1.05);
+}
+
+/* Bootstrap overrides for consistency */
+.btn.rounded-circle {
+    width: 32px; height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+/* ==================== FIELD MODAL ==================== */
+.field-modal .modal-content {
+    border-radius: 18px;
+    overflow: hidden;
+    border: none;
+    box-shadow: 0 20px 60px rgba(15,23,42,.15);
+}
+
+.field-modal .modal-header {
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    border-bottom: none;
+    padding: 20px 24px;
+}
+
+.field-modal .modal-title {
+    color: #fff;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.field-modal .btn-close {
+    filter: brightness(10);
+    opacity: 0.8;
+}
+
+.field-modal .modal-body {
+    padding: 24px;
+    background: #fff;
+}
+
+.field-modal .modal-body .form-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 6px;
+}
+
+.field-modal .modal-body .form-control,
+.field-modal .modal-body .form-select {
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    font-size: 0.875rem;
+    background: #f8fafc;
+    padding: 9px 13px;
+    transition: all 0.2s;
+}
+
+.field-modal .modal-body .form-control:focus,
+.field-modal .modal-body .form-select:focus {
+    border-color: var(--field-accent);
+    box-shadow: 0 0 0 3px var(--field-glow);
+    background: #fff;
+    outline: none;
+}
+
+.field-modal .modal-footer {
+    padding: 16px 24px;
+    background: #fafbfc;
+    border-top: 1px solid rgba(15,23,42,.06);
+    gap: 8px;
+}
+
+/* ==================== CUSTOM MODAL HEADER (legacy class) ==================== */
+.custom-header {
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    color: #fff;
+    border-bottom: none;
+}
+
+.custom-input:focus {
+    border-color: var(--field-accent);
+    box-shadow: 0 0 0 3px var(--field-glow);
+}
+
+.custom-btn {
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    color: #fff;
+    border: none;
+    padding: 9px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.custom-btn:hover {
+    background: linear-gradient(135deg, #15803d, #16a34a);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(34,197,94,.28);
+}
+
+/* ==================== STAT PILLS (field-count) ==================== */
+.stat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.stat-pill strong {
+    color: #0f172a;
+    font-size: 0.85rem;
+}
+
+/* ==================== TEXT TRUNCATE ==================== */
+.text-truncate {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.btn.rounded-circle{
-    width:26px;
-    height:26px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-}
-
-.badge{
-    font-size:.8rem;
-}
-
-.badge-soft-secondary{
-    color: #797979;
-}
-
-.description{
-    display:-webkit-box;
-    -webkit-line-clamp:2;
-    -webkit-box-orient:vertical;
-    overflow:hidden;
-    color:#6b7280;
 }

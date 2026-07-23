@@ -18,6 +18,7 @@ public class ToggleFieldHotStatusServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        response.setContentType("application/json;charset=UTF-8");
         try {
             long fieldId = Long.parseLong(request.getParameter("fieldId"));
             boolean isHot = Boolean.parseBoolean(request.getParameter("isHot"));
@@ -25,11 +26,10 @@ public class ToggleFieldHotStatusServlet extends HttpServlet {
             fieldDAO.updateFieldHotStatus(fieldId, isHot);
 
             response.setStatus(HttpServletResponse.SC_OK);
-            response.getWriter().write("success");
+            response.getWriter().write("{\"status\":\"success\",\"isHot\":" + isHot + "}");
         } catch (Exception e) {
-            e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            response.getWriter().write("error");
+            response.getWriter().write("{\"status\":\"error\",\"message\":\"" + e.getMessage() + "\"}");
         }
     }
 }

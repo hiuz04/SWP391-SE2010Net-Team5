@@ -60,13 +60,17 @@ public class PriceRuleController extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        // Bước 1: Xác định hành động (Thêm/Sửa/Xóa) từ form submit
         String action = req.getParameter("action");
         if (action == null) action = "";
-        
-        long complexId = Long.parseLong(req.getParameter("complexId"));
 
+        long complexId = -1;
         try {
+            String complexIdStr = req.getParameter("complexId");
+            if (complexIdStr == null || complexIdStr.trim().isEmpty()) {
+                throw new IllegalArgumentException("Thiếu tham số complexId.");
+            }
+            complexId = Long.parseLong(complexIdStr.trim());
+
             // Bước 2: Dựa vào action, gọi các hàm DAO tương ứng và thiết lập thông báo thành công
             switch (action) {
                 case "add":
@@ -89,7 +93,11 @@ public class PriceRuleController extends HttpServlet {
         }
 
         // Bước 3: Chuyển hướng lại trang danh sách (tránh submit lại form khi F5)
-        resp.sendRedirect(req.getContextPath() + "/owner/price-rules?complexId=" + complexId);
+        if (complexId != -1) {
+            resp.sendRedirect(req.getContextPath() + "/owner/price-rules?complexId=" + complexId);
+        } else {
+            resp.sendRedirect(req.getContextPath() + "/owner/price-rules");
+        }
     }
 
     private void handleAdd(HttpServletRequest req) throws Exception {
@@ -137,7 +145,11 @@ public class PriceRuleController extends HttpServlet {
             pr.setEndTime(LocalTime.parse(endTime));
         }
 
-        pr.setPrice(new BigDecimal(req.getParameter("price")));
+        String priceStr = req.getParameter("price");
+        if (priceStr == null || priceStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập giá sân.");
+        }
+        pr.setPrice(new BigDecimal(priceStr.trim()));
         pr.setRuleType(req.getParameter("ruleType"));
         
         String priorityStr = req.getParameter("priority");

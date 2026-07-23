@@ -112,14 +112,14 @@ public class ComplexController extends HttpServlet {
         String id = req.getParameter("complexId");
 
         if (id == null || id.trim().isEmpty()) {
-            // Sau thêm message trả về
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Thiếu mã tổ hợp sân (complexId).");
             return;
         }
         long complexId;
         try {
-            complexId = Long.parseLong(req.getParameter("complexId"));
+            complexId = Long.parseLong(id.trim());
         } catch (NumberFormatException e) {
-            // Sau thêm message báo lỗi
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Mã tổ hợp sân không hợp lệ.");
             return;
         }
 
@@ -227,8 +227,8 @@ public class ComplexController extends HttpServlet {
             FootballComplexImage image = new FootballComplexImage();
             image.setComplexId(complexId);
             image.setImageUrl(result.getImgUrl());
-            image.setThumbnail(
-                    Boolean.parseBoolean(thumbnails[i]));
+            boolean isThumb = thumbnails != null && i < thumbnails.length && Boolean.parseBoolean(thumbnails[i]);
+            image.setThumbnail(isThumb);
             image.setPublicId(result.getPublicId());
             complexService.addImg(image);
         }

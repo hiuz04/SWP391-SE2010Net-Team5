@@ -88,7 +88,7 @@ public class FootballComplexDAO {
                 "hotline=?, " +
                 "opening_time=?, " +
                 "closing_time=?, " +
-                "general_rules=?, " +
+                "general_rules=? " +
                 "WHERE complex_id=?";
 
         try (Connection conn = DBContext.getConnection();

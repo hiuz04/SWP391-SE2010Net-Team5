@@ -34,124 +34,129 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
   <link href="<%= ctx %>/assets/css/owner/styles.css" rel="stylesheet">
+  <link href="<%= ctx %>/assets/css/owner/dashboard.css" rel="stylesheet">
   <title>Bảng giá | Sport Field Booking</title>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Bảng giá"></div>
+<div class="owner-layout">
+    <aside class="owner-sidebar" id="owner-sidebar"></aside>
 
-<main class="py-5 main-wrapper bg-light min-vh-100">
-  <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="section-title mb-0">Quản lý Bảng giá</h1>
-      
-      <% if (complexes != null && !complexes.isEmpty()) { %>
-      <form action="<%= ctx %>/owner/price-rules" method="get" class="d-flex gap-2 align-items-center">
-        <label for="complexId" class="form-label mb-0 fw-semibold text-nowrap">Cơ sở:</label>
-        <select class="form-select" name="complexId" id="complexId" onchange="this.form.submit()">
-          <% for (FootballComplex fc : complexes) { %>
-            <option value="<%= fc.getComplexId() %>" <%= (selectedComplexId != null && selectedComplexId.equals(fc.getComplexId())) ? "selected" : "" %>>
-              <%= fc.getComplexName() %>
-            </option>
-          <% } %>
-        </select>
-      </form>
-      <% } %>
-    </div>
-    
-    <% if (successMsg != null) { %>
-        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
-            <i class="bi bi-check-circle-fill me-2"></i> <%= successMsg %>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    <% } %>
-    <% if (errorMsg != null) { %>
-        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i> <%= errorMsg %>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    <% } %>
+    <main class="main-wrapper bg-light min-vh-100 owner-content">
+      <div class="topbar" id="topbar"></div>
 
-    <div class="card border-0 shadow-sm">
-      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-        <h5 class="card-title fw-bold mb-0 text-sf-primary">Danh sách Bảng giá</h5>
-        <button class="btn btn-sf-primary btn-sm px-3" onclick="openAddModal()">
-          <i class="bi bi-plus-lg me-1"></i> Thêm mới
-        </button>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th class="ps-4">Tên luật</th>
-                <th>Phạm vi (Loại/Sân)</th>
-                <th>Thời gian áp dụng</th>
-                <th>Khung giờ</th>
-                <th>Giá tiền</th>
-                <th>Độ ưu tiên</th>
-                <th class="text-end pe-4">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% if (priceRules != null && !priceRules.isEmpty()) { 
-                   for (PriceRule pr : priceRules) { 
-              %>
-              <tr>
-                <td class="ps-4 fw-semibold text-dark"><%= pr.getRuleName() %>
-                   <br><span class="badge bg-secondary"><%= pr.getRuleType() %></span>
-                </td>
-                <td>
-                    <% if (pr.getFieldId() != null) { %>
-                        <span class="badge bg-info text-dark">Sân ID: <%= pr.getFieldId() %></span>
-                    <% } else if (pr.getFieldTypeId() != null) { %>
-                        <span class="badge bg-primary">Loại sân: <%= pr.getFieldTypeId() %></span>
-                    <% } else { %>
-                        <span class="badge bg-success">Tất cả sân</span>
-                    <% } %>
-                </td>
-                <td>
-                    <% if (pr.getSpecificDate() != null) { %>
-                        Ngày: <strong class="text-danger"><%= pr.getSpecificDate() %></strong>
-                    <% } else if (pr.getDayOfWeek() != null && !pr.getDayOfWeek().isEmpty()) { %>
-                        Thứ: <strong><%= pr.getDayOfWeek() %></strong>
-                    <% } else { %>
-                        <strong>Tất cả ngày</strong>
-                    <% } %>
-                </td>
-                <td>
-                    <% if (pr.getStartTime() != null && pr.getEndTime() != null) { %>
-                        <%= pr.getStartTime() %> - <%= pr.getEndTime() %>
-                    <% } else { %>
-                        Cả ngày
-                    <% } %>
-                </td>
-                <td class="fw-bold text-success">
-                    <%= pr.getPrice() %> đ
-                </td>
-                <td>
-                    <span class="badge bg-warning text-dark">Mức <%= pr.getPriority() %></span>
-                </td>
-                <td class="text-end pe-4">
-                  <button class="btn btn-sm btn-outline-secondary me-1" onclick="openEditModal('<%= pr.getPriceRuleId() %>', '<%= pr.getRuleName() %>', '<%= pr.getRuleType() %>', '<%= pr.getFieldTypeId() == null ? "" : pr.getFieldTypeId() %>', '<%= pr.getFieldId() == null ? "" : pr.getFieldId() %>', '<%= pr.getDayOfWeek() == null ? "" : pr.getDayOfWeek() %>', '<%= pr.getSpecificDate() == null ? "" : pr.getSpecificDate() %>', '<%= pr.getStartTime() == null ? "" : pr.getStartTime() %>', '<%= pr.getEndTime() == null ? "" : pr.getEndTime() %>', '<%= pr.getPrice() %>', '<%= pr.getPriority() %>')">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDelete('<%= pr.getPriceRuleId() %>')">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-              <% } } else { %>
-              <tr>
-                <td colspan="7" class="text-center py-4 text-muted">Chưa có bảng giá nào được thiết lập cho cơ sở này.</td>
-              </tr>
+      <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h1 class="section-title mb-0">Quản lý Bảng giá</h1>
+
+          <% if (complexes != null && !complexes.isEmpty()) { %>
+          <form action="<%= ctx %>/owner/price-rules" method="get" class="d-flex gap-2 align-items-center">
+            <label for="complexId" class="form-label mb-0 fw-semibold text-nowrap">Cơ sở:</label>
+            <select class="form-select" name="complexId" id="complexId" onchange="this.form.submit()">
+              <% for (FootballComplex fc : complexes) { %>
+                <option value="<%= fc.getComplexId() %>" <%= (selectedComplexId != null && selectedComplexId.equals(fc.getComplexId())) ? "selected" : "" %>>
+                  <%= fc.getComplexName() %>
+                </option>
               <% } %>
-            </tbody>
-          </table>
+            </select>
+          </form>
+          <% } %>
+        </div>
+
+        <% if (successMsg != null) { %>
+            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i> <%= successMsg %>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <% } %>
+        <% if (errorMsg != null) { %>
+            <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> <%= errorMsg %>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <% } %>
+
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="card-title fw-bold mb-0 text-sf-primary">Danh sách Bảng giá</h5>
+            <button class="btn btn-sf-primary btn-sm px-3" onclick="openAddModal()">
+              <i class="bi bi-plus-lg me-1"></i> Thêm mới
+            </button>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-4">Tên luật</th>
+                    <th>Phạm vi (Loại/Sân)</th>
+                    <th>Thời gian áp dụng</th>
+                    <th>Khung giờ</th>
+                    <th>Giá tiền</th>
+                    <th>Độ ưu tiên</th>
+                    <th class="text-end pe-4">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (priceRules != null && !priceRules.isEmpty()) {
+                       for (PriceRule pr : priceRules) {
+                  %>
+                  <tr>
+                    <td class="ps-4 fw-semibold text-dark"><%= pr.getRuleName() %>
+                       <br><span class="badge bg-secondary"><%= pr.getRuleType() %></span>
+                    </td>
+                    <td>
+                        <% if (pr.getFieldId() != null) { %>
+                            <span class="badge bg-info text-dark">Sân ID: <%= pr.getFieldId() %></span>
+                        <% } else if (pr.getFieldTypeId() != null) { %>
+                            <span class="badge bg-primary">Loại sân: <%= pr.getFieldTypeId() %></span>
+                        <% } else { %>
+                            <span class="badge bg-success">Tất cả sân</span>
+                        <% } %>
+                    </td>
+                    <td>
+                        <% if (pr.getSpecificDate() != null) { %>
+                            Ngày: <strong class="text-danger"><%= pr.getSpecificDate() %></strong>
+                        <% } else if (pr.getDayOfWeek() != null && !pr.getDayOfWeek().isEmpty()) { %>
+                            Thứ: <strong><%= pr.getDayOfWeek() %></strong>
+                        <% } else { %>
+                            <strong>Tất cả ngày</strong>
+                        <% } %>
+                    </td>
+                    <td>
+                        <% if (pr.getStartTime() != null && pr.getEndTime() != null) { %>
+                            <%= pr.getStartTime() %> - <%= pr.getEndTime() %>
+                        <% } else { %>
+                            Cả ngày
+                        <% } %>
+                    </td>
+                    <td class="fw-bold text-success">
+                        <%= pr.getPrice() %> đ
+                    </td>
+                    <td>
+                        <span class="badge bg-warning text-dark">Mức <%= pr.getPriority() %></span>
+                    </td>
+                    <td class="text-end pe-4">
+                      <button class="btn btn-sm btn-outline-secondary me-1" onclick="openEditModal('<%= pr.getPriceRuleId() %>', '<%= pr.getRuleName() %>', '<%= pr.getRuleType() %>', '<%= pr.getFieldTypeId() == null ? "" : pr.getFieldTypeId() %>', '<%= pr.getFieldId() == null ? "" : pr.getFieldId() %>', '<%= pr.getDayOfWeek() == null ? "" : pr.getDayOfWeek() %>', '<%= pr.getSpecificDate() == null ? "" : pr.getSpecificDate() %>', '<%= pr.getStartTime() == null ? "" : pr.getStartTime() %>', '<%= pr.getEndTime() == null ? "" : pr.getEndTime() %>', '<%= pr.getPrice() %>', '<%= pr.getPriority() %>')">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDelete('<%= pr.getPriceRuleId() %>')">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <% } } else { %>
+                  <tr>
+                    <td colspan="7" class="text-center py-4 text-muted">Chưa có bảng giá nào được thiết lập cho cơ sở này.</td>
+                  </tr>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-</main>
+    </main>
+</div>
 
 <!-- Modal Thêm/Sửa Bảng Giá -->
 <div class="modal fade" id="priceRuleModal" tabindex="-1">
@@ -166,7 +171,7 @@
           <input type="hidden" name="action" id="formAction" value="add">
           <input type="hidden" name="complexId" value="<%= selectedComplexId %>">
           <input type="hidden" name="priceRuleId" id="priceRuleId" value="">
-          
+
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Tên luật giá <span class="text-danger">*</span></label>
@@ -180,7 +185,7 @@
                   <option value="HOLIDAY">Ngày lễ (HOLIDAY)</option>
               </select>
             </div>
-            
+
             <div class="col-md-6">
               <label class="form-label">Loại sân (Để trống nếu áp dụng tất cả)</label>
               <select class="form-select" name="fieldTypeId" id="fieldTypeId">
@@ -246,7 +251,6 @@
       </div>
     </div>
   </div>
-</div>
 
 <!-- Modal Xác nhận xóa -->
 <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
@@ -272,8 +276,14 @@
 
 <div id="footer" data-root="<%= ctx %>/"></div>
 
+<script>
+    window.APP_CTX = '<%= ctx %>';
+    display_name = '<%= displayName %>';
+    current_role = '<%= navRole %>';
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
+<script src="<%= ctx %>/assets/js/owner/dashboard.js"></script>
 <script>
     function openAddModal() {
         document.getElementById('priceRuleModalTitle').innerText = 'Thêm Bảng giá mới';
@@ -312,6 +322,11 @@
         var myModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
         myModal.show();
     }
+
+    renderTopbar({
+        title: "Owner Dashboard",
+        subtitle: "Theo dõi hiệu quả kinh doanh cơ sở sân."
+    });
 </script>
 </body>
 </html>

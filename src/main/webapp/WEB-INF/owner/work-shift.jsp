@@ -10,6 +10,9 @@
     String ctx = request.getContextPath();
     User sessionUser = (User) session.getAttribute("user");
     String displayName = sessionUser != null ? sessionUser.getFullName() : "";
+    String navRole = (String) request.getAttribute("navRole");
+    if (navRole == null) navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
+    if (navRole == null) navRole = "guest";
 
     List<FootballComplex> complexes = (List<FootballComplex>) request.getAttribute("complexes");
     List<User> staffList = (List<User>) request.getAttribute("staffList");
@@ -66,6 +69,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
   <link href="<%= ctx %>/assets/css/owner/styles.css" rel="stylesheet">
+  <link href="<%= ctx %>/assets/css/owner/dashboard.css" rel="stylesheet">
   <style>
     body { background: #f8fafc; font-family: 'Inter', sans-serif; }
     .header-card {
@@ -265,305 +269,309 @@
   </style>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/" data-role="owner" data-name="<%= displayName %>" data-active="Quản lý ca trực"></div>
+<div class="owner-layout">
+    <aside class="owner-sidebar" id="owner-sidebar"></aside>
 
-<main class="py-5">
-  <div class="container">
-    
-    <!-- Header Summary Card -->
-    <div class="header-card">
-      <div class="row align-items-center">
-        <div class="col-md-7">
-          <h1 class="fw-bold mb-2">Quản lý Ca trực & Phân công</h1>
-          <p class="mb-0 opacity-90">Thiết lập lịch trực, phân ca làm việc cho nhân viên và quản lý nhân sự tại các cơ sở sân bóng.</p>
-        </div>
-        <div class="col-md-5 mt-3 mt-md-0 d-flex justify-content-md-end gap-3">
-          <button class="btn btn-light fw-bold px-4 py-2.5 rounded-3" style="color: #059669;" onclick="openAddShiftModal()">
-            <i class="bi bi-plus-circle-fill me-2"></i>Thêm ca làm việc
-          </button>
-        </div>
-      </div>
-    </div>
+    <main class="owner-content">
+      <div class="topbar" id="topbar"></div>
 
-    <!-- Quick Metrics -->
-    <div class="row g-4 mb-4">
-      <div class="col-md-4">
-        <div class="card soft-card p-4">
-          <div class="d-flex align-items-center justify-content-between">
-            <div>
-              <span class="text-muted small fw-semibold">Tổng số nhân sự</span>
-              <h3 class="fw-bold mt-1 mb-0 text-slate-800"><%= staffList.size() %></h3>
-            </div>
-            <div class="p-3 bg-emerald-50 text-emerald-600 rounded-3" style="background:#e6fbf4; color:#10b981;">
-              <i class="bi bi-people-fill fs-4"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card soft-card p-4">
-          <div class="d-flex align-items-center justify-content-between">
-            <div>
-              <span class="text-muted small fw-semibold">Tổng số ca trực</span>
-              <h3 class="fw-bold mt-1 mb-0"><%= shifts.size() %></h3>
-            </div>
-            <div class="p-3 bg-blue-50 text-blue-600 rounded-3" style="background:#eff6ff; color:#3b82f6;">
-              <i class="bi bi-calendar-range fs-4"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card soft-card p-4">
-          <div class="d-flex align-items-center justify-content-between">
-            <div>
-              <span class="text-muted small fw-semibold">Cơ sở hoạt động</span>
-              <h3 class="fw-bold mt-1 mb-0"><%= complexes.size() %></h3>
-            </div>
-            <div class="p-3 bg-amber-50 text-amber-600 rounded-3" style="background:#fffbeb; color:#f59e0b;">
-              <i class="bi bi-geo-alt-fill fs-4"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <div class="container">
 
-    <!-- Navigation & Filters -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-      <ul class="nav nav-pills" id="shiftTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="shifts-tab" data-bs-toggle="tab" data-bs-target="#shifts-panel" type="button" role="tab" aria-controls="shifts-panel" aria-selected="true">
-            <i class="bi bi-calendar-event me-2"></i>Lịch Trực
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="staff-tab" data-bs-toggle="tab" data-bs-target="#staff-panel" type="button" role="tab" aria-controls="staff-panel" aria-selected="false">
-            <i class="bi bi-person-lines-fill me-2"></i>Danh Sách Nhân Sự
-          </button>
-        </li>
-      </ul>
-
-      <!-- FootballComplex filter -->
-      <div class="d-flex gap-2">
-        <label for="complex-filter" class="visually-hidden">Lọc theo cơ sở</label>
-        <select class="form-select border-0 shadow-sm" id="complex-filter" style="min-width: 220px;" onchange="filterShifts()">
-          <option value="ALL">Tất cả cơ sở</option>
-          <% for (FootballComplex fc : complexes) { %>
-            <option value="<%= fc.getComplexId() %>"><%= fc.getComplexName() %></option>
-          <% } %>
-        </select>
-      </div>
-    </div>
-
-    <!-- Tab Panels -->
-    <div class="tab-content" id="shiftTabContent">
-      
-      <!-- Panel 1: Lịch Trực (Shift Table) -->
-      <div class="tab-pane fade show active" id="shifts-panel" role="tabpanel" aria-labelledby="shifts-tab">
-        <div class="card soft-card p-4">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold mb-0"><i class="bi bi-table text-emerald-600 me-2" style="color:#10b981;"></i>Danh sách ca trực đã thiết lập</h5>
-            <button class="btn btn-danger btn-sm fw-bold px-3 py-2 rounded-3" id="btnDeleteSelected" style="display: none;" onclick="deleteSelectedShifts()">
-              <i class="bi bi-trash3-fill me-1"></i>Xóa ca đã chọn (<span id="selectedCount">0</span>)
-            </button>
-          </div>
-
-          <!-- Advanced Filters Bar -->
-          <div class="row g-3 mb-4 p-3 rounded-3" style="background: #f8fafc; border: 1px solid #e2e8f0; margin-left: 0; margin-right: 0;">
-            <div class="col-md-3">
-              <label for="filter-shift-name" class="form-label small fw-bold text-muted mb-1">Tìm theo tên ca</label>
-              <div class="input-group input-group-sm">
-                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control border-start-0" id="filter-shift-name" placeholder="Ví dụ: Ca sáng..." onkeyup="filterShifts()">
-              </div>
+        <!-- Header Summary Card -->
+        <div class="header-card">
+          <div class="row align-items-center">
+            <div class="col-md-7">
+              <h1 class="fw-bold mb-2">Quản lý Ca trực & Phân công</h1>
+              <p class="mb-0 opacity-90">Thiết lập lịch trực, phân ca làm việc cho nhân viên và quản lý nhân sự tại các cơ sở sân bóng.</p>
             </div>
-            <div class="col-md-3">
-              <label for="filter-shift-date" class="form-label small fw-bold text-muted mb-1">Lọc theo ngày</label>
-              <div class="input-group input-group-sm">
-                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-calendar3"></i></span>
-                <input type="date" class="form-control border-start-0" id="filter-shift-date" onchange="filterShifts()">
-              </div>
-            </div>
-            <div class="col-md-3">
-              <label for="filter-shift-time" class="form-label small fw-bold text-muted mb-1">Lọc theo giờ trực</label>
-              <div class="input-group input-group-sm">
-                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-clock"></i></span>
-                <input type="text" class="form-control border-start-0" id="filter-shift-time" placeholder="Ví dụ: 08:00..." onkeyup="filterShifts()">
-              </div>
-            </div>
-            <div class="col-md-3 d-flex align-items-end">
-              <button class="btn btn-outline-secondary btn-sm w-100 fw-semibold" type="button" onclick="resetFilters()">
-                <i class="bi bi-arrow-counterclockwise me-1"></i>Đặt lại bộ lọc
+            <div class="col-md-5 mt-3 mt-md-0 d-flex justify-content-md-end gap-3">
+              <button class="btn btn-light fw-bold px-4 py-2.5 rounded-3" style="color: #059669;" onclick="openAddShiftModal()">
+                <i class="bi bi-plus-circle-fill me-2"></i>Thêm ca làm việc
               </button>
             </div>
           </div>
-          
-          <div class="table-responsive">
-            <table class="table custom-table align-middle" id="shiftsTable">
-              <thead>
-                <tr>
-                  <th style="width: 40px;"><input type="checkbox" id="selectAllShifts" onclick="toggleSelectAllShifts(this)"></th>
-                  <th>Tên ca trực</th>
-                  <th>Cơ sở</th>
-                  <th>Ngày trực</th>
-                  <th>Khung giờ</th>
-                  <th>Nhân viên trực</th>
-                  <th class="text-end">Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                <% if (shifts == null || shifts.isEmpty()) { %>
-                  <tr class="no-shifts-row">
-                    <td colspan="7" class="text-center text-muted py-5">
-                      <i class="bi bi-calendar-x fs-1 d-block mb-3 opacity-50"></i>
-                      Chưa có ca làm việc nào được thiết lập. Hãy nhấn "Thêm ca làm việc" để bắt đầu.
-                    </td>
-                  </tr>
-                <% } else {
-                  java.time.LocalDateTime now = java.time.LocalDateTime.now();
-                  for (WorkShift ws : shifts) {
-                    FootballComplex curFc = null;
-                    for (FootballComplex fc : complexes) {
-                      if (fc.getComplexId().equals(ws.getComplexId())) {
-                        curFc = fc;
-                        break;
-                      }
-                    }
-                    String fcName = curFc != null ? curFc.getComplexName() : "Không rõ";
-                    
-                    // Fetch assigned staff list
-                    List<User> assigned = workShiftDAO.getStaffAssignedToShift(ws.getShiftId());
-                    Long assignedStaffId = assigned.isEmpty() ? null : assigned.get(0).getUserId();
-                    
-                    boolean isPast = false;
-                    boolean isOngoing = false;
-                    if (ws.getShiftDate() != null && ws.getStartTime() != null && ws.getEndTime() != null) {
-                      java.time.LocalDateTime shiftStart = java.time.LocalDateTime.of(ws.getShiftDate(), ws.getStartTime());
-                      java.time.LocalDateTime shiftEnd;
-                      if (ws.getEndTime().isBefore(ws.getStartTime())) {
-                        shiftEnd = java.time.LocalDateTime.of(ws.getShiftDate().plusDays(1), ws.getEndTime());
-                      } else {
-                        shiftEnd = java.time.LocalDateTime.of(ws.getShiftDate(), ws.getEndTime());
-                      }
-                      isPast = shiftEnd.isBefore(now);
-                      isOngoing = !isPast && !now.isBefore(shiftStart);
-                    }
-                %>
-                  <tr class="shift-row" data-complex-id="<%= ws.getComplexId() %>">
-                    <td>
-                      <% if (isPast) { %>
-                        <input type="checkbox" disabled class="form-check-input">
-                      <% } else { %>
-                        <input type="checkbox" class="form-check-input shift-checkbox" value="<%= ws.getShiftId() %>" onclick="updateDeleteSelectedButtonVisibility()">
-                      <% } %>
-                    </td>
-                    <td>
-                      <strong class="text-slate-800"><%= ws.getShiftName() %></strong>
-                    </td>
-                    <td>
-                      <span class="badge bg-light text-dark p-2 border"><%= fcName %></span>
-                    </td>
-                    <td>
-                      <span class="text-secondary"><%= ws.getShiftDate().format(dateFormatter) %></span>
-                    </td>
-                    <td>
-                      <span class="stat-badge bg-soft-emerald"><i class="bi bi-clock me-1"></i><%= ws.getStartTime().format(timeFormatter) %> - <%= ws.getEndTime().format(timeFormatter) %></span>
-                      <% if (isOngoing) { %>
-                        <span class="badge badge-ongoing ms-1" style="font-size: 0.75rem;"><i class="bi bi-broadcast me-1"></i>Đang diễn ra</span>
-                      <% } %>
-                    </td>
-                    <td>
-                      <div class="d-flex align-items-center gap-2">
-                        <% if (assigned.isEmpty()) { %>
-                          <span class="text-danger small fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>Chưa phân công</span>
-                        <% } else { %>
-                          <div class="avatar-stack">
-                            <% for (User staff : assigned) {
-                              String initials = staff.getFullName().substring(0, Math.min(staff.getFullName().length(), 2)).toUpperCase();
-                            %>
-                              <div class="avatar-circle" title="<%= staff.getFullName() %> (<%= staff.getPhone() %>)">
-                                <%= initials %>
+        </div>
+
+        <!-- Quick Metrics -->
+        <div class="row g-4 mb-4">
+          <div class="col-md-4">
+            <div class="card soft-card p-4">
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  <span class="text-muted small fw-semibold">Tổng số nhân sự</span>
+                  <h3 class="fw-bold mt-1 mb-0 text-slate-800"><%= staffList.size() %></h3>
+                </div>
+                <div class="p-3 bg-emerald-50 text-emerald-600 rounded-3" style="background:#e6fbf4; color:#10b981;">
+                  <i class="bi bi-people-fill fs-4"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card soft-card p-4">
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  <span class="text-muted small fw-semibold">Tổng số ca trực</span>
+                  <h3 class="fw-bold mt-1 mb-0"><%= shifts.size() %></h3>
+                </div>
+                <div class="p-3 bg-blue-50 text-blue-600 rounded-3" style="background:#eff6ff; color:#3b82f6;">
+                  <i class="bi bi-calendar-range fs-4"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card soft-card p-4">
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  <span class="text-muted small fw-semibold">Cơ sở hoạt động</span>
+                  <h3 class="fw-bold mt-1 mb-0"><%= complexes.size() %></h3>
+                </div>
+                <div class="p-3 bg-amber-50 text-amber-600 rounded-3" style="background:#fffbeb; color:#f59e0b;">
+                  <i class="bi bi-geo-alt-fill fs-4"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation & Filters -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+          <ul class="nav nav-pills" id="shiftTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="shifts-tab" data-bs-toggle="tab" data-bs-target="#shifts-panel" type="button" role="tab" aria-controls="shifts-panel" aria-selected="true">
+                <i class="bi bi-calendar-event me-2"></i>Lịch Trực
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="staff-tab" data-bs-toggle="tab" data-bs-target="#staff-panel" type="button" role="tab" aria-controls="staff-panel" aria-selected="false">
+                <i class="bi bi-person-lines-fill me-2"></i>Danh Sách Nhân Sự
+              </button>
+            </li>
+          </ul>
+
+          <!-- FootballComplex filter -->
+          <div class="d-flex gap-2">
+            <label for="complex-filter" class="visually-hidden">Lọc theo cơ sở</label>
+            <select class="form-select border-0 shadow-sm" id="complex-filter" style="min-width: 220px;" onchange="filterShifts()">
+              <option value="ALL">Tất cả cơ sở</option>
+              <% for (FootballComplex fc : complexes) { %>
+                <option value="<%= fc.getComplexId() %>"><%= fc.getComplexName() %></option>
+              <% } %>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tab Panels -->
+        <div class="tab-content" id="shiftTabContent">
+
+          <!-- Panel 1: Lịch Trực (Shift Table) -->
+          <div class="tab-pane fade show active" id="shifts-panel" role="tabpanel" aria-labelledby="shifts-tab">
+            <div class="card soft-card p-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-table text-emerald-600 me-2" style="color:#10b981;"></i>Danh sách ca trực đã thiết lập</h5>
+                <button class="btn btn-danger btn-sm fw-bold px-3 py-2 rounded-3" id="btnDeleteSelected" style="display: none;" onclick="deleteSelectedShifts()">
+                  <i class="bi bi-trash3-fill me-1"></i>Xóa ca đã chọn (<span id="selectedCount">0</span>)
+                </button>
+              </div>
+
+              <!-- Advanced Filters Bar -->
+              <div class="row g-3 mb-4 p-3 rounded-3" style="background: #f8fafc; border: 1px solid #e2e8f0; margin-left: 0; margin-right: 0;">
+                <div class="col-md-3">
+                  <label for="filter-shift-name" class="form-label small fw-bold text-muted mb-1">Tìm theo tên ca</label>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control border-start-0" id="filter-shift-name" placeholder="Ví dụ: Ca sáng..." onkeyup="filterShifts()">
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <label for="filter-shift-date" class="form-label small fw-bold text-muted mb-1">Lọc theo ngày</label>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-calendar3"></i></span>
+                    <input type="date" class="form-control border-start-0" id="filter-shift-date" onchange="filterShifts()">
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <label for="filter-shift-time" class="form-label small fw-bold text-muted mb-1">Lọc theo giờ trực</label>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-clock"></i></span>
+                    <input type="text" class="form-control border-start-0" id="filter-shift-time" placeholder="Ví dụ: 08:00..." onkeyup="filterShifts()">
+                  </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                  <button class="btn btn-outline-secondary btn-sm w-100 fw-semibold" type="button" onclick="resetFilters()">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Đặt lại bộ lọc
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table custom-table align-middle" id="shiftsTable">
+                  <thead>
+                    <tr>
+                      <th style="width: 40px;"><input type="checkbox" id="selectAllShifts" onclick="toggleSelectAllShifts(this)"></th>
+                      <th>Tên ca trực</th>
+                      <th>Cơ sở</th>
+                      <th>Ngày trực</th>
+                      <th>Khung giờ</th>
+                      <th>Nhân viên trực</th>
+                      <th class="text-end">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% if (shifts == null || shifts.isEmpty()) { %>
+                      <tr class="no-shifts-row">
+                        <td colspan="7" class="text-center text-muted py-5">
+                          <i class="bi bi-calendar-x fs-1 d-block mb-3 opacity-50"></i>
+                          Chưa có ca làm việc nào được thiết lập. Hãy nhấn "Thêm ca làm việc" để bắt đầu.
+                        </td>
+                      </tr>
+                    <% } else {
+                      java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                      for (WorkShift ws : shifts) {
+                        FootballComplex curFc = null;
+                        for (FootballComplex fc : complexes) {
+                          if (fc.getComplexId().equals(ws.getComplexId())) {
+                            curFc = fc;
+                            break;
+                          }
+                        }
+                        String fcName = curFc != null ? curFc.getComplexName() : "Không rõ";
+
+                        // Fetch assigned staff list
+                        List<User> assigned = workShiftDAO.getStaffAssignedToShift(ws.getShiftId());
+                        Long assignedStaffId = assigned.isEmpty() ? null : assigned.get(0).getUserId();
+
+                        boolean isPast = false;
+                        boolean isOngoing = false;
+                        if (ws.getShiftDate() != null && ws.getStartTime() != null && ws.getEndTime() != null) {
+                          java.time.LocalDateTime shiftStart = java.time.LocalDateTime.of(ws.getShiftDate(), ws.getStartTime());
+                          java.time.LocalDateTime shiftEnd;
+                          if (ws.getEndTime().isBefore(ws.getStartTime())) {
+                            shiftEnd = java.time.LocalDateTime.of(ws.getShiftDate().plusDays(1), ws.getEndTime());
+                          } else {
+                            shiftEnd = java.time.LocalDateTime.of(ws.getShiftDate(), ws.getEndTime());
+                          }
+                          isPast = shiftEnd.isBefore(now);
+                          isOngoing = !isPast && !now.isBefore(shiftStart);
+                        }
+                    %>
+                      <tr class="shift-row" data-complex-id="<%= ws.getComplexId() %>">
+                        <td>
+                          <% if (isPast) { %>
+                            <input type="checkbox" disabled class="form-check-input">
+                          <% } else { %>
+                            <input type="checkbox" class="form-check-input shift-checkbox" value="<%= ws.getShiftId() %>" onclick="updateDeleteSelectedButtonVisibility()">
+                          <% } %>
+                        </td>
+                        <td>
+                          <strong class="text-slate-800"><%= ws.getShiftName() %></strong>
+                        </td>
+                        <td>
+                          <span class="badge bg-light text-dark p-2 border"><%= fcName %></span>
+                        </td>
+                        <td>
+                          <span class="text-secondary"><%= ws.getShiftDate().format(dateFormatter) %></span>
+                        </td>
+                        <td>
+                          <span class="stat-badge bg-soft-emerald"><i class="bi bi-clock me-1"></i><%= ws.getStartTime().format(timeFormatter) %> - <%= ws.getEndTime().format(timeFormatter) %></span>
+                          <% if (isOngoing) { %>
+                            <span class="badge badge-ongoing ms-1" style="font-size: 0.75rem;"><i class="bi bi-broadcast me-1"></i>Đang diễn ra</span>
+                          <% } %>
+                        </td>
+                        <td>
+                          <div class="d-flex align-items-center gap-2">
+                            <% if (assigned.isEmpty()) { %>
+                              <span class="text-danger small fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>Chưa phân công</span>
+                            <% } else { %>
+                              <div class="avatar-stack">
+                                <% for (User staff : assigned) {
+                                  String initials = staff.getFullName().substring(0, Math.min(staff.getFullName().length(), 2)).toUpperCase();
+                                %>
+                                  <div class="avatar-circle" title="<%= staff.getFullName() %> (<%= staff.getPhone() %>)">
+                                    <%= initials %>
+                                  </div>
+                                <% } %>
                               </div>
                             <% } %>
                           </div>
-                        <% } %>
-                      </div>
-                    </td>
-                    <td class="text-end">
-                      <% if (isPast) { %>
-                        <span class="badge bg-secondary-subtle text-secondary px-2.5 py-1.5 border border-secondary-subtle">
-                          <i class="bi bi-lock-fill me-1"></i>Chỉ xem
-                        </span>
-                      <% } else { %>
-                        <div class="d-inline-flex gap-2">
-                          <button class="btn btn-sm btn-outline-success border-0" title="Phân công nhân viên"
-                                  onclick="openAssignModal(<%= ws.getShiftId() %>, '<%= ws.getShiftName() %>')">
-                            <i class="bi bi-person-plus-fill fs-5"></i>
-                          </button>
-                          <button class="btn btn-sm btn-outline-primary border-0" title="Sửa ca" 
-                                  onclick="openEditShiftModal(<%= ws.getShiftId() %>, <%= ws.getComplexId() %>, '<%= ws.getShiftName() %>', '<%= ws.getShiftDate() %>', '<%= ws.getStartTime() %>', '<%= ws.getEndTime() %>', <%= assignedStaffId != null ? assignedStaffId : "''" %>)">
-                            <i class="bi bi-pencil-square fs-5"></i>
-                          </button>
-                          <button class="btn btn-sm btn-outline-danger border-0" title="Xóa ca" 
-                                  onclick="deleteShift(<%= ws.getShiftId() %>)">
-                            <i class="bi bi-trash3-fill fs-5"></i>
-                          </button>
-                        </div>
-                      <% } %>
-                    </td>
-                  </tr>
-                <% }
-                } %>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Panel 2: Danh Sách Nhân Sự -->
-      <div class="tab-pane fade" id="staff-panel" role="tabpanel" aria-labelledby="staff-tab">
-        <div class="card soft-card p-4">
-          <h5 class="fw-bold mb-4"><i class="bi bi-people-fill text-emerald-600 me-2" style="color:#10b981;"></i>Thông tin nhân sự sân bóng</h5>
-          
-          <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-            <% if (staffList == null || staffList.isEmpty()) { %>
-              <div class="col-12 text-center text-muted py-5">
-                Chưa có nhân viên nào có tài khoản ACTIVE.
+                        </td>
+                        <td class="text-end">
+                          <% if (isPast) { %>
+                            <span class="badge bg-secondary-subtle text-secondary px-2.5 py-1.5 border border-secondary-subtle">
+                              <i class="bi bi-lock-fill me-1"></i>Chỉ xem
+                            </span>
+                          <% } else { %>
+                            <div class="d-inline-flex gap-2">
+                              <button class="btn btn-sm btn-outline-success border-0" title="Phân công nhân viên"
+                                      onclick="openAssignModal(<%= ws.getShiftId() %>, '<%= ws.getShiftName() %>')">
+                                <i class="bi bi-person-plus-fill fs-5"></i>
+                              </button>
+                              <button class="btn btn-sm btn-outline-primary border-0" title="Sửa ca"
+                                      onclick="openEditShiftModal(<%= ws.getShiftId() %>, <%= ws.getComplexId() %>, '<%= ws.getShiftName() %>', '<%= ws.getShiftDate() %>', '<%= ws.getStartTime() %>', '<%= ws.getEndTime() %>', <%= assignedStaffId != null ? assignedStaffId : "''" %>)">
+                                <i class="bi bi-pencil-square fs-5"></i>
+                              </button>
+                              <button class="btn btn-sm btn-outline-danger border-0" title="Xóa ca"
+                                      onclick="deleteShift(<%= ws.getShiftId() %>)">
+                                <i class="bi bi-trash3-fill fs-5"></i>
+                              </button>
+                            </div>
+                          <% } %>
+                        </td>
+                      </tr>
+                    <% }
+                    } %>
+                  </tbody>
+                </table>
               </div>
-            <% } else {
-              for (User staff : staffList) {
-                int shiftCount = staffShiftCounts.getOrDefault(staff.getUserId(), 0);
-            %>
-              <div class="col">
-                <div class="staff-card d-flex flex-column justify-content-between h-100">
-                  <div>
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                      <div class="avatar-circle fs-5 bg-emerald-100 text-emerald-800" style="width:55px; height:55px; background-color:#d1fae5; color:#065f46;">
-                        <%= staff.getFullName().substring(0, Math.min(staff.getFullName().length(), 2)).toUpperCase() %>
-                      </div>
+            </div>
+          </div>
+
+          <!-- Panel 2: Danh Sách Nhân Sự -->
+          <div class="tab-pane fade" id="staff-panel" role="tabpanel" aria-labelledby="staff-tab">
+            <div class="card soft-card p-4">
+              <h5 class="fw-bold mb-4"><i class="bi bi-people-fill text-emerald-600 me-2" style="color:#10b981;"></i>Thông tin nhân sự sân bóng</h5>
+
+              <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                <% if (staffList == null || staffList.isEmpty()) { %>
+                  <div class="col-12 text-center text-muted py-5">
+                    Chưa có nhân viên nào có tài khoản ACTIVE.
+                  </div>
+                <% } else {
+                  for (User staff : staffList) {
+                    int shiftCount = staffShiftCounts.getOrDefault(staff.getUserId(), 0);
+                %>
+                  <div class="col">
+                    <div class="staff-card d-flex flex-column justify-content-between h-100">
                       <div>
-                        <h6 class="fw-bold mb-0 text-slate-800"><%= staff.getFullName() %></h6>
-                        <span class="text-success small fw-semibold"><%= staff.getRoleName() %></span>
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                          <div class="avatar-circle fs-5 bg-emerald-100 text-emerald-800" style="width:55px; height:55px; background-color:#d1fae5; color:#065f46;">
+                            <%= staff.getFullName().substring(0, Math.min(staff.getFullName().length(), 2)).toUpperCase() %>
+                          </div>
+                          <div>
+                            <h6 class="fw-bold mb-0 text-slate-800"><%= staff.getFullName() %></h6>
+                            <span class="text-success small fw-semibold"><%= staff.getRoleName() %></span>
+                          </div>
+                        </div>
+                        <div class="text-secondary small mb-2"><i class="bi bi-telephone me-2"></i><%= staff.getPhone() %></div>
+                        <div class="text-secondary small mb-3"><i class="bi bi-envelope me-2"></i><%= staff.getEmail() %></div>
+                      </div>
+                      <div class="border-top pt-3 d-flex align-items-center justify-content-between">
+                        <span class="small text-muted">Số ca trực được giao</span>
+                        <span class="badge-shift-count"><%= shiftCount %> ca</span>
                       </div>
                     </div>
-                    <div class="text-secondary small mb-2"><i class="bi bi-telephone me-2"></i><%= staff.getPhone() %></div>
-                    <div class="text-secondary small mb-3"><i class="bi bi-envelope me-2"></i><%= staff.getEmail() %></div>
                   </div>
-                  <div class="border-top pt-3 d-flex align-items-center justify-content-between">
-                    <span class="small text-muted">Số ca trực được giao</span>
-                    <span class="badge-shift-count"><%= shiftCount %> ca</span>
-                  </div>
-                </div>
+                <% }
+                } %>
               </div>
-            <% }
-            } %>
+            </div>
           </div>
+
         </div>
       </div>
-
-    </div>
-  </div>
-</main>
+    </main>
+</div>
 
 <!-- Modal: Thêm / Sửa ca làm việc -->
 <div class="modal fade" id="shiftModal" tabindex="-1" aria-labelledby="shiftModalTitle" aria-hidden="true">
@@ -576,7 +584,7 @@
       <form id="shiftForm" onsubmit="submitShiftForm(event)">
         <input type="hidden" id="modal-shift-id">
         <div class="modal-body">
-          
+
           <div class="mb-3">
             <label for="modal-complex" class="form-label small fw-bold text-muted">Cơ sở / Địa điểm</label>
             <select class="form-select" id="modal-complex" required>
@@ -663,7 +671,7 @@
               <input type="time" class="form-control" id="modal-end-time" required>
             </div>
           </div>
-          
+
           <div class="mb-3">
             <label for="modal-staff-id" class="form-label small fw-bold text-muted">Nhân viên trực</label>
             <select class="form-select" id="modal-staff-id">
@@ -699,7 +707,7 @@
       </div>
       <div class="modal-body py-4">
         <input type="hidden" id="assign-shift-id">
-        
+
         <h6 class="fw-bold mb-3"><i class="bi bi-people-fill text-success me-2"></i>Chọn nhân viên để phân công</h6>
         <div class="row row-cols-1 row-cols-md-2 g-3" id="assignStaffContainer">
           <!-- Dynamically populated via javascript fetch -->
@@ -714,8 +722,14 @@
 
 <div id="footer" data-root="../../"></div>
 
+<script>
+    window.APP_CTX = '<%= ctx %>';
+    display_name = '<%= displayName %>';
+    current_role = '<%= navRole %>';
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
+<script src="<%= ctx %>/assets/js/owner/dashboard.js"></script>
 <script>
   let shiftModal = null;
   let assignModal = null;
@@ -1190,6 +1204,11 @@
   // Auto-reload shift UI when modal is closed to refresh assigned badges/avatars on the main table
   document.getElementById('assignModal').addEventListener('hidden.bs.modal', function () {
     window.location.reload();
+  });
+
+  renderTopbar({
+      title: "Owner Dashboard",
+      subtitle: "Theo dõi hiệu quả kinh doanh cơ sở sân."
   });
 </script>
 </body>

@@ -25,9 +25,19 @@ public class OwnerAuthFilter implements Filter {
 
         HttpSession session = req.getSession(false);
 
+        boolean isApiRequest = req.getRequestURI().contains("/api/")
+                || "XMLHttpRequest".equalsIgnoreCase(req.getHeader("X-Requested-With"))
+                || (req.getHeader("Accept") != null && req.getHeader("Accept").contains("application/json"));
+
         // Chưa đăng nhập
         if (session == null || session.getAttribute("user") == null) {
-            resp.sendRedirect(req.getContextPath() + "/login");
+            if (isApiRequest) {
+                resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                resp.setContentType("application/json;charset=UTF-8");
+                resp.getWriter().write("{\"error\":\"UNAUTHORIZED\",\"message\":\"Chưa đăng nhập\"}");
+            } else {
+                resp.sendRedirect(req.getContextPath() + "/login");
+            }
             return;
         }
 
@@ -35,7 +45,13 @@ public class OwnerAuthFilter implements Filter {
 
         // Không phải Owner
         if (!OWNER_ROLE_NAME.equalsIgnoreCase(user.getRoleName())) {
-            resp.sendRedirect(req.getContextPath() + "/error/403.jsp");
+            if (isApiRequest) {
+                resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                resp.setContentType("application/json;charset=UTF-8");
+                resp.getWriter().write("{\"error\":\"FORBIDDEN\",\"message\":\"Không có quyền truy cập\"}");
+            } else {
+                resp.sendRedirect(req.getContextPath() + "/error/403.jsp");
+            }
             return;
         }
 
