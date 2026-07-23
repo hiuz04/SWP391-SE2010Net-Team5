@@ -72,14 +72,6 @@
   <link href="<%= ctx %>/assets/css/owner/dashboard.css" rel="stylesheet">
   <style>
     body { background: #f8fafc; font-family: 'Inter', sans-serif; }
-    .header-card {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      color: white;
-      border-radius: 20px;
-      padding: 30px;
-      margin-bottom: 30px;
-      box-shadow: 0 10px 25px rgba(5, 150, 105, 0.15);
-    }
     .soft-card {
       border-radius: 20px;
       background: #ffffff;
@@ -275,19 +267,16 @@
 
       <div class="container">
 
-        <!-- Header Summary Card -->
-        <div class="header-card">
-          <div class="row align-items-center">
-            <div class="col-md-7">
-              <h1 class="fw-bold mb-2">Quản lý Ca trực & Phân công</h1>
-              <p class="mb-0 opacity-90">Thiết lập lịch trực, phân ca làm việc cho nhân viên và quản lý nhân sự tại các cơ sở sân bóng.</p>
-            </div>
-            <div class="col-md-5 mt-3 mt-md-0 d-flex justify-content-md-end gap-3">
-              <button class="btn btn-light fw-bold px-4 py-2.5 rounded-3" style="color: #059669;" onclick="openAddShiftModal()">
-                <i class="bi bi-plus-circle-fill me-2"></i>Thêm ca làm việc
-              </button>
-            </div>
+        <!-- Page Header -->
+        <div class="page-header">
+          <div class="page-header-left">
+            <h1><i class="bi bi-clock-history me-2"></i>Quản lý Ca trực & Phân công</h1>
+            <p>Thiết lập lịch trực, phân ca làm việc cho nhân viên và quản lý nhân sự tại các cơ sở sân bóng.</p>
           </div>
+          <button class="btn btn-success px-4 py-2" onclick="openAddShiftModal()">
+            <i class="bi bi-plus-lg me-1"></i>
+            Thêm ca làm việc
+          </button>
         </div>
 
         <!-- Quick Metrics -->
