@@ -4,9 +4,10 @@ import com.swp.model.Booking;
 import com.swp.model.Field;
 import com.swp.model.FieldMaintenanceSchedule;
 import com.swp.model.dto.BookingView;
+import com.swp.model.dto.RecurringBookingCreationResult;
+import com.swp.model.dto.SkippedBookingSlot;
 import com.swp.util.DBContext;
 
-import java.awt.print.Book;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Connection;
@@ -34,6 +35,10 @@ import java.util.List;
 public class BookingDAO {
 
     private static final String STATUS_CANCELLED = "CANCELLED";
+    private static final String REASON_SLOT_BOOKED = "Khung giờ đã được đặt";
+    private static final String REASON_FIELD_MAINTENANCE = "Sân đang bảo trì";
+    private static final String REASON_FIELD_INACTIVE = "Sân không hoạt động";
+    private static final String REASON_INVALID_TIME = "Dữ liệu khung giờ không hợp lệ";
     private static final String HOLD_EXPIRED_CANCEL_REASON =
             "Th\u1eddi gian gi\u1eef ch\u1ed7 \u0111\u00e3 h\u1ebft h\u1ea1n.";
     private static final int DEFAULT_CANCEL_BEFORE_HOURS = 24;
@@ -162,7 +167,7 @@ public class BookingDAO {
                        updated_at
                 FROM bookings
                 WHERE complex_id = ?
-                  AND status NOT IN ('CANCELLED', 'EXPIRED', 'REJECTED')
+                  AND status IN ('HOLD', 'CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT')
                   AND start_time < ?
                   AND end_time > ?
                 """;
@@ -262,7 +267,7 @@ public class BookingDAO {
                        fa.complex_id,
                        fa.complex_name,
                        fa.address AS complex_address,
-                       fa.hotline AS complex_address,
+                       fa.hotline AS complex_hotline,
                        f.field_id,
                        f.field_name,
                        ft.type_name AS field_type_name,
@@ -320,6 +325,13 @@ public class BookingDAO {
     public boolean isFieldAvailable(Long fieldId, LocalDateTime startTime, LocalDateTime endTime) throws SQLException {
         try (Connection conn = DBContext.getConnection()) {
             return isFieldAvailable(conn, fieldId, startTime, endTime);
+        }
+    }
+
+    public SlotAvailabilityResult checkFieldAvailability(Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
+            throws SQLException {
+        try (Connection conn = DBContext.getConnection()) {
+            return checkFieldAvailability(conn, fieldId, startTime, endTime);
         }
     }
 
@@ -615,11 +627,41 @@ public class BookingDAO {
         return null;
     }
 
+    public List<BookingView> getBookingsByRecurringGroupIdAndCustomerId(Long recurringGroupId, Long customerId)
+            throws SQLException {
+        cancelExpiredHolds(customerId);
+
+        String sql = baseBookingViewSql() + """
+                WHERE b.recurring_group_id = ?
+                  AND b.customer_id = ?
+                ORDER BY b.start_time ASC,
+                         b.booking_id ASC
+                """;
+
+        List<BookingView> bookings = new ArrayList<>();
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, recurringGroupId);
+            ps.setLong(2, customerId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    bookings.add(mapBookingView(rs));
+                }
+            }
+        }
+
+        return bookings;
+    }
+
     /**
      * Tạo một nhóm booking định kỳ.
-     * Tất cả slot phải còn trống trước khi insert; nếu một slot lỗi thì rollback toàn bộ nhóm để không tạo lịch dở dang.
+     * Slot bị trùng/bảo trì/sân khóa là kết quả nghiệp vụ bình thường nên được bỏ qua,
+     * còn lỗi ghi DB vẫn rollback toàn bộ các booking hợp lệ đã insert trong transaction.
      */
-    public List<Long> createRecurringBookingHolds(
+    public RecurringBookingCreationResult createRecurringBookingHolds(
             List<Booking> bookings,
             String repeatType,
             LocalDate repeatUntil,
@@ -682,20 +724,30 @@ public class BookingDAO {
             originalAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
 
+            List<Booking> availableBookings = new ArrayList<>();
+            List<SkippedBookingSlot> skippedSlots = new ArrayList<>();
+
             /*
-             * Business Rule BR-03: Tất cả slot của booking lặp phải còn trống, sân khả dụng và không bảo trì.
-             * Chỉ cần một slot bị trùng lịch/bảo trì thì rollback cả nhóm booking lặp.
+             * Business Rule BR-03: Kiểm tra lại từng slot ngay trong transaction để chống race condition.
+             * Slot không còn khả dụng sẽ bị bỏ qua, không làm rollback các slot hợp lệ còn lại.
              */
             for (Booking booking : bookings) {
-                // Kiểm tra từng lần đặt trước khi insert bất kỳ booking nào.
-                if (!isFieldAvailable(conn, booking.getFieldId(), booking.getStartTime(), booking.getEndTime())) {
-                    throw new SQLException("Khung gio " + booking.getStartTime()
-                            + " - " + booking.getEndTime()
-                            + " da duoc dat hoac san dang bao tri.");
+                SlotAvailabilityResult availability =
+                        checkFieldAvailability(conn, booking.getFieldId(), booking.getStartTime(), booking.getEndTime());
+                if (availability.available()) {
+                    availableBookings.add(booking);
+                } else {
+                    skippedSlots.add(toSkippedSlot(booking, availability.reason()));
                 }
             }
+
+            if (availableBookings.isEmpty()) {
+                conn.commit();
+                return new RecurringBookingCreationResult(List.of(), skippedSlots, bookings.size());
+            }
+
             Long recurringGroupId;
-            Booking firstBooking = bookings.get(0);
+            Booking firstBooking = availableBookings.get(0);
             // Tạo nhóm recurring trước để các booking con trỏ về cùng một group.
             try (PreparedStatement ps = conn.prepareStatement(insertRecurringGroup)) {
                 ps.setLong(1, firstBooking.getCustomerId());
@@ -713,8 +765,8 @@ public class BookingDAO {
 
             List<Long> bookingIds = new ArrayList<>();
             // Business Rule BR-04: Mỗi booking con trong nhóm lặp cũng được tạo ở trạng thái HOLD.
-            // Insert từng booking HOLD thuộc nhóm recurring.
-            for (Booking booking : bookings) {
+            // Chỉ insert các booking đã được kiểm tra là hợp lệ; slot bị skip không sinh dữ liệu rỗng/trùng.
+            for (Booking booking : availableBookings) {
                 // Luu booking con va lay booking_id vua tao.
                 try (PreparedStatement ps = conn.prepareStatement(insertBooking)) {
                     ps.setString(1, booking.getBookingCode());
@@ -758,9 +810,9 @@ public class BookingDAO {
             }
 
             conn.commit();
-            return bookingIds;
+            return new RecurringBookingCreationResult(bookingIds, skippedSlots, bookings.size());
         } catch (SQLException e) {
-            // Co loi o bat ky slot nao thi rollback ca nhom recurring.
+            // Lỗi DB khi tạo group/booking/log thì rollback toàn bộ dữ liệu đã insert trong transaction.
             if (conn != null) {
                 conn.rollback();
             }
@@ -1117,44 +1169,50 @@ public class BookingDAO {
 
     /**
      * Kiểm tra khả dụng trong cùng connection transaction.
-     * UPDLOCK/HOLDLOCK trên sân giúp serialize các request cùng tranh một sân, còn hai NOT EXISTS chặn booking/bảo trì overlap.
+     * UPDLOCK/HOLDLOCK trên sân giúp serialize các request cùng tranh một sân.
      */
     private boolean isFieldAvailable(Connection conn, Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
             throws SQLException {
+        return checkFieldAvailability(conn, fieldId, startTime, endTime).available();
+    }
+
+    private SlotAvailabilityResult checkFieldAvailability(
+            Connection conn,
+            Long fieldId,
+            LocalDateTime startTime,
+            LocalDateTime endTime
+    ) throws SQLException {
+        if (fieldId == null || startTime == null || endTime == null || !startTime.isBefore(endTime)) {
+            return new SlotAvailabilityResult(false, REASON_INVALID_TIME);
+        }
+
         // Business Rule BR-05: Dọn HOLD hết hạn trước khi kiểm tra availability để slot quá hạn được mở lại.
         cancelExpiredHolds(conn, null);
 
         String sql = """
                 SELECT
-                    CASE
-                        -- Business Rule BR-03: Sân phải ở trạng thái AVAILABLE.
-                        WHEN EXISTS (
-                            SELECT 1
-                            FROM fields f WITH (UPDLOCK, HOLDLOCK)
-                            WHERE f.field_id = ?
-                              AND f.status = 'AVAILABLE'
-                        )
-                        -- Business Rule BR-03: Không được trùng với booking còn chiếm slot.
-                        AND NOT EXISTS (
-                            SELECT 1
-                            FROM bookings b
-                            WHERE b.field_id = ?
-                              AND b.status NOT IN ('CANCELLED', 'EXPIRED', 'REJECTED')
-                              AND b.start_time < ?
-                              AND b.end_time > ?
-                        )
-                        -- Business Rule BR-03: Không được trùng lịch bảo trì chưa bị hủy.
-                        AND NOT EXISTS (
-                            SELECT 1
-                            FROM field_maintenance_schedules m
-                            WHERE m.field_id = ?
-                              AND m.status <> 'CANCELLED'
-                              AND m.start_time < ?
-                              AND m.end_time > ?
-                        )
-                        THEN 1
-                        ELSE 0
-                    END AS available
+                    CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM fields f WITH (UPDLOCK, HOLDLOCK)
+                        WHERE f.field_id = ?
+                          AND f.status = 'AVAILABLE'
+                    ) THEN 1 ELSE 0 END AS field_available,
+                    CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM field_maintenance_schedules m
+                        WHERE m.field_id = ?
+                          AND m.status <> 'CANCELLED'
+                          AND m.start_time < ?
+                          AND m.end_time > ?
+                    ) THEN 1 ELSE 0 END AS has_maintenance,
+                    CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM bookings b WITH (UPDLOCK, HOLDLOCK)
+                        WHERE b.field_id = ?
+                          AND b.status IN ('HOLD', 'CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT')
+                          AND b.start_time < ?
+                          AND b.end_time > ?
+                    ) THEN 1 ELSE 0 END AS has_booking
                 """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1167,9 +1225,28 @@ public class BookingDAO {
             ps.setTimestamp(7, Timestamp.valueOf(startTime));
 
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() && rs.getInt("available") == 1;
+                if (!rs.next() || rs.getInt("field_available") != 1) {
+                    return new SlotAvailabilityResult(false, REASON_FIELD_INACTIVE);
+                }
+                if (rs.getInt("has_maintenance") == 1) {
+                    return new SlotAvailabilityResult(false, REASON_FIELD_MAINTENANCE);
+                }
+                if (rs.getInt("has_booking") == 1) {
+                    return new SlotAvailabilityResult(false, REASON_SLOT_BOOKED);
+                }
             }
         }
+
+        return new SlotAvailabilityResult(true, null);
+    }
+
+    private SkippedBookingSlot toSkippedSlot(Booking booking, String reason) {
+        return new SkippedBookingSlot(
+                booking.getStartTime() == null ? null : booking.getStartTime().toLocalDate(),
+                booking.getStartTime() == null ? null : booking.getStartTime().toLocalTime(),
+                booking.getEndTime() == null ? null : booking.getEndTime().toLocalTime(),
+                reason == null || reason.isBlank() ? REASON_INVALID_TIME : reason
+        );
     }
 
     /**
@@ -1190,7 +1267,7 @@ public class BookingDAO {
                        b.complex_id,
                        fa.complex_name,
                        fa.address AS complex_address,
-                       fa.hotline AS complex_address,
+                       fa.hotline AS complex_hotline,
                        b.field_id,
                        f.field_name,
                        ft.type_name AS field_type_name,
@@ -1415,7 +1492,7 @@ public class BookingDAO {
         view.setComplexId(getLongOrNull(rs, "complex_id"));
         view.setComplexName(rs.getString("complex_name"));
         view.setComplexAddress(rs.getString("complex_address"));
-        view.setComplexHotline(rs.getString("complex_address"));
+        view.setComplexHotline(rs.getString("complex_hotline"));
         view.setFieldId(getLongOrNull(rs, "field_id"));
         view.setFieldName(rs.getString("field_name"));
         view.setFieldTypeName(rs.getString("field_type_name"));
@@ -1487,5 +1564,8 @@ public class BookingDAO {
             Integer priority,
             Boolean exactSpecificDate
     ) {
+    }
+
+    public record SlotAvailabilityResult(boolean available, String reason) {
     }
 }
