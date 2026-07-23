@@ -26,6 +26,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
     <link href="<%= ctx %>/assets/css/owner/dashboard.css" rel="stylesheet">
     <link href="<%= ctx %>/assets/css/owner/field.css" rel="stylesheet">
@@ -39,7 +40,7 @@
         <!-- Page Header -->
         <div class="page-header">
             <div class="page-header-left">
-                <h1><i class="bi bi-dribbble me-2 text-success"></i>Quản lý sân bóng</h1>
+                <h1 class="d-flex gap-1 align-items-center"><i class="fa-solid fa-futbol"></i>Quản lý sân bóng</h1>
                 <div class="d-flex align-items-center gap-2 mt-1">
                     <span class="text-muted" style="font-size:.875rem;font-weight:500">Đang quản lý:</span>
                     <select id="complexSelect"

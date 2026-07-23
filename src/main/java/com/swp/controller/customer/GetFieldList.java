@@ -34,7 +34,6 @@ public class GetFieldList extends HttpServlet {
             throws ServletException, IOException {
         try {
             String complexName = req.getParameter("complexName");
-            String province = req.getParameter("province");
             String ward = req.getParameter("ward");
             String fieldTypeId = req.getParameter("fieldTypeId");
             String sortOrder = req.getParameter("sortOrder");
@@ -70,13 +69,6 @@ public class GetFieldList extends HttpServlet {
                             && (fc.getComplexName() == null
                             || !fc.getComplexName().toLowerCase()
                             .contains(complexName.toLowerCase()))) {
-                        continue;
-                    }
-
-                    // Filter province
-                    if (province != null
-                            && !province.isBlank()
-                            && !province.equalsIgnoreCase(fc.getCity())) {
                         continue;
                     }
 

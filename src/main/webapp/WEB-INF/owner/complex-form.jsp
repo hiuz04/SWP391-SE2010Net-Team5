@@ -110,31 +110,25 @@
                     </div>
 
                     <div class="row g-3">
-                        <div class="col-12">
-                            <label for="adrs" class="form-label">
-                                Địa chỉ chi tiết <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" class="form-control" id="adrs"
-                                   placeholder="Số nhà, tên đường..." required>
+                        <div class="row col-12">
+                            <div class="col-md-8">
+                                <label for="adrs" class="form-label">
+                                    Địa chỉ chi tiết <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="adrs"
+                                       placeholder="Số nhà, tên đường..." required>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="ward" class="form-label">
+                                    Phường/Xã <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="ward" required disabled>
+                                    <option value="">-- Chọn Phường/Xã --</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <div class="col-md-6">
-                            <label for="city" class="form-label">
-                                Tỉnh/Thành phố <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" id="city" required>
-                                <option value="">-- Chọn Tỉnh/Thành phố --</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="ward" class="form-label">
-                                Phường/Xã <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" id="ward" required disabled>
-                                <option value="">-- Chọn Phường/Xã --</option>
-                            </select>
-                        </div>
 
                         <div class="col-md-6">
                             <label for="lat" class="form-label">Vĩ độ (Latitude)</label>

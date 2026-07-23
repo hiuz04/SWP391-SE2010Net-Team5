@@ -261,7 +261,7 @@
   </style>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Ca trực"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Quản lý ca trực"></div>
 
 <main class="owner-content">
 
