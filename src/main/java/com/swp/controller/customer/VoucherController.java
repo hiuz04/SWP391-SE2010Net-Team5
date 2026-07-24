@@ -32,6 +32,11 @@ public class VoucherController extends HttpServlet {
             return;
         }
 
+        // Cập nhật lại điểm thưởng mới nhất từ CSDL vào session để tránh trễ điểm khi có sự thay đổi
+        int updatedPoints = userDao.getAvailableRewardPoints(currentUser.getUserId());
+        currentUser.setRewardPoints(updatedPoints);
+        req.getSession().setAttribute("user", currentUser);
+
         String page = req.getParameter("to");
 
         if("center".equals(page)) {

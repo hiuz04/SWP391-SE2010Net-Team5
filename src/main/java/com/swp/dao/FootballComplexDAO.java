@@ -35,7 +35,7 @@ public class FootballComplexDAO {
             ps.setString(2, fc.getDescription());
             ps.setString(3, fc.getAddress());
             ps.setString(4, fc.getWard());
-            ps.setString(5, fc.getCity());
+            ps.setString(5, "TP Hà Nội");
 
             if(fc.getLatitude() != null) {
                 ps.setBigDecimal(6, fc.getLatitude());
@@ -94,7 +94,7 @@ public class FootballComplexDAO {
             ps.setString(2, fc.getDescription());
             ps.setString(3, fc.getAddress());
             ps.setString(4, fc.getWard());
-            ps.setString(5, fc.getCity());
+            ps.setString(5, "TP Hà Nội");
 
             if(fc.getLatitude() != null) {
                 ps.setBigDecimal(6, fc.getLatitude());

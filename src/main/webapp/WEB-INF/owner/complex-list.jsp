@@ -103,8 +103,6 @@
 
 <script>
     window.APP_CTX = '<%= ctx %>';
-    display_name = '<%= displayName %>';
-    current_role = '<%= navRole %>';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/owner/complex.js"></script>
