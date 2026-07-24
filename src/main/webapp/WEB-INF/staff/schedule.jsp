@@ -347,19 +347,42 @@
                   String actionButton = "";
                   
                   boolean isExpired = false;
-                  if ("CONFIRMED".equals(bStatus) && bEnd != null) {
-                    try {
-                      String isoEnd = bEnd.replace(" ", "T");
-                      if (isoEnd.contains(".")) {
-                        isoEnd = isoEnd.substring(0, isoEnd.indexOf("."));
-                      }
-                      java.time.LocalDateTime endDt = java.time.LocalDateTime.parse(isoEnd);
-                      isExpired = endDt.isBefore(java.time.LocalDateTime.now());
-                    } catch (Exception ignored) {}
+                  boolean isLateNoShow = false;
+                  if ("CONFIRMED".equals(bStatus)) {
+                    java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                    java.time.LocalDateTime endDt = null;
+                    java.time.LocalDateTime startDt = null;
+                    if (bEnd != null) {
+                      try {
+                        String isoEnd = bEnd.replace(" ", "T");
+                        if (isoEnd.contains(".")) {
+                          isoEnd = isoEnd.substring(0, isoEnd.indexOf("."));
+                        }
+                        endDt = java.time.LocalDateTime.parse(isoEnd);
+                        isExpired = now.isAfter(endDt);
+                      } catch (Exception ignored) {}
+                    }
+                    if (bStart != null) {
+                      try {
+                        String isoStart = bStart.replace(" ", "T");
+                        if (isoStart.contains(".")) {
+                          isoStart = isoStart.substring(0, isoStart.indexOf("."));
+                        }
+                        startDt = java.time.LocalDateTime.parse(isoStart);
+                        isLateNoShow = now.isAfter(startDt.plusMinutes(30)) && (endDt == null || !now.isAfter(endDt));
+                      } catch (Exception ignored) {}
+                    }
                   }
 
                   if ("CONFIRMED".equals(bStatus)) {
-                    if (isExpired) {
+                    if (isLateNoShow) {
+                      statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-exclamation-triangle me-1'></i>Muộn 30p</span>";
+                      actionButton = isUpcomingShift 
+                        ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Chưa đến giờ làm việc'><i class='bi bi-lock-fill me-1'></i>Chờ ca trực</button>"
+                        : (isEndedShift 
+                          ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Ca trực đã kết thúc'><i class='bi bi-lock-fill me-1'></i>Hết ca trực</button>"
+                          : "<a href='" + ctx + "/staff/checkin?id=" + bId + "' class='btn btn-sm btn-sf-primary px-3'>Check-in</a>");
+                    } else if (isExpired) {
                       statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-exclamation-triangle me-1'></i>Quá giờ</span>";
                       actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-exclamation-circle me-1'></i>Quá giờ nhận</button>";
                     } else {
@@ -618,7 +641,24 @@
     }
   }
 
-  function statusBadge(status, nowPlaying, isExpired) {
+  function isBookingLateNoShow(startTimeStr, endTimeStr) {
+    if (!startTimeStr || !endTimeStr) return false;
+    try {
+      const isoStart = startTimeStr.replace(' ', 'T').substring(0, 19);
+      const startDt = new Date(isoStart);
+      const thresholdDt = new Date(startDt.getTime() + 30 * 60 * 1000);
+      
+      const isoEnd = endTimeStr.replace(' ', 'T').substring(0, 19);
+      const endDt = new Date(isoEnd);
+      
+      const now = new Date();
+      return now > thresholdDt && now <= endDt;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function statusBadge(status, nowPlaying, isExpired, startTimeStr, endTimeStr) {
     if (status === 'CHECKED_IN') {
       return `<span class="badge badge-soft-info"><i class="pulse-playing me-1"></i>Đang chơi</span>`;
     }
@@ -627,6 +667,9 @@
     }
     if (status === 'COMPLETED') {
       return `<span class="badge badge-soft-success"><i class="bi bi-check-circle me-1"></i>Đã xong</span>`;
+    }
+    if (status === 'CONFIRMED' && isBookingLateNoShow(startTimeStr, endTimeStr)) {
+      return `<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Muộn 30p</span>`;
     }
     if (isExpired) {
       return `<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Quá giờ</span>`;
@@ -645,7 +688,7 @@
     document.getElementById('det-phone').textContent = b.customerPhone || 'Không có SĐT';
     document.getElementById('det-field').textContent = b.fieldName || '—';
     document.getElementById('det-time').textContent = timeOnly(b.startTime) + " - " + timeOnly(b.endTime);
-    document.getElementById('det-status-badge').innerHTML = statusBadge(b.status, false, isExpired);
+    document.getElementById('det-status-badge').innerHTML = statusBadge(b.status, false, isExpired, b.startTime, b.endTime);
 
     document.getElementById('det-orig-price').textContent = fmt(b.totalAmount);
     document.getElementById('det-deposit').textContent = fmt(b.depositAmount);
@@ -665,7 +708,10 @@
       }
     } else {
       if (b.status === 'CONFIRMED') {
-        if (isExpired) {
+        if (isBookingLateNoShow(b.startTime, b.endTime)) {
+          btnHtml += '<button type="button" class="btn btn-danger px-4" onclick="cancelNoshow(' + b.bookingId + ')"><i class="bi bi-x-circle me-1"></i>Hủy sân</button>';
+          btnHtml += '<a href="<%= ctx %>/staff/checkin?id=' + b.bookingId + '" class="btn btn-success px-4">Check-in</a>';
+        } else if (isExpired) {
           btnHtml += '<button class="btn btn-secondary px-3" disabled><i class="bi bi-exclamation-circle me-1"></i>Quá giờ nhận</button>';
         } else {
           btnHtml += '<a href="<%= ctx %>/staff/checkin?id=' + b.bookingId + '" class="btn btn-success px-4">Check-in</a>';
@@ -684,6 +730,45 @@
     if (bookingDetailModalInstance) {
       bookingDetailModalInstance.show();
     }
+  }
+
+  async function cancelNoshow(bookingId) {
+    showConfirm('Xác nhận hủy đặt sân này do khách hàng không đến nhận sân sau 30 phút?', async () => {
+      try {
+        const params = new URLSearchParams();
+        params.append('bookingId', bookingId);
+
+        const res = await fetch('<%= ctx %>/api/staff/checkin/noshow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params,
+          credentials: 'include'
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          let errMsg = 'Không rõ lỗi';
+          try {
+            const errJson = JSON.parse(errText);
+            errMsg = errJson.error || errMsg;
+          } catch(e) {}
+          throw new Error(errMsg);
+        }
+        
+        const data = await res.json();
+        if (data.success) {
+          if (bookingDetailModalInstance) {
+            bookingDetailModalInstance.hide();
+          }
+          showToastAfterReload('Đã hủy đặt sân thành công (Khách không đến)', 'success');
+          window.location.reload();
+        } else {
+          showToast('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'), 'danger');
+        }
+      } catch (err) {
+        showToast('Lỗi khi hủy đặt sân: ' + err.message, 'danger');
+      }
+    });
   }
 
   document.getElementById('date-selector')?.addEventListener('change', function() {
