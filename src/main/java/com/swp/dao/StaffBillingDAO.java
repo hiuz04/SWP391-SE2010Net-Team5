@@ -271,7 +271,7 @@ public class StaffBillingDAO {
                 return new CheckoutResult(invoiceId, bookingId, invoiceCode,
                         "Da gui yeu cau thanh toan " + moneyPlain(amounts.remainingAmount()) + " cho khach hang.");
             } catch (SQLException | RuntimeException e) {
-                rollback(conn, e);
+                    rollback(conn, e);
                 throw e;
             }
         }

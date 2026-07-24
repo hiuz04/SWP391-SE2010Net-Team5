@@ -591,13 +591,33 @@ function isBookingExpired(endTimeStr) {
   }
 }
 
-function statusBadge(status, nowPlaying, isExpired) {
+function isBookingLateNoShow(startTimeStr, endTimeStr) {
+  if (!startTimeStr || !endTimeStr) return false;
+  try {
+    const isoStart = startTimeStr.replace(' ', 'T').substring(0, 19);
+    const startDt = new Date(isoStart);
+    const thresholdDt = new Date(startDt.getTime() + 30 * 60 * 1000);
+    
+    const isoEnd = endTimeStr.replace(' ', 'T').substring(0, 19);
+    const endDt = new Date(isoEnd);
+    
+    const now = new Date();
+    return now > thresholdDt && now <= endDt;
+  } catch (e) {
+    return false;
+  }
+}
+
+function statusBadge(status, nowPlaying, isExpired, startTimeStr, endTimeStr) {
   if (nowPlaying) return '<span class="badge badge-soft-info"><i class="bi bi-play-circle me-1"></i>Đang chơi</span>';
   switch (status) {
     case 'COMPLETED':  return '<span class="badge badge-soft-success"><i class="bi bi-check-circle me-1"></i>Đã xong</span>';
     case 'CHECKED_IN': return '<span class="badge badge-soft-info"><i class="bi bi-play-circle me-1"></i>Đang chơi</span>';
     case 'PENDING_CHECKOUT_PAYMENT': return '<span class="badge" style="background:#fae8ff;color:#a21caf;"><i class="bi bi-credit-card me-1"></i>Cho khach thanh toan</span>';
     case 'CONFIRMED':
+      if (isBookingLateNoShow(startTimeStr, endTimeStr)) {
+        return '<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Muộn 30p</span>';
+      }
       if (isExpired) {
         return '<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Quá giờ</span>';
       }
@@ -608,7 +628,7 @@ function statusBadge(status, nowPlaying, isExpired) {
 
 let currentShiftStatus = 'ONGOING';
 
-function actionBtn(status, bookingId, isExpired, hasInvoice, checkoutDue) {
+function actionBtn(status, bookingId, isExpired, hasInvoice, checkoutDue, startTimeStr, endTimeStr) {
   if (currentShiftStatus === 'UPCOMING') {
     if (status === 'CONFIRMED' || status === 'CHECKED_IN') {
       return `<button class="btn btn-sm btn-secondary px-3" disabled title="Chưa đến giờ làm việc"><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>`;
@@ -788,8 +808,8 @@ async function loadDashboard() {
           <td style="white-space: nowrap;"><strong>${b.bookingCode || '—'}</strong></td>
           <td style="white-space: nowrap;"><strong>${b.fieldName || '—'}</strong></td>
           <td style="white-space: nowrap;">${b.customerName || '—'}</td>
-          <td style="white-space: nowrap;">${statusBadge(b.status, nowPlaying, isExpired)}</td>
-          <td style="white-space: nowrap;">${actionBtn(b.status, b.bookingId, isExpired, b.hasInvoice, b.checkoutDue)}</td>
+          <td style="white-space: nowrap;">${statusBadge(b.status, nowPlaying, isExpired, b.startTime, b.endTime)}</td>
+          <td style="white-space: nowrap;">${actionBtn(b.status, b.bookingId, isExpired, b.hasInvoice, b.checkoutDue, b.startTime, b.endTime)}</td>
         </tr>`;
       }).join('');
     }
@@ -831,7 +851,7 @@ function showBookingDetails(bookingId) {
   document.getElementById('det-phone').textContent = b.customerPhone || 'Không có SĐT';
   document.getElementById('det-field').textContent = b.fieldName || '—';
   document.getElementById('det-time').textContent = timeOnly(b.startTime) + " - " + timeOnly(b.endTime);
-  document.getElementById('det-status-badge').innerHTML = statusBadge(b.status, nowPlaying, isExpired);
+  document.getElementById('det-status-badge').innerHTML = statusBadge(b.status, nowPlaying, isExpired, b.startTime, b.endTime);
 
   document.getElementById('det-orig-price').textContent = fmt(b.totalAmount);
   document.getElementById('det-deposit').textContent = fmt(b.depositAmount);
@@ -851,7 +871,10 @@ function showBookingDetails(bookingId) {
     }
   } else {
     if (b.status === 'CONFIRMED') {
-      if (isExpired) {
+      if (isBookingLateNoShow(b.startTime, b.endTime)) {
+        btnHtml += '<button type="button" class="btn btn-danger px-4" onclick="cancelNoshow(' + b.bookingId + ')"><i class="bi bi-x-circle me-1"></i>Hủy sân</button>';
+        btnHtml += '<a href="<%= ctx %>/staff/checkin?id=' + b.bookingId + '" class="btn btn-success px-4">Check-in</a>';
+      } else if (isExpired) {
         btnHtml += '<button class="btn btn-secondary px-3" disabled><i class="bi bi-exclamation-circle me-1"></i>Quá giờ nhận</button>';
       } else {
         btnHtml += '<a href="<%= ctx %>/staff/checkin?id=' + b.bookingId + '" class="btn btn-success px-4">Check-in</a>';
@@ -870,6 +893,45 @@ function showBookingDetails(bookingId) {
   if (bookingDetailModalInstance) {
     bookingDetailModalInstance.show();
   }
+}
+
+async function cancelNoshow(bookingId) {
+  showConfirm('Xác nhận hủy đặt sân này do khách hàng không đến nhận sân sau 30 phút?', async () => {
+    try {
+      const params = new URLSearchParams();
+      params.append('bookingId', bookingId);
+
+      const res = await fetch('<%= ctx %>/api/staff/checkin/noshow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+        credentials: 'include'
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        let errMsg = 'Không rõ lỗi';
+        try {
+          const errJson = JSON.parse(errText);
+          errMsg = errJson.error || errMsg;
+        } catch(e) {}
+        throw new Error(errMsg);
+      }
+      
+      const data = await res.json();
+      if (data.success) {
+        if (bookingDetailModalInstance) {
+          bookingDetailModalInstance.hide();
+        }
+        showToastAfterReload('Đã hủy đặt sân thành công (Khách không đến)', 'success');
+        window.location.reload();
+      } else {
+        showToast('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'), 'danger');
+      }
+    } catch (err) {
+      showToast('Lỗi khi hủy đặt sân: ' + err.message, 'danger');
+    }
+  });
 }
 
 function checkShiftError() {
