@@ -1377,8 +1377,8 @@ public class BookingDAO {
         if (filter != null && !filter.trim().isEmpty()) {
             if ("revenue_today".equalsIgnoreCase(filter.trim())) {
                 sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND CAST(i.issued_at AS DATE) = CAST(GETDATE() AS DATE)) ");
-            } else if ("revenue_7days".equalsIgnoreCase(filter.trim())) {
-                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -7, GETDATE())) ");
+            } else if ("revenue_30days".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -30, GETDATE())) ");
             } else if ("bookings_today".equalsIgnoreCase(filter.trim())) {
                 sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
             }
@@ -1419,8 +1419,8 @@ public class BookingDAO {
         if (filter != null && !filter.trim().isEmpty()) {
             if ("revenue_today".equalsIgnoreCase(filter.trim())) {
                 sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND CAST(i.issued_at AS DATE) = CAST(GETDATE() AS DATE)) ");
-            } else if ("revenue_7days".equalsIgnoreCase(filter.trim())) {
-                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -7, GETDATE())) ");
+            } else if ("revenue_30days".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -30, GETDATE())) ");
             } else if ("bookings_today".equalsIgnoreCase(filter.trim())) {
                 sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
             }

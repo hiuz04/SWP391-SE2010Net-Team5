@@ -31,11 +31,7 @@ public class PriceRuleController extends HttpServlet {
         List<FootballComplex> complexes = complexService.getListFootballComplex();
         req.setAttribute("complexes", complexes);
         
-        // Bước 2: Nạp danh sách các loại sân (VD: sân 5, sân 7) để hiện trên Form
-        FieldTypeService fieldTypeService = new FieldTypeService();
-        req.setAttribute("fieldTypes", fieldTypeService.getAllType());
-
-        // Bước 3: Xác định cụm sân đang được chọn (lấy từ param hoặc mặc định là cụm sân đầu tiên)
+        // Bước 2: Xác định cụm sân đang được chọn (lấy từ param hoặc mặc định là cụm sân đầu tiên)
         long complexId = -1;
         String complexIdParam = req.getParameter("complexId");
         if (complexIdParam != null && !complexIdParam.trim().isEmpty()) {
@@ -44,6 +40,10 @@ public class PriceRuleController extends HttpServlet {
             complexId = complexes.get(0).getComplexId();
         }
 
+        // Bước 3: Nạp danh sách các loại sân (VD: sân 5, sân 7) để hiện trên Form
+        FieldTypeService fieldTypeService = new FieldTypeService();
+        List<com.swp.model.FieldType> allFieldTypes = fieldTypeService.getAllType();
+
         // Bước 4: Lấy danh sách luật giá và danh sách sân nhỏ thuộc cụm sân đang chọn
         if (complexId != -1) {
             List<PriceRule> priceRules = priceRuleDAO.getByComplexId(complexId);
@@ -51,7 +51,28 @@ public class PriceRuleController extends HttpServlet {
             req.setAttribute("selectedComplexId", complexId);
             
             FieldService fieldService = new FieldService();
-            req.setAttribute("fields", fieldService.getFieldOfThisComplex(complexId));
+            List<com.swp.model.Field> fields = fieldService.getFieldOfThisComplex(complexId);
+            req.setAttribute("fields", fields);
+
+            // Chỉ hiển thị những Loại Sân (FieldType) mà Cụm Sân hiện tại đang có
+            List<com.swp.model.FieldType> filteredFieldTypes = new java.util.ArrayList<>();
+            if (allFieldTypes != null && fields != null) {
+                for (com.swp.model.FieldType ft : allFieldTypes) {
+                    boolean hasType = false;
+                    for (com.swp.model.Field f : fields) {
+                        if (f.getFieldTypeId() != null && f.getFieldTypeId().equals(ft.getFieldTypeId())) {
+                            hasType = true;
+                            break;
+                        }
+                    }
+                    if (hasType) {
+                        filteredFieldTypes.add(ft);
+                    }
+                }
+            }
+            req.setAttribute("fieldTypes", filteredFieldTypes);
+        } else {
+            req.setAttribute("fieldTypes", allFieldTypes);
         }
 
         // Bước 5: Render trang quản lý bảng giá (JSP)

@@ -74,53 +74,28 @@
                 <p class="lead mb-4 text-white-50">Tìm sân, chọn khung giờ, thanh toán và quản lý lịch đặt chỉ trong vài thao tác.</p>
                 <div class="card hero-card p-3 p-lg-4">
                     <form class="row g-3 align-items-end" action="<%= ctx %>/search" method="get">
-                        <div class="col-md-3">
-                            <label class="form-label text-dark fw-semibold">Tỉnh / Thành phố</label>
+                        <div class="col-md-5">
+                            <label class="form-label text-dark fw-semibold">Tên sân bóng</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
-                                <select class="form-select" name="province">
-                                    <option value="" selected>Tất cả</option>
-                                    <%
-                                        @SuppressWarnings("unchecked")
-                                        java.util.List<String> cities = (java.util.List<String>) request.getAttribute("cities");
-                                        if (cities != null) {
-                                            for (String c : cities) {
-                                    %>
-                                    <option value="<%= c %>"><%= c %></option>
-                                    <%
-                                            }
-                                        }
-                                    %>
-                                </select>
+                                <input type="text" class="form-control" name="complexName" placeholder="Nhập tên sân bóng...">
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label text-dark fw-semibold">Phường / Xã</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-geo-alt-fill"></i></span>
-                                <select class="form-select" name="ward">
-                                    <option value="" selected>Tất cả</option>
-                                    <%
-                                        @SuppressWarnings("unchecked")
-                                        java.util.List<String> wards = (java.util.List<String>) request.getAttribute("wards");
-                                        if (wards != null) {
-                                            for (String w : wards) {
-                                    %>
-                                    <option value="<%= w %>"><%= w %></option>
-                                    <%
-                                            }
-                                        }
-                                    %>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label text-dark fw-semibold">Loại sân</label>
                             <select class="form-select" name="type">
                                 <option value="" selected>Tất cả</option>
-                                <option value="1">Sân 5</option>
-                                <option value="2">Sân 7</option>
-                                <option value="3">Sân 11</option>
+                                <%
+                                    @SuppressWarnings("unchecked")
+                                    java.util.List<com.swp.model.FieldType> fieldTypes = (java.util.List<com.swp.model.FieldType>) request.getAttribute("fieldTypes");
+                                    if (fieldTypes != null) {
+                                        for (com.swp.model.FieldType ft : fieldTypes) {
+                                %>
+                                <option value="<%= ft.getFieldTypeId() %>"><%= ft.getTypeName() %></option>
+                                <%
+                                        }
+                                    }
+                                %>
                             </select>
                         </div>
                         <div class="col-md-3 d-grid">

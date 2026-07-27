@@ -55,13 +55,13 @@ public class AdminDashboardDAO {
             e.printStackTrace();
         }
 
-        // 4. Doanh thu 7 ngày qua
-        String sevDayRevSql = "SELECT SUM(total_amount) FROM invoices WHERE status = 'PAID' AND issued_at >= DATEADD(day, -7, GETDATE())";
+        // 4. Doanh thu 30 ngày qua
+        String sevDayRevSql = "SELECT SUM(total_amount) FROM invoices WHERE status = 'PAID' AND issued_at >= DATEADD(day, -30, GETDATE())";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sevDayRevSql);
              ResultSet rs = ps.executeQuery()) {
             if (rs.next()) {
-                kpis.put("last7DaysRevenue", rs.getBigDecimal(1));
+                kpis.put("last30DaysRevenue", rs.getBigDecimal(1));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -95,16 +95,16 @@ public class AdminDashboardDAO {
         return kpis;
     }
 
-    public List<Map<String, Object>> getRevenueLast7Days() {
+    public List<Map<String, Object>> getRevenueLast30Days() {
         List<Map<String, Object>> list = new ArrayList<>();
         String sql = """
-                WITH Last7Days AS (
+                WITH Last30Days AS (
                     SELECT CAST(DATEADD(day, -number, GETDATE()) AS DATE) as d
                     FROM master..spt_values
-                    WHERE type = 'P' AND number BETWEEN 0 AND 6
+                    WHERE type = 'P' AND number BETWEEN 0 AND 29
                 )
                 SELECT l.d as date, ISNULL(SUM(i.total_amount), 0) as total
-                FROM Last7Days l
+                FROM Last30Days l
                 LEFT JOIN invoices i ON CAST(i.issued_at AS DATE) = l.d AND i.status = 'PAID'
                 GROUP BY l.d
                 ORDER BY l.d ASC
@@ -132,7 +132,7 @@ public class AdminDashboardDAO {
                 JOIN fields f ON b.field_id = f.field_id
                 JOIN field_types ft ON f.field_type_id = ft.field_type_id
                 WHERE b.status NOT IN ('CANCELLED', 'HOLD')
-                AND b.created_at >= DATEADD(day, -7, GETDATE())
+                AND b.created_at >= DATEADD(day, -30, GETDATE())
                 GROUP BY ft.type_name
                 """;
         try (Connection conn = DBContext.getConnection();

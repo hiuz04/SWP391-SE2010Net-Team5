@@ -22,6 +22,9 @@
                         String emailClass = errors.containsKey("email") ? "is-invalid" : "";
                         String passwordClass = errors.containsKey("password") ? "is-invalid" : "";
 
+                        String valFullName = request.getAttribute("submittedFullName") != null ? (String) request.getAttribute("submittedFullName") : currentUser.getFullName();
+                        String valPhone = request.getAttribute("submittedPhone") != null ? (String) request.getAttribute("submittedPhone") : currentUser.getPhone();
+                        String valEmail = request.getAttribute("submittedEmail") != null ? (String) request.getAttribute("submittedEmail") : currentUser.getEmail();
                         %>
                         <!DOCTYPE html>
                         <html lang="vi">
@@ -150,7 +153,7 @@
                                                                             <input id="fullName" name="fullName"
                                                                                 class="form-control <%= fullNameClass %>"
                                                                                 placeholder="Nguyễn Văn A"
-                                                                                value="<%= currentUser.getFullName() %>"
+                                                                                value="<%= valFullName %>"
                                                                                 required>
                                                                             <div class="invalid-feedback">
                                                                                 <%= errors.getOrDefault("fullName", "Họ tên không hợp lệ."
@@ -165,7 +168,7 @@
                                                                             <input id="phone" name="phone"
                                                                                 class="form-control <%= phoneClass %>"
                                                                                 placeholder="0901234567"
-                                                                                value="<%= currentUser.getPhone() %>"
+                                                                                value="<%= valPhone %>"
                                                                                 required>
                                                                             <div class="invalid-feedback">
                                                                                 <%= errors.getOrDefault("phone", "Số điện thoại không hợp lệ."
@@ -180,7 +183,7 @@
                                                                             <input id="email" name="email" type="email"
                                                                                 class="form-control <%= emailClass %>"
                                                                                 placeholder="name@example.com"
-                                                                                value="<%= currentUser.getEmail() %>"
+                                                                                value="<%= valEmail %>"
                                                                                 required>
                                                                             <div class="invalid-feedback">
                                                                                 <%= errors.getOrDefault("email", "Email không hợp lệ."

@@ -62,7 +62,7 @@ public class GetFieldList extends HttpServlet {
                             .filter(Objects::nonNull)
                             .toList();
 
-                    // Filter Address
+                    // Filter Name
                     if (complexName != null
                             && !complexName.isBlank()
                             && (fc.getComplexName() == null

@@ -389,61 +389,6 @@ public class FootballComplexDAO {
         }
     }
 
-    public List<String> getAllCities() {
-
-        String sql = """
-                    SELECT DISTINCT city
-                    FROM football_complexes
-                    ORDER BY city
-                """;
-
-        List<String> cities = new ArrayList<>();
-
-        try (
-                Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ResultSet rs = ps.executeQuery();
-
-            while (rs.next()) {
-                cities.add(rs.getString("city"));
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return cities;
-    }
-
-    public List<String> getAllWards() {
-
-        String sql = """
-            SELECT DISTINCT ward
-            FROM football_complexes
-            WHERE ward IS NOT NULL AND ward <> ''
-            ORDER BY ward
-        """;
-
-        List<String> wards = new ArrayList<>();
-
-        try (
-                Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql);
-                ResultSet rs = ps.executeQuery()
-        ) {
-
-            while (rs.next()) {
-                wards.add(rs.getString("ward"));
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return wards;
-    }
-
     public java.math.BigDecimal getMinPriceForComplex(Long complexId) {
         String sql = "SELECT MIN(price) AS min_price FROM price_rules WHERE complex_id = ? AND status = 'ACTIVE'";
         try (Connection conn = DBContext.getConnection();
