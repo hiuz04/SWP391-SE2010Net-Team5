@@ -46,7 +46,6 @@ public class BookingView implements Serializable {
     private LocalDateTime holdExpiresAt;
     private String cancellationReason;
     private LocalDateTime cancelledAt;
-    private String qrCode;
     private String paymentStatus;
     private String paymentMethodName;
     private BigDecimal paidAmount;
@@ -309,14 +308,6 @@ public class BookingView implements Serializable {
 
     public void setCancelledAt(LocalDateTime cancelledAt) {
         this.cancelledAt = cancelledAt;
-    }
-
-    public String getQrCode() {
-        return qrCode;
-    }
-
-    public void setQrCode(String qrCode) {
-        this.qrCode = qrCode;
     }
 
     public String getPaymentStatus() {

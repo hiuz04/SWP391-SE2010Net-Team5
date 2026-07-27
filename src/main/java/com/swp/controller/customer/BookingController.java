@@ -657,7 +657,6 @@ public class BookingController extends HttpServlet {
         // Business Rule BR-24: Booking mới được dựng với trạng thái HOLD trước khi DAO ghi DB.
         booking.setStatus(STATUS_HOLD);
         booking.setHoldExpiresAt(holdExpiresAt);
-        booking.setQrCode(booking.getBookingCode());
         return booking;
     }
 

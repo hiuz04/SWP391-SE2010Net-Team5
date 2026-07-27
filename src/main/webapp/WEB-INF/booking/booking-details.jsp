@@ -176,9 +176,6 @@
     boolean created = "created".equals(request.getAttribute("success"));
     boolean cancelled = "cancelled".equals(request.getAttribute("success"));
     String error = request.getParameter("error");
-    String qrText = booking.getQrCode() != null && !booking.getQrCode().isBlank()
-            ? booking.getQrCode()
-            : booking.getBookingCode();
     boolean paymentSuccess = "SUCCESS".equals(booking.getPaymentStatus());
     boolean holdActive = "HOLD".equals(booking.getStatus())
             && booking.getHoldExpiresAt() != null
@@ -201,14 +198,25 @@
     <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
     <title>Chi ti&#7871;t booking | Sport Field Booking</title>
     <style>
-        .qr-text {
+        .qr-image-frame {
             border: 1px dashed #16a34a;
             border-radius: 8px;
-            padding: 18px;
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+            background: #f8fff8;
+        }
+
+        .booking-qr-image {
+            width: 220px;
+            height: 220px;
+            object-fit: contain;
+        }
+
+        .booking-code {
             font-weight: 700;
             letter-spacing: .04em;
             word-break: break-word;
-            background: #f8fff8;
         }
     </style>
 </head>
@@ -351,8 +359,16 @@
             <aside class="col-lg-4">
                 <div class="card soft-card p-4 text-center sidebar-card">
                     <h5>M&#227; QR check-in</h5>
-                    <div class="qr-text my-4"><%= esc(qrText) %></div>
-                    <p class="text-muted">&#272;&#432;a m&#227; n&#224;y cho nh&#226;n vi&#234;n s&#226;n &#273;&#7875; check-in.</p>
+                    <div class="qr-image-frame my-4">
+                        <img class="booking-qr-image"
+                             src="<%= ctx %>/booking/qr?id=<%= booking.getBookingId() %>"
+                             alt="QR booking <%= esc(booking.getBookingCode()) %>"
+                             width="220"
+                             height="220"
+                             loading="eager">
+                    </div>
+                    <div class="booking-code mb-2"><%= esc(booking.getBookingCode()) %></div>
+                    <p class="text-muted">Qu&#233;t m&#227; QR ho&#7863;c &#273;&#432;a m&#227; booking n&#224;y cho nh&#226;n vi&#234;n s&#226;n &#273;&#7875; check-in.</p>
                     <hr>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Gi&#225; g&#7889;c</span>
