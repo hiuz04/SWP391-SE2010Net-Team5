@@ -313,7 +313,7 @@ public class StaffActionServlet extends HttpServlet {
             return;
         }
 
-        // Business Rule BR-13: DAO chỉ check-in booking CONFIRMED và ghi log check-in khi cập nhật thành công.
+        // Business Rule BR-13: DAO chỉ check-in booking CONFIRMED và tạo bản ghi check-in khi cập nhật thành công.
         boolean success = staffDAO.checkinBooking(bookingId, staffId, note);
 
         if (success) {

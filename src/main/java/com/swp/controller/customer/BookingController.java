@@ -304,11 +304,7 @@ public class BookingController extends HttpServlet {
                     context.bookingPreview().getHoldExpiresAt (),
                     context.amounts()
             );
-            bookingId = bookingDAO.createBookingHold(
-                    booking,
-                    currentUser.getUserId(),
-                    "Customer created booking hold"
-            );
+            bookingId = bookingDAO.createBookingHold(booking);
         } else {
             if (context.validBookingSlots().isEmpty()) {
                 request.setAttribute("creationError", MONTHLY_NO_AVAILABLE_SLOT);
@@ -332,9 +328,7 @@ public class BookingController extends HttpServlet {
             RecurringBookingCreationResult creationResult = bookingDAO.createRecurringBookingHolds(
                     bookings,
                     context.repeatRequest().repeatType(),
-                    context.repeatRequest().repeatUntil(),
-                    currentUser.getUserId(),
-                    "Customer created recurring booking hold"
+                    context.repeatRequest().repeatUntil()
             );
             List<SkippedBookingSlot> finalSkippedSlots =
                     combineSkippedSlots(context.skippedSlots(), creationResult.getSkippedSlots());
@@ -452,13 +446,13 @@ public class BookingController extends HttpServlet {
         }
 
         String reason = trim(request.getParameter("reason"));
-        // Neu nguoi dung khong nhap ly do thi dung ly do mac dinh de luu log.
+        // Neu nguoi dung khong nhap ly do thi dung ly do mac dinh de luu vao booking.
         if (reason == null || reason.isEmpty()) {
             reason = "Customer cancelled booking";
         }
 
-        // Cap nhat trang thai booking va ghi log trong DAO.
-        bookingDAO.cancelBooking(bookingId, currentUser.getUserId(), reason, currentUser.getUserId());
+        // Cap nhat trang thai booking va luu ly do huy trong DAO.
+        bookingDAO.cancelBooking(bookingId, currentUser.getUserId(), reason);
         
         try {
             com.swp.dao.NotificationDAO notificationDAO = new com.swp.dao.NotificationDAO();

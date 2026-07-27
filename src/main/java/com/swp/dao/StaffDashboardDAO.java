@@ -276,19 +276,12 @@ public class StaffDashboardDAO {
                   AND status = 'CONFIRMED'
                   AND CAST(start_time AS DATE) = CAST(GETDATE() AS DATE)
                   AND end_time > GETDATE()
-                """;
+        """;
         String insertSql = "INSERT INTO checkins (booking_id, staff_id, checkin_time, note) VALUES (?, ?, GETDATE(), ?)";
-        String insertLogSql = """
-                INSERT INTO booking_status_logs (
-                    booking_id, old_status, new_status, changed_by, note, created_at
-                )
-                VALUES (?, 'CONFIRMED', 'CHECKED_IN', ?, ?, GETDATE())
-                """;
         try (Connection conn = DBContext.getConnection()) {
             conn.setAutoCommit(false);
             try (PreparedStatement ps1 = conn.prepareStatement(updateSql);
-                 PreparedStatement ps2 = conn.prepareStatement(insertSql);
-                 PreparedStatement ps3 = conn.prepareStatement(insertLogSql)) {
+                 PreparedStatement ps2 = conn.prepareStatement(insertSql)) {
                 // Business Rule BR-13: Chỉ booking CONFIRMED mới được chuyển sang CHECKED_IN.
                 ps1.setLong(1, bookingId);
                 int updated = ps1.executeUpdate();
@@ -296,18 +289,12 @@ public class StaffDashboardDAO {
                     conn.rollback();
                     return false;
                 }
-                // Business Rule BR-13: Check-in thành công phải tạo log nhận sân cho booking.
+                // Business Rule BR-13: Check-in thành công phải tạo bản ghi nhận sân cho booking.
                 ps2.setLong(1, bookingId);
                 ps2.setLong(2, staffId);
                 ps2.setString(3, note != null ? note : "");
                 ps2.executeUpdate();
 
-                ps3.setLong(1, bookingId);
-                ps3.setLong(2, staffId);
-                ps3.setString(3, note != null && !note.isBlank()
-                        ? note
-                        : "Staff check-in booking.");
-                ps3.executeUpdate();
                 conn.commit();
                 return true;
             } catch (SQLException e) {

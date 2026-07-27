@@ -492,10 +492,10 @@ public class BookingDAO {
     }
 
     /**
-     * Tạo một booking HOLD và log trạng thái trong cùng transaction.
+     * Tạo một booking HOLD trong cùng transaction.
      * Việc kiểm tra khả dụng được lặp lại trong transaction để tránh hai request đặt cùng slot.
      */
-    public long createBookingHold(Booking booking, Long changedBy, String note) throws SQLException {
+    public long createBookingHold(Booking booking) throws SQLException {
         String insertBooking = """
                 INSERT INTO bookings (
                     booking_code,
@@ -519,22 +519,10 @@ public class BookingDAO {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
                 """;
 
-        String insertLog = """
-                INSERT INTO booking_status_logs (
-                    booking_id,
-                    old_status,
-                    new_status,
-                    changed_by,
-                    note,
-                    created_at
-                )
-                VALUES (?, NULL, 'HOLD', ?, ?, GETDATE())
-                """;
-
         Connection conn = null;
         boolean originalAutoCommit = true;
 
-        // Bat dau transaction de tao booking va ghi log nhu mot thao tac atomic.
+        // Bat dau transaction de tao booking nhu mot thao tac atomic.
         try {
             conn = DBContext.getConnection();
             originalAutoCommit = conn.getAutoCommit();
@@ -573,24 +561,10 @@ public class BookingDAO {
                 }
             }
 
-            // Business Rule BR-24: Ghi log trạng thái HOLD để audit vòng đời booking đã triển khai.
-            // Ghi lịch sử trạng thái để audit được booking mới tạo.
-            try (PreparedStatement ps = conn.prepareStatement(insertLog)) {
-                ps.setLong(1, bookingId);
-                // changedBy co the null neu log duoc sinh boi he thong.
-                if (changedBy == null) {
-                    ps.setNull(2, Types.BIGINT);
-                } else {
-                    ps.setLong(2, changedBy);
-                }
-                ps.setString(3, note);
-                ps.executeUpdate();
-            }
-
             conn.commit();
             return bookingId;
         } catch (SQLException e) {
-            // Co loi thi rollback de khong de lai booking/log lech nhau.
+            // Co loi thi rollback de khong de lai booking tao do dang.
             if (conn != null) {
                 conn.rollback();
             }
@@ -696,9 +670,7 @@ public class BookingDAO {
     public RecurringBookingCreationResult createRecurringBookingHolds(
             List<Booking> bookings,
             String repeatType,
-            LocalDate repeatUntil,
-            Long changedBy,
-            String note
+            LocalDate repeatUntil
     ) throws SQLException {
         String insertRecurringGroup = """
                 INSERT INTO booking_recurring_groups (
@@ -733,18 +705,6 @@ public class BookingDAO {
                 )
                 OUTPUT INSERTED.booking_id
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
-                """;
-
-        String insertLog = """
-                INSERT INTO booking_status_logs (
-                    booking_id,
-                    old_status,
-                    new_status,
-                    changed_by,
-                    note,
-                    created_at
-                )
-                VALUES (?, NULL, 'HOLD', ?, ?, GETDATE())
                 """;
 
         Connection conn = null;
@@ -816,33 +776,19 @@ public class BookingDAO {
                     ps.setTimestamp(14, Timestamp.valueOf(booking.getHoldExpiresAt()));
 
                     try (ResultSet rs = ps.executeQuery()) {
-                        // Moi booking con bat buoc phai tra ve id de ghi log dung.
+                        // Moi booking con bat buoc phai tra ve id de tra ve ket qua dung.
                         if (!rs.next()) {
                             throw new SQLException("Khong lay duoc booking_id sau khi tao booking.");
                         }
                         bookingIds.add(rs.getLong(1));
                     }
                 }
-
-                // Business Rule BR-24: Mỗi booking con đều có log HOLD để theo dõi trạng thái đã triển khai.
-                // Ghi log HOLD cho booking con vừa insert.
-                try (PreparedStatement ps = conn.prepareStatement(insertLog)) {
-                    ps.setLong(1, bookingIds.get(bookingIds.size() - 1));
-                    // changedBy co the null neu log duoc sinh boi he thong.
-                    if (changedBy == null) {
-                        ps.setNull(2, Types.BIGINT);
-                    } else {
-                        ps.setLong(2, changedBy);
-                    }
-                    ps.setString(3, note);
-                    ps.executeUpdate();
-                }
             }
 
             conn.commit();
             return new RecurringBookingCreationResult(bookingIds, skippedSlots, bookings.size());
         } catch (SQLException e) {
-            // Lỗi DB khi tạo group/booking/log thì rollback toàn bộ dữ liệu đã insert trong transaction.
+            // Lỗi DB khi tạo group/booking thì rollback toàn bộ dữ liệu đã insert trong transaction.
             if (conn != null) {
                 conn.rollback();
             }
@@ -881,9 +827,9 @@ public class BookingDAO {
 
     /**
      * Hủy booking của Customer bằng transaction có khóa bản ghi.
-     * Method kiểm tra ownership, trạng thái hiện tại và mốc giờ hủy trước khi đổi sang CANCELLED và ghi log.
+     * Method kiểm tra ownership, trạng thái hiện tại và mốc giờ hủy trước khi đổi sang CANCELLED.
      */
-    public void cancelBooking(Long bookingId, Long customerId, String reason, Long changedBy) throws SQLException {
+    public void cancelBooking(Long bookingId, Long customerId, String reason) throws SQLException {
         String selectBooking = """
                 SELECT status,
                        start_time
@@ -902,22 +848,10 @@ public class BookingDAO {
                   AND customer_id = ?
                 """;
 
-        String insertLog = """
-                INSERT INTO booking_status_logs (
-                    booking_id,
-                    old_status,
-                    new_status,
-                    changed_by,
-                    note,
-                    created_at
-                )
-                VALUES (?, ?, ?, ?, ?, GETDATE())
-                """;
-
         Connection conn = null;
         boolean originalAutoCommit = true;
 
-        // Bat dau transaction de khoa booking, cap nhat trang thai va ghi log cung luc.
+        // Bat dau transaction de khoa booking va cap nhat trang thai cung luc.
         try {
             conn = DBContext.getConnection();
             originalAutoCommit = conn.getAutoCommit();
@@ -966,24 +900,9 @@ public class BookingDAO {
                 ps.executeUpdate();
             }
 
-            // Ghi log chuyen trang thai de audit duoc ai da huy.
-            try (PreparedStatement ps = conn.prepareStatement(insertLog)) {
-                ps.setLong(1, bookingId);
-                ps.setString(2, oldStatus);
-                ps.setString(3, STATUS_CANCELLED);
-                // changedBy co the null neu he thong thuc hien huy tu dong.
-                if (changedBy == null) {
-                    ps.setNull(4, Types.BIGINT);
-                } else {
-                    ps.setLong(4, changedBy);
-                }
-                ps.setString(5, reason);
-                ps.executeUpdate();
-            }
-
             conn.commit();
         } catch (SQLException e) {
-            // Co loi khi huy thi rollback de booking va log khong bi lech.
+            // Co loi khi huy thi rollback de booking khong bi cap nhat do dang.
             if (conn != null) {
                 conn.rollback();
             }
@@ -1528,16 +1447,11 @@ public class BookingDAO {
     }
 
     /**
-     * Cập nhật trạng thái HOLD quá hạn và ghi log bằng một câu SQL dùng bảng tạm.
-     * Cách này giữ danh sách booking vừa bị hủy để log chính xác trong cùng transaction.
+     * Cập nhật trạng thái HOLD quá hạn để giải phóng slot.
      */
     private int cancelExpiredHolds(Connection conn, Long customerId) throws SQLException {
         String customerFilter = customerId == null ? "" : "                  AND b.customer_id = ?\n";
         String sql = """
-                DECLARE @ExpiredBookings TABLE (
-                    booking_id BIGINT NOT NULL
-                );
-                
                 -- Business Rule BR-05: Booking HOLD quá hạn và chưa có payment SUCCESS bị hủy để giải phóng slot.
                 UPDATE b
                 SET b.status = 'CANCELLED',
@@ -1545,7 +1459,6 @@ public class BookingDAO {
                     b.cancelled_at = GETDATE(),
                     b.hold_expires_at = NULL,
                     b.updated_at = GETDATE()
-                OUTPUT INSERTED.booking_id INTO @ExpiredBookings (booking_id)
                 FROM bookings b
                 WHERE b.status = 'HOLD'
                   AND b.hold_expires_at IS NOT NULL
@@ -1557,23 +1470,6 @@ public class BookingDAO {
                       WHERE p.booking_id = b.booking_id
                         AND p.status = 'SUCCESS'
                   )
-                
-                -- Business Rule BR-24: Log trạng thái CANCELLED được ghi cho các HOLD bị hủy tự động.
-                INSERT INTO booking_status_logs (
-                    booking_id,
-                    old_status,
-                    new_status,
-                    changed_by,
-                    note,
-                    created_at
-                )
-                SELECT booking_id,
-                       'HOLD',
-                       'CANCELLED',
-                       CAST(NULL AS BIGINT),
-                       ?,
-                       GETDATE()
-                FROM @ExpiredBookings
                 """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1581,7 +1477,6 @@ public class BookingDAO {
             if (customerId != null) {
                 ps.setLong(2, customerId);
             }
-            ps.setString(customerId == null ? 2 : 3, HOLD_EXPIRED_CANCEL_REASON);
             return ps.executeUpdate();
         }
     }
