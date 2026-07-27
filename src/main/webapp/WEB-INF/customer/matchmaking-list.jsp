@@ -221,7 +221,8 @@
     window.CURRENT_USER_ID = <%= isLoggedIn ? sessionUser.getUserId() : "null" %>;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<%= ctx %>/assets/js/customer/matchmaking.js"></script>
+<script>window.APP_CTX = '<%= ctx %>';</script>
+<script src="<%= ctx %>/assets/js/customer/matchmaking.js?v=<%= System.currentTimeMillis() %>"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 </body>
 </html>

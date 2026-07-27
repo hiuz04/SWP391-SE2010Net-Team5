@@ -780,7 +780,7 @@
 <div id="footer" data-root="<%= ctx %>/"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<%= ctx %>/assets/js/app.js"></script>
+<script src="<%= ctx %>/assets/js/app.js?v=<%= System.currentTimeMillis() %>"></script>
 <script>
 // ── Global Dashboard state ──────────────────────────────────────────────────
 let todayBookings = [];
@@ -810,10 +810,7 @@ updateClock();
 setInterval(updateClock, 1000);
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-function fmt(amount) {
-  if (amount == null) return '—';
-  return Number(amount).toLocaleString('vi-VN') + ' ₫';
-}
+const fmt = window.fmtMoney;
 
 function parseLocalDate(dtStr) {
   if (!dtStr) return null;
@@ -871,8 +868,14 @@ function statusBadge(status, nowPlaying, isExpired, startTimeStr, endTimeStr) {
 }
 
 let currentShiftStatus = 'ONGOING';
+let globalShiftStart = null;
+let globalShiftEnd = null;
+let globalHasShift = false;
 
-function actionBtn(status, bookingId, isExpired, hasInvoice, checkoutDue, startTimeStr, endTimeStr) {
+// ── Xử lý hiển thị Nút Hành Động (Action Buttons) ──────────────────────────
+// Hàm này quyết định nút nào sẽ hiển thị (Check-in, Checkout, Khóa, Quá giờ...)
+function actionBtn(status, bookingId, isExpired, hasInvoice, checkoutDue, startTimeStr, endTimeStr, isOutShift) {
+  // 1. Nếu ca trực đã qua (COMPLETED) -> Khóa toàn bộ thao tác
   if (currentShiftStatus === 'UPCOMING') {
     if (status === 'CONFIRMED' || status === 'CHECKED_IN') {
       return `<button class="btn btn-sm btn-secondary px-3" disabled title="Chưa đến giờ làm việc"><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>`;
@@ -883,19 +886,38 @@ function actionBtn(status, bookingId, isExpired, hasInvoice, checkoutDue, startT
       return `<button class="btn btn-sm btn-secondary px-3" disabled title="Ca trực đã kết thúc"><i class="bi bi-lock-fill me-1"></i>Hết ca trực</button>`;
     }
   }
+
+  // 2. Kiểm tra xem giờ đá của sân có nằm ngoài giờ ca trực hiện tại không
+  const isOutsideShift = typeof isTimeInShiftStr === 'function' && !isTimeInShiftStr(startTimeStr, globalShiftStart, globalShiftEnd);
+  
+  // 3. Nếu là sân nằm ngoài ca trực (khác ca) -> Hiển thị nút Khóa (không cho thao tác)
+  if (isOutShift || isOutsideShift) {
+    if (status === 'CONFIRMED' || (status === 'CHECKED_IN' && checkoutDue)) {
+      return `<button class="btn btn-sm btn-secondary px-3" disabled title="Khung giờ này không nằm trong ca trực của bạn"><i class="bi bi-lock-fill me-1"></i>Khóa</button>`;
+    }
+  }
+
+  // 4. Nếu là sân trong ca trực và chưa Check-in (CONFIRMED)
   if (status === 'CONFIRMED') {
+    // 4.1. Khách quá hạn nhận sân (Đã quá giờ)
     if (isExpired) {
       return `<button class="btn btn-sm btn-secondary px-3" disabled><i class="bi bi-exclamation-circle me-1"></i>Quá giờ nhận</button>`;
     }
+    // 4.2. Hợp lệ -> Cho phép Check-in
     return `<button type="button" onclick="openCheckinModal(${bookingId})" class="btn btn-sm btn-success">Check-in</button>`;
   }
+  
+  // 5. Nếu khách đang chơi (CHECKED_IN)
   if (status === 'CHECKED_IN') {
     return checkoutDue
-      ? `<a href="<%= ctx %>/staff/checkout?id=${bookingId}" class="btn btn-sm btn-outline-success">Checkout</a>`
-      : `<button class="btn btn-sm btn-secondary px-3" disabled>Dang su dung</button>`;
+      ? `<a href="<%= ctx %>/staff/checkout?id=${bookingId}" class="btn btn-sm btn-outline-success">Checkout</a>` // Có thể Checkout
+      : `<button class="btn btn-sm btn-secondary px-3" disabled>Đang sử dụng</button>`; // Chưa đến lúc
   }
-  if (status === 'PENDING_CHECKOUT_PAYMENT' && hasInvoice) return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-file-earmark-text me-1"></i>Hoa don</a>`;
+  
+  // 6. Nếu đã Checkout và có Hóa đơn
+  if (status === 'PENDING_CHECKOUT_PAYMENT' && hasInvoice) return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-file-earmark-text me-1"></i>Hóa đơn</a>`;
   if (status === 'COMPLETED' && hasInvoice) return `<a href="<%= ctx %>/staff/invoice?id=${bookingId}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-file-earmark-text me-1"></i>Hóa đơn</a>`;
+  
   return '';
 }
 
@@ -907,14 +929,7 @@ function activityIcon(type) {
   return type === 'CHECKIN' ? 'Check-in' : type === 'INVOICE' ? 'Hóa đơn' : 'Checkout';
 }
 
-function timeOnly(dtStr) {
-  if (!dtStr) return '';
-  let t = dtStr;
-  if (t.includes('T')) t = t.split('T')[1];
-  else if (t.includes(' ')) t = t.split(' ')[1];
-  return t.substring(0, 5);
-}
-
+// (Removed duplicate fmt, timeOnly, isBookingExpired, isBookingLateNoShow functions, now in app.js)
 function fmtPhone(phone) {
   if (!phone || phone === 'null' || phone === 'undefined' || String(phone).trim() === '') {
     return 'Không có SĐT';
@@ -922,6 +937,15 @@ function fmtPhone(phone) {
   return phone;
 }
 
+// ── Xử lý Sắp xếp thứ tự ưu tiên hiển thị (Booking Sort Priority) ──────────────
+// Quy tắc ưu tiên:
+// 0. Đang chơi
+// 1. Chờ Check-in (chưa quá hạn)
+// 2. Có thể Checkout
+// 3. Chờ thanh toán
+// 4. Đã hoàn thành
+// 5. Quá hạn Check-in (Đẩy xuống cuối)
+// 6. Các trạng thái khác
 function bookingSortPriority(b) {
   const isExpired = isBookingExpired(b.endTime);
   if (b.nowPlaying && b.status === 'CHECKED_IN') return 0;
@@ -1055,24 +1079,20 @@ async function loadDashboard() {
     document.getElementById('cash-detail').textContent =
       `${txCount} giao dịch${avgTx && txCount > 0 ? ' · Trung bình ' + fmt(avgTx) : ''}`;
 
-    const hasShift = data.hasShift !== false && data.shift && data.shift.shiftId;
-    const currentShiftStart = data.shift ? data.shift.startTime : null;
-    const currentShiftEnd = data.shift ? data.shift.endTime : null;
+    globalHasShift = data.hasShift !== false && data.shift && data.shift.shiftId;
+    globalShiftStart = data.shift ? data.shift.startTime : null;
+    globalShiftEnd = data.shift ? data.shift.endTime : null;
+
+    const hasShift = globalHasShift;
+    const currentShiftStart = globalShiftStart;
+    const currentShiftEnd = globalShiftEnd;
 
     function isTimeInShift(timeStr) {
-      if (!hasShift || !timeStr || !currentShiftStart || !currentShiftEnd) return true;
-      let t = timeOnly(timeStr);
-      let s = timeOnly(currentShiftStart);
-      let e = timeOnly(currentShiftEnd);
-      if (e === '00:00' || e === '24:00') e = '23:59';
-      if (s <= e) {
-        return t >= s && t <= e;
-      } else {
-        return t >= s || t <= e;
-      }
+      if (!hasShift) return true;
+      return isTimeInShiftStr(timeStr, globalShiftStart, globalShiftEnd);
     }
 
-    function renderBookingRow(b) {
+    function renderBookingRow(b, isOutShift = false) {
       const nowPlaying = b.nowPlaying && b.status === 'CHECKED_IN';
       const isExpired = isBookingExpired(b.endTime);
       const rowClass   = nowPlaying ? 'booking-row now-playing' : 'booking-row';
@@ -1083,7 +1103,7 @@ async function loadDashboard() {
         <td style="white-space: nowrap;"><strong>${b.fieldName || '—'}</strong></td>
         <td style="white-space: nowrap;">${b.customerName || '—'}</td>
         <td style="white-space: nowrap;">${statusBadge(b.status, nowPlaying, isExpired, b.startTime, b.endTime)}</td>
-        <td style="white-space: nowrap;">${actionBtn(b.status, b.bookingId, isExpired, b.hasInvoice, b.checkoutDue, b.startTime, b.endTime)}</td>
+        <td style="white-space: nowrap;">${actionBtn(b.status, b.bookingId, isExpired, b.hasInvoice, b.checkoutDue, b.startTime, b.endTime, isOutShift)}</td>
       </tr>`;
     }
 
@@ -1121,17 +1141,17 @@ async function loadDashboard() {
         if (inShiftBk.length === 0) {
           html += `<tr><td colspan="6" class="text-muted text-center py-3 small">Không có booking nào trong ca làm việc</td></tr>`;
         } else {
-          html += inShiftBk.map(renderBookingRow).join('');
+          html += inShiftBk.map(b => renderBookingRow(b, false)).join('');
         }
 
         // Section 2: Ngoài ca làm việc
         html += `<tr><td colspan="6" class="py-2"><span class="badge bg-secondary-subtle text-secondary fw-bold" style="font-size:0.8rem;border-radius:8px;padding:5px 12px;"><i class="bi bi-clock me-1"></i>Ngoài ca làm việc</span></td></tr>`;
-        html += outShiftBk.map(renderBookingRow).join('');
+        html += outShiftBk.map(b => renderBookingRow(b, true)).join('');
       } else {
         if (hasShift) {
           html += `<tr><td colspan="6" class="py-2"><span class="badge bg-success-subtle text-success fw-bold" style="font-size:0.8rem;border-radius:8px;padding:5px 12px;"><i class="bi bi-clock-fill me-1"></i>Trong ca làm việc</span></td></tr>`;
         }
-        html += inShiftBk.map(renderBookingRow).join('');
+        html += inShiftBk.map(b => renderBookingRow(b, false)).join('');
       }
 
       tbody.innerHTML = html;
@@ -1165,6 +1185,8 @@ async function loadDashboard() {
 function showBookingDetails(bookingId) {
   const b = todayBookings.find(x => x.bookingId === bookingId);
   if (!b) return;
+
+  const isOutsideShift = typeof isTimeInShiftStr === 'function' && !isTimeInShiftStr(b.startTime, globalShiftStart, globalShiftEnd);
 
   if (b.status === 'CONFIRMED') {
     openCheckinModal(bookingId);
@@ -1213,7 +1235,9 @@ function showBookingDetails(bookingId) {
   const footer = document.getElementById('det-modal-footer');
   let btnHtml = '<button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>';
 
-  if (currentShiftStatus === 'UPCOMING') {
+  if (isOutsideShift && (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN')) {
+    btnHtml += '<button class="btn btn-secondary px-3" disabled title="Khung giờ này không nằm trong ca trực của bạn"><i class="bi bi-lock-fill me-1"></i>Khóa</button>';
+  } else if (currentShiftStatus === 'UPCOMING') {
     if (b.status === 'CHECKED_IN') {
       btnHtml += '<button class="btn btn-secondary px-3" disabled title="Chưa đến giờ làm việc"><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>';
     }
@@ -1523,7 +1547,17 @@ function openCheckinModal(bookingId) {
   const alertBox = document.getElementById('chk-modal-alert');
   const actionsBox = document.getElementById('chk-modal-actions');
 
-  if (isExpired) {
+  const isOutsideShift = typeof isTimeInShiftStr === 'function' && !isTimeInShiftStr(b.startTime, globalShiftStart, globalShiftEnd);
+
+  if (isOutsideShift) {
+    if (alertBox) {
+      alertBox.innerHTML = '<div class="d-flex align-items-center gap-2 p-3 mb-3 rounded-4" style="background-color:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:0.85rem;font-weight:600;"><i class="bi bi-exclamation-triangle-fill fs-5 text-warning flex-shrink-0"></i><div>Khung giờ của sân này không nằm trong ca trực của bạn. Không thể thao tác.</div></div>';
+      alertBox.classList.remove('d-none');
+    }
+    if (actionsBox) {
+      actionsBox.innerHTML = '<button type="button" class="btn btn-secondary px-4 py-2 rounded-3" disabled><i class="bi bi-lock-fill me-1"></i>Khóa</button>';
+    }
+  } else if (isExpired) {
     if (alertBox) {
       alertBox.innerHTML = '<div class="d-flex align-items-center gap-2 p-3 mb-3 rounded-4" style="background-color:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:0.85rem;font-weight:600;"><i class="bi bi-exclamation-circle-fill fs-5 text-danger flex-shrink-0"></i><div>Lịch đặt sân này đã quá giờ nhận. Không thể thực hiện Check-in.</div></div>';
       alertBox.classList.remove('d-none');
