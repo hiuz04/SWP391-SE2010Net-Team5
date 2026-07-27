@@ -95,12 +95,63 @@
         <a href="<%= ctx %>/staff/schedule" class="btn btn-sf-primary px-4">Xem lịch sân</a>
       </div>
     <% } else if (checkout == null) { %>
-      <div class="panel p-5 text-center">
-        <i class="bi bi-calendar2-week display-4 text-muted"></i>
-        <h4 class="fw-bold mt-3">Chọn lịch cần trả sân</h4>
-        <p class="text-muted mb-4">Vui lòng chọn một lịch đang sử dụng từ lịch trong ngày.</p>
-        <a href="<%= ctx %>/staff/schedule" class="btn btn-sf-primary px-4">Xem lịch sân</a>
-      </div>
+      <%
+        @SuppressWarnings("unchecked")
+        java.util.List<java.util.Map<String, Object>> checkedInBookings =
+            (java.util.List<java.util.Map<String, Object>>) request.getAttribute("checkedInBookings");
+      %>
+      <% if (checkedInBookings != null && !checkedInBookings.isEmpty()) { %>
+        <div class="panel p-4 mb-4">
+          <h4 class="fw-bold mb-3"><i class="bi bi-box-arrow-right text-success me-2"></i>Danh sách sân đang sử dụng — Chờ trả sân (Checkout)</h4>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th>Khung giờ</th>
+                  <th>Mã đặt sân</th>
+                  <th>Sân bóng</th>
+                  <th>Khách hàng</th>
+                  <th>Số điện thoại</th>
+                  <th class="text-center">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% for (java.util.Map<String, Object> b : checkedInBookings) { %>
+                  <tr class="booking-row" onclick="showBookingDetailsFromRow(this, event)" style="cursor:pointer;" title="Nhấn để xem chi tiết đặt sân"
+                      data-code="<%= esc(b.get("bookingCode")) %>"
+                      data-name="<%= esc(b.get("customerName")) %>"
+                      data-phone="<%= esc(b.get("customerPhone")) %>"
+                      data-field="<%= esc(b.get("fieldName")) %>"
+                      data-start="<%= b.get("startTime") != null ? b.get("startTime").toString() : "" %>"
+                      data-end="<%= b.get("endTime") != null ? b.get("endTime").toString() : "" %>"
+                      data-total="<%= b.get("totalAmount") != null ? b.get("totalAmount").toString() : "0" %>"
+                      data-deposit="<%= b.get("depositAmount") != null ? b.get("depositAmount").toString() : "0" %>"
+                      data-id="<%= b.get("bookingId") %>">
+                    <td><span class="badge bg-light text-dark border"><%= esc(b.get("startTime")) != null ? b.get("startTime").toString().substring(0, Math.min(16, b.get("startTime").toString().length())) : "" %> - <%= esc(b.get("endTime")) != null ? b.get("endTime").toString().substring(0, Math.min(16, b.get("endTime").toString().length())) : "" %></span></td>
+                    <td><strong><%= esc(b.get("bookingCode")) %></strong></td>
+                    <td><strong><%= esc(b.get("fieldName")) %></strong></td>
+                    <td><%= esc(b.get("customerName")) %></td>
+                    <td><%= esc(b.get("customerPhone")) %></td>
+                    <td class="text-center">
+                      <a href="<%= ctx %>/staff/checkout?id=<%= b.get("bookingId") %>" class="btn btn-sm btn-success px-3">
+                        <i class="bi bi-box-arrow-right me-1"></i>Checkout
+                      </a>
+                    </td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      <% } else { %>
+        <div class="panel p-5 text-center">
+          <i class="bi bi-check-circle-fill display-4 text-success"></i>
+          <h4 class="fw-bold mt-3">Không có sân nào chờ trả sân</h4>
+          <p class="text-muted mb-4">Hiện tại không có lịch đặt sân nào đang trong trạng thái nhận sân (`CHECKED_IN`) tại cơ sở này.</p>
+          <a href="<%= ctx %>/staff/dashboard" class="btn btn-sf-primary px-4 me-2">Về Dashboard</a>
+          <a href="<%= ctx %>/staff/schedule" class="btn btn-outline-secondary px-4">Xem lịch sân</a>
+        </div>
+      <% } %>
     <% } else { %>
       <% if (!canConfirm) { %>
         <div class="alert alert-warning border-0 shadow-sm">
@@ -242,6 +293,91 @@
   </div>
 </main>
 
+<!-- Booking Details Modal -->
+<div class="modal fade" id="bookingDetailModal" tabindex="-1" aria-labelledby="bookingDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 24px; overflow: hidden; background: #ffffff;">
+      <div class="modal-header border-0 px-4 pt-4 pb-0 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle bg-success-subtle p-2 text-success d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background-color: #dcfce7;">
+            <i class="bi bi-calendar-check-fill fs-4" style="color: #16a34a;"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold text-dark fs-5 mb-0" id="bookingDetailModalLabel">Chi tiết lịch đặt sân</h5>
+            <span class="text-muted small" style="font-size: 0.8rem;">Mã đặt sân: <strong class="text-success" id="det-code">—</strong></span>
+          </div>
+        </div>
+        <button type="button" class="btn-close bg-light rounded-circle p-2" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <div class="row g-4">
+          <div class="col-md-7">
+            <div class="mb-4">
+              <h6 class="fw-bold text-muted uppercase small mb-3 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-person-fill me-2" style="color: #16a34a;"></i>THÔNG TIN KHÁCH HÀNG</h6>
+              <div class="p-3 bg-light rounded-4 border border-light-subtle" style="background-color: #f8fafc !important;">
+                <div class="mb-2">
+                  <span class="text-muted small d-block" style="font-size: 0.75rem;">Tên khách hàng</span>
+                  <span class="fw-bold text-dark fs-6" id="det-name">—</span>
+                </div>
+                <div>
+                  <span class="text-muted small d-block" style="font-size: 0.75rem;">Số điện thoại</span>
+                  <span class="fw-bold text-success fs-6" id="det-phone">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h6 class="fw-bold text-muted uppercase small mb-3 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-heptagon-fill me-2" style="color: #16a34a;"></i>THÔNG TIN TRẬN ĐẤU</h6>
+              <div class="p-3 bg-light rounded-4 border border-light-subtle" style="background-color: #f8fafc !important;">
+                <div class="row g-3">
+                  <div class="col-6">
+                    <span class="text-muted small d-block" style="font-size: 0.75rem;">Sân bóng</span>
+                    <span class="fw-bold text-dark" id="det-field">—</span>
+                  </div>
+                  <div class="col-6">
+                    <span class="text-muted small d-block" style="font-size: 0.75rem;">Trạng thái</span>
+                    <div id="det-status-badge">—</div>
+                  </div>
+                  <div class="col-12">
+                    <span class="text-muted small d-block" style="font-size: 0.75rem;">Khung giờ sử dụng</span>
+                    <span class="fw-bold text-dark fs-6"><i class="bi bi-clock me-2 text-muted"></i><span id="det-time">—</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-5">
+            <h6 class="fw-bold text-muted uppercase small mb-3 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-receipt-cutoff me-2" style="color: #16a34a;"></i>CHI TIẾT THANH TOÁN</h6>
+            <div class="p-4 rounded-4 shadow-sm border border-success-subtle d-flex flex-column justify-content-between" style="background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border-color: #bbf7d0 !important; border: 1px solid; min-height: 230px;">
+              <div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <span class="text-muted small" style="font-size: 0.8rem;">Giá gốc sân:</span>
+                  <span class="fw-bold text-dark" id="det-orig-price">—</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <span class="text-muted small">Đã đặt cọc trước:</span>
+                  <span class="fw-bold text-danger" id="det-deposit">—</span>
+                </div>
+                <hr class="my-3 border-secondary-subtle">
+              </div>
+              <div class="text-center py-2">
+                <span class="text-muted small d-block mb-1" style="font-size: 0.72rem; letter-spacing: 0.05em; font-weight: 700;">CẦN THANH TOÁN CÒN LẠI</span>
+                <span class="fw-bold text-success display-6" style="font-weight: 800; font-size: 1.8rem;" id="det-total-amount">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex justify-content-end gap-2" id="det-modal-footer">
+        <button type="button" class="btn btn-light px-4 py-2 rounded-3" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="footer" data-root="<%= ctx %>/"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -326,6 +462,51 @@
       showCheckoutMessage('checkout-error', err.message || 'Không thể gửi yêu cầu thanh toán.');
       confirmBtn.disabled = false;
       refreshCheckoutButton();
+    }
+  }
+
+  let detailModalInstance = null;
+
+  function showBookingDetailsFromRow(row, event) {
+    if (event.target.closest('a') || event.target.closest('button')) return;
+
+    const code = row.getAttribute('data-code') || '—';
+    const name = row.getAttribute('data-name') || '—';
+    const phone = row.getAttribute('data-phone') || 'Không có SĐT';
+    const field = row.getAttribute('data-field') || '—';
+    const start = row.getAttribute('data-start') || '';
+    const end = row.getAttribute('data-end') || '';
+    const total = parseFloat(row.getAttribute('data-total') || '0');
+    const deposit = parseFloat(row.getAttribute('data-deposit') || '0');
+    const bookingId = row.getAttribute('data-id');
+
+    document.getElementById('det-code').textContent = code;
+    document.getElementById('det-name').textContent = name;
+    document.getElementById('det-phone').textContent = phone;
+    document.getElementById('det-field').textContent = field;
+
+    let timeStr = '—';
+    if (start) {
+      let tStart = start.includes(' ') ? start.split(' ')[1] : start;
+      let tEnd = end.includes(' ') ? end.split(' ')[1] : end;
+      timeStr = tStart.substring(0, 5) + ' - ' + tEnd.substring(0, 5);
+    }
+    document.getElementById('det-time').textContent = timeStr;
+    document.getElementById('det-status-badge').innerHTML = '<span class="badge" style="background:#e0f2fe;color:#0369a1;"><i class="bi bi-play-circle me-1"></i>Đang chơi</span>';
+
+    document.getElementById('det-orig-price').textContent = Number(total).toLocaleString('vi-VN') + ' ₫';
+    document.getElementById('det-deposit').textContent = Number(deposit).toLocaleString('vi-VN') + ' ₫';
+    const rem = total - deposit;
+    document.getElementById('det-total-amount').textContent = Number(rem >= 0 ? rem : 0).toLocaleString('vi-VN') + ' ₫';
+
+    const footer = document.getElementById('det-modal-footer');
+    footer.innerHTML = '<button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>' +
+                       '<a href="<%= ctx %>/staff/checkout?id=' + bookingId + '" class="btn btn-success px-4">Checkout</a>';
+
+    const modalEl = document.getElementById('bookingDetailModal');
+    if (modalEl) {
+      if (!detailModalInstance) detailModalInstance = new bootstrap.Modal(modalEl);
+      detailModalInstance.show();
     }
   }
 

@@ -3,6 +3,7 @@ package com.swp.dao;
 import com.swp.util.DBContext;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -26,7 +27,14 @@ public class StaffDashboardDAO {
                 JOIN shift_assignments sa ON ws.shift_id = sa.shift_id
                 JOIN football_complexes f ON ws.complex_id = f.complex_id
                 WHERE sa.staff_id = ?
-                  AND ws.shift_date = CAST(GETDATE() AS DATE)
+                  AND (
+                      ws.shift_date = CAST(GETDATE() AS DATE)
+                      OR (
+                          ws.shift_date = DATEADD(day, -1, CAST(GETDATE() AS DATE))
+                          AND ws.end_time < ws.start_time
+                          AND CAST(GETDATE() AS TIME) <= ws.end_time
+                      )
+                  )
                 ORDER BY ws.start_time
                 """;
         List<Map<String, Object>> shifts = new ArrayList<>();
@@ -53,6 +61,26 @@ public class StaffDashboardDAO {
         return selectBestShift(shifts);
     }
 
+    public Map<String, Object> getDefaultComplex(long userId) {
+        String sql = """
+                SELECT TOP 1 f.complex_id, f.complex_name
+                FROM football_complexes f
+                ORDER BY f.complex_id
+                """;
+        Map<String, Object> res = new LinkedHashMap<>();
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                res.put("complexId", rs.getLong("complex_id"));
+                res.put("complexName", rs.getString("complex_name"));
+            }
+        } catch (SQLException e) {
+            // Ignored
+        }
+        return res;
+    }
+
     /**
      * Lấy booking trong ngày cho dashboard Staff, kèm cờ hỗ trợ checkout/invoice.
      * has_invoice giúp UI mở hóa đơn hiện có, checkout_due cho biết booking đã sẵn sàng gửi invoice checkout.
@@ -64,6 +92,7 @@ public class StaffDashboardDAO {
                        b.status, b.total_amount, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_name,
+                       pm_info.method_name AS payment_method_name,
                        CASE WHEN EXISTS (
                            SELECT 1
                            FROM invoices i
@@ -74,6 +103,13 @@ public class StaffDashboardDAO {
                 FROM bookings b
                 JOIN users u  ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id   = fi.field_id
+                OUTER APPLY (
+                    SELECT TOP 1 pm.method_name
+                    FROM payments p
+                    JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
+                    WHERE p.booking_id = b.booking_id AND p.status = 'SUCCESS'
+                    ORDER BY CASE WHEN p.payment_type = 'CHECKOUT' THEN 0 ELSE 1 END, p.payment_id DESC
+                ) pm_info
                 WHERE b.complex_id = ?
                   AND CAST(b.start_time AS DATE) = CAST(GETDATE() AS DATE)
                   AND b.status NOT IN ('CANCELLED','HOLD')
@@ -98,6 +134,17 @@ public class StaffDashboardDAO {
                     row.put("fieldName", rs.getString("field_name"));
                     row.put("hasInvoice", rs.getInt("has_invoice") == 1);
                     row.put("checkoutDue", rs.getInt("checkout_due") == 1);
+
+                    String pmName = rs.getString("payment_method_name");
+                    String pmDisplay = "Tiền mặt";
+                    if (pmName != null) {
+                        String mUpper = pmName.toUpperCase();
+                        if (mUpper.contains("VNPAY") || mUpper.contains("TRANSFER") || mUpper.contains("BANK") || mUpper.contains("ONLINE") || mUpper.contains("QR")) {
+                            pmDisplay = "Chuyển khoản";
+                        }
+                    }
+                    row.put("paymentMethodName", pmDisplay);
+
                     list.add(row);
                 }
             }
@@ -115,12 +162,26 @@ public class StaffDashboardDAO {
         String sql = """
                 SELECT
                     COALESCE(SUM(i.total_amount), 0) AS total_cash,
-                    COUNT(*) AS tx_count
+                    COUNT(DISTINCT i.invoice_id) AS tx_count
                 FROM invoices i
+                JOIN bookings b ON i.booking_id = b.booking_id
+                OUTER APPLY (
+                    SELECT TOP 1 pm.method_name
+                    FROM payments p
+                    JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
+                    WHERE p.booking_id = b.booking_id AND p.status = 'SUCCESS'
+                    ORDER BY CASE WHEN p.payment_type = 'CHECKOUT' THEN 0 ELSE 1 END, p.payment_id DESC
+                ) pm_info
                 WHERE i.staff_id = ?
                   AND i.status   = 'PAID'
                   AND CAST(i.issued_at AS DATE) = ?
                   AND CAST(i.issued_at AS TIME) BETWEEN ? AND ?
+                  AND (pm_info.method_name IS NULL OR (
+                      UPPER(pm_info.method_name) NOT LIKE '%VNPAY%'
+                      AND UPPER(pm_info.method_name) NOT LIKE '%TRANSFER%'
+                      AND UPPER(pm_info.method_name) NOT LIKE '%BANK%'
+                      AND UPPER(pm_info.method_name) NOT LIKE '%ONLINE%'
+                  ))
                 """;
         Map<String, Object> kpi = new LinkedHashMap<>();
         kpi.put("totalCash", BigDecimal.ZERO);
@@ -141,6 +202,177 @@ public class StaffDashboardDAO {
             throw new RuntimeException("Lỗi tính tiền thu: " + e.getMessage(), e);
         }
         return kpi;
+    }
+
+    /**
+     * Tính tổng doanh thu thu được từ tất cả phương thức (Tiền mặt + Chuyển khoản/Online) trong ca.
+     */
+    public Map<String, Object> getTotalRevenueKpi(long complexId, String shiftDateStr,
+                                                  String startTimeStr, String endTimeStr) {
+        String sql = """
+                SELECT
+                    COALESCE(SUM(i.total_amount), 0) AS total_revenue,
+                    COUNT(*) AS tx_count
+                FROM invoices i
+                JOIN bookings b ON i.booking_id = b.booking_id
+                WHERE b.complex_id = ?
+                  AND i.status = 'PAID'
+                  AND CAST(i.issued_at AS DATE) = ?
+                  AND CAST(i.issued_at AS TIME) BETWEEN ? AND ?
+                """;
+        Map<String, Object> kpi = new LinkedHashMap<>();
+        kpi.put("totalRevenue", BigDecimal.ZERO);
+        kpi.put("txCount", 0);
+        kpi.put("avgTransaction", BigDecimal.ZERO);
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, complexId);
+            ps.setString(2, shiftDateStr);
+            ps.setString(3, startTimeStr);
+            ps.setString(4, endTimeStr);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    BigDecimal total = rs.getBigDecimal("total_revenue");
+                    int count = rs.getInt("tx_count");
+                    kpi.put("totalRevenue", total);
+                    kpi.put("txCount", count);
+                    BigDecimal avg = (count > 0)
+                            ? total.divide(BigDecimal.valueOf(count), 0, RoundingMode.HALF_UP)
+                            : BigDecimal.ZERO;
+                    kpi.put("avgTransaction", avg);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tính tổng doanh thu: " + e.getMessage(), e);
+        }
+        return kpi;
+    }
+
+    /**
+     * Lấy danh sách hóa đơn đã thanh toán TIỀN MẶT trong ca của Staff.
+     */
+    public List<Map<String, Object>> getCashTransactions(long staffId, String shiftDateStr,
+                                                         String startTimeStr, String endTimeStr) {
+        String sql = """
+                SELECT i.invoice_id, i.invoice_code, i.booking_id, b.booking_code,
+                       i.total_amount, i.issued_at, u.full_name AS customer_name,
+                       u.phone AS customer_phone, fi.field_name,
+                       pm_info.method_name AS payment_method_name
+                FROM invoices i
+                JOIN bookings b ON i.booking_id = b.booking_id
+                JOIN users u ON i.customer_id = u.user_id
+                JOIN fields fi ON b.field_id = fi.field_id
+                OUTER APPLY (
+                    SELECT TOP 1 pm.method_name
+                    FROM payments p
+                    JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
+                    WHERE p.booking_id = b.booking_id AND p.status = 'SUCCESS'
+                    ORDER BY CASE WHEN p.payment_type = 'CHECKOUT' THEN 0 ELSE 1 END, p.payment_id DESC
+                ) pm_info
+                WHERE i.staff_id = ?
+                  AND i.status   = 'PAID'
+                  AND CAST(i.issued_at AS DATE) = ?
+                  AND CAST(i.issued_at AS TIME) BETWEEN ? AND ?
+                  AND (pm_info.method_name IS NULL OR (
+                      UPPER(pm_info.method_name) NOT LIKE '%VNPAY%'
+                      AND UPPER(pm_info.method_name) NOT LIKE '%TRANSFER%'
+                      AND UPPER(pm_info.method_name) NOT LIKE '%BANK%'
+                      AND UPPER(pm_info.method_name) NOT LIKE '%ONLINE%'
+                  ))
+                ORDER BY i.issued_at DESC
+                """;
+        List<Map<String, Object>> list = new ArrayList<>();
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, staffId);
+            ps.setString(2, shiftDateStr);
+            ps.setString(3, startTimeStr);
+            ps.setString(4, endTimeStr);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("invoiceId", rs.getLong("invoice_id"));
+                    row.put("invoiceCode", rs.getString("invoice_code"));
+                    row.put("bookingId", rs.getLong("booking_id"));
+                    row.put("bookingCode", rs.getString("booking_code"));
+                    row.put("totalAmount", rs.getBigDecimal("total_amount"));
+                    row.put("issuedAt", rs.getString("issued_at"));
+                    row.put("customerName", rs.getString("customer_name"));
+                    row.put("customerPhone", rs.getString("customer_phone"));
+                    row.put("fieldName", rs.getString("field_name"));
+                    row.put("paymentMethodName", "Tiền mặt");
+                    list.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi lấy danh sách giao dịch tiền mặt: " + e.getMessage(), e);
+        }
+        return list;
+    }
+
+    /**
+     * Lấy TẤT CẢ danh sách hóa đơn đã thanh toán (Cả Tiền mặt lẫn Chuyển khoản) trong ca.
+     */
+    public List<Map<String, Object>> getAllTransactions(long complexId, String shiftDateStr,
+                                                       String startTimeStr, String endTimeStr) {
+        String sql = """
+                SELECT i.invoice_id, i.invoice_code, i.booking_id, b.booking_code,
+                       i.total_amount, i.issued_at, u.full_name AS customer_name,
+                       u.phone AS customer_phone, fi.field_name,
+                       pm_info.method_name AS payment_method_name
+                FROM invoices i
+                JOIN bookings b ON i.booking_id = b.booking_id
+                JOIN users u ON i.customer_id = u.user_id
+                JOIN fields fi ON b.field_id = fi.field_id
+                OUTER APPLY (
+                    SELECT TOP 1 pm.method_name
+                    FROM payments p
+                    JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
+                    WHERE p.booking_id = b.booking_id AND p.status = 'SUCCESS'
+                    ORDER BY CASE WHEN p.payment_type = 'CHECKOUT' THEN 0 ELSE 1 END, p.payment_id DESC
+                ) pm_info
+                WHERE b.complex_id = ?
+                  AND i.status   = 'PAID'
+                  AND CAST(i.issued_at AS DATE) = ?
+                  AND CAST(i.issued_at AS TIME) BETWEEN ? AND ?
+                ORDER BY i.issued_at DESC
+                """;
+        List<Map<String, Object>> list = new ArrayList<>();
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, complexId);
+            ps.setString(2, shiftDateStr);
+            ps.setString(3, startTimeStr);
+            ps.setString(4, endTimeStr);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("invoiceId", rs.getLong("invoice_id"));
+                    row.put("invoiceCode", rs.getString("invoice_code"));
+                    row.put("bookingId", rs.getLong("booking_id"));
+                    row.put("bookingCode", rs.getString("booking_code"));
+                    row.put("totalAmount", rs.getBigDecimal("total_amount"));
+                    row.put("issuedAt", rs.getString("issued_at"));
+                    row.put("customerName", rs.getString("customer_name"));
+                    row.put("customerPhone", rs.getString("customer_phone"));
+                    row.put("fieldName", rs.getString("field_name"));
+
+                    String pmName = rs.getString("payment_method_name");
+                    String pmDisplay = "Tiền mặt";
+                    if (pmName != null) {
+                        String mUpper = pmName.toUpperCase();
+                        if (mUpper.contains("VNPAY") || mUpper.contains("TRANSFER") || mUpper.contains("BANK") || mUpper.contains("ONLINE") || mUpper.contains("QR")) {
+                            pmDisplay = "Chuyển khoản";
+                        }
+                    }
+                    row.put("paymentMethodName", pmDisplay);
+                    list.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi lấy tất cả giao dịch: " + e.getMessage(), e);
+        }
+        return list;
     }
 
     /**
@@ -336,6 +568,7 @@ public class StaffDashboardDAO {
                        dp.status AS deposit_payment_status,
                        dp.amount AS deposit_paid_amount,
                        dp.paid_at AS deposit_paid_at,
+                       pm_info.method_name AS payment_method_name,
                        CASE WHEN EXISTS (
                            SELECT 1
                            FROM invoices i
@@ -358,6 +591,13 @@ public class StaffDashboardDAO {
                              p.paid_at DESC,
                              p.payment_id DESC
                 ) dp
+                OUTER APPLY (
+                    SELECT TOP 1 pm.method_name
+                    FROM payments p
+                    JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
+                    WHERE p.booking_id = b.booking_id AND p.status = 'SUCCESS'
+                    ORDER BY CASE WHEN p.payment_type = 'CHECKOUT' THEN 0 ELSE 1 END, p.payment_id DESC
+                ) pm_info
                 WHERE
                 """ + whereClause;
         try (Connection conn = DBContext.getConnection();
@@ -388,6 +628,17 @@ public class StaffDashboardDAO {
                     map.put("checkoutDue", rs.getInt("checkout_due") == 1);
                     map.put("bookingToday", rs.getInt("booking_today") == 1);
                     map.put("notExpired", rs.getInt("not_expired") == 1);
+
+                    String pmName = rs.getString("payment_method_name");
+                    String pmDisplay = "Tiền mặt";
+                    if (pmName != null) {
+                        String mUpper = pmName.toUpperCase();
+                        if (mUpper.contains("VNPAY") || mUpper.contains("TRANSFER") || mUpper.contains("BANK") || mUpper.contains("ONLINE") || mUpper.contains("QR")) {
+                            pmDisplay = "Chuyển khoản";
+                        }
+                    }
+                    map.put("paymentMethodName", pmDisplay);
+
                     return map;
                 }
             }
@@ -410,6 +661,7 @@ public class StaffDashboardDAO {
                 SELECT b.booking_id, b.booking_code, b.start_time, b.end_time, b.status, b.total_amount, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_id, fi.field_name,
+                       pm_info.method_name AS payment_method_name,
                        CASE WHEN EXISTS (
                            SELECT 1
                            FROM invoices i
@@ -420,6 +672,13 @@ public class StaffDashboardDAO {
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id = fi.field_id
+                OUTER APPLY (
+                    SELECT TOP 1 pm.method_name
+                    FROM payments p
+                    JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
+                    WHERE p.booking_id = b.booking_id AND p.status = 'SUCCESS'
+                    ORDER BY CASE WHEN p.payment_type = 'CHECKOUT' THEN 0 ELSE 1 END, p.payment_id DESC
+                ) pm_info
                 WHERE b.complex_id = ?
                   AND CAST(b.start_time AS DATE) = ?
                   AND b.status NOT IN ('CANCELLED','HOLD')
@@ -446,6 +705,17 @@ public class StaffDashboardDAO {
                     row.put("fieldName", rs.getString("field_name"));
                     row.put("hasInvoice", rs.getInt("has_invoice") == 1);
                     row.put("checkoutDue", rs.getInt("checkout_due") == 1);
+
+                    String pmName = rs.getString("payment_method_name");
+                    String pmDisplay = "Tiền mặt";
+                    if (pmName != null) {
+                        String mUpper = pmName.toUpperCase();
+                        if (mUpper.contains("VNPAY") || mUpper.contains("TRANSFER") || mUpper.contains("BANK") || mUpper.contains("ONLINE") || mUpper.contains("QR")) {
+                            pmDisplay = "Chuyển khoản";
+                        }
+                    }
+                    row.put("paymentMethodName", pmDisplay);
+
                     list.add(row);
                 }
             }

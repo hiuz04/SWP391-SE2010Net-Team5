@@ -66,6 +66,12 @@ public class VoucherAPIController extends HttpServlet {
             resp.getWriter().write("{\"success\":false,\"message\":\"Bạn chưa đăng nhập.\"}");
             return;
         }
+        // Endpoint JSON kho voucher chỉ phục vụ Customer, không cho Owner/Staff/Admin gọi trực tiếp.
+        if (!"CUSTOMER".equalsIgnoreCase(user.getRoleName())) {
+            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            resp.getWriter().write("{\"success\":false,\"message\":\"Bạn không có quyền xem kho voucher.\"}");
+            return;
+        }
 
         int updatedPoints = userDao.getAvailableRewardPoints(user.getUserId());
         user.setRewardPoints(updatedPoints);
@@ -79,7 +85,7 @@ public class VoucherAPIController extends HttpServlet {
         try {
             List<VoucherExchangeDTO> vouchers = voucherService.getExchangeVouchers(
                     type,
-                    user.isVip()
+                    user
             );
 
             JsonObject json = new JsonObject();
@@ -118,6 +124,12 @@ public class VoucherAPIController extends HttpServlet {
         if (user == null) {
             resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             resp.getWriter().write("{\"success\":false,\"message\":\"Bạn chưa đăng nhập.\"}");
+            return;
+        }
+        // Danh sách voucher cá nhân chỉ được trả cho role CUSTOMER.
+        if (!"CUSTOMER".equalsIgnoreCase(user.getRoleName())) {
+            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            resp.getWriter().write("{\"success\":false,\"message\":\"Bạn không có quyền xem voucher khách hàng.\"}");
             return;
         }
 
