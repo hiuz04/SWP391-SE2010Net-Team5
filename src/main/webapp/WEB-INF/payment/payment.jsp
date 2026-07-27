@@ -331,7 +331,7 @@
                         <strong class="text-success"><%= money(amountToPay) %></strong>
                     </div>
                     <% } %>
-                    <p class="text-muted small mt-3 mb-0">Số tiền được lấy trực tiếp từ cơ sở dữ liệu.</p>
+                    <p class="text-muted small mt-3 mb-0">Số tiền được lấy trực tiếp từ cụm sân dữ liệu.</p>
                 </div>
             </aside>
         </div>

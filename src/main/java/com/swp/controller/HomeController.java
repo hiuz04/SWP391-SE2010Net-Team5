@@ -6,7 +6,9 @@ package com.swp.controller;
 
 import com.swp.dao.FieldDAO;
 import com.swp.dao.FootballComplexDAO;
+import com.swp.dao.FieldTypeDAO;
 import com.swp.model.User;
+import com.swp.model.FieldType;
 import com.swp.model.dto.TopFieldSummary;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -28,6 +30,7 @@ public class HomeController extends HttpServlet {
 
     private final FieldDAO fieldDAO = new FieldDAO();
     private final FootballComplexDAO footballComplexDAO = new FootballComplexDAO();
+    private final FieldTypeDAO fieldTypeDAO = new FieldTypeDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -51,25 +54,20 @@ public class HomeController extends HttpServlet {
             e.printStackTrace();
             topFields = Collections.emptyList();
         }
+        
+        List<FieldType> fieldTypes;
+        try {
+            fieldTypes = fieldTypeDAO.getAllFieldTypes();
+        } catch (Exception e) {
+            e.printStackTrace();
+            fieldTypes = Collections.emptyList();
+        }
 
         request.setAttribute("sessionUser", sessionUser);
         request.setAttribute("navRole", navRole);
         request.setAttribute("displayName", displayName);
         request.setAttribute("topFields", topFields);
-
-        // Lấy danh sách tỉnh/thành phố và phường/xã cho form tìm kiếm
-        List<String> cities;
-        List<String> wards;
-        try {
-            cities = footballComplexDAO.getAllCities();
-            wards = footballComplexDAO.getAllWards();
-        } catch (Exception e) {
-            e.printStackTrace();
-            cities = Collections.emptyList();
-            wards = Collections.emptyList();
-        }
-        request.setAttribute("cities", cities);
-        request.setAttribute("wards", wards);
+        request.setAttribute("fieldTypes", fieldTypes);
 
         request.getRequestDispatcher("/index.jsp").forward(request, response);
     }

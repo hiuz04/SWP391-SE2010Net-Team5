@@ -51,7 +51,7 @@
 
         <% if (complexes != null && !complexes.isEmpty()) { %>
         <form action="<%= ctx %>/owner/price-rules" method="get" class="d-flex gap-2 align-items-center">
-            <label for="complexId" class="form-label mb-0 fw-semibold text-nowrap text-white">Cơ sở:</label>
+            <label for="complexId" class="form-label mb-0 fw-semibold text-nowrap text-white">Cụm sân:</label>
             <select class="form-select form-select-sm" name="complexId" id="complexId" style="width:240px; border-radius:9px; font-size:.875rem;" onchange="this.form.submit()">
               <% for (FootballComplex fc : complexes) { %>
                 <option value="<%= fc.getComplexId() %>" <%= (selectedComplexId != null && selectedComplexId.equals(fc.getComplexId())) ? "selected" : "" %>>
@@ -76,6 +76,18 @@
         </div>
     <% } %>
 
+    <% if (complexes == null || complexes.isEmpty()) { %>
+    <div class="card border-0 shadow-sm text-center py-5">
+        <div class="card-body">
+            <i class="bi bi-building-x text-muted mb-3" style="font-size: 4rem;"></i>
+            <h5 class="fw-semibold text-muted">Bạn chưa quản lý cơ sở nào</h5>
+            <p class="text-muted mb-4">Vui lòng tạo một cơ sở thể thao trước khi thiết lập bảng giá.</p>
+            <a href="<%= ctx %>/owner/complexes" class="btn btn-sf-primary px-4">
+                <i class="bi bi-plus-lg me-1"></i> Thêm cơ sở mới
+            </a>
+        </div>
+    </div>
+    <% } else { %>
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
         <h5 class="card-title fw-bold mb-0 text-sf-primary">Danh sách Bảng giá</h5>
@@ -106,10 +118,30 @@
                    <br><span class="badge bg-secondary"><%= pr.getRuleType() %></span>
                 </td>
                 <td>
-                    <% if (pr.getFieldId() != null) { %>
-                        <span class="badge bg-info text-dark">Sân ID: <%= pr.getFieldId() %></span>
-                    <% } else if (pr.getFieldTypeId() != null) { %>
-                        <span class="badge bg-primary">Loại sân: <%= pr.getFieldTypeId() %></span>
+                    <% if (pr.getFieldId() != null) { 
+                           String fieldName = "ID: " + pr.getFieldId();
+                           if (fields != null) {
+                               for (Field f : fields) {
+                                   if (f.getFieldId().equals(pr.getFieldId())) {
+                                       fieldName = f.getFieldName();
+                                       break;
+                                   }
+                               }
+                           }
+                    %>
+                        <span class="badge bg-info text-dark">Sân: <%= fieldName %></span>
+                    <% } else if (pr.getFieldTypeId() != null) { 
+                           String typeName = "ID: " + pr.getFieldTypeId();
+                           if (fieldTypes != null) {
+                               for (FieldType ft : fieldTypes) {
+                                   if (ft.getFieldTypeId().equals(pr.getFieldTypeId())) {
+                                       typeName = ft.getTypeName() + " (Sân " + ft.getNumberOfPlayers() + ")";
+                                       break;
+                                   }
+                               }
+                           }
+                    %>
+                        <span class="badge bg-primary">Loại sân: <%= typeName %></span>
                     <% } else { %>
                         <span class="badge bg-success">Tất cả sân</span>
                     <% } %>
@@ -147,7 +179,7 @@
               </tr>
               <% } } else { %>
               <tr>
-                <td colspan="7" class="text-center py-4 text-muted">Chưa có bảng giá nào được thiết lập cho cơ sở này.</td>
+                <td colspan="7" class="text-center py-4 text-muted">Chưa có bảng giá nào được thiết lập cho cụm sân này.</td>
               </tr>
               <% } %>
             </tbody>
@@ -156,6 +188,7 @@
       </div>
     </div>
   </div>
+<% } %>
 </main>
 
 <!-- Modal Thêm/Sửa Bảng Giá -->
@@ -202,7 +235,7 @@
                   <option value="">-- Tất cả sân --</option>
                   <% if (fields != null) {
                        for (Field f : fields) { %>
-                           <option value="<%= f.getFieldId() %>"><%= f.getFieldName() %></option>
+                           <option value="<%= f.getFieldId() %>" data-type-id="<%= f.getFieldTypeId() %>"><%= f.getFieldName() %></option>
                   <% } } %>
               </select>
             </div>
@@ -226,17 +259,24 @@
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Giờ bắt đầu</label>
-              <input type="time" class="form-control" name="startTime" id="startTime">
+              <label class="form-label">Giờ bắt đầu <small class="text-muted">(mỗi 30 phút)</small></label>
+              <select class="form-select" name="startTime" id="startTime" onchange="validateTimeRange()">
+                <option value="">-- Chọn giờ --</option>
+              </select>
+              <div class="invalid-feedback" id="startTimeError"></div>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Giờ kết thúc</label>
-              <input type="time" class="form-control" name="endTime" id="endTime">
+              <label class="form-label">Giờ kết thúc <small class="text-muted">(mỗi 30 phút)</small></label>
+              <select class="form-select" name="endTime" id="endTime" onchange="validateTimeRange()">
+                <option value="">-- Chọn giờ --</option>
+              </select>
+              <div class="invalid-feedback" id="endTimeError"></div>
             </div>
 
             <div class="col-md-6">
               <label class="form-label">Giá tiền (VNĐ) <span class="text-danger">*</span></label>
-              <input type="number" step="0.01" class="form-control" name="price" id="price" required>
+              <input type="number" step="1000" min="1000" class="form-control" name="price" id="price" required placeholder="VD: 150000">
+              <div class="invalid-feedback" id="priceError"></div>
             </div>
             <div class="col-md-6">
               <label class="form-label">Độ ưu tiên (Số càng lớn ưu tiên càng cao)</label>
@@ -251,6 +291,7 @@
       </div>
     </div>
   </div>
+</div>
 
 <!-- Modal Xác nhận xóa -->
 <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
@@ -284,43 +325,162 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script>
+    // ---- Tạo 48 option mốc giờ (00:00 → 23:30) cho cả 2 select ----
+    function buildTimeOptions() {
+        const options = ['<option value="">-- Chọn giờ --</option>'];
+        for (let h = 0; h < 24; h++) {
+            for (let m = 0; m < 60; m += 30) {
+                const hh  = String(h).padStart(2, '0');
+                const mm  = String(m).padStart(2, '0');
+                const val = hh + ':' + mm;
+                options.push('<option value="' + val + '">' + val + '</option>');
+            }
+        }
+        return options.join('');
+    }
+
+    (function initSelects() {
+        const html = buildTimeOptions();
+        document.getElementById('startTime').innerHTML = html;
+        document.getElementById('endTime').innerHTML   = html;
+    })();
+
+    // ---- Validate giờ bắt đầu < giờ kết thúc ----
+    function validateTimeRange() {
+        const startEl  = document.getElementById('startTime');
+        const endEl    = document.getElementById('endTime');
+        const startErr = document.getElementById('startTimeError');
+        const endErr   = document.getElementById('endTimeError');
+        const start    = startEl.value;
+        const end      = endEl.value;
+
+        startEl.classList.remove('is-invalid');
+        endEl.classList.remove('is-invalid');
+        startErr.textContent = '';
+        endErr.textContent   = '';
+
+        if (start && end && start >= end) {
+            endEl.classList.add('is-invalid');
+            endErr.textContent = 'Giờ kết thúc phải sau giờ bắt đầu.';
+            return false;
+        }
+        return true;
+    }
+
+    // ---- Validate giá > 0 ----
+    function validatePrice() {
+        const priceEl  = document.getElementById('price');
+        const priceErr = document.getElementById('priceError');
+        const val      = parseFloat(priceEl.value);
+
+        priceEl.classList.remove('is-invalid');
+        priceErr.textContent = '';
+
+        if (priceEl.value === '' || isNaN(val)) {
+            priceEl.classList.add('is-invalid');
+            priceErr.textContent = 'Vui lòng nhập giá sân.';
+            return false;
+        }
+        if (val <= 0) {
+            priceEl.classList.add('is-invalid');
+            priceErr.textContent = 'Giá tiền phải lớn hơn 0.';
+            return false;
+        }
+        return true;
+    }
+
+    // ---- Submit với đầy đủ validation ----
+    document.getElementById('priceRuleForm').addEventListener('submit', function(e) {
+        const okTime  = validateTimeRange();
+        const okPrice = validatePrice();
+        if (!okTime || !okPrice) e.preventDefault();
+    });
+
+    function resetValidation() {
+        ['startTime', 'endTime', 'price'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('is-invalid');
+        });
+        ['startTimeError', 'endTimeError', 'priceError'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '';
+        });
+    }
+
     function openAddModal() {
         document.getElementById('priceRuleModalTitle').innerText = 'Thêm Bảng giá mới';
         document.getElementById('formAction').value = 'add';
         document.getElementById('priceRuleForm').reset();
         document.getElementById('priceRuleId').value = '';
-        var myModal = new bootstrap.Modal(document.getElementById('priceRuleModal'));
+        // Reset select về option đầu tiên
+        document.getElementById('startTime').value = '';
+        document.getElementById('endTime').value   = '';
+        document.getElementById('fieldTypeId').dispatchEvent(new Event('change')); // Trigger change to reset field dropdown
+        resetValidation();
+        
+        var modalEl = document.getElementById('priceRuleModal');
+        var myModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         myModal.show();
     }
 
     function openEditModal(id, ruleName, ruleType, fieldTypeId, fieldId, dayOfWeek, specificDate, startTime, endTime, price, priority) {
         document.getElementById('priceRuleModalTitle').innerText = 'Chỉnh sửa Bảng giá';
-        document.getElementById('formAction').value = 'edit';
+        document.getElementById('formAction').value  = 'edit';
         document.getElementById('priceRuleId').value = id;
-        document.getElementById('ruleName').value = ruleName;
-        document.getElementById('ruleType').value = ruleType;
+        document.getElementById('ruleName').value    = ruleName;
+        document.getElementById('ruleType').value    = ruleType;
         document.getElementById('fieldTypeId').value = fieldTypeId;
-        document.getElementById('fieldId').value = fieldId;
-        document.getElementById('dayOfWeek').value = dayOfWeek;
+        document.getElementById('fieldTypeId').dispatchEvent(new Event('change')); // Filter fields before setting fieldId
+        document.getElementById('fieldId').value     = fieldId;
+        document.getElementById('dayOfWeek').value   = dayOfWeek;
         document.getElementById('specificDate').value = specificDate;
-        
-        if (startTime && startTime.length > 5) startTime = startTime.substring(0,5);
-        if (endTime && endTime.length > 5) endTime = endTime.substring(0,5);
+
+        if (startTime && startTime.length > 5) startTime = startTime.substring(0, 5);
+        if (endTime   && endTime.length   > 5) endTime   = endTime.substring(0, 5);
         document.getElementById('startTime').value = startTime;
-        document.getElementById('endTime').value = endTime;
-        
-        document.getElementById('price').value = price;
+        document.getElementById('endTime').value   = endTime;
+
+        resetValidation();
+
+        document.getElementById('price').value    = price;
         document.getElementById('priority').value = priority;
-        
-        var myModal = new bootstrap.Modal(document.getElementById('priceRuleModal'));
+
+        var modalEl = document.getElementById('priceRuleModal');
+        var myModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         myModal.show();
     }
 
     function confirmDelete(id) {
         document.getElementById('deletePriceRuleId').value = id;
-        var myModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        var modalEl = document.getElementById('deleteConfirmModal');
+        var myModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         myModal.show();
     }
+
+    // ---- Filter fields based on selected field type ----
+    document.getElementById('fieldTypeId').addEventListener('change', function() {
+        var selectedTypeId = this.value;
+        var fieldSelect = document.getElementById('fieldId');
+        var options = fieldSelect.querySelectorAll('option:not([value=""])');
+        
+        var currentSelectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+        var shouldReset = false;
+
+        options.forEach(function(opt) {
+            if (!selectedTypeId || opt.getAttribute('data-type-id') === selectedTypeId) {
+                opt.style.display = ''; // Show
+            } else {
+                opt.style.display = 'none'; // Hide
+                if (opt.selected) {
+                    shouldReset = true;
+                }
+            }
+        });
+
+        if (shouldReset) {
+            fieldSelect.value = '';
+        }
+    });
 </script>
 </body>
 </html>

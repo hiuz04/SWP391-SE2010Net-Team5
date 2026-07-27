@@ -1,7 +1,7 @@
 /**
  * Module: Field Management
  * File: EditFieldServlet.java
- * Description: Xử lý chức năng lấy thông tin về các loại sân bóng của cơ sở.
+ * Description: Xử lý chức năng lấy thông tin về các loại sân bóng của cụm sân.
  *
  * Author: Dương Hải Anh
  * Version: 1.0

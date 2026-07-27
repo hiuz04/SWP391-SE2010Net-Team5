@@ -291,7 +291,7 @@
               <span id="shift-times" style="font-weight:400;opacity:.7;font-size:1rem;"></span>
             </h4>
             <p class="mb-2" style="opacity:.75;font-size:.9rem;">
-              Cơ sở: <strong id="complex-name">—</strong>
+              Cụm sân: <strong id="complex-name">—</strong>
             </p>
             <div class="d-flex align-items-center gap-3">
               <div class="shift-progress-bar flex-grow-1">

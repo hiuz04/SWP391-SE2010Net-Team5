@@ -43,10 +43,6 @@
                 stmt.executeUpdate("DELETE FROM matchmaking_post_responses");
                 stmt.executeUpdate("DELETE FROM matchmaking_posts");
                 stmt.executeUpdate(
-                    "IF OBJECT_ID('booking_status_logs', 'U') IS NOT NULL " +
-                    "DELETE FROM booking_status_logs WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
-                );
-                stmt.executeUpdate(
                     "IF OBJECT_ID('booking_promotions', 'U') IS NOT NULL " +
                     "DELETE FROM booking_promotions WHERE booking_id IN (SELECT booking_id FROM bookings WHERE CAST(start_time AS DATE) = '" + todayStr + "')"
                 );

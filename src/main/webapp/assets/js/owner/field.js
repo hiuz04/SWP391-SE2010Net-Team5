@@ -1,13 +1,13 @@
 /**
  * Module: Field Management
  * File: field.js
- * Description: Xử lý các chức năng CRUD và gọi API cho module cơ sở (Field).
+ * Description: Xử lý các chức năng CRUD và gọi API cho module cụm sân (Field).
  *
  * Author: Dương Hải Anh
  * Version: 1.1
  * Created date: 01/06/2026
  * Updated date: 04/06/2026
- * Update Notes: Tách biệt logic quản lý cơ sở từ file chung thành file độc lập để dễ dàng bảo trì.
+ * Update Notes: Tách biệt logic quản lý cụm sân từ file chung thành file độc lập để dễ dàng bảo trì.
  */
 const ctx = window.APP_CTX || "";
 
@@ -83,7 +83,7 @@ function loadData() {
                 container.innerHTML = `
                     <div class="empty-state">
                         <i class="bi bi-dribbble"></i>
-                        <p>Chưa có sân bóng nào trong cơ sở này.</p>
+                        <p>Chưa có sân bóng nào trong cụm sân này.</p>
                     </div>
                 `;
                 return;

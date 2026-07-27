@@ -140,7 +140,7 @@ public class WorkShiftDAO {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Lỗi khi lấy ca làm việc theo cơ sở: " + e.getMessage(), e);
+            throw new RuntimeException("Lỗi khi lấy ca làm việc theo cụm sân: " + e.getMessage(), e);
         }
         return list;
     }
@@ -504,7 +504,7 @@ public class WorkShiftDAO {
                  }
              }
         } catch (SQLException e) {
-            throw new RuntimeException("Lỗi kiểm tra trùng lịch cơ sở: " + e.getMessage(), e);
+            throw new RuntimeException("Lỗi kiểm tra trùng lịch cụm sân: " + e.getMessage(), e);
         }
 
         LocalDateTime newStart = LocalDateTime.of(date, start);

@@ -1003,13 +1003,6 @@ public class PaymentDAO {
                 WHERE payment_id = ?
                   AND status = 'PENDING'
                 """;
-        String insertStatusLog = """
-                INSERT INTO booking_status_logs (
-                    booking_id, old_status, new_status, changed_by, note, created_at
-                )
-                VALUES (?, 'HOLD', 'CONFIRMED', ?, ?, GETDATE())
-                """;
-
         try (Connection conn = DBContext.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -1090,14 +1083,6 @@ public class PaymentDAO {
                     ps.setLong(2, payment.paymentId());
                     if (ps.executeUpdate() != 1) {
                         throw new SQLException("Khong cap nhat duoc trang thai thanh toan.");
-                    }
-                }
-                for (Long bookingId : bookingIds) {
-                    try (PreparedStatement ps = conn.prepareStatement(insertStatusLog)) {
-                        ps.setLong(1, bookingId);
-                        ps.setLong(2, payment.customerId());
-                        ps.setString(3, "Payment completed: " + transactionRef);
-                        ps.executeUpdate();
                     }
                 }
                 // Business Rule BR-11: Ghi nhận voucher và payment success chung transaction để tránh booking CONFIRMED nhưng voucher chưa trừ lượt.
@@ -1192,13 +1177,6 @@ public class PaymentDAO {
                 WHERE field_id = ?
                   AND status NOT IN ('MAINTENANCE', 'DISABLED')
                 """;
-        String insertStatusLog = """
-                INSERT INTO booking_status_logs (
-                    booking_id, old_status, new_status, changed_by, note, created_at
-                )
-                VALUES (?, ?, 'COMPLETED', ?, ?, GETDATE())
-                """;
-
         // Business Rule BR-25: Payment checkout thành công được cập nhật sang SUCCESS.
         try (PreparedStatement ps = conn.prepareStatement(updatePayment)) {
             ps.setString(1, gatewayTransactionId);
@@ -1227,14 +1205,6 @@ public class PaymentDAO {
             ps.setLong(1, payment.fieldId());
             ps.executeUpdate();
         }
-        try (PreparedStatement ps = conn.prepareStatement(insertStatusLog)) {
-            ps.setLong(1, payment.bookingId());
-            ps.setString(2, payment.bookingStatus());
-            ps.setLong(3, payment.customerId());
-            ps.setString(4, "Checkout payment completed: " + transactionRef);
-            ps.executeUpdate();
-        }
-
         userDAO.awardRewardPoints(conn, payment.customerId, payment.bookingId);
 
         insertNotification(conn,

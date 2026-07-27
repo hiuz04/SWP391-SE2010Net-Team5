@@ -62,10 +62,74 @@ public class AdminSettingsServlet extends HttpServlet {
             "VIP_SUBSCRIPTION_PRICE_MONTHLY",
             "VIP_DISCOUNT_PERCENTAGE",
             "DEPOSIT_PERCENTAGE",
-            "BOOKING_HOLD_MINUTES"
+            "BOOKING_HOLD_MINUTES",
+            "REWARD_POINTS_PERCENTAGE"
         };
 
-        // Bước 2: Lấy các giá trị cũ để so sánh
+        // Bước 2: Duyệt qua từng Key và lấy giá trị tương ứng từ request, thực hiện Validate
+        java.util.Map<String, String> newValues = new java.util.HashMap<>();
+        java.util.Map<String, String> errors = new java.util.HashMap<>();
+        
+        for (String key : keys) {
+            String value = request.getParameter(key);
+            if (value != null) {
+                if (value.equals("on")) {
+                    value = "true";
+                }
+                value = value.trim();
+            } else if (key.equals("MAINTENANCE_MODE")) {
+                value = "false";
+            }
+            newValues.put(key, value);
+
+            // Validation logic
+            if (value != null && !value.isEmpty()) {
+                try {
+                    switch (key) {
+                        case "CONTACT_EMAIL":
+                            if (!value.matches("^[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}$")) {
+                                errors.put(key, "Email không hợp lệ.");
+                            }
+                            break;
+                        case "CONTACT_PHONE":
+                            if (!value.matches("^0\\d{9,10}$")) {
+                                errors.put(key, "Số điện thoại phải bắt đầu bằng 0 và có 10-11 số.");
+                            }
+                            break;
+                        case "MAX_BOOKING_DAYS_AHEAD":
+                            int maxDays = Integer.parseInt(value);
+                            if (maxDays < 1 || maxDays > 365) errors.put(key, "Phải từ 1 đến 365 ngày.");
+                            break;
+                        case "MIN_CANCELLATION_HOURS":
+                        case "VIP_SUBSCRIPTION_PRICE_MONTHLY":
+                            if (Integer.parseInt(value) < 0) errors.put(key, "Không được nhỏ hơn 0.");
+                            break;
+                        case "VIP_DISCOUNT_PERCENTAGE":
+                        case "DEPOSIT_PERCENTAGE":
+                        case "REWARD_POINTS_PERCENTAGE":
+                            int pct = Integer.parseInt(value);
+                            if (pct < 0 || pct > 100) errors.put(key, "Phải từ 0 đến 100%.");
+                            break;
+                        case "BOOKING_HOLD_MINUTES":
+                            if (Integer.parseInt(value) < 1) errors.put(key, "Phải lớn hơn 0.");
+                            break;
+                    }
+                } catch (NumberFormatException e) {
+                    errors.put(key, "Phải là số nguyên hợp lệ.");
+                }
+            }
+        }
+
+        // Bước 3: Nếu có lỗi -> Trả về giao diện kèm thông báo lỗi
+        if (!errors.isEmpty()) {
+            request.setAttribute("errors", errors);
+            request.setAttribute("settings", newValues); // Giữ lại giá trị vừa nhập
+            request.setAttribute("errorMsg", "Vui lòng kiểm tra lại dữ liệu đầu vào.");
+            request.getRequestDispatcher("/WEB-INF/admin/settings.jsp").forward(request, response);
+            return;
+        }
+
+        // Bước 4: So sánh và Lưu nếu hợp lệ
         java.util.List<com.swp.model.SystemSetting> oldSettingsList = systemSettingDAO.getAllSettings();
         java.util.Map<String, String> oldSettings = new java.util.HashMap<>();
         for (com.swp.model.SystemSetting s : oldSettingsList) {
@@ -82,25 +146,13 @@ public class AdminSettingsServlet extends HttpServlet {
         keyLabels.put("VIP_DISCOUNT_PERCENTAGE", "Giảm giá VIP (%)");
         keyLabels.put("DEPOSIT_PERCENTAGE", "Tỉ lệ đặt cọc (%)");
         keyLabels.put("BOOKING_HOLD_MINUTES", "Thời gian giữ chỗ (phút)");
+        keyLabels.put("REWARD_POINTS_PERCENTAGE", "Tỉ lệ tích điểm (%)");
 
         StringBuilder changes = new StringBuilder("Admin vừa cập nhật cài đặt hệ thống:\n");
         boolean hasChanges = false;
 
-        // Bước 3: Duyệt qua từng Key và lấy giá trị tương ứng từ request (form submit)
         for (String key : keys) {
-            String value = request.getParameter(key);
-            if (value != null) {
-                // Xử lý riêng cho checkbox: HTML form gửi "on" nếu được check
-                if (value.equals("on")) {
-                    value = "true";
-                }
-                value = value.trim();
-            } else if (key.equals("MAINTENANCE_MODE")) {
-                // Nếu là checkbox (ví dụ Chế độ bảo trì) mà không được tick -> form sẽ không gửi tham số này
-                // Khi đó cần chủ động cập nhật thành false
-                value = "false";
-            }
-
+            String value = newValues.get(key);
             if (value != null) {
                 String oldValue = oldSettings.get(key);
                 if (oldValue == null) oldValue = "";
@@ -124,13 +176,13 @@ public class AdminSettingsServlet extends HttpServlet {
             }
         }
 
-        // Bước 4: Thông báo cho Owner về việc thay đổi hệ thống nếu có thay đổi
+        // Bước 5: Thông báo cho Owner về việc thay đổi hệ thống nếu có thay đổi
         if (hasChanges) {
             notificationDAO.notifyRole("OWNER", "Thay đổi hệ thống", changes.toString().trim(), "SYSTEM", null);
             notificationDAO.notifyRole("ADMIN", "Thay đổi hệ thống", changes.toString().trim(), "SYSTEM", null);
         }
 
-        // Bước 5: Hoàn thành, chuyển hướng lại trang cấu hình kèm cờ thành công
+        // Bước 6: Hoàn thành, chuyển hướng lại trang cấu hình kèm cờ thành công
         response.sendRedirect(request.getContextPath() + "/admin/settings?success=1");
     }
 }

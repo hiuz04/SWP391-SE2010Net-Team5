@@ -360,14 +360,15 @@ public class VoucherDAO {
 
     public List<Voucher> getAllExchangeVouchers(String targetUser, boolean isVip) {
 
-        StringBuilder sql = new StringBuilder("""
-        SELECT *
-        FROM vouchers
-        WHERE status = 'ACTIVE'
-          AND quantity > used
-          AND start_date <= GETDATE()
-          AND end_date >= GETDATE()
-        """);
+        StringBuilder sql =
+                new StringBuilder("""
+                    SELECT *
+                    FROM vouchers
+                    WHERE status = 'ACTIVE'
+                      AND quantity > used
+                      AND start_date <= GETDATE()
+                      AND end_date >= GETDATE()
+                """);
 
         // Chỉ VIP mới được xem voucher MEMBER
         if (isVip) {
@@ -627,6 +628,31 @@ public class VoucherDAO {
             ps.setLong(6, customerId);
             return ps.executeUpdate() == 1;
         }
+    }
+
+    public int countAllStatusVoucher() {
+        String sql = """
+            SELECT COUNT(*)
+            FROM vouchers
+            WHERE status = 'ACTIVE'
+              AND quantity > used
+              AND start_date <= GETDATE()
+              AND end_date >= GETDATE()
+            """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return 0;
     }
 
     private String baseSelectSql() {

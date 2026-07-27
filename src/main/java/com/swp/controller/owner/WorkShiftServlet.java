@@ -102,7 +102,7 @@ public class WorkShiftServlet extends HttpServlet {
         }
 
         User user = (User) session.getAttribute("user");
-        if (!"OWNER".equals(user.getRoleName())) {
+        if (!"OWNER".equalsIgnoreCase(user.getRoleName())) {
             resp.sendRedirect(req.getContextPath() + "/index.jsp");
             return;
         }
@@ -201,7 +201,7 @@ public class WorkShiftServlet extends HttpServlet {
         }
 
         User user = (User) session.getAttribute("user");
-        if (!"OWNER".equals(user.getRoleName())) {
+        if (!"OWNER".equalsIgnoreCase(user.getRoleName())) {
             resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
             writeError(resp, "Không có quyền truy cập");
             return;
@@ -389,7 +389,7 @@ public class WorkShiftServlet extends HttpServlet {
 
         // Kiểm tra cơ sở này đã có ca trực trùng khung giờ trong ngày hay chưa
         if (workShiftDAO.hasOverlappingShiftAtComplex(complexId, shiftDate, startTime, endTime, null)) {
-            writeError(resp, "Cơ sở này đã được thiết lập một ca làm việc trùng khung giờ này trong ngày. Vui lòng chỉnh sửa ca trực hiện có.");
+            writeError(resp, "Cụm sân này đã được phân ca trực trùng khung giờ này trong ngày.");
             return;
         }
 
@@ -457,7 +457,7 @@ public class WorkShiftServlet extends HttpServlet {
 
         // Kiểm tra cơ sở này đã có ca làm việc khác trùng khung giờ trong ngày hay chưa (Bỏ qua chính ca trực đang chỉnh sửa)
         if (workShiftDAO.hasOverlappingShiftAtComplex(complexId, shiftDate, startTime, endTime, shiftId)) {
-            writeError(resp, "Cơ sở này đã được thiết lập một ca làm việc khác trùng khung giờ này trong ngày. Vui lòng chọn khung giờ khác.");
+            writeError(resp, "Cụm sân này đã được phân ca trực trùng khung giờ này trong ngày.");
             return;
         }
 

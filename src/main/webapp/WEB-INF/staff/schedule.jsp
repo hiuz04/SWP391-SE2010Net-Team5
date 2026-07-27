@@ -1481,7 +1481,7 @@
                           if (errorParam != null) {
     %>
       <% if ("facility_mismatch".equals(errorParam)) { %>
-                              showToast("Lượt đặt sân này thuộc cơ sở khác. Bạn không thể thực hiện thao tác này.", "danger");
+        showToast("Lượt đặt sân này thuộc cụm sân khác. Bạn không thể thực hiện thao tác này.", "danger");
       <% } else { %>
                               showToast("<%= errorParam %>", "danger");
       <% } %>
