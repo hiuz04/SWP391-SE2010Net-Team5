@@ -36,13 +36,39 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="<%= ctx %>/index.jsp">Trang chủ</a></li>
                 <li class="breadcrumb-item"><a href="<%= ctx %>/search">Tìm sân</a></li>
-                <li class="breadcrumb-item active">Sân bóng Thể Thao A</li>
+                <li class="breadcrumb-item active" id="bc-name"></li>
             </ol>
         </nav>
         <div>
-            <img class="rounded-4 w-100 mb-4" style="height:420px;object-fit:cover"
-                 src="https://res.cloudinary.com/du02dvkx7/image/upload/v1780892069/court_a6at9n.webp"
-                 alt="Sân bóng">
+            <div id="complexCarousel"
+                 class="carousel slide mb-4"
+                 data-bs-ride="carousel"
+            >
+                <div class="carousel-inner rounded-4" id="carouselImages">
+                    <div class="carousel-item active">
+                        <img src="https://res.cloudinary.com/du02dvkx7/image/upload/v1780892069/court_a6at9n.webp"
+                             class="d-block w-100"
+                             style="height:420px;object-fit:cover"
+                             alt="Football Complex">
+                    </div>
+                </div>
+
+                <button class="carousel-control-prev"
+                        type="button"
+                        data-bs-target="#complexCarousel"
+                        data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon"></span>
+                </button>
+
+                <button class="carousel-control-next"
+                        type="button"
+                        data-bs-target="#complexCarousel"
+                        data-bs-slide="next">
+                    <span class="carousel-control-next-icon"></span>
+                </button>
+
+                <div class="carousel-indicators" id="carouselIndicators"></div>
+            </div>
             <div class="row g-4">
                 <div class="col-lg-8">
                     <div class="card soft-card p-4">

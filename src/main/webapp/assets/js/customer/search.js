@@ -1,8 +1,6 @@
 // Lưu đường context của trang
 const ctx = window.APP_CTX;
 
-let provinces = [];
-
 function renderData(data) {
     const container = document.getElementById("list-container");
     if (!container) return;
@@ -71,36 +69,6 @@ function loadData() {
         .catch(err => console.error("Lỗi khi load dữ liệu mặc định:", err));
 }
 
-async function loadHanoiWards() {
-    const wardSelect = document.getElementById("ward");
-    if (!wardSelect) return;
-
-    wardSelect.disabled = true;
-    wardSelect.innerHTML = '<option value="">Đang tải Phường/Xã...</option>';
-
-    try {
-        const res = await fetch("https://provinces.open-api.vn/api/v2/p/01?depth=2");
-        if (!res.ok) throw new Error("Lỗi kết nối API");
-
-        const data = await res.json();
-
-        wardSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
-
-        data.wards.forEach(ward => {
-            const opt = document.createElement("option");
-            opt.value = ward.name;
-            opt.textContent = ward.name;
-            wardSelect.appendChild(opt);
-        });
-
-        wardSelect.disabled = false;
-    } catch (err) {
-        console.error(err);
-        wardSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
-        wardSelect.disabled = false;
-    }
-}
-
 function searchData() {
     const params = new URLSearchParams();
 
@@ -130,33 +98,13 @@ function searchData() {
 
 // Khởi tạo trang: tải danh sách filter một lần duy nhất, sau đó kiểm tra URL params
 async function initPage() {
-    // Load danh sách tỉnh
-    await loadHanoiWards();
-
     // Đọc query parameter
     const urlParams = new URLSearchParams(window.location.search);
-    const urlProvince = urlParams.get("province");
-    const urlWard = urlParams.get("ward");
     const urlType = urlParams.get("type");
 
-    const provinceEl = document.getElementById("province");
-    const wardEl = document.getElementById("ward");
     const typeEl = document.getElementById("type");
 
     let hasParams = false;
-
-    // Nếu có tỉnh thì chọn tỉnh và load danh sách xã
-    if (urlProvince && provinceEl) {
-        provinceEl.value = urlProvince;
-        await loadWards(urlProvince);
-        hasParams = true;
-    }
-
-    // Sau khi đã load xã mới gán xã
-    if (urlWard && wardEl) {
-        wardEl.value = urlWard;
-        hasParams = true;
-    }
 
     // Chọn loại sân
     if (urlType && typeEl) {
@@ -186,7 +134,7 @@ function scheduleLoadData() {
 }
 
 function clearAll() {
-    document.querySelectorAll("#complexName, #ward, #fieldType")
+    document.querySelectorAll("#complexName, #address, #fieldType")
         .forEach(el => {
             if (el.tagName === "INPUT") {
                 el.value = "";

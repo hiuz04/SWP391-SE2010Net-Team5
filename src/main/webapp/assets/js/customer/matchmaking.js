@@ -8,7 +8,7 @@ const skillLevels = {
     "ADVANCED": { display: "Khá / Giỏi (Advanced)", badge: "badge-skill-advanced" }
 };
 
-// Lưu danh sách cơ sở
+// Lưu danh sách cụm sân
 let complexesList = [];
 let myPostsMode = false;
 
@@ -39,7 +39,7 @@ async function loadComplexes() {
             formSelect.innerHTML = formHtml;
         }
     } catch (error) {
-        console.error("Lỗi khi load danh sách cơ sở:", error);
+        console.error("Lỗi khi load danh sách cụm sân:", error);
     }
 }
 

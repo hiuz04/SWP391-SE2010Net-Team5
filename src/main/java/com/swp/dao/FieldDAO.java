@@ -268,7 +268,7 @@ public class FieldDAO {
 
     /**
      * Tìm kiếm sân theo tên thành phố.
-     * Trả về danh sách TopFieldSummary chứa thông tin sân + cơ sở + loại sân.
+     * Trả về danh sách TopFieldSummary chứa thông tin sân + cụm sân + loại sân.
      */
     public List<TopFieldSummary> searchFieldsByCity(String city) {
         List<TopFieldSummary> list = new ArrayList<>();
@@ -413,5 +413,51 @@ public class FieldDAO {
         }
 
         return list;
+    }
+
+    public boolean existsByName(String fieldName, long complexId) {
+        String sql = """
+        SELECT 1
+        FROM fields
+        WHERE LOWER(TRIM(field_name)) = LOWER(TRIM(?))
+          AND complex_id = ?
+        """;
+
+        try (Connection con = DBContext.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, fieldName);
+            ps.setLong(2, complexId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public boolean existsByNameExceptId(String fieldName, long complexId, long fieldId) {
+        String sql = """
+        SELECT 1
+        FROM fields
+        WHERE LOWER(TRIM(field_name)) = LOWER(TRIM(?))
+          AND complex_id = ?
+          AND field_id <> ?
+        """;
+
+        try (Connection con = DBContext.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, fieldName);
+            ps.setLong(2, complexId);
+            ps.setLong(3, fieldId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

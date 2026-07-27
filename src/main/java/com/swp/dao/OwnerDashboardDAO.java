@@ -139,29 +139,37 @@ public class OwnerDashboardDAO {
 
     public List<RevenueDTO> getRevenueLast7Days() {
         List<RevenueDTO> list = new ArrayList<>();
+
         String sql = """
-                    SELECT
-                        CAST(created_at AS DATE) AS booking_day,
-                        SUM(total_amount) AS revenue
-                    FROM bookings
-                    WHERE created_at >= DATEADD(DAY,-6,GETDATE())
-                    AND status='COMPLETED'
-                    GROUP BY CAST(created_at AS DATE)
-                    ORDER BY booking_day
-                """;
+            WITH Last7Days AS (
+                SELECT CAST(DATEADD(DAY, -6, GETDATE()) AS DATE) AS booking_day
+                UNION ALL
+                SELECT DATEADD(DAY, 1, booking_day)
+                FROM Last7Days
+                WHERE booking_day < CAST(GETDATE() AS DATE)
+            )
+    
+            SELECT
+                d.booking_day,
+                ISNULL(SUM(b.total_amount), 0) AS revenue
+            FROM Last7Days d
+            LEFT JOIN bookings b
+                ON CAST(b.created_at AS DATE) = d.booking_day
+                AND b.status = 'COMPLETED'
+            GROUP BY d.booking_day
+            ORDER BY d.booking_day
+            OPTION (MAXRECURSION 7)
+        """;
 
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                list.add(
-                        new RevenueDTO(
-                                rs.getDate("booking_day")
-                                        .toLocalDate(),
-                                rs.getLong("revenue")
-                        )
-                );
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
 
+            while (rs.next()) {
+                list.add(new RevenueDTO(
+                        rs.getDate("booking_day").toLocalDate(),
+                        rs.getLong("revenue")
+                ));
             }
 
         } catch (Exception e) {

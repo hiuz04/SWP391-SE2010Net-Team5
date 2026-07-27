@@ -76,6 +76,19 @@ public class FieldController extends HttpServlet {
             int fieldTypeID = Integer.parseInt(req.getParameter("fieldTypeID"));
             long complexId = Long.parseLong(req.getParameter("complexId"));
 
+            // Kiểm tra trùng tên trong cùng một cụm sân
+            if (fieldService.existsByName(fieldName, complexId)) {
+                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                resp.setContentType("application/json;charset=UTF-8");
+                resp.getWriter().write("""
+                {
+                    "success": false,
+                    "message": "Tên sân đã tồn tại! Vui lòng nhập tên khác!"
+                }
+                """);
+                return;
+            }
+
             Field field = new Field();
             field.setFieldName(fieldName);
             field.setDescription(fieldDesc);
@@ -83,12 +96,20 @@ public class FieldController extends HttpServlet {
             field.setComplexId(complexId);
 
             fieldService.insertField(field);
+
             resp.setStatus(HttpServletResponse.SC_OK);
             resp.getWriter().write("SUCCESS");
         } catch (Exception e) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            resp.setContentType("text/plain;charset=UTF-8");
-            resp.getWriter().write(e.getMessage() != null ? e.getMessage() : "Lỗi thêm sân bóng.");
+            resp.setContentType("application/json;charset=UTF-8");
+            resp.getWriter().write("""
+            {
+                "success": false,
+                "message": "%s"
+            }
+            """.formatted(
+                    e.getMessage() != null ? e.getMessage() : "Không thể cập nhật sân bóng!"
+            ));
         }
     }
 
@@ -101,23 +122,45 @@ public class FieldController extends HttpServlet {
             long complexId = Long.parseLong(req.getParameter("complexId"));
             String status = req.getParameter("status");
 
+            // Kiểm tra trùng tên trong cùng cụm sân (bỏ qua chính sân đang sửa)
+            if (fieldService.existsByNameExceptId(fieldName, complexId, fieldId)) {
+                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                resp.setContentType("application/json;charset=UTF-8");
+                resp.getWriter().write("""
+                {
+                    "success": false,
+                    "message": "Tên sân đã tồn tại! Vui lòng nhập tên khác!"
+                }
+                """);
+                return;
+            }
+
             Field f = new Field();
             f.setFieldId(fieldId);
             f.setFieldName(fieldName);
             f.setDescription(fieldDesc);
             f.setFieldTypeId(fieldTypeID);
             f.setComplexId(complexId);
+
             if (status != null && !status.isBlank()) {
                 f.setStatus(status);
             }
 
             fieldService.updateField(f);
+
             resp.setStatus(HttpServletResponse.SC_OK);
             resp.getWriter().write("SUCCESS");
         } catch (Exception e) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            resp.setContentType("text/plain;charset=UTF-8");
-            resp.getWriter().write(e.getMessage() != null ? e.getMessage() : "Lỗi cập nhật sân bóng.");
+            resp.setContentType("application/json;charset=UTF-8");
+            resp.getWriter().write("""
+            {
+                "success": false,
+                "message": "%s"
+            }
+            """.formatted(
+                    e.getMessage() != null ? e.getMessage() : "Không thể cập nhật sân bóng!"
+            ));
         }
     }
 

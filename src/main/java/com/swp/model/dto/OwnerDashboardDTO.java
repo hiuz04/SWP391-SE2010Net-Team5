@@ -9,19 +9,21 @@ public class OwnerDashboardDTO {
     private double revenueGrowthPercent;
     private int activeFields;
     private int totalFields;
+    private int totalVouchers;
 
     private List<RevenueDTO> revenue7Days;
 
     public OwnerDashboardDTO() {
     }
 
-    public OwnerDashboardDTO(int todayBooking, int bookingDifferent, long monthRevenue, double revenueGrowthPercent, int activeFields, int totalFields, List<RevenueDTO> revenue7Days) {
+    public OwnerDashboardDTO(int todayBooking, int bookingDifferent, long monthRevenue, double revenueGrowthPercent, int activeFields, int totalFields, int totalVouchers, List<RevenueDTO> revenue7Days) {
         this.todayBooking = todayBooking;
         this.bookingDifferent = bookingDifferent;
         this.monthRevenue = monthRevenue;
         this.revenueGrowthPercent = revenueGrowthPercent;
         this.activeFields = activeFields;
         this.totalFields = totalFields;
+        this.totalVouchers = totalVouchers;
         this.revenue7Days = revenue7Days;
     }
 
@@ -71,6 +73,14 @@ public class OwnerDashboardDTO {
 
     public void setTotalFields(int totalFields) {
         this.totalFields = totalFields;
+    }
+
+    public int getTotalVouchers() {
+        return totalVouchers;
+    }
+
+    public void setTotalVouchers(int totalVouchers) {
+        this.totalVouchers = totalVouchers;
     }
 
     public List<RevenueDTO> getRevenue7Days() {

@@ -202,7 +202,7 @@ public class StaffActionServlet extends HttpServlet {
         Long expectedComplexId = resolveStaffComplexId(user);
         if (user.getRoleId() == ROLE_STAFF && expectedComplexId == null) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            write(resp, "{\"error\":\"Không xác định được cơ sở trong ca trực hiện tại.\"}");
+            write(resp, "{\"error\":\"Không xác định được cụm sân trong ca trực hiện tại.\"}");
             return;
         }
 
@@ -287,7 +287,7 @@ public class StaffActionServlet extends HttpServlet {
 
         long bookingId = Long.parseLong(bookingIdStr.trim());
 
-        // Business Rule BR-12: Staff không được check-in booking thuộc cơ sở khác với ca trực hiện tại.
+        // Business Rule BR-12: Staff không được check-in booking thuộc cụm sân khác với ca trực hiện tại.
         // Security check: Verify that the staff's current shift facility matches the booking's facility
         User user = getSessionUser(req);
         java.util.Map<String, Object> booking = staffDAO.getBookingDetailForCheckin(bookingId);
@@ -300,7 +300,7 @@ public class StaffActionServlet extends HttpServlet {
         Long expectedComplexId = user != null ? resolveStaffComplexId(user) : null;
         if (user != null && user.getRoleId() == ROLE_STAFF && expectedComplexId == null) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            write(resp, "{\"error\":\"Không xác định được cơ sở trong ca trực hiện tại.\"}");
+            write(resp, "{\"error\":\"Không xác định được cụm sân trong ca trực hiện tại.\"}");
             return;
         }
 
@@ -408,7 +408,7 @@ public class StaffActionServlet extends HttpServlet {
         if (expectedComplexId != null) {
             Long bookingComplexId = asLong(booking.get("complexId"));
             if (bookingComplexId == null || !bookingComplexId.equals(expectedComplexId)) {
-                return "Lượt đặt sân này thuộc cơ sở khác. Bạn không thể thực hiện thao tác.";
+                return "Lượt đặt sân này thuộc cụm sân khác. Bạn không thể thực hiện thao tác.";
             }
         }
 
@@ -458,7 +458,7 @@ public class StaffActionServlet extends HttpServlet {
     }
 
     private boolean isFacilityMismatch(String message) {
-        return message != null && message.startsWith("Lượt đặt sân này thuộc cơ sở khác");
+        return message != null && message.startsWith("Lượt đặt sân này thuộc cụm sân khác");
     }
 
     private Long asLong(Object value) {

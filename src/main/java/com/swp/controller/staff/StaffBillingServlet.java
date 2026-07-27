@@ -137,7 +137,7 @@ public class StaffBillingServlet extends HttpServlet {
                         && !billingDAO.canStaffCheckoutComplex(user.getUserId(), checkout.getComplexId())) {
                     // Business Rule BR-12: Staff chỉ được checkout tại complex có ca đang hoạt động.
                     resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    req.setAttribute("error", "Bạn không có ca làm việc đang hoạt động tại cơ sở này.");
+                    req.setAttribute("error", "Bạn không có ca làm việc đang hoạt động tại cụm sân này.");
                 } else {
                     // TODO Business Rule BR-16: SRS yêu cầu chỉ checkout khi current time >= booking end time;
                     // màn hình hiện tại chưa chặn trường hợp checkout sớm.
@@ -261,7 +261,7 @@ public class StaffBillingServlet extends HttpServlet {
 
         document.add(section("Thông tin đặt sân", fonts));
         PdfPTable booking = infoTable();
-        addInfo(booking, "Cơ sở", text(invoice.getComplexName()), fonts);
+        addInfo(booking, "cụm sân", text(invoice.getComplexName()), fonts);
         addInfo(booking, "Địa chỉ", text(invoice.getComplexAddress()), fonts);
         addInfo(booking, "Sân", text(invoice.getFieldName()), fonts);
         addInfo(booking, "Thời gian", dateTime(invoice.getStartTime()) + " - " + dateTime(invoice.getEndTime()), fonts);

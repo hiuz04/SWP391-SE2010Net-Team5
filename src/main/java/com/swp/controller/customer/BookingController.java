@@ -154,7 +154,7 @@ public class BookingController extends HttpServlet {
 
         // Không có complexId thì không thể dựng lịch sân theo cụm, nên quay về trang chủ với lỗi.
         if (complexId == null) {
-            request.setAttribute("error", "Không tìm thấy cơ sở sân.");
+            request.setAttribute("error", "Không tìm thấy cụm sân sân.");
             request.getRequestDispatcher("/index.jsp").forward(request, response);
             return;
         }
