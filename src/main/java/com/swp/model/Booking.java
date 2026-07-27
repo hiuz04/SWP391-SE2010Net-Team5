@@ -29,14 +29,13 @@ public class Booking implements Serializable {
     private LocalDateTime holdExpiresAt;
     private String cancellationReason;
     private LocalDateTime cancelledAt;
-    private String qrCode;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public Booking() {
     }
 
-    public Booking(Long bookingId, String bookingCode, Long customerId, Long complexId, Long fieldId, Long recurringGroupId, LocalDateTime startTime, LocalDateTime endTime,Integer voucherId, BigDecimal originalPrice, BigDecimal discountAmount, BigDecimal totalAmount, BigDecimal finalAmount, BigDecimal depositAmount, String status, LocalDateTime holdExpiresAt, String cancellationReason, LocalDateTime cancelledAt, String qrCode, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public Booking(Long bookingId, String bookingCode, Long customerId, Long complexId, Long fieldId, Long recurringGroupId, LocalDateTime startTime, LocalDateTime endTime,Integer voucherId, BigDecimal originalPrice, BigDecimal discountAmount, BigDecimal totalAmount, BigDecimal finalAmount, BigDecimal depositAmount, String status, LocalDateTime holdExpiresAt, String cancellationReason, LocalDateTime cancelledAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.bookingId = bookingId;
         this.bookingCode = bookingCode;
         this.customerId = customerId;
@@ -55,7 +54,6 @@ public class Booking implements Serializable {
         this.holdExpiresAt = holdExpiresAt;
         this.cancellationReason = cancellationReason;
         this.cancelledAt = cancelledAt;
-        this.qrCode = qrCode;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -202,14 +200,6 @@ public class Booking implements Serializable {
 
     public void setCancelledAt(LocalDateTime cancelledAt) {
         this.cancelledAt = cancelledAt;
-    }
-
-    public String getQrCode() {
-        return qrCode;
-    }
-
-    public void setQrCode(String qrCode) {
-        this.qrCode = qrCode;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -30,6 +30,7 @@ public class VoucherDAO {
     /**
      * Lấy toàn bộ voucher cho màn hình quản lý của Owner.
      * Danh sách giữ cả voucher tạm tắt/hết hạn để Owner có thể kiểm tra số lượng đã dùng.
+     * Business Rule BR-30/BR-38/BR-39: Manage Voucher hiển thị cả ACTIVE và DISABLED để Owner quản lý bằng trạng thái.
      */
     public List<Voucher> getAllVouchers() throws SQLException {
         String sql = """
@@ -115,6 +116,7 @@ public class VoucherDAO {
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
+            // Business Rule BR-36: DAO vẫn ghi used = 0 cố định để Owner không thể tự đặt used khi tạo.
             setVoucherStatement(ps, voucher);
             return ps.executeUpdate() == 1;
         }
@@ -123,6 +125,7 @@ public class VoucherDAO {
     /**
      * Cập nhật thông tin voucher mà không thay đổi cột used.
      * Rule không cho quantity thấp hơn used được kiểm tra ở servlet trước khi update.
+     * Business Rule BR-37: Existing used count phải được giữ nguyên khi Owner chỉnh sửa voucher.
      */
     public boolean updateVoucher(Voucher voucher) throws SQLException {
         String sql = """
@@ -162,6 +165,7 @@ public class VoucherDAO {
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
+            // Business Rule BR-38/BR-39: Disable voucher bằng status, không xóa dữ liệu hay thay đổi lịch sử dùng.
             ps.setString(1, normalizeStatus(status));
             ps.setInt(2, id);
             return ps.executeUpdate() == 1;
@@ -648,6 +652,7 @@ public class VoucherDAO {
 
     private void setVoucherStatement(PreparedStatement ps, Voucher voucher)
             throws SQLException {
+        // Business Rule BR-31: Code được trim và uppercase trước khi ghi DB.
         ps.setString(1, normalizeCode(voucher.getCode()));
         ps.setString(2, voucher.getName());
         ps.setString(3, normalizeType(voucher.getDiscountType()));

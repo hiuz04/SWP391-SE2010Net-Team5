@@ -162,7 +162,6 @@ public class BookingDAO {
                        hold_expires_at,
                        cancellation_reason,
                        cancelled_at,
-                       qr_code,
                        created_at,
                        updated_at
                 FROM bookings
@@ -283,7 +282,6 @@ public class BookingDAO {
                        NULL AS deposit_amount,
                        NULL AS status,
                        NULL AS hold_expires_at,
-                       NULL AS qr_code,
                        NULL AS created_at,
                        NULL AS updated_at,
                        NULL AS cancellation_reason,
@@ -514,12 +512,11 @@ public class BookingDAO {
                     deposit_amount,
                     status,
                     hold_expires_at,
-                    qr_code,
                     created_at,
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
                 """;
 
         String insertLog = """
@@ -566,7 +563,6 @@ public class BookingDAO {
                 ps.setBigDecimal(11, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
                 ps.setBigDecimal(12, safeMoney(booking.getDepositAmount()));
                 ps.setTimestamp(13, Timestamp.valueOf(booking.getHoldExpiresAt()));
-                ps.setString(14, booking.getQrCode());
 
                 try (ResultSet rs = ps.executeQuery()) {
                     // Neu DB khong tra ve id thi booking chua duoc tao hop le.
@@ -666,6 +662,33 @@ public class BookingDAO {
     }
 
     /**
+     * Lấy booking_code theo booking_id và customer_id để sinh QR động mà không phụ thuộc cột qr_code.
+     */
+    public String getBookingCodeByIdAndCustomerId(Long bookingId, Long customerId) throws SQLException {
+        String sql = """
+                SELECT booking_code
+                FROM bookings
+                WHERE booking_id = ?
+                  AND customer_id = ?
+                """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, bookingId);
+            ps.setLong(2, customerId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("booking_code");
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Tạo một nhóm booking định kỳ.
      * Slot bị trùng/bảo trì/sân khóa là kết quả nghiệp vụ bình thường nên được bỏ qua,
      * còn lỗi ghi DB vẫn rollback toàn bộ các booking hợp lệ đã insert trong transaction.
@@ -705,12 +728,11 @@ public class BookingDAO {
                     deposit_amount,
                     status,
                     hold_expires_at,
-                    qr_code,
                     created_at,
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
                 """;
 
         String insertLog = """
@@ -792,7 +814,6 @@ public class BookingDAO {
                     ps.setBigDecimal(12, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
                     ps.setBigDecimal(13, safeMoney(booking.getDepositAmount()));
                     ps.setTimestamp(14, Timestamp.valueOf(booking.getHoldExpiresAt()));
-                    ps.setString(15, booking.getQrCode());
 
                     try (ResultSet rs = ps.executeQuery()) {
                         // Moi booking con bat buoc phai tra ve id de ghi log dung.
@@ -1101,7 +1122,6 @@ public class BookingDAO {
                        hold_expires_at,
                        cancellation_reason,
                        cancelled_at,
-                       qr_code,
                        created_at,
                        updated_at
                 FROM bookings
@@ -1144,7 +1164,6 @@ public class BookingDAO {
                     booking.setDepositAmount(rs.getBigDecimal("deposit_amount"));
                     booking.setStatus(rs.getString("status"));
                     booking.setCancellationReason(rs.getString("cancellation_reason"));
-                    booking.setQrCode(rs.getString("qr_code"));
 
                     Timestamp holdExpiresAt = rs.getTimestamp("hold_expires_at");
                     if (holdExpiresAt != null) {
@@ -1292,7 +1311,6 @@ public class BookingDAO {
                        grp.deposit_amount,
                        b.status,
                        b.hold_expires_at,
-                       b.qr_code,
                        b.created_at,
                        b.updated_at,
                        b.cancellation_reason,
@@ -1594,7 +1612,6 @@ public class BookingDAO {
         booking.setHoldExpiresAt(toLocalDateTime(rs.getTimestamp("hold_expires_at")));
         booking.setCancellationReason(rs.getString("cancellation_reason"));
         booking.setCancelledAt(toLocalDateTime(rs.getTimestamp("cancelled_at")));
-        booking.setQrCode(rs.getString("qr_code"));
         booking.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
         booking.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
 
@@ -1632,7 +1649,6 @@ public class BookingDAO {
         view.setDepositAmount(rs.getBigDecimal("deposit_amount"));
         view.setStatus(rs.getString("status"));
         view.setHoldExpiresAt(toLocalDateTime(rs.getTimestamp("hold_expires_at")));
-        view.setQrCode(rs.getString("qr_code"));
         view.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
         view.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
         view.setCancellationReason(rs.getString("cancellation_reason"));

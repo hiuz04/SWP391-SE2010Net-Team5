@@ -29,7 +29,7 @@ public class OwnerAuthFilter implements Filter {
                 || "XMLHttpRequest".equalsIgnoreCase(req.getHeader("X-Requested-With"))
                 || (req.getHeader("Accept") != null && req.getHeader("Accept").contains("application/json"));
 
-        // Chưa đăng nhập
+        // Business Rule BR-30: Chỉ user đã đăng nhập mới được vào nhóm chức năng /owner, gồm Manage Voucher.
         if (session == null || session.getAttribute("user") == null) {
             if (isApiRequest) {
                 resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -43,7 +43,7 @@ public class OwnerAuthFilter implements Filter {
 
         User user = (User) session.getAttribute("user");
 
-        // Không phải Owner
+        // Business Rule BR-30: Manage Voucher chỉ cho phép role OWNER tiếp tục xử lý request.
         if (!OWNER_ROLE_NAME.equalsIgnoreCase(user.getRoleName())) {
             if (isApiRequest) {
                 resp.setStatus(HttpServletResponse.SC_FORBIDDEN);

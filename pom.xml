@@ -46,6 +46,19 @@
             <version>2.11.0</version>
         </dependency>
 
+        <!-- ZXing QR Code generation -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.4</version>
+        </dependency>
+
         <!-- Jakarta Mail (Angus Mail) – gửi email SMTP, tương thích Tomcat 10+ -->
         <dependency>
             <groupId>org.eclipse.angus</groupId>
