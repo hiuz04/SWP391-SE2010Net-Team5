@@ -25,6 +25,8 @@ import java.util.UUID;
  */
 public class StaffBillingDAO {
 
+    private static final UserDAO userDao = new UserDAO();
+
     private static final BigDecimal DEFAULT_OVERTIME_FEE_PER_MINUTE = BigDecimal.valueOf(5000);
     private static final String STATUS_CHECKED_IN = "CHECKED_IN";
     private static final String STATUS_CONFIRMED = "CONFIRMED";
@@ -711,6 +713,7 @@ public class StaffBillingDAO {
                 throw new IllegalArgumentException("Booking khong con hop le de checkout.");
             }
         }
+        userDao.awardRewardPoints(conn, booking.customerId(), booking.bookingId());
         releaseField(conn, booking.fieldId());
     }
 

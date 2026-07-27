@@ -47,14 +47,14 @@ function loadStatisticsData() {
             // ===========================
             // Field Statistics
             // ===========================
-            document.getElementById("activeFields").innerText = data.totalVouchers;
+            document.getElementById("activeFields").innerText = data.activeFields;
             document.getElementById("totalFields").innerText =
                 `/${data.totalFields} sân`;
 
             // ===========================
             // Voucher Statistics
             // ===========================
-            document.getElementById("activeVouchers").innerText = data.activeFields;
+            document.getElementById("activeVouchers").innerText = data.totalVouchers;
 
             // =====================================================
             // Chuẩn bị dữ liệu để vẽ biểu đồ doanh thu 7 ngày
