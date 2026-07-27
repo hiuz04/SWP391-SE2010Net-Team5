@@ -4,6 +4,7 @@
 <%@ page import="com.swp.model.dto.BookingSlotPreview" %>
 <%@ page import="com.swp.model.dto.BookingView" %>
 <%@ page import="com.swp.model.dto.SkippedBookingSlot" %>
+<%@ page import="com.swp.model.dto.UserVoucherDTO" %>
 <%@ page import="jakarta.servlet.http.HttpServletResponse" %>
 <%@ page import="java.math.BigDecimal" %>
 <%@ page import="java.text.NumberFormat" %>
@@ -81,10 +82,12 @@
     String repeatType = (String) request.getAttribute("repeatType");
     Integer recurringCount = (Integer) request.getAttribute("recurringCount");
     String voucherCode = (String) request.getAttribute("voucherCode");
+    Long userVoucherId = (Long) request.getAttribute("userVoucherId");
     String voucherError = (String) request.getAttribute("voucherError");
     String voucherMessage = (String) request.getAttribute("voucherMessage");
     String creationError = (String) request.getAttribute("creationError");
     List<BookingSlotPreview> slotPreviews = (List<BookingSlotPreview>) request.getAttribute("slotPreviews");
+    List<UserVoucherDTO> ownedVouchers = (List<UserVoucherDTO>) request.getAttribute("ownedVouchers");
     List<SkippedBookingSlot> creationSkippedSlots = (List<SkippedBookingSlot>) request.getAttribute("creationSkippedSlots");
     Integer totalExpectedSlots = (Integer) request.getAttribute("totalExpectedSlots");
     Integer validSlotCount = (Integer) request.getAttribute("validSlotCount");
@@ -94,6 +97,7 @@
     if (recurringCount == null) recurringCount = 1;
     if (voucherCode == null) voucherCode = "";
     if (slotPreviews == null) slotPreviews = new ArrayList<>();
+    if (ownedVouchers == null) ownedVouchers = new ArrayList<>();
     if (creationSkippedSlots == null) creationSkippedSlots = new ArrayList<>();
     if (totalExpectedSlots == null) totalExpectedSlots = slotPreviews.isEmpty() ? recurringCount : slotPreviews.size();
     if (validSlotCount == null) validSlotCount = Math.max(0, recurringCount);
@@ -305,12 +309,30 @@
                         <input type="hidden" name="endTime" value="<%= esc(endTimeValue) %>">
                         <input type="hidden" name="repeatType" value="<%= esc(repeatType) %>">
                         <div class="mb-3">
-                            <label class="form-label small fw-semibold" for="voucherCode">Mã giảm giá</label>
+                            <label class="form-label small fw-semibold" for="voucherCode">Mã voucher công khai</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-ticket-perforated"></i></span>
                                 <input class="form-control text-uppercase" id="voucherCode" name="voucherCode"
-                                       maxlength="50" value="<%= esc(voucherCode) %>" placeholder="SALE20">
+                                       maxlength="50" value="<%= userVoucherId == null ? esc(voucherCode) : "" %>" placeholder="SALE20">
                             </div>
+                            <label class="form-label small fw-semibold mt-3" for="userVoucherId">Voucher của tôi</label>
+                            <select class="form-select" id="userVoucherId" name="userVoucherId">
+                                <option value="">Không chọn voucher đã đổi</option>
+                                <% for (UserVoucherDTO ownedVoucher : ownedVouchers) {
+                                    boolean selectedOwnedVoucher = userVoucherId != null
+                                            && userVoucherId == ownedVoucher.getUserVoucherId();
+                                %>
+                                <option value="<%= ownedVoucher.getUserVoucherId() %>" <%= selectedOwnedVoucher ? "selected" : "" %>>
+                                    <%= esc(ownedVoucher.getVoucherCode()) %> - <%= esc(ownedVoucher.getVoucherName()) %>
+                                    (<%= "PERCENT".equalsIgnoreCase(ownedVoucher.getDiscountType())
+                                            ? esc(ownedVoucher.getDiscountValue() + "%")
+                                            : money(ownedVoucher.getDiscountValue()) %>)
+                                </option>
+                                <% } %>
+                            </select>
+                            <% if (ownedVouchers.isEmpty()) { %>
+                            <div class="text-muted small mt-2">Bạn chưa có voucher khả dụng phù hợp đơn hàng này.</div>
+                            <% } %>
                             <% if (voucherError != null && !voucherError.isBlank()) { %>
                             <div class="text-danger small mt-2"><%= esc(voucherError) %></div>
                             <% } else if (voucherMessage != null && !voucherMessage.isBlank()) { %>
@@ -335,5 +357,24 @@
 <div id="footer" data-root="<%= ctx %>/"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
+<script>
+    (function () {
+        const codeInput = document.getElementById("voucherCode");
+        const ownedSelect = document.getElementById("userVoucherId");
+
+        if (codeInput && ownedSelect) {
+            codeInput.addEventListener("input", function () {
+                if (this.value.trim() !== "") {
+                    ownedSelect.value = "";
+                }
+            });
+            ownedSelect.addEventListener("change", function () {
+                if (this.value) {
+                    codeInput.value = "";
+                }
+            });
+        }
+    })();
+</script>
 </body>
 </html>

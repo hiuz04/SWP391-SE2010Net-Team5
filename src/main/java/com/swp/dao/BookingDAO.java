@@ -6,6 +6,7 @@ import com.swp.model.FieldMaintenanceSchedule;
 import com.swp.model.dto.BookingView;
 import com.swp.model.dto.RecurringBookingCreationResult;
 import com.swp.model.dto.SkippedBookingSlot;
+import com.swp.model.dto.VoucherValidationResult;
 import com.swp.util.DBContext;
 
 import java.math.BigDecimal;
@@ -33,6 +34,8 @@ import java.util.List;
  * transactional HOLD creation, recurring groups, and cancellation updates.
  */
 public class BookingDAO {
+
+    private final VoucherDAO voucherDAO = new VoucherDAO();
 
     private static final String STATUS_CANCELLED = "CANCELLED";
     private static final String REASON_SLOT_BOOKED = "Khung giờ đã được đặt";
@@ -153,6 +156,7 @@ public class BookingDAO {
                        start_time,
                        end_time,
                        voucher_id,
+                       user_voucher_id,
                        original_price,
                        discount_amount,
                        total_amount,
@@ -274,6 +278,7 @@ public class BookingDAO {
                        NULL AS start_time,
                        NULL AS end_time,
                        NULL AS voucher_id,
+                       NULL AS user_voucher_id,
                        NULL AS voucher_code,
                        NULL AS original_price,
                        NULL AS discount_amount,
@@ -505,6 +510,7 @@ public class BookingDAO {
                     start_time,
                     end_time,
                     voucher_id,
+                    user_voucher_id,
                     original_price,
                     discount_amount,
                     total_amount,
@@ -516,7 +522,7 @@ public class BookingDAO {
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
                 """;
 
         Connection conn = null;
@@ -533,6 +539,19 @@ public class BookingDAO {
             if (!isFieldAvailable(conn, booking.getFieldId(), booking.getStartTime(), booking.getEndTime())) {
                 throw new SQLException("Khung giờ đã được đặt hoặc sân đang bảo trì.");
             }
+            // Voucher đổi điểm được giữ ngay trong transaction tạo HOLD để không dùng cho booking khác.
+            if (booking.getUserVoucherId() != null) {
+                VoucherValidationResult reservation = voucherDAO.reserveOwnedRewardVoucher(
+                        conn,
+                        booking.getUserVoucherId(),
+                        booking.getCustomerId(),
+                        booking.getOriginalPrice()
+                );
+                if (!reservation.isValid()) {
+                    throw new SQLException(reservation.getMessage());
+                }
+                booking.setVoucherId(reservation.getVoucher().getId());
+            }
 
             long bookingId;
             // Business Rule BR-04: Booking được insert ở trạng thái HOLD cùng hold_expires_at đã tính từ controller.
@@ -545,12 +564,13 @@ public class BookingDAO {
                 ps.setTimestamp(5, Timestamp.valueOf(booking.getStartTime()));
                 ps.setTimestamp(6, Timestamp.valueOf(booking.getEndTime()));
                 setIntegerOrNull(ps, 7, booking.getVoucherId());
-                ps.setBigDecimal(8, safeMoney(booking.getOriginalPrice()));
-                ps.setBigDecimal(9, safeMoney(booking.getDiscountAmount()));
-                ps.setBigDecimal(10, safeMoney(booking.getTotalAmount()));
-                ps.setBigDecimal(11, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
-                ps.setBigDecimal(12, safeMoney(booking.getDepositAmount()));
-                ps.setTimestamp(13, Timestamp.valueOf(booking.getHoldExpiresAt()));
+                setLongOrNull(ps, 8, booking.getUserVoucherId());
+                ps.setBigDecimal(9, safeMoney(booking.getOriginalPrice()));
+                ps.setBigDecimal(10, safeMoney(booking.getDiscountAmount()));
+                ps.setBigDecimal(11, safeMoney(booking.getTotalAmount()));
+                ps.setBigDecimal(12, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
+                ps.setBigDecimal(13, safeMoney(booking.getDepositAmount()));
+                ps.setTimestamp(14, Timestamp.valueOf(booking.getHoldExpiresAt()));
 
                 try (ResultSet rs = ps.executeQuery()) {
                     // Neu DB khong tra ve id thi booking chua duoc tao hop le.
@@ -693,6 +713,7 @@ public class BookingDAO {
                     start_time,
                     end_time,
                     voucher_id,
+                    user_voucher_id,
                     original_price,
                     discount_amount,
                     total_amount,
@@ -704,7 +725,7 @@ public class BookingDAO {
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
                 """;
 
         Connection conn = null;
@@ -768,12 +789,13 @@ public class BookingDAO {
                     ps.setTimestamp(6, Timestamp.valueOf(booking.getStartTime()));
                     ps.setTimestamp(7, Timestamp.valueOf(booking.getEndTime()));
                     setIntegerOrNull(ps, 8, booking.getVoucherId());
-                    ps.setBigDecimal(9, safeMoney(booking.getOriginalPrice()));
-                    ps.setBigDecimal(10, safeMoney(booking.getDiscountAmount()));
-                    ps.setBigDecimal(11, safeMoney(booking.getTotalAmount()));
-                    ps.setBigDecimal(12, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
-                    ps.setBigDecimal(13, safeMoney(booking.getDepositAmount()));
-                    ps.setTimestamp(14, Timestamp.valueOf(booking.getHoldExpiresAt()));
+                    setLongOrNull(ps, 9, booking.getUserVoucherId());
+                    ps.setBigDecimal(10, safeMoney(booking.getOriginalPrice()));
+                    ps.setBigDecimal(11, safeMoney(booking.getDiscountAmount()));
+                    ps.setBigDecimal(12, safeMoney(booking.getTotalAmount()));
+                    ps.setBigDecimal(13, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
+                    ps.setBigDecimal(14, safeMoney(booking.getDepositAmount()));
+                    ps.setTimestamp(15, Timestamp.valueOf(booking.getHoldExpiresAt()));
 
                     try (ResultSet rs = ps.executeQuery()) {
                         // Moi booking con bat buoc phai tra ve id de tra ve ket qua dung.
@@ -832,7 +854,8 @@ public class BookingDAO {
     public void cancelBooking(Long bookingId, Long customerId, String reason) throws SQLException {
         String selectBooking = """
                 SELECT status,
-                       start_time
+                       start_time,
+                       user_voucher_id
                 FROM bookings WITH (UPDLOCK, HOLDLOCK)
                 WHERE booking_id = ?
                   AND customer_id = ?
@@ -859,6 +882,7 @@ public class BookingDAO {
 
             String oldStatus;
             LocalDateTime startTime;
+            Long userVoucherId;
             // Doc booking bang UPDLOCK/HOLDLOCK de tranh hai request huy cung luc.
             try (PreparedStatement ps = conn.prepareStatement(selectBooking)) {
                 ps.setLong(1, bookingId);
@@ -871,6 +895,7 @@ public class BookingDAO {
                     }
                     oldStatus = rs.getString("status");
                     startTime = toLocalDateTime(rs.getTimestamp("start_time"));
+                    userVoucherId = getLongOrNull(rs, "user_voucher_id");
                 }
             }
 
@@ -898,6 +923,10 @@ public class BookingDAO {
                 ps.setLong(3, bookingId);
                 ps.setLong(4, customerId);
                 ps.executeUpdate();
+            }
+            // Nếu booking HOLD đang giữ voucher đổi điểm, trả voucher về AVAILABLE khi hủy.
+            if (userVoucherId != null) {
+                voucherDAO.releaseReservedUserVoucher(conn, userVoucherId, customerId);
             }
 
             conn.commit();
@@ -1032,6 +1061,7 @@ public class BookingDAO {
                        start_time,
                        end_time,
                        voucher_id,
+                       user_voucher_id,
                        original_price,
                        discount_amount,
                        total_amount,
@@ -1076,6 +1106,8 @@ public class BookingDAO {
 
                     int voucherId = rs.getInt("voucher_id");
                     booking.setVoucherId(rs.wasNull() ? null : voucherId);
+                    long userVoucherId = rs.getLong("user_voucher_id");
+                    booking.setUserVoucherId(rs.wasNull() ? null : userVoucherId);
                     booking.setOriginalPrice(rs.getBigDecimal("original_price"));
                     booking.setDiscountAmount(rs.getBigDecimal("discount_amount"));
                     booking.setTotalAmount(rs.getBigDecimal("total_amount"));
@@ -1222,6 +1254,7 @@ public class BookingDAO {
                        b.start_time,
                        b.end_time,
                        b.voucher_id,
+                       b.user_voucher_id,
                        v.code AS voucher_code,
                        grp.original_price,
                        grp.discount_amount,
@@ -1451,6 +1484,22 @@ public class BookingDAO {
      */
     private int cancelExpiredHolds(Connection conn, Long customerId) throws SQLException {
         String customerFilter = customerId == null ? "" : "                  AND b.customer_id = ?\n";
+        String selectReservedSql = """
+                SELECT b.user_voucher_id,
+                       b.customer_id
+                FROM bookings b WITH (UPDLOCK, HOLDLOCK)
+                WHERE b.status = 'HOLD'
+                  AND b.hold_expires_at IS NOT NULL
+                  AND b.hold_expires_at <= GETDATE()
+                  AND b.user_voucher_id IS NOT NULL
+                """ + customerFilter + """
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM payments p
+                      WHERE p.booking_id = b.booking_id
+                        AND p.status = 'SUCCESS'
+                  )
+                """;
         String sql = """
                 -- Business Rule BR-05: Booking HOLD quá hạn và chưa có payment SUCCESS bị hủy để giải phóng slot.
                 UPDATE b
@@ -1472,13 +1521,37 @@ public class BookingDAO {
                   )
                 """;
 
+        List<ReservedVoucherRelease> reservedVouchers = new ArrayList<>();
+        // Khóa trước các booking HOLD hết hạn để biết voucher nào cần trả sau khi cập nhật trạng thái.
+        try (PreparedStatement ps = conn.prepareStatement(selectReservedSql)) {
+            if (customerId != null) {
+                ps.setLong(1, customerId);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    reservedVouchers.add(new ReservedVoucherRelease(
+                            rs.getLong("user_voucher_id"),
+                            rs.getLong("customer_id")
+                    ));
+                }
+            }
+        }
+
+        int updatedRows;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, HOLD_EXPIRED_CANCEL_REASON);
             if (customerId != null) {
                 ps.setLong(2, customerId);
             }
-            return ps.executeUpdate();
+            updatedRows = ps.executeUpdate();
         }
+
+        // Sau khi booking chuyển CANCELLED, user_vouchers RESERVED được trả về AVAILABLE trong cùng transaction.
+        for (ReservedVoucherRelease reservedVoucher : reservedVouchers) {
+            voucherDAO.releaseReservedUserVoucher(conn, reservedVoucher.userVoucherId(), reservedVoucher.customerId());
+        }
+
+        return updatedRows;
     }
 
     private Booking mapBooking(ResultSet rs) throws SQLException {
@@ -1498,6 +1571,7 @@ public class BookingDAO {
         booking.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         booking.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
         booking.setVoucherId(getIntegerOrNull(rs, "voucher_id"));
+        booking.setUserVoucherId(getLongOrNull(rs, "user_voucher_id"));
         booking.setOriginalPrice(rs.getBigDecimal("original_price"));
         booking.setDiscountAmount(rs.getBigDecimal("discount_amount"));
         booking.setTotalAmount(rs.getBigDecimal("total_amount"));
@@ -1536,6 +1610,7 @@ public class BookingDAO {
         view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
         view.setVoucherId(getIntegerOrNull(rs, "voucher_id"));
+        view.setUserVoucherId(getLongOrNull(rs, "user_voucher_id"));
         view.setVoucherCode(rs.getString("voucher_code"));
         view.setOriginalPrice(rs.getBigDecimal("original_price"));
         view.setDiscountAmount(rs.getBigDecimal("discount_amount"));
@@ -1603,6 +1678,14 @@ public class BookingDAO {
         }
     }
 
+    private void setLongOrNull(PreparedStatement ps, int parameterIndex, Long value) throws SQLException {
+        if (value == null) {
+            ps.setNull(parameterIndex, Types.BIGINT);
+        } else {
+            ps.setLong(parameterIndex, value);
+        }
+    }
+
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
@@ -1613,6 +1696,9 @@ public class BookingDAO {
 
     private BigDecimal firstNonNull(BigDecimal first, BigDecimal second) {
         return first != null ? first : second;
+    }
+
+    private record ReservedVoucherRelease(long userVoucherId, long customerId) {
     }
 
     private record FieldPricingContext(Long complexId, Integer fieldTypeId, Long fieldId) {

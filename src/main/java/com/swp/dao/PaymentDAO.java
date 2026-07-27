@@ -43,6 +43,8 @@ public class PaymentDAO {
     private static final String PAYMENT_TYPE_MEMBERSHIP = "MEMBERSHIP";
     private static final String METHOD_CASH = "CASH";
     private static final String GATEWAY_SIMULATED = "SIMULATED";
+    private static final String DISTRIBUTION_PUBLIC_CODE = "PUBLIC_CODE";
+    private static final String DISTRIBUTION_REWARD_VOUCHER = "REWARD_VOUCHER";
 
     private final UserDAO userDAO = new UserDAO();
 
@@ -233,9 +235,11 @@ public class PaymentDAO {
                            WHEN COALESCE(rg.repeat_type, 'NONE') = 'MONTHLY'
                            THEN grp.total_amount
                            ELSE grp.deposit_amount
-                       END AS deposit_amount,
-                       b.voucher_id,
-                       b.status,
+                        END AS deposit_amount,
+                        b.voucher_id,
+                        b.user_voucher_id,
+                        v.distribution_type,
+                        b.status,
                        CASE
                            WHEN grp.invalid_booking_count = 0
                                 AND grp.hold_expired_count = 0
@@ -264,6 +268,7 @@ public class PaymentDAO {
                        END AS has_success
                 FROM bookings b WITH (UPDLOCK, HOLDLOCK)
                 LEFT JOIN booking_recurring_groups rg ON b.recurring_group_id = rg.recurring_group_id
+                LEFT JOIN vouchers v ON b.voucher_id = v.id
                 OUTER APPLY (
                     SELECT SUM(COALESCE(sb.final_amount, sb.total_amount)) AS total_amount,
                            -- Business Rule BR-06: Tiền cọc booking thường bằng 30% final amount.
@@ -347,6 +352,7 @@ public class PaymentDAO {
                 // Business Rule BR-06: Amount đặt cọc được tính từ booking trong DB, không nhận từ request để tránh chỉnh sửa số tiền ở client.
                 BigDecimal amount;
                 Integer voucherId;
+                String distributionType;
                 try (PreparedStatement ps = conn.prepareStatement(selectBooking)) {
                     ps.setLong(1, bookingId);
                     ps.setLong(2, customerId);
@@ -367,12 +373,15 @@ public class PaymentDAO {
                         }
                         int selectedVoucherId = rs.getInt("voucher_id");
                         voucherId = rs.wasNull() ? null : selectedVoucherId;
+                        distributionType = rs.getString("distribution_type");
                         amount = rs.getBigDecimal("deposit_amount");
                     }
                 }
 
-                // Business Rule BR-09: Kiểm tra voucher trong cùng transaction để Customer không dùng lại mã đã ghi nhận trước đó.
-                if (voucherId != null && voucherDAO.hasCustomerUsedVoucher(voucherId, customerId, conn)) {
+                // Chỉ PUBLIC_CODE cần kiểm tra lịch sử dùng theo customer/voucher; REWARD_VOUCHER đã khóa bằng user_voucher_id.
+                if (voucherId != null
+                        && DISTRIBUTION_PUBLIC_CODE.equalsIgnoreCase(distributionType)
+                        && voucherDAO.hasCustomerUsedVoucher(voucherId, customerId, conn)) {
                     throw new IllegalArgumentException("B\u1ea1n \u0111\u00e3 s\u1eed d\u1ee5ng m\u00e3 gi\u1ea3m gi\u00e1 n\u00e0y.");
                 }
 
@@ -1658,36 +1667,69 @@ public class PaymentDAO {
     }
 
     /**
-     * Ghi nhận lượt dùng voucher cho các booking được xác nhận bởi payment.
-     * Mỗi voucher chỉ ghi một lần cho Customer dù payment xác nhận nhiều booking con trong cùng group.
+     * Ghi nhận voucher cho các booking được payment xác nhận.
+     * PUBLIC_CODE tăng used sau payment; REWARD_VOUCHER không tăng used lần nữa vì đã tăng lúc redeem.
      */
     private void recordVoucherUsage(Connection conn, List<Long> bookingIds, PaymentLock payment) throws SQLException {
-        Map<Integer, Long> voucherBookingIds = new LinkedHashMap<>();
+        Map<String, VoucherBookingApplication> voucherApplications = new LinkedHashMap<>();
         for (Long bookingId : bookingIds) {
-            Integer voucherId = getVoucherIdForBooking(conn, bookingId);
-            if (voucherId != null) {
-                voucherBookingIds.putIfAbsent(voucherId, bookingId);
+            VoucherBookingApplication application = getVoucherApplicationForBooking(conn, bookingId);
+            if (application != null) {
+                String key = application.userVoucherId() == null
+                        ? "PUBLIC:" + application.voucherId()
+                        : "OWNED:" + application.userVoucherId();
+                voucherApplications.putIfAbsent(key, application);
             }
         }
 
-        // Business Rule BR-11: Chỉ sau khi payment SUCCESS mới ghi usage và tăng used của voucher.
-        for (Map.Entry<Integer, Long> entry : voucherBookingIds.entrySet()) {
-            int voucherId = entry.getKey();
-            long bookingId = entry.getValue();
-            if (!voucherDAO.recordUsage(voucherId, payment.customerId(), bookingId, payment.paymentId(), conn)) {
-                throw new SQLException("Khach hang da su dung voucher nay.");
-            }
-            if (!voucherDAO.incrementUsed(voucherId, conn)) {
-                throw new SQLException("Voucher khong con luot su dung de xac nhan thanh toan.");
+        for (VoucherBookingApplication application : voucherApplications.values()) {
+            if (DISTRIBUTION_REWARD_VOUCHER.equalsIgnoreCase(application.distributionType())) {
+                // Voucher đổi điểm đã được reserve ở booking HOLD; payment success chỉ chuyển sang USED.
+                if (application.userVoucherId() == null
+                        || !voucherDAO.markUserVoucherUsed(conn, application.userVoucherId(), payment.customerId())) {
+                    throw new SQLException("Voucher cua khach hang khong hop le de ghi nhan thanh toan.");
+                }
+                VoucherDAO.UsageInsertResult usageResult = voucherDAO.recordUsageIfAbsent(
+                        application.voucherId(),
+                        application.userVoucherId(),
+                        payment.customerId(),
+                        application.bookingId(),
+                        payment.paymentId(),
+                        conn
+                );
+                if (usageResult == VoucherDAO.UsageInsertResult.CONFLICT) {
+                    throw new SQLException("Voucher da duoc ghi nhan cho booking khac.");
+                }
+            } else if (DISTRIBUTION_PUBLIC_CODE.equalsIgnoreCase(application.distributionType())) {
+                // Mã công khai chỉ tăng used khi usage mới được insert thành công.
+                VoucherDAO.UsageInsertResult usageResult = voucherDAO.recordUsageIfAbsent(
+                        application.voucherId(),
+                        null,
+                        payment.customerId(),
+                        application.bookingId(),
+                        payment.paymentId(),
+                        conn
+                );
+                if (usageResult == VoucherDAO.UsageInsertResult.CONFLICT) {
+                    throw new SQLException("Khach hang da su dung ma giam gia nay.");
+                }
+                if (usageResult == VoucherDAO.UsageInsertResult.INSERTED
+                        && !voucherDAO.incrementUsed(application.voucherId(), conn)) {
+                    throw new SQLException("Voucher khong con luot su dung de xac nhan thanh toan.");
+                }
             }
         }
     }
 
-    private Integer getVoucherIdForBooking(Connection conn, Long bookingId) throws SQLException {
+    private VoucherBookingApplication getVoucherApplicationForBooking(Connection conn, Long bookingId) throws SQLException {
         String sql = """
-                SELECT voucher_id
-                FROM bookings
-                WHERE booking_id = ?
+                SELECT b.booking_id,
+                       b.voucher_id,
+                       b.user_voucher_id,
+                       v.distribution_type
+                FROM bookings b
+                JOIN vouchers v ON b.voucher_id = v.id
+                WHERE b.booking_id = ?
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, bookingId);
@@ -1696,7 +1738,16 @@ public class PaymentDAO {
                     return null;
                 }
                 int voucherId = rs.getInt("voucher_id");
-                return rs.wasNull() ? null : voucherId;
+                if (rs.wasNull()) {
+                    return null;
+                }
+                long userVoucherId = rs.getLong("user_voucher_id");
+                return new VoucherBookingApplication(
+                        rs.getLong("booking_id"),
+                        voucherId,
+                        rs.wasNull() ? null : userVoucherId,
+                        rs.getString("distribution_type")
+                );
             }
         }
     }
@@ -1834,6 +1885,14 @@ public class PaymentDAO {
             String bookingStatus,
             Long checkoutStaffId,
             boolean holdValid
+    ) {
+    }
+
+    private record VoucherBookingApplication(
+            long bookingId,
+            int voucherId,
+            Long userVoucherId,
+            String distributionType
     ) {
     }
 

@@ -41,6 +41,16 @@
         if ("DISABLED".equalsIgnoreCase(status)) return "Tạm tắt";
         return esc(status);
     }
+
+    private String distributionText(String distributionType) {
+        if ("REWARD_VOUCHER".equalsIgnoreCase(distributionType)) return "Đổi điểm";
+        return "Mã công khai";
+    }
+
+    private String targetText(String targetUser) {
+        if ("MEMBER".equalsIgnoreCase(targetUser)) return "VIP";
+        return "Tất cả";
+    }
 %>
 <%
     String ctx = request.getContextPath();
@@ -101,8 +111,11 @@
                         <thead class="table-light">
                         <tr>
                             <th class="ps-4">Mã</th>
-                            <th>Tên mã giảm giá</th>
-                            <th>Loại giảm</th>
+                             <th>Tên mã giảm giá</th>
+                             <th>Phát hành</th>
+                             <th>Đối tượng</th>
+                             <th>Điểm đổi</th>
+                             <th>Loại giảm</th>
                             <th>Giá trị giảm</th>
                             <th>Đơn tối thiểu</th>
                             <th>Số lượng</th>
@@ -119,9 +132,12 @@
                                 boolean active = "ACTIVE".equalsIgnoreCase(voucher.getStatus());
                         %>
                         <tr>
-                            <td class="ps-4 fw-bold"><%= esc(voucher.getCode()) %></td>
-                            <td><%= esc(voucher.getName()) %></td>
-                            <td><span class="badge bg-info"><%= discountTypeText(voucher.getDiscountType()) %></span></td>
+                             <td class="ps-4 fw-bold"><%= esc(voucher.getCode()) %></td>
+                             <td><%= esc(voucher.getName()) %></td>
+                             <td><span class="badge bg-primary-subtle text-primary border"><%= distributionText(voucher.getDistributionType()) %></span></td>
+                             <td><%= targetText(voucher.getTargetUser()) %></td>
+                             <td><%= "REWARD_VOUCHER".equalsIgnoreCase(voucher.getDistributionType()) ? voucher.getExchangePoint() : 0 %></td>
+                             <td><span class="badge bg-info"><%= discountTypeText(voucher.getDiscountType()) %></span></td>
                             <td><%= "PERCENT".equalsIgnoreCase(voucher.getDiscountType())
                                     ? esc(voucher.getDiscountValue() + "%")
                                     : money(voucher.getDiscountValue()) %></td>
@@ -136,10 +152,10 @@
                                 <a class="btn btn-sm btn-outline-primary" href="<%= ctx %>/owner/vouchers?action=edit&id=<%= voucher.getId() %>">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <form method="post" action="<%= ctx %>/owner/vouchers" class="d-inline">
-                                    <input type="hidden" name="action" value="toggle-status">
-                                    <input type="hidden" name="id" value="<%= voucher.getId() %>">
-                                    <button type="submit" class="btn btn-sm <%= active ? "btn-outline-secondary" : "btn-outline-success" %>">
+                                 <form method="post" action="<%= ctx %>/owner/vouchers" class="d-inline">
+                                     <input type="hidden" name="action" value="toggle-status">
+                                     <input type="hidden" name="id" value="<%= voucher.getId() %>">
+                                     <button type="submit" class="btn btn-sm <%= active ? "btn-outline-secondary" : "btn-outline-success" %>">
                                         <%= active ? "Tắt" : "Bật" %>
                                     </button>
                                 </form>
@@ -148,7 +164,7 @@
                         <%  }
                         } else { %>
                         <tr>
-                            <td colspan="11" class="text-center text-muted py-4">Chưa có mã giảm giá nào.</td>
+                            <td colspan="14" class="text-center text-muted py-4">Chưa có mã giảm giá nào.</td>
                         </tr>
                         <% } %>
                         </tbody>
