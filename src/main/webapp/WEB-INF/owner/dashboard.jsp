@@ -27,7 +27,7 @@
                         <meta charset="UTF-8">
                         <meta name="viewport" content="width=device-width, initial-scale=1.0">
                         <meta name="description"
-                            content="Owner Dashboard - Theo dõi hiệu quả kinh doanh cơ sở sân bóng">
+                            content="Owner Dashboard - Theo dõi hiệu quả kinh doanh cụm sân sân bóng">
                         <link rel="preconnect" href="https://fonts.googleapis.com">
                         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
                         <link
@@ -54,7 +54,7 @@
                             <div class="page-header">
                                 <div class="page-header-left">
                                     <h1><i class="bi bi-speedometer2 me-2"></i>Owner Dashboard</h1>
-                                    <p>Theo dõi các chỉ số và hiệu quả kinh doanh của cơ sở sân bóng.</p>
+                                    <p>Theo dõi các chỉ số và hiệu quả kinh doanh của cụm sân bóng.</p>
                                 </div>
                             </div>
 

@@ -268,7 +268,7 @@ public class FieldDAO {
 
     /**
      * Tìm kiếm sân theo tên thành phố.
-     * Trả về danh sách TopFieldSummary chứa thông tin sân + cơ sở + loại sân.
+     * Trả về danh sách TopFieldSummary chứa thông tin sân + cụm sân + loại sân.
      */
     public List<TopFieldSummary> searchFieldsByCity(String city) {
         List<TopFieldSummary> list = new ArrayList<>();

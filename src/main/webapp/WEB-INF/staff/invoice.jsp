@@ -108,7 +108,7 @@
             <div class="text-muted small"><%= esc(invoice.getCustomerPhone()) %></div>
           </div>
           <div class="col-md-6 text-md-end">
-            <div class="text-muted small fw-bold mb-1">CƠ SỞ</div>
+            <div class="text-muted small fw-bold mb-1">CỤM SÂN</div>
             <div class="fw-bold"><%= esc(invoice.getComplexName()) %></div>
             <div class="text-muted small"><%= esc(invoice.getComplexAddress()) %></div>
           </div>

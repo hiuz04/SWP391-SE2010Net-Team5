@@ -1,7 +1,7 @@
 <!--
 * Module: Complex Management
 * File: complex-form.jsp
-* Description: Trang nhập liệu để thêm mới hoặc cập nhật thông tin cơ sở.
+* Description: Trang nhập liệu để thêm mới hoặc cập nhật thông tin cụm sân.
 * Version: 2.0
 -->
 <%@ page import="com.swp.model.User" %>
@@ -30,7 +30,7 @@
     <link href="<%= ctx %>/assets/css/owner/complex.css" rel="stylesheet">
     <title>Thêm / Sửa cụm sân | Sport Field Booking</title>
 </head>
-<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Cơ sở"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Cụm sân"></div>
 
 <main class="owner-content">
 
@@ -60,7 +60,7 @@
                         <!-- Image Upload -->
                         <div class="col-12">
                             <label class="form-label">
-                                <i class="bi bi-images me-1 text-success"></i>Ảnh cơ sở
+                                <i class="bi bi-images me-1 text-success"></i>Ảnh cụm sân
                             </label>
                             <input type="file" id="images" name="images"
                                    multiple accept="image/*" hidden>
@@ -75,7 +75,7 @@
                         <!-- Name & Hotline -->
                         <div class="col-md-8">
                             <label for="complexName" class="form-label">
-                                Tên cơ sở <span class="text-danger">*</span>
+                                Tên cụm sân <span class="text-danger">*</span>
                             </label>
                             <input type="text" class="form-control" id="complexName"
                                    placeholder="VD: Sân bóng ABC" required>
@@ -95,7 +95,7 @@
                                 <i class="bi bi-card-text me-1 text-success"></i>Mô tả
                             </label>
                             <textarea class="form-control" rows="3" id="desc"
-                                      placeholder="Mô tả ngắn về cơ sở..."></textarea>
+                                      placeholder="Mô tả ngắn về cụm sân..."></textarea>
                         </div>
                     </div>
 
@@ -164,7 +164,7 @@
                                 <i class="bi bi-clipboard-check me-1 text-info"></i>Nội quy chung
                             </label>
                             <textarea class="form-control" rows="4" id="rule"
-                                      placeholder="Các quy định của cơ sở..."></textarea>
+                                      placeholder="Các quy định của cụm sân..."></textarea>
                         </div>
                     </div>
                 </div>

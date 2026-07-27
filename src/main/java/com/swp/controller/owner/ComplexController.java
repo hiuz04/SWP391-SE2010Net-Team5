@@ -246,7 +246,6 @@ public class ComplexController extends HttpServlet {
         String[] thumbnails = req.getParameterValues("thumbnail");
 
         for (int i = 0; i < imageParts.size(); i++) {
-
             Part part = imageParts.get(i);
 
             byte[] data = part.getInputStream().readAllBytes();

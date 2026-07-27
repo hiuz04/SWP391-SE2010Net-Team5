@@ -405,7 +405,7 @@
                     <tr>
                         <td class="field-name-col">Không có sân</td>
                         <td colspan="<%= timeHeaders.size() %>" class="text-muted">
-                            Không có dữ liệu sân cho cơ sở này.
+                            Không có dữ liệu sân cho cụm sân này.
                         </td>
                     </tr>
                     <%

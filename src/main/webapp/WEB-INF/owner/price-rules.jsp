@@ -51,7 +51,7 @@
 
         <% if (complexes != null && !complexes.isEmpty()) { %>
         <form action="<%= ctx %>/owner/price-rules" method="get" class="d-flex gap-2 align-items-center">
-            <label for="complexId" class="form-label mb-0 fw-semibold text-nowrap text-white">Cơ sở:</label>
+            <label for="complexId" class="form-label mb-0 fw-semibold text-nowrap text-white">Cụm sân:</label>
             <select class="form-select form-select-sm" name="complexId" id="complexId" style="width:240px; border-radius:9px; font-size:.875rem;" onchange="this.form.submit()">
               <% for (FootballComplex fc : complexes) { %>
                 <option value="<%= fc.getComplexId() %>" <%= (selectedComplexId != null && selectedComplexId.equals(fc.getComplexId())) ? "selected" : "" %>>
@@ -147,7 +147,7 @@
               </tr>
               <% } } else { %>
               <tr>
-                <td colspan="7" class="text-center py-4 text-muted">Chưa có bảng giá nào được thiết lập cho cơ sở này.</td>
+                <td colspan="7" class="text-center py-4 text-muted">Chưa có bảng giá nào được thiết lập cho cụm sân này.</td>
               </tr>
               <% } %>
             </tbody>

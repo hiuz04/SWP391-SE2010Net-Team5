@@ -569,7 +569,7 @@ public class FootballComplexDAO {
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Lỗi khi tìm kiếm cơ sở.", e);
+            throw new RuntimeException("Lỗi khi tìm kiếm cụm sân.", e);
         }
 
         return list;

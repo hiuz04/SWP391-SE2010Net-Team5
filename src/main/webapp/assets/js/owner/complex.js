@@ -7,7 +7,7 @@
  * Version: 1.1
  * Created date: 01/06/2026
  * Updated date: 04/06/2026
- * Update Notes: Tách biệt logic quản lý cơ sở từ file chung thành file độc lập để dễ dàng bảo trì.
+ * Update Notes: Tách biệt logic quản lý cụm sân từ file chung thành file độc lập để dễ dàng bảo trì.
  */
 const ctx = window.APP_CTX || "";
 
@@ -97,7 +97,7 @@ function loadData() {
             // Update count
             const countEl = document.getElementById("complex-count");
             if (countEl) {
-                countEl.innerHTML = `<i class="bi bi-buildings"></i> <strong>${data.length}</strong> cơ sở`;
+                countEl.innerHTML = `<i class="bi bi-buildings"></i> <strong>${data.length}</strong> cụm sân`;
             }
 
             const container = document.getElementById("complex-data-container");
@@ -106,7 +106,7 @@ function loadData() {
                 container.innerHTML = `
                     <div class="empty-state">
                         <i class="bi bi-buildings"></i>
-                        <p>Chưa có cơ sở nào. Hãy thêm cơ sở đầu tiên!</p>
+                        <p>Chưa có cụm sân nào. Hãy thêm cụm sân đầu tiên!</p>
                     </div>
                 `;
                 return;
@@ -118,7 +118,7 @@ function loadData() {
                     <thead>
                         <tr>
                             <th style="width:50px">#</th>
-                            <th>Tên cơ sở</th>
+                            <th>Tên cụm sân</th>
                             <th>Địa chỉ</th>
                             <th style="width:90px">Số sân</th>
                             <th style="width:140px">Giờ hoạt động</th>
@@ -237,7 +237,7 @@ function submitForm() {
 
     let errors = [];
 
-    if (!data.complexName) errors.push("Vui lòng nhập Tên cơ sở!");
+    if (!data.complexName) errors.push("Vui lòng nhập Tên cụm sân!");
     if (!data.address) errors.push("Vui lòng nhập Địa chỉ!");
     if (!data.hotline) errors.push("Vui lòng nhập số Hotline!");
     if (!data.openingTime) errors.push("Vui lòng đặt thời gian Mở cửa!");
@@ -307,11 +307,11 @@ function dynamicLabel() {
     const params = new URLSearchParams(window.location.search);
     const id = params.get("id");
     document.getElementById("formTitle").textContent =
-        id ? "Chỉnh sửa thông tin cơ sở" : "Thêm cơ sở mới";
+        id ? "Chỉnh sửa thông tin cụm sân" : "Thêm cụm sân mới";
     document.getElementById("submitBtn").textContent =
         id ? "Lưu thay đổi" : "Thêm mới";
     document.title =
-        id ? "Chỉnh sửa cơ sở | Sport Field Booking" : "Thêm cơ sở mới | Sport Field Booking";
+        id ? "Chỉnh sửa cụm sân | Sport Field Booking" : "Thêm cụm sân mới | Sport Field Booking";
 }
 
 // Chuyển sang trang Complex Form
@@ -326,8 +326,8 @@ function navigateComplexFormWithID(id) {
 
 // Xóa Complex
 function deleteComplex(id) {
-    const confirmed = window.confirm("Xóa dữ liệu sẽ làm mất toàn bộ thông tin liên quan đến cơ sở " +
-                                            "và toàn bộ sân bóng thuộc quyền sỡ hữu của cơ sở. Dữ liệu bị xóa " +
+    const confirmed = window.confirm("Xóa dữ liệu sẽ làm mất toàn bộ thông tin liên quan đến cụm sân " +
+                                            "và toàn bộ sân bóng thuộc quyền sỡ hữu của cụm sân. Dữ liệu bị xóa " +
                                             "sẽ không thể khôi phục. Bạn có muốn tiếp tục?");
 
     if (!confirmed) return;
