@@ -23,20 +23,20 @@ public final class RegisterValidator {
                                            String password, String confirmPassword) {
         ValidationResult result = new ValidationResult();
 
-        // Business Rule BR-26: Họ tên bắt buộc, dài 2-100 ký tự và chỉ theo mẫu tên được hệ thống cho phép.
+        // Business Rule BR-26: Họ tên bắt buộc, dài 2-50 ký tự và chỉ theo mẫu tên được hệ thống cho phép.
         if (fullName == null || fullName.isBlank()) {
             result.addFieldError("fullName", "Họ tên không được để trống.");
-        } else if (fullName.length() < 2 || fullName.length() > 100) {
-            result.addFieldError("fullName", "Họ tên phải từ 2 đến 100 ký tự.");
+        } else if (fullName.length() < 2 || fullName.length() > 50) {
+            result.addFieldError("fullName", "Họ tên phải từ 2 đến 50 ký tự.");
         } else if (!FULL_NAME_PATTERN.matcher(fullName).matches()) {
             result.addFieldError("fullName", "Họ tên chỉ được chứa chữ cái và khoảng trắng.");
         }
 
-        // Business Rule BR-27: Email bắt buộc, tối đa 100 ký tự và phải khớp định dạng email.
-        if (email == null || email.isBlank()) {
+        // Business Rule BR-27: Email bắt buộc, tối đa 50 ký tự và phải khớp định dạng email.
+        if (email == null || email  .isBlank()) {
             result.addFieldError("email", "Email không được để trống.");
-        } else if (email.length() > 100) {
-            result.addFieldError("email", "Email không được vượt quá 100 ký tự.");
+        } else if (email.length() > 50) {
+            result.addFieldError("email", "Email không được vượt quá 50 ký tự.");
         } else if (!EMAIL_PATTERN.matcher(email).matches()) {
             result.addFieldError("email", "Email không đúng định dạng (vd: name@example.com).");
         }

@@ -103,21 +103,21 @@ public class ProfileServlet extends HttpServlet {
 
         Map<String, String> errors = new HashMap<>();
 
-        // Business Rule BR-26: Hồ sơ cũng áp dụng giới hạn họ tên 2-100 ký tự theo mẫu tên hệ thống.
+        // Business Rule BR-26: Hồ sơ cũng áp dụng giới hạn họ tên 2-50 ký tự theo mẫu tên hệ thống.
         // Bước 3: Validate dữ liệu đầu vào (Tên, Email, SDT)
         if (fullName == null || fullName.isBlank()) {
             errors.put("fullName", "Họ tên không được để trống.");
-        } else if (fullName.length() < 2 || fullName.length() > 100) {
-            errors.put("fullName", "Họ tên phải từ 2 đến 100 ký tự.");
+        } else if (fullName.length() < 2 || fullName.length() > 50) {
+            errors.put("fullName", "Họ tên phải từ 2 đến 50 ký tự.");
         } else if (!FULL_NAME_PATTERN.matcher(fullName).matches()) {
             errors.put("fullName", "Họ tên chỉ được chứa chữ cái và khoảng trắng.");
         }
 
-        // Business Rule BR-27: Email hồ sơ phải đúng định dạng, không quá 100 ký tự và không trùng tài khoản khác.
+        // Business Rule BR-27: Email hồ sơ phải đúng định dạng, không quá 50 ký tự và không trùng tài khoản khác.
         if (email == null || email.isBlank()) {
             errors.put("email", "Email không được để trống.");
-        } else if (email.length() > 100) {
-            errors.put("email", "Email không được vượt quá 100 ký tự.");
+        } else if (email.length() > 50) {
+            errors.put("email", "Email không được vượt quá 50 ký tự.");
         } else if (!EMAIL_PATTERN.matcher(email).matches()) {
             errors.put("email", "Email không đúng định dạng.");
         } else if (userDAO.existsByEmailExcludeUser(email, userId)) {

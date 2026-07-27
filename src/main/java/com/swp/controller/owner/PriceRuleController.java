@@ -67,7 +67,7 @@ public class PriceRuleController extends HttpServlet {
         try {
             String complexIdStr = req.getParameter("complexId");
             if (complexIdStr == null || complexIdStr.trim().isEmpty()) {
-                throw new IllegalArgumentException("Thiếu tham số complexId.");
+                throw new IllegalArgumentException("Missing parameter complexId.");
             }
             complexId = Long.parseLong(complexIdStr.trim());
 
@@ -82,8 +82,15 @@ public class PriceRuleController extends HttpServlet {
                     req.getSession().setAttribute("successMsg", "Cập nhật bảng giá thành công!");
                     break;
                 case "delete":
-                    long priceRuleId = Long.parseLong(req.getParameter("priceRuleId"));
-                    priceRuleDAO.delete(priceRuleId, complexId);
+                    String priceRuleIdStr = req.getParameter("priceRuleId");
+                    if (priceRuleIdStr == null || priceRuleIdStr.trim().isEmpty()) {
+                        throw new IllegalArgumentException("Thiếu tham số priceRuleId.");
+                    }
+                    long priceRuleId = Long.parseLong(priceRuleIdStr.trim());
+                    boolean deleted = priceRuleDAO.delete(priceRuleId, complexId);
+                    if (!deleted) {
+                        throw new IllegalArgumentException("Không tìm thấy bảng giá với ID = " + priceRuleId + " hoặc bảng giá không thuộc cơ sở này.");
+                    }
                     req.getSession().setAttribute("successMsg", "Xóa bảng giá thành công!");
                     break;
             }
@@ -145,11 +152,21 @@ public class PriceRuleController extends HttpServlet {
             pr.setEndTime(LocalTime.parse(endTime));
         }
 
+        // Validate: giờ bắt đầu phải nhỏ hơn giờ kết thúc
+        if (pr.getStartTime() != null && pr.getEndTime() != null
+                && !pr.getStartTime().isBefore(pr.getEndTime())) {
+            throw new IllegalArgumentException("Giờ bắt đầu phải nhỏ hơn giờ kết thúc.");
+        }
+
         String priceStr = req.getParameter("price");
         if (priceStr == null || priceStr.trim().isEmpty()) {
             throw new IllegalArgumentException("Vui lòng nhập giá sân.");
         }
-        pr.setPrice(new BigDecimal(priceStr.trim()));
+        BigDecimal price = new BigDecimal(priceStr.trim());
+        if (price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Giá tiền phải lớn hơn 0.");
+        }
+        pr.setPrice(price);
         pr.setRuleType(req.getParameter("ruleType"));
         
         String priorityStr = req.getParameter("priority");

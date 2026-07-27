@@ -557,12 +557,28 @@ public class UserDAO {
             }
         }
 
-        // 1.000đ = 1 điểm
+        // 1. Lấy tỉ lệ tích điểm từ CSDL (Mặc định 0.1% nếu chưa cài đặt)
+        BigDecimal rewardPercentage = new BigDecimal("0.1"); 
+        String getSettingSql = "SELECT setting_value FROM system_settings WHERE setting_key = 'REWARD_POINTS_PERCENTAGE'";
+        try (PreparedStatement ps = conn.prepareStatement(getSettingSql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                String val = rs.getString("setting_value");
+                if (val != null && !val.isEmpty()) {
+                    try {
+                        rewardPercentage = new BigDecimal(val);
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+
+        // 2. Tính điểm dựa vào Tỉ lệ cấu hình (earned = totalAmount * percentage / 100)
         int earnedPoints = totalAmount
-                .divide(new BigDecimal("1000"), RoundingMode.DOWN)
+                .multiply(rewardPercentage)
+                .divide(new BigDecimal("100"), RoundingMode.DOWN)
                 .intValue();
 
-        // VIP được cộng thêm 2.5%
+        // 3. VIP được cộng thêm 2.5% tổng số điểm nhận được
         if (isVip) {
             earnedPoints += (int) Math.floor(earnedPoints * 0.025);
         }

@@ -153,6 +153,8 @@
                             <th class="ps-4">Người dùng</th>
                             <th>Liên hệ</th>
                             <th>Vai trò</th>
+                            <th>Điểm thưởng</th>
+                            <th>Loại thành viên</th>
                             <th>Ngày tham gia</th>
                             <th>Trạng thái</th>
                             <th class="text-end pe-4">Thao tác</th>
@@ -205,6 +207,14 @@
                                 <div class="small mt-1"><i class="bi bi-telephone me-1 text-muted"></i> <%= esc(u.getPhone()) %></div>
                             </td>
                             <td><span class="badge <%= roleBadgeClass %>"><%= esc(roleName) %></span></td>
+                            <td><span class="fw-bold text-success"><%= u.getRewardPoints() %></span> <small class="text-muted">điểm</small></td>
+                            <td>
+                                <% if (u.isVip()) { %>
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i> VIP</span>
+                                <% } else { %>
+                                    <span class="badge bg-secondary">Thường</span>
+                                <% } %>
+                            </td>
                             <td><span class="text-muted small"><%= u.getCreatedAt() != null ? u.getCreatedAt().format(formatter) : "" %></span></td>
                             <td><span class="badge rounded-pill <%= statusBadgeClass %> px-2"><%= statusText %></span></td>
                             <td class="text-end pe-4">
@@ -233,7 +243,7 @@
     } else {
 %>
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">Không có dữ liệu người dùng</td>
+                            <td colspan="8" class="text-center py-4 text-muted">Không có dữ liệu người dùng</td>
                         </tr>
 <%
     }

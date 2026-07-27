@@ -11,7 +11,7 @@
       validate: (v) => {
         // Business Rule BR-26: Họ tên phải có độ dài hợp lệ và khớp mẫu ký tự tên của hệ thống.
         if (!v) return 'Họ tên không được để trống.';
-        if (v.length < 2 || v.length > 100) return 'Họ tên phải từ 2 đến 100 ký tự.';
+        if (v.length < 2 || v.length > 50) return 'Họ tên phải từ 2 đến 50 ký tự.';
         if (!fullNamePattern.test(v)) return 'Họ tên chỉ được chứa chữ cái và khoảng trắng.';
         return '';
       }
@@ -26,9 +26,9 @@
     },
     email: {
       validate: (v) => {
-        // Business Rule BR-27: Email phải có độ dài tối đa 100 ký tự và đúng định dạng trước khi submit.
+        // Business Rule BR-27: Email phải có độ dài tối đa 50 ký tự và đúng định dạng trước khi submit.
         if (!v) return 'Email không được để trống.';
-        if (v.length > 100) return 'Email không được vượt quá 100 ký tự.';
+        if (v.length > 50) return 'Email không được vượt quá 50 ký tự.';
         if (!emailPattern.test(v)) return 'Email không đúng định dạng.';
         return '';
       }
