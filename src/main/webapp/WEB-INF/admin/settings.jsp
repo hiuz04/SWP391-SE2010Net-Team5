@@ -50,6 +50,13 @@
         </div>
         <% } %>
 
+        <% if (request.getAttribute("errorMsg") != null) { %>
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> <%= request.getAttribute("errorMsg") %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <% } %>
+
         <form method="POST" action="<%= ctx %>/admin/settings">
             <div class="row g-4">
                 <!-- Cấu hình Chung -->
@@ -127,6 +134,11 @@
                                         <label class="form-label fw-semibold">Giảm giá VIP (%)</label>
                                         <input type="number" class="form-control" name="VIP_DISCOUNT_PERCENTAGE" value="<%= getVal(settingsMap, "VIP_DISCOUNT_PERCENTAGE") %>" min="0" max="100">
                                         <div class="form-text">Phần trăm giảm giá dành riêng cho hội viên VIP mỗi khi đặt sân.</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Tỉ lệ tích điểm (%)</label>
+                                        <input type="number" class="form-control" name="REWARD_POINTS_PERCENTAGE" value="<%= getVal(settingsMap, "REWARD_POINTS_PERCENTAGE") %>" min="0" max="100">
+                                        <div class="form-text">Phần trăm số tiền thanh toán được quy đổi thành điểm thưởng (points) cộng vào ví người dùng.</div>
                                     </div>
                                 </div>
                             </div>

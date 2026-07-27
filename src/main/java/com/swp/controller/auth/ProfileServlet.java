@@ -28,8 +28,8 @@ public class ProfileServlet extends HttpServlet {
     private final BookingDAO bookingDAO = new BookingDAO();
 
     private static final Pattern EMAIL_PATTERN =
-            Pattern.compile("^[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}$");
-    private static final Pattern PHONE_PATTERN = Pattern.compile("^0\\d{9,10}$");
+            Pattern.compile("^[a-zA-Z0-9.]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    private static final Pattern PHONE_PATTERN = Pattern.compile("^0[35789]\\d{8}$");
     private static final Pattern FULL_NAME_PATTERN =
             Pattern.compile("^[\\p{L}][\\p{L}\\s'.]{1,98}[\\p{L}.]$|^[\\p{L}]{2,}$");
 
@@ -103,36 +103,33 @@ public class ProfileServlet extends HttpServlet {
 
         Map<String, String> errors = new HashMap<>();
 
-        // Business Rule BR-26: SRS yêu cầu họ tên 2-50 ký tự, chỉ chữ cái và khoảng trắng.
-        // Profile hiện tại vẫn kiểm tra 2-100 ký tự và pattern tên rộng hơn.
+        // Business Rule BR-26: Hồ sơ cũng áp dụng giới hạn họ tên 2-50 ký tự theo mẫu tên hệ thống.
         // Bước 3: Validate dữ liệu đầu vào (Tên, Email, SDT)
         if (fullName == null || fullName.isBlank()) {
             errors.put("fullName", "Họ tên không được để trống.");
-        } else if (fullName.length() < 2 || fullName.length() > 100) {
-            errors.put("fullName", "Họ tên phải từ 2 đến 100 ký tự.");
+        } else if (fullName.length() < 2 || fullName.length() > 50) {
+            errors.put("fullName", "Họ tên phải từ 2 đến 50 ký tự.");
         } else if (!FULL_NAME_PATTERN.matcher(fullName).matches()) {
             errors.put("fullName", "Họ tên chỉ được chứa chữ cái và khoảng trắng.");
         }
 
-        // Business Rule BR-27: SRS yêu cầu email đúng định dạng quốc tế và tối đa 50 ký tự.
-        // Profile hiện tại vẫn kiểm tra tối đa 100 ký tự và chống trùng email.
+        // Business Rule BR-27: Email hồ sơ phải đúng định dạng, không quá 50 ký tự và không trùng tài khoản khác.
         if (email == null || email.isBlank()) {
             errors.put("email", "Email không được để trống.");
-        } else if (email.length() > 100) {
-            errors.put("email", "Email không được vượt quá 100 ký tự.");
+        } else if (email.length() > 50) {
+            errors.put("email", "Email không được vượt quá 50 ký tự.");
         } else if (!EMAIL_PATTERN.matcher(email).matches()) {
-            errors.put("email", "Email không đúng định dạng.");
+            errors.put("email", "Email không đúng định dạng (vd: name@example.com).");
         } else if (userDAO.existsByEmailExcludeUser(email, userId)) {
             // Đảm bảo không đổi sang email của người khác
             errors.put("email", "Email này đã được sử dụng bởi tài khoản khác.");
         }
 
-        // Business Rule BR-28: SRS yêu cầu số bắt đầu bằng 0 và dài 10-11 chữ số.
-        // Profile dùng regex 10-11 chữ số và chống trùng số điện thoại.
+        // Business Rule BR-28: Số điện thoại hồ sơ phải khớp regex hệ thống và không trùng tài khoản khác.
         if (phone == null || phone.isBlank()) {
             errors.put("phone", "Số điện thoại không được để trống.");
         } else if (!PHONE_PATTERN.matcher(phone).matches()) {
-            errors.put("phone", "Số điện thoại phải bắt đầu bằng 0 và có 10–11 chữ số.");
+            errors.put("phone", "Số điện thoại không đúng định dạng (10 số, mạng VN).");
         } else if (userDAO.existsByPhoneExcludeUser(phone, userId)) {
             // Đảm bảo không đổi sang SĐT của người khác
             errors.put("phone", "Số điện thoại này đã được sử dụng bởi tài khoản khác.");
@@ -158,9 +155,9 @@ public class ProfileServlet extends HttpServlet {
 
         // Bước 5: Nếu có lỗi validation, trả về trang kèm thông báo lỗi
         if (!errors.isEmpty()) {
-            user.setFullName(fullName);
-            user.setPhone(phone);
-            user.setEmail(email);
+            request.setAttribute("submittedFullName", fullName);
+            request.setAttribute("submittedPhone", phone);
+            request.setAttribute("submittedEmail", email);
 
             int bookingCount = 0;
             try {

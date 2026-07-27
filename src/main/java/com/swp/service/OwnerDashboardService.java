@@ -1,11 +1,13 @@
 package com.swp.service;
 
 import com.swp.dao.OwnerDashboardDAO;
+import com.swp.dao.VoucherDAO;
 import com.swp.model.dto.OwnerDashboardDTO;
 
 public class OwnerDashboardService {
 
     private OwnerDashboardDAO dao = new OwnerDashboardDAO();
+    private VoucherDAO voucherDAO = new VoucherDAO();
 
     public OwnerDashboardDTO getDashboard() {
 
@@ -47,6 +49,12 @@ public class OwnerDashboardService {
 
         dto.setActiveFields(dao.getActiveFields());
         dto.setTotalFields(dao.getTotalFields());
+
+        //------------------
+        // Vouchers
+        //------------------
+
+        dto.setTotalVouchers(voucherDAO.countAllStatusVoucher());
 
         //------------------
         // Chart

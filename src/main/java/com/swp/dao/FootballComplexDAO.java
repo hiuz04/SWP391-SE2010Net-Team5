@@ -34,8 +34,8 @@ public class FootballComplexDAO {
             ps.setString(1, fc.getComplexName());
             ps.setString(2, fc.getDescription());
             ps.setString(3, fc.getAddress());
-            ps.setString(4, fc.getWard());
-            ps.setString(5, "TP Hà Nội");
+            ps.setString(4, "Hòa Lạc");
+            ps.setString(5, "Hà Nội");
 
             if(fc.getLatitude() != null) {
                 ps.setBigDecimal(6, fc.getLatitude());
@@ -93,8 +93,8 @@ public class FootballComplexDAO {
             ps.setString(1, fc.getComplexName());
             ps.setString(2, fc.getDescription());
             ps.setString(3, fc.getAddress());
-            ps.setString(4, fc.getWard());
-            ps.setString(5, "TP Hà Nội");
+            ps.setString(4, "Hòa Lạc");
+            ps.setString(5, "Hà Nội");
 
             if(fc.getLatitude() != null) {
                 ps.setBigDecimal(6, fc.getLatitude());
@@ -389,61 +389,6 @@ public class FootballComplexDAO {
         }
     }
 
-    public List<String> getAllCities() {
-
-        String sql = """
-                    SELECT DISTINCT city
-                    FROM football_complexes
-                    ORDER BY city
-                """;
-
-        List<String> cities = new ArrayList<>();
-
-        try (
-                Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ResultSet rs = ps.executeQuery();
-
-            while (rs.next()) {
-                cities.add(rs.getString("city"));
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return cities;
-    }
-
-    public List<String> getAllWards() {
-
-        String sql = """
-            SELECT DISTINCT ward
-            FROM football_complexes
-            WHERE ward IS NOT NULL AND ward <> ''
-            ORDER BY ward
-        """;
-
-        List<String> wards = new ArrayList<>();
-
-        try (
-                Connection conn = DBContext.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql);
-                ResultSet rs = ps.executeQuery()
-        ) {
-
-            while (rs.next()) {
-                wards.add(rs.getString("ward"));
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return wards;
-    }
-
     public java.math.BigDecimal getMinPriceForComplex(Long complexId) {
         String sql = "SELECT MIN(price) AS min_price FROM price_rules WHERE complex_id = ? AND status = 'ACTIVE'";
         try (Connection conn = DBContext.getConnection();
@@ -569,9 +514,51 @@ public class FootballComplexDAO {
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Lỗi khi tìm kiếm cơ sở.", e);
+            throw new RuntimeException("Lỗi khi tìm kiếm cụm sân.", e);
         }
 
         return list;
+    }
+
+    public boolean existByName(String complexName) {
+        String sql = """
+            SELECT 1
+            FROM football_complexes
+            WHERE complex_name = ?
+        """;
+
+        try (Connection con = DBContext.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, complexName);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public boolean existsByNameExceptId(String complexName, long complexId) {
+        String sql = """
+            SELECT 1
+            FROM football_complexes
+            WHERE LOWER(TRIM(complex_name)) = LOWER(TRIM(?))
+              AND complex_id <> ?
+        """;
+
+        try (Connection con = DBContext.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, complexName);
+            ps.setLong(2, complexId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

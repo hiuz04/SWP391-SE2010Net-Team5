@@ -122,7 +122,7 @@ public class StaffBillingServlet extends HttpServlet {
      */
     private void showCheckout(HttpServletRequest req, HttpServletResponse resp, User user)
             throws ServletException, IOException {
-        Long bookingId = parsePageLong(req, req.getParameter("id"), "Mã đặt sân không được bỏ trống.");
+        Long bookingId = parsePageLong(req, req.getParameter("id"), null);
         if (bookingId != null) {
             try {
                 CheckoutView checkout = billingDAO.getCheckoutView(bookingId);
@@ -137,15 +137,32 @@ public class StaffBillingServlet extends HttpServlet {
                         && !billingDAO.canStaffCheckoutComplex(user.getUserId(), checkout.getComplexId())) {
                     // Business Rule BR-12: Staff chỉ được checkout tại complex có ca đang hoạt động.
                     resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    req.setAttribute("error", "Bạn không có ca làm việc đang hoạt động tại cơ sở này.");
+                    req.setAttribute("error", "Bạn không có ca làm việc đang hoạt động tại cụm sân này.");
                 } else {
-                    // TODO Business Rule BR-16: SRS yêu cầu chỉ checkout khi current time >= booking end time;
-                    // màn hình hiện tại chưa chặn trường hợp checkout sớm.
                     req.setAttribute("checkout", checkout);
                 }
             } catch (SQLException e) {
                 getServletContext().log("Cannot load checkout", e);
                 req.setAttribute("error", "Không thể tải thông tin trả sân.");
+            }
+        } else {
+            // Trường hợp không truyền ID: Lấy danh sách booking đang CHECKED_IN của cơ sở hôm nay
+            try {
+                com.swp.dao.StaffDashboardDAO dashboardDAO = new com.swp.dao.StaffDashboardDAO();
+                java.util.Map<String, Object> shift = dashboardDAO.getCurrentShift(user.getUserId());
+                if (!shift.isEmpty()) {
+                    long complexId = (Long) shift.get("complexId");
+                    java.util.List<java.util.Map<String, Object>> todayBookings = dashboardDAO.getTodayBookings(complexId);
+                    java.util.List<java.util.Map<String, Object>> checkedInBookings = new java.util.ArrayList<>();
+                    for (java.util.Map<String, Object> b : todayBookings) {
+                        if ("CHECKED_IN".equals(b.get("status"))) {
+                            checkedInBookings.add(b);
+                        }
+                    }
+                    req.setAttribute("checkedInBookings", checkedInBookings);
+                }
+            } catch (Exception e) {
+                getServletContext().log("Cannot load checked-in list", e);
             }
         }
         req.getRequestDispatcher("/WEB-INF/staff/checkout.jsp").forward(req, resp);
@@ -261,7 +278,7 @@ public class StaffBillingServlet extends HttpServlet {
 
         document.add(section("Thông tin đặt sân", fonts));
         PdfPTable booking = infoTable();
-        addInfo(booking, "Cơ sở", text(invoice.getComplexName()), fonts);
+        addInfo(booking, "cụm sân", text(invoice.getComplexName()), fonts);
         addInfo(booking, "Địa chỉ", text(invoice.getComplexAddress()), fonts);
         addInfo(booking, "Sân", text(invoice.getFieldName()), fonts);
         addInfo(booking, "Thời gian", dateTime(invoice.getStartTime()) + " - " + dateTime(invoice.getEndTime()), fonts);

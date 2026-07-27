@@ -2,7 +2,7 @@
 <!--
 * Module: Complex Management
 * File: complex-list.html
-* Description: Trang hiển thị danh sách tổng quan của các cơ sở gồm: tên cơ sở, địa chỉ,
+* Description: Trang hiển thị danh sách tổng quan của các cụm sân gồm: tên cụm sân, địa chỉ,
 *              số lượng sân, trạng thái hoạt động và các công cụ quản lý đi kèm.
 *
 * Author: Dương Hải Anh
@@ -33,7 +33,7 @@
   <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
   <link href="<%= ctx %>/assets/css/owner/complex.css" rel="stylesheet">
   <link href="<%= ctx %>/assets/css/owner/dashboard.css" rel="stylesheet">
-  <title>Quản lý cơ sở | Sport Field Booking</title>
+  <title>Quản lý cụm sân | Sport Field Booking</title>
 </head>
 <body>
 <div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Cụm sân"></div>
@@ -43,13 +43,13 @@
         <!-- Page Header -->
         <div class="page-header">
             <div class="page-header-left">
-                <h1><i class="bi bi-buildings me-2 text-success"></i>Quản lý cơ sở</h1>
-                <p>Quản lý danh sách các cơ sở bóng đá của bạn.</p>
+                <h1><i class="bi bi-buildings me-2 text-success"></i>Quản lý cụm sân</h1>
+                <p>Quản lý danh sách các cụm sân bóng đá của bạn.</p>
             </div>
             <button class="btn btn-success px-4 py-2"
                     onclick="navigateComplexForm()">
                 <i class="bi bi-plus-lg me-1"></i>
-                Thêm cơ sở mới
+                Thêm cụm sân mới
             </button>
         </div>
 
@@ -66,7 +66,7 @@
                                 id="keyword"
                                 class="form-control"
                                 type="text"
-                                placeholder="Tìm theo tên cơ sở..."
+                                placeholder="Tìm theo tên cụm sân..."
                                 oninput="scheduleLoadData()">
                     </div>
                 </div>
@@ -88,7 +88,7 @@
                 <div class="col-lg-3 text-end">
                     <span class="stat-pill" id="complex-count">
                         <i class="bi bi-buildings"></i>
-                        <strong>0</strong> cơ sở
+                        <strong>0</strong> cụm sân
                     </span>
                 </div>
 

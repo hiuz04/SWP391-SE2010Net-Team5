@@ -144,6 +144,113 @@
       <!-- Results will be rendered here dynamically -->
     </div>
 
+    <%
+      @SuppressWarnings("unchecked")
+      java.util.List<java.util.Map<String, Object>> pendingCheckinBookings = 
+          (java.util.List<java.util.Map<String, Object>>) request.getAttribute("pendingCheckinBookings");
+    %>
+    <% if (booking == null && pendingCheckinBookings != null && !pendingCheckinBookings.isEmpty()) { 
+         java.time.LocalDateTime nowTime = java.time.LocalDateTime.now();
+         pendingCheckinBookings.sort((a, b) -> {
+           String endA = a.get("endTime") != null ? a.get("endTime").toString() : "";
+           String endB = b.get("endTime") != null ? b.get("endTime").toString() : "";
+           boolean expA = false, expB = false;
+           try {
+             if (!endA.isEmpty()) expA = nowTime.isAfter(java.time.LocalDateTime.parse(endA.replace(" ", "T").substring(0, 19)));
+             if (!endB.isEmpty()) expB = nowTime.isAfter(java.time.LocalDateTime.parse(endB.replace(" ", "T").substring(0, 19)));
+           } catch (Exception ignored) {}
+
+           if (expA != expB) {
+             return expA ? 1 : -1;
+           }
+           String startA = a.get("startTime") != null ? a.get("startTime").toString() : "";
+           String startB = b.get("startTime") != null ? b.get("startTime").toString() : "";
+           return startA.compareTo(startB);
+         });
+    %>
+      <div class="mt-4" id="default-pending-list">
+        <h5 class="fw-bold mb-3"><i class="bi bi-clock-history text-warning me-2"></i>Danh sách Khách chờ Check-in hôm nay</h5>
+        <div class="d-flex flex-column gap-3">
+          <% for (java.util.Map<String, Object> b : pendingCheckinBookings) { 
+               String bStart = b.get("startTime") != null ? b.get("startTime").toString() : "";
+               String bEnd = b.get("endTime") != null ? b.get("endTime").toString() : "";
+               if (bStart.contains(" ")) bStart = bStart.split(" ")[1];
+               if (bStart.length() > 5) bStart = bStart.substring(0, 5);
+               if (bEnd.contains(" ")) bEnd = bEnd.split(" ")[1];
+               if (bEnd.length() > 5) bEnd = bEnd.substring(0, 5);
+
+               java.math.BigDecimal tot = (java.math.BigDecimal) b.get("totalAmount");
+               java.math.BigDecimal dep = (java.math.BigDecimal) b.get("depositAmount");
+               long totVal = tot != null ? tot.longValue() : 0;
+               long depVal = dep != null ? dep.longValue() : 0;
+
+               boolean isExpired = false;
+               boolean isLateNoShow = false;
+               String rawStart = b.get("startTime") != null ? b.get("startTime").toString() : "";
+               String rawEnd = b.get("endTime") != null ? b.get("endTime").toString() : "";
+               if (!rawEnd.isEmpty()) {
+                 try {
+                   String isoEnd = rawEnd.replace(" ", "T");
+                   if (isoEnd.contains(".")) {
+                     isoEnd = isoEnd.substring(0, isoEnd.indexOf("."));
+                   }
+                   java.time.LocalDateTime endDt = java.time.LocalDateTime.parse(isoEnd);
+                   isExpired = java.time.LocalDateTime.now().isAfter(endDt);
+                 } catch (Exception ignored) {}
+               }
+               if (!rawStart.isEmpty()) {
+                 try {
+                   String isoStart = rawStart.replace(" ", "T");
+                   if (isoStart.contains(".")) {
+                     isoStart = isoStart.substring(0, isoStart.indexOf("."));
+                   }
+                   java.time.LocalDateTime startDt = java.time.LocalDateTime.parse(isoStart);
+                   isLateNoShow = java.time.LocalDateTime.now().isAfter(startDt.plusMinutes(30)) && !isExpired;
+                 } catch (Exception ignored) {}
+               }
+          %>
+            <div class="booking-result-card p-4">
+              <div class="row align-items-center g-3">
+                <div class="col-md-8">
+                  <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                    <span class="code-badge"><%= b.get("bookingCode") %></span>
+                    <span class="time-badge"><i class="bi bi-clock me-1"></i><%= bStart %> - <%= bEnd %></span>
+                    <% if (isLateNoShow) { %>
+                      <span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Muộn 30p</span>
+                    <% } else if (isExpired) { %>
+                      <span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Quá giờ</span>
+                    <% } else { %>
+                      <span class="badge bg-warning-subtle text-warning fw-bold text-dark"><i class="bi bi-hourglass-split me-1"></i>Chờ check-in</span>
+                    <% } %>
+                  </div>
+                  <h5 class="fw-bold mb-1 text-dark"><%= b.get("fieldName") %></h5>
+                  <div class="text-muted small">
+                    <span class="me-3"><i class="bi bi-person me-1"></i><strong><%= b.get("customerName") %></strong></span>
+                    <span><i class="bi bi-telephone me-1"></i><%= (b.get("customerPhone") != null && !b.get("customerPhone").toString().trim().isEmpty() && !"null".equalsIgnoreCase(b.get("customerPhone").toString().trim())) ? b.get("customerPhone") : "Không có SĐT" %></span>
+                  </div>
+                  <div class="text-muted small mt-1">
+                    <span class="me-3"><i class="bi bi-cash me-1"></i>Tổng tiền: <strong class="text-success"><%= String.format("%,d ₫", totVal) %></strong></span>
+                    <span><i class="bi bi-wallet2 me-1"></i>Cọc: <strong><%= String.format("%,d ₫", depVal) %></strong></span>
+                  </div>
+                </div>
+                <div class="col-md-4 text-md-end">
+                  <% if (isExpired) { %>
+                    <button type="button" class="btn btn-secondary btn-lg px-4 rounded-3" disabled title="Khách quá giờ nhận sân" style="min-width: 150px;">
+                      <i class="bi bi-exclamation-circle me-1"></i>Quá giờ nhận
+                    </button>
+                  <% } else { %>
+                    <button type="button" class="btn btn-sf-primary btn-lg px-4 rounded-3" style="min-width: 150px;" onclick="openCheckinModalByData(<%= b.get("bookingId") %>, '<%= b.get("bookingCode") %>', '<%= b.get("customerName") %>', '<%= b.get("customerPhone") %>', '<%= b.get("fieldName") %>', '<%= bStart %>', '<%= bEnd %>', <%= totVal %>, <%= depVal %>)">
+                      <i class="bi bi-person-check me-1"></i>Check-in
+                    </button>
+                  <% } %>
+                </div>
+              </div>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+
   </div>
 </main>
 
@@ -192,47 +299,92 @@
   </div>
 </div>
 
-<!-- Bootstrap Check-in Modal -->
+<!-- Check-in Confirmation Modal with Notes & Details (Image 2 Modern Style) -->
 <div class="modal fade" id="checkinModal" tabindex="-1" aria-labelledby="checkinModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content rounded-4 border-0 shadow">
-      <div class="modal-header border-bottom-0 pb-0">
-        <h5 class="modal-title fw-bold" id="checkinModalLabel">Xác nhận nhận sân</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body py-3">
-        <div class="alert alert-success rounded-4 border-0 p-3 mb-3">
-          <div class="row g-2 small">
-            <div class="col-4 text-muted">Mã lịch đặt:</div>
-            <div class="col-8 fw-bold text-dark" id="modal-code">#...</div>
-            <div class="col-4 text-muted">Khách hàng:</div>
-            <div class="col-8 fw-bold text-dark" id="modal-name">...</div>
-            <div class="col-4 text-muted">Số điện thoại:</div>
-            <div class="col-8 fw-bold text-dark" id="modal-phone">...</div>
-            <div class="col-4 text-muted">Sân bóng:</div>
-            <div class="col-8 fw-bold text-dark" id="modal-field">...</div>
-            <div class="col-4 text-muted">Khung giờ:</div>
-            <div class="col-8 fw-bold text-dark" id="modal-time">...</div>
-            <div class="col-4 text-muted">Tổng tiền:</div>
-            <div class="col-8 fw-bold text-dark" id="modal-total">...</div>
-            <div class="col-4 text-muted">Tiền cọc:</div>
-            <div class="col-8 fw-bold text-dark" id="modal-deposit">...</div>
-            <div class="col-4 text-muted">Thanh toán cọc:</div>
-            <div class="col-8 fw-bold text-dark" id="modal-payment">...</div>
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 24px; overflow: hidden; background: #ffffff;">
+      <div class="modal-header border-0 px-4 pt-4 pb-0 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle p-2 text-success d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background-color: #dcfce7;">
+            <i class="bi bi-box-arrow-in-right fs-4" style="color: #16a34a;"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold text-dark fs-5 mb-0" id="checkinModalLabel">Xác nhận nhận sân (Check-in)</h5>
+            <span class="text-muted small" style="font-size: 0.8rem;">Mã đặt sân: <strong class="text-success" id="modal-code">—</strong></span>
           </div>
         </div>
-        <form id="checkin-submit-form">
-          <input type="hidden" id="modal-booking-id">
-          <div class="mb-3">
-            <label for="checkin-note" class="form-label small fw-bold text-muted">Ghi chú check-in</label>
-            <textarea class="form-control rounded-3" id="checkin-note" rows="3" 
-                      placeholder="Ví dụ: Khách thuê thêm 2 áo tập, mượn 1 quả bóng..."></textarea>
-          </div>
-        </form>
+        <button type="button" class="btn-close bg-light rounded-circle p-2" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
       </div>
-      <div class="modal-footer border-top-0 pt-0">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
-        <button type="button" class="btn btn-sf-primary px-4" onclick="submitCheckin()">Xác nhận nhận sân</button>
+
+      <div class="modal-body p-4">
+        <div id="modal-alert" class="d-none"></div>
+        <input type="hidden" id="modal-booking-id">
+        <div class="row g-4">
+          <div class="col-md-7">
+            <div class="mb-3">
+              <h6 class="fw-bold text-muted uppercase small mb-2 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-person-fill me-2" style="color: #16a34a;"></i>THÔNG TIN KHÁCH HÀNG</h6>
+              <div class="p-3 bg-light rounded-4 border border-light-subtle" style="background-color: #f8fafc !important;">
+                <div class="mb-2">
+                  <span class="text-muted small d-block" style="font-size: 0.75rem;">Tên khách hàng</span>
+                  <span class="fw-bold text-dark fs-6" id="modal-name">—</span>
+                </div>
+                <div>
+                  <span class="text-muted small d-block" style="font-size: 0.75rem;">Số điện thoại</span>
+                  <span class="fw-bold text-success fs-6" id="modal-phone">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <h6 class="fw-bold text-muted uppercase small mb-2 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-heptagon-fill me-2" style="color: #16a34a;"></i>SÂN & KHUNG GIỜ</h6>
+              <div class="p-3 bg-light rounded-4 border border-light-subtle" style="background-color: #f8fafc !important;">
+                <div class="row g-2">
+                  <div class="col-6">
+                    <span class="text-muted small d-block" style="font-size: 0.75rem;">Sân bóng</span>
+                    <span class="fw-bold text-dark" id="modal-field">—</span>
+                  </div>
+                  <div class="col-6">
+                    <span class="text-muted small d-block" style="font-size: 0.75rem;">Khung giờ</span>
+                    <span class="fw-bold text-dark" id="modal-time">—</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label for="checkin-note" class="form-label fw-bold text-muted small mb-1"><i class="bi bi-journal-text me-1 text-success"></i>Ghi chú nhận sân (Tùy chọn)</label>
+              <textarea class="form-control rounded-3" id="checkin-note" rows="2" placeholder="Ví dụ: Khách thuê thêm 2 áo tập, mượn 1 quả bóng..."></textarea>
+            </div>
+          </div>
+
+          <div class="col-md-5">
+            <h6 class="fw-bold text-muted uppercase small mb-2 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-receipt-cutoff me-2" style="color: #16a34a;"></i>THANH TOÁN HÔM NAY</h6>
+            <div class="p-4 rounded-4 shadow-sm border border-success-subtle d-flex flex-column justify-content-between" style="background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border-color: #bbf7d0 !important; border: 1px solid; min-height: 230px;">
+              <div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <span class="text-muted small">Giá gốc sân:</span>
+                  <span class="fw-bold text-dark" id="modal-total">—</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <span class="text-muted small">Đã đặt cọc:</span>
+                  <span class="fw-bold text-danger" id="modal-deposit">—</span>
+                </div>
+                <hr class="my-3 border-secondary-subtle">
+              </div>
+              <div class="text-center py-2">
+                <span class="text-muted small d-block mb-1" style="font-size: 0.72rem; letter-spacing: 0.05em; font-weight: 700;">CẦN THANH TOÁN CÒN LẠI</span>
+                <span class="fw-bold text-success display-6" style="font-weight: 800; font-size: 1.8rem;" id="modal-remaining">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex justify-content-end gap-2" id="modal-footer">
+        <button type="button" class="btn btn-light px-4 py-2 rounded-3" data-bs-dismiss="modal">Đóng</button>
+        <div id="modal-actions" class="d-flex gap-2">
+          <button type="button" class="btn btn-success px-4 py-2 rounded-3" id="modal-submit-btn" onclick="submitCheckin()"><i class="bi bi-check-circle me-1"></i>Xác nhận Check-in</button>
+        </div>
       </div>
     </div>
   </div>
@@ -514,7 +666,15 @@
       const res = await fetch(`<%= ctx %>/api/staff/checkin/search?pendingOnly=true`, {
         credentials: 'include'
       });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+            if (!res.ok) {
+        let errMsg = 'HTTP ' + res.status;
+        try {
+          const errData = await res.json();
+          if (errData.error) errMsg = errData.error;
+        } catch(e) {}
+        throw new Error(errMsg);
+      }
+
       
       const data = await res.json();
       loadingState.classList.add('d-none');
@@ -551,7 +711,15 @@
       const res = await fetch(`<%= ctx %>/api/staff/checkin/search?query=${encodeURIComponent(query)}`, {
         credentials: 'include'
       });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+            if (!res.ok) {
+        let errMsg = 'HTTP ' + res.status;
+        try {
+          const errData = await res.json();
+          if (errData.error) errMsg = errData.error;
+        } catch(e) {}
+        throw new Error(errMsg);
+      }
+
       
       const data = await res.json();
       loadingState.classList.add('d-none');
@@ -590,24 +758,49 @@
     return Number(amount).toLocaleString('vi-VN') + ' ₫';
   }
 
-  function paymentStatusText(status) {
-    if (!status) return 'Đã xác nhận qua trạng thái booking';
-    if (status === 'SUCCESS') return 'Đã thanh toán';
-    if (status === 'PENDING') return 'Đang chờ thanh toán';
-    if (status === 'FAILED') return 'Thanh toán thất bại';
-    return status;
+  function parseLocalDate(dtStr) {
+    if (!dtStr) return null;
+    try {
+      let str = String(dtStr).trim();
+      if (str.includes(' - ')) str = str.split(' - ')[0].trim();
+      if (str.includes(' – ')) str = str.split(' – ')[0].trim();
+      if (str.includes('.')) str = str.split('.')[0];
+      str = str.replace('T', ' ');
+      if (!str.includes('-') && !str.includes('/')) {
+        const today = new Date();
+        const parts = str.split(':');
+        if (parts.length >= 2) {
+          return new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(parts[0], 10), parseInt(parts[1], 10), parseInt(parts[2] || 0, 10));
+        }
+        return null;
+      }
+      const dateParts = str.split(' ');
+      if (dateParts.length >= 2) {
+        const ym = dateParts[0].split(dateParts[0].includes('-') ? '-' : '/');
+        const hms = dateParts[1].split(':');
+        return new Date(parseInt(ym[0], 10), parseInt(ym[1], 10) - 1, parseInt(ym[2], 10), parseInt(hms[0], 10), parseInt(hms[1], 10), parseInt(hms[2] || 0, 10));
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 
   function isBookingExpired(endTimeStr) {
     if (!endTimeStr) return false;
-    try {
-      const isoStr = endTimeStr.replace(' ', 'T').substring(0, 19);
-      const endDt = new Date(isoStr);
-      const now = new Date();
-      return endDt < now;
-    } catch (e) {
-      return false;
-    }
+    const endDt = parseLocalDate(endTimeStr);
+    if (!endDt) return false;
+    return new Date() > endDt;
+  }
+
+  function isBookingLateNoShow(startTimeStr, endTimeStr) {
+    if (!startTimeStr) return false;
+    const startDt = parseLocalDate(startTimeStr);
+    if (!startDt) return false;
+    const now = new Date();
+    const lateThreshold = new Date(startDt.getTime() + 30 * 60 * 1000);
+    const endDt = parseLocalDate(endTimeStr);
+    return now > lateThreshold && (!endDt || now <= endDt);
   }
 
   let currentSearchResults = [];
@@ -683,8 +876,16 @@
   function canCheckin(booking, expired) {
     return booking.status === 'CONFIRMED'
       && booking.bookingToday !== false
-      && booking.notExpired !== false
       && !expired;
+  }
+  function isBookingLateNoShow(startTimeStr, endTimeStr) {
+    if (!startTimeStr) return false;
+    const startDt = parseLocalDate(startTimeStr);
+    if (!startDt) return false;
+    const now = new Date();
+    const lateThreshold = new Date(startDt.getTime() + 30 * 60 * 1000);
+    const endDt = parseLocalDate(endTimeStr);
+    return now > lateThreshold && (!endDt || now <= endDt);
   }
 
   function statusBadge(booking, expired) {
@@ -692,6 +893,9 @@
     if (status === 'CONFIRMED') {
       if (booking.bookingToday === false) {
         return '<span class="badge bg-secondary-subtle text-secondary fw-bold"><i class="bi bi-calendar3 me-1"></i>Khác ngày</span>';
+      }
+      if (isBookingLateNoShow(booking.startTime, booking.endTime)) {
+        return '<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Muộn 30p</span>';
       }
       if (booking.notExpired === false || expired) {
         return '<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Quá giờ</span>';
@@ -784,18 +988,111 @@
     }
   }
 
+  function openCheckinModalByData(bId, bCode, custName, phone, fieldName, start, end, total, deposit) {
+    const obj = {
+      bookingId: bId,
+      bookingCode: bCode,
+      customerName: custName,
+      customerPhone: phone,
+      fieldName: fieldName,
+      startTime: start,
+      endTime: end,
+      totalAmount: total,
+      depositAmount: deposit,
+      paymentStatus: 'PAID'
+    };
+    openCheckinModal(obj);
+  }
+
+  async function cancelNoshow(bookingId) {
+    showConfirm('Xác nhận hủy đặt sân này do khách hàng không đến nhận sân sau 30 phút?', async () => {
+      try {
+        const params = new URLSearchParams();
+        params.append('bookingId', bookingId);
+
+        const res = await fetch(`<%= ctx %>/api/staff/checkin/noshow`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params,
+          credentials: 'include'
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          let errMsg = 'Không rõ lỗi';
+          try {
+            const errJson = JSON.parse(errText);
+            errMsg = errJson.error || errMsg;
+          } catch(e) {}
+          throw new Error(errMsg);
+        }
+        
+        const data = await res.json();
+        if (data.success) {
+          if (checkinModalInstance) checkinModalInstance.hide();
+          showToastAfterReload('Đã hủy đặt sân thành công (Khách không đến)', 'success');
+          window.location.href = '<%= ctx %>/staff/schedule';
+        } else {
+          showToast('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'), 'danger');
+        }
+      } catch (err) {
+        showToast('Lỗi khi hủy đặt sân: ' + err.message, 'danger');
+      }
+    });
+  }
+
   function openCheckinModal(booking) {
+    const isExpired = isBookingExpired(booking.endTime) || booking.notExpired === false;
+    const isLateNoShow = isBookingLateNoShow(booking.startTime, booking.endTime);
+
     document.getElementById('modal-booking-id').value = booking.bookingId;
-    document.getElementById('modal-code').textContent = booking.bookingCode;
-    document.getElementById('modal-name').textContent = booking.customerName;
-    document.getElementById('modal-phone').textContent = booking.customerPhone || '—';
-    document.getElementById('modal-field').textContent = booking.fieldName;
+    document.getElementById('modal-code').textContent = booking.bookingCode || '—';
+    document.getElementById('modal-name').textContent = booking.customerName || '—';
+    document.getElementById('modal-phone').textContent = (booking.customerPhone && booking.customerPhone !== 'null' && String(booking.customerPhone).trim() !== '') ? booking.customerPhone : 'Không có SĐT';
+    document.getElementById('modal-field').textContent = booking.fieldName || '—';
     document.getElementById('modal-time').textContent = `${formatTime(booking.startTime)} - ${formatTime(booking.endTime)}`;
-    document.getElementById('modal-total').textContent = formatMoney(booking.totalAmount);
-    document.getElementById('modal-deposit').textContent = formatMoney(booking.depositAmount);
-    document.getElementById('modal-payment').textContent = paymentStatusText(booking.paymentStatus);
+    
+    const tot = booking.totalAmount || 0;
+    const dep = booking.depositAmount || 0;
+    const rem = tot - dep;
+
+    document.getElementById('modal-total').textContent = formatMoney(tot);
+    document.getElementById('modal-deposit').textContent = formatMoney(dep);
+    const remEl = document.getElementById('modal-remaining');
+    if (remEl) remEl.textContent = formatMoney(rem >= 0 ? rem : 0);
     document.getElementById('checkin-note').value = '';
     
+    const alertBox = document.getElementById('modal-alert');
+    const actionsBox = document.getElementById('modal-actions');
+
+    if (isExpired) {
+      if (alertBox) {
+        alertBox.innerHTML = '<div class="d-flex align-items-center gap-2 p-3 mb-3 rounded-4" style="background-color:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:0.85rem;font-weight:600;"><i class="bi bi-exclamation-circle-fill fs-5 text-danger flex-shrink-0"></i><div>Lịch đặt sân này đã quá giờ nhận. Không thể thực hiện Check-in.</div></div>';
+        alertBox.classList.remove('d-none');
+      }
+      if (actionsBox) {
+        actionsBox.innerHTML = '<button class="btn btn-secondary px-4 py-2 rounded-3" disabled><i class="bi bi-exclamation-circle me-1"></i>Quá giờ nhận</button>';
+      }
+    } else if (isLateNoShow) {
+      if (alertBox) {
+        alertBox.innerHTML = '<div class="d-flex align-items-center gap-2 p-3 mb-3 rounded-4" style="background-color:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:0.85rem;font-weight:600;"><i class="bi bi-exclamation-triangle-fill fs-5 text-warning flex-shrink-0"></i><div>Khách hàng đã quá hạn 30 phút chưa đến nhận sân. Bạn có thể Hủy sân (khách không đến) hoặc tiếp tục Check-in.</div></div>';
+        alertBox.classList.remove('d-none');
+      }
+      if (actionsBox) {
+        actionsBox.innerHTML = 
+          '<button type="button" class="btn btn-danger px-4 py-2 rounded-3" onclick="cancelNoshow(' + booking.bookingId + ')"><i class="bi bi-x-circle me-1"></i>Hủy sân (Khách không đến)</button>' +
+          '<button type="button" class="btn btn-success px-4 py-2 rounded-3" id="modal-submit-btn" onclick="submitCheckin()"><i class="bi bi-check-circle me-1"></i>Xác nhận Check-in</button>';
+      }
+    } else {
+      if (alertBox) {
+        alertBox.innerHTML = '';
+        alertBox.classList.add('d-none');
+      }
+      if (actionsBox) {
+        actionsBox.innerHTML = '<button type="button" class="btn btn-success px-4 py-2 rounded-3" id="modal-submit-btn" onclick="submitCheckin()"><i class="bi bi-check-circle me-1"></i>Xác nhận Check-in</button>';
+      }
+    }
+
     if (checkinModalInstance) {
       checkinModalInstance.show();
     }
@@ -817,7 +1114,15 @@
         credentials: 'include'
       });
 
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+            if (!res.ok) {
+        let errMsg = 'HTTP ' + res.status;
+        try {
+          const errData = await res.json();
+          if (errData.error) errMsg = errData.error;
+        } catch(e) {}
+        throw new Error(errMsg);
+      }
+
       const data = await res.json();
 
       if (data.success) {

@@ -27,15 +27,11 @@ public class PriceRuleController extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        // Bước 1: Lấy danh sách cơ sở thể thao mà Owner đang quản lý
+        // Bước 1: Lấy danh sách cụm sân thể thao mà Owner đang quản lý
         List<FootballComplex> complexes = complexService.getListFootballComplex();
         req.setAttribute("complexes", complexes);
         
-        // Bước 2: Nạp danh sách các loại sân (VD: sân 5, sân 7) để hiện trên Form
-        FieldTypeService fieldTypeService = new FieldTypeService();
-        req.setAttribute("fieldTypes", fieldTypeService.getAllType());
-
-        // Bước 3: Xác định cơ sở đang được chọn (lấy từ param hoặc mặc định là cơ sở đầu tiên)
+        // Bước 2: Xác định cụm sân đang được chọn (lấy từ param hoặc mặc định là cụm sân đầu tiên)
         long complexId = -1;
         String complexIdParam = req.getParameter("complexId");
         if (complexIdParam != null && !complexIdParam.trim().isEmpty()) {
@@ -44,14 +40,39 @@ public class PriceRuleController extends HttpServlet {
             complexId = complexes.get(0).getComplexId();
         }
 
-        // Bước 4: Lấy danh sách luật giá và danh sách sân nhỏ thuộc cơ sở đang chọn
+        // Bước 3: Nạp danh sách các loại sân (VD: sân 5, sân 7) để hiện trên Form
+        FieldTypeService fieldTypeService = new FieldTypeService();
+        List<com.swp.model.FieldType> allFieldTypes = fieldTypeService.getAllType();
+
+        // Bước 4: Lấy danh sách luật giá và danh sách sân nhỏ thuộc cụm sân đang chọn
         if (complexId != -1) {
             List<PriceRule> priceRules = priceRuleDAO.getByComplexId(complexId);
             req.setAttribute("priceRules", priceRules);
             req.setAttribute("selectedComplexId", complexId);
             
             FieldService fieldService = new FieldService();
-            req.setAttribute("fields", fieldService.getFieldOfThisComplex(complexId));
+            List<com.swp.model.Field> fields = fieldService.getFieldOfThisComplex(complexId);
+            req.setAttribute("fields", fields);
+
+            // Chỉ hiển thị những Loại Sân (FieldType) mà Cụm Sân hiện tại đang có
+            List<com.swp.model.FieldType> filteredFieldTypes = new java.util.ArrayList<>();
+            if (allFieldTypes != null && fields != null) {
+                for (com.swp.model.FieldType ft : allFieldTypes) {
+                    boolean hasType = false;
+                    for (com.swp.model.Field f : fields) {
+                        if (f.getFieldTypeId() != null && f.getFieldTypeId().equals(ft.getFieldTypeId())) {
+                            hasType = true;
+                            break;
+                        }
+                    }
+                    if (hasType) {
+                        filteredFieldTypes.add(ft);
+                    }
+                }
+            }
+            req.setAttribute("fieldTypes", filteredFieldTypes);
+        } else {
+            req.setAttribute("fieldTypes", allFieldTypes);
         }
 
         // Bước 5: Render trang quản lý bảng giá (JSP)
@@ -67,7 +88,7 @@ public class PriceRuleController extends HttpServlet {
         try {
             String complexIdStr = req.getParameter("complexId");
             if (complexIdStr == null || complexIdStr.trim().isEmpty()) {
-                throw new IllegalArgumentException("Thiếu tham số complexId.");
+                throw new IllegalArgumentException("Missing parameter complexId.");
             }
             complexId = Long.parseLong(complexIdStr.trim());
 
@@ -82,8 +103,15 @@ public class PriceRuleController extends HttpServlet {
                     req.getSession().setAttribute("successMsg", "Cập nhật bảng giá thành công!");
                     break;
                 case "delete":
-                    long priceRuleId = Long.parseLong(req.getParameter("priceRuleId"));
-                    priceRuleDAO.delete(priceRuleId, complexId);
+                    String priceRuleIdStr = req.getParameter("priceRuleId");
+                    if (priceRuleIdStr == null || priceRuleIdStr.trim().isEmpty()) {
+                        throw new IllegalArgumentException("Thiếu tham số priceRuleId.");
+                    }
+                    long priceRuleId = Long.parseLong(priceRuleIdStr.trim());
+                    boolean deleted = priceRuleDAO.delete(priceRuleId, complexId);
+                    if (!deleted) {
+                        throw new IllegalArgumentException("Không tìm thấy bảng giá với ID = " + priceRuleId + " hoặc bảng giá không thuộc cơ sở này.");
+                    }
                     req.getSession().setAttribute("successMsg", "Xóa bảng giá thành công!");
                     break;
             }
@@ -145,11 +173,21 @@ public class PriceRuleController extends HttpServlet {
             pr.setEndTime(LocalTime.parse(endTime));
         }
 
+        // Validate: giờ bắt đầu phải nhỏ hơn giờ kết thúc
+        if (pr.getStartTime() != null && pr.getEndTime() != null
+                && !pr.getStartTime().isBefore(pr.getEndTime())) {
+            throw new IllegalArgumentException("Giờ bắt đầu phải nhỏ hơn giờ kết thúc.");
+        }
+
         String priceStr = req.getParameter("price");
         if (priceStr == null || priceStr.trim().isEmpty()) {
             throw new IllegalArgumentException("Vui lòng nhập giá sân.");
         }
-        pr.setPrice(new BigDecimal(priceStr.trim()));
+        BigDecimal price = new BigDecimal(priceStr.trim());
+        if (price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Giá tiền phải lớn hơn 0.");
+        }
+        pr.setPrice(price);
         pr.setRuleType(req.getParameter("ruleType"));
         
         String priorityStr = req.getParameter("priority");
