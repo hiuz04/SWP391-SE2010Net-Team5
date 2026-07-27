@@ -23,7 +23,8 @@ public final class RegisterValidator {
                                            String password, String confirmPassword) {
         ValidationResult result = new ValidationResult();
 
-        // Business Rule BR-26: Họ tên bắt buộc, dài 2-100 ký tự và chỉ theo mẫu tên được hệ thống cho phép.
+        // Business Rule BR-26: SRS yêu cầu họ tên 2-50 ký tự, chỉ chữ cái và khoảng trắng.
+        // Code hiện tại vẫn kiểm tra 2-100 ký tự và pattern tên rộng hơn.
         if (fullName == null || fullName.isBlank()) {
             result.addFieldError("fullName", "Họ tên không được để trống.");
         } else if (fullName.length() < 2 || fullName.length() > 100) {
@@ -32,7 +33,8 @@ public final class RegisterValidator {
             result.addFieldError("fullName", "Họ tên chỉ được chứa chữ cái và khoảng trắng.");
         }
 
-        // Business Rule BR-27: Email bắt buộc, tối đa 100 ký tự và phải khớp định dạng email.
+        // Business Rule BR-27: SRS yêu cầu email đúng định dạng quốc tế và tối đa 50 ký tự.
+        // Code hiện tại vẫn kiểm tra tối đa 100 ký tự với regex email cơ bản.
         if (email == null || email.isBlank()) {
             result.addFieldError("email", "Email không được để trống.");
         } else if (email.length() > 100) {
@@ -41,7 +43,8 @@ public final class RegisterValidator {
             result.addFieldError("email", "Email không đúng định dạng (vd: name@example.com).");
         }
 
-        // Business Rule BR-28: Số điện thoại bắt buộc và được kiểm tra theo regex số điện thoại hệ thống.
+        // Business Rule BR-28: SRS yêu cầu số bắt đầu bằng 0 và dài 10-11 chữ số.
+        // Code đăng ký hiện tại vẫn dùng regex số di động VN 10 chữ số.
         if (phone == null || phone.isBlank()) {
             result.addFieldError("phone", "Số điện thoại không được để trống.");
         } else if (!PHONE_PATTERN.matcher(phone).matches()) {

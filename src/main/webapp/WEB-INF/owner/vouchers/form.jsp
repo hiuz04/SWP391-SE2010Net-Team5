@@ -71,11 +71,14 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label fw-semibold" for="code">Mã giảm giá <span class="text-danger">*</span></label>
+                            <%-- Business Rule BR-31: UI bắt buộc code và giới hạn 50 ký tự trước khi servlet chuẩn hóa uppercase/unique. --%>
                             <input class="form-control text-uppercase" id="code" name="code" maxlength="50"
                                    value="<%= esc(voucher.getCode()) %>" required>
                         </div>
                         <div class="col-md-8">
                             <label class="form-label fw-semibold" for="name">Tên mã giảm giá <span class="text-danger">*</span></label>
+                            <%-- Business Rule BR-31: UI bắt buộc name trước khi submit form voucher. --%>
+                            <%-- Business Rule BR-32: UI giới hạn tên voucher tối đa 255 ký tự. --%>
                             <input class="form-control" id="name" name="name" maxlength="255"
                                    value="<%= esc(voucher.getName()) %>" required>
                         </div>
@@ -88,16 +91,19 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold" for="discountValue">Giá trị giảm</label>
+                            <%-- Business Rule BR-33: Giá trị giảm phải lớn hơn 0; servlet kiểm tra thêm giới hạn PERCENT <= 100. --%>
                             <input class="form-control" id="discountValue" name="discountValue" type="number"
                                    step="0.01" min="0.01" value="<%= decimalValue(voucher.getDiscountValue()) %>" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold" for="minOrder">Đơn tối thiểu</label>
+                            <%-- Business Rule BR-34: Đơn tối thiểu không được âm. --%>
                             <input class="form-control" id="minOrder" name="minOrder" type="number"
                                    step="0.01" min="0" value="<%= voucher.getMinOrder() == null ? "0" : decimalValue(voucher.getMinOrder()) %>">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold" for="quantity">Số lượng</label>
+                            <%-- Business Rule BR-34/BR-37: Quantity phải dương và khi edit không được thấp hơn lượt đã dùng. --%>
                             <input class="form-control" id="quantity" name="quantity" type="number"
                                    min="1" value="<%= voucher.getQuantity() > 0 ? voucher.getQuantity() : 1 %>" required>
                         </div>
@@ -110,6 +116,7 @@
                         <% } %>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold" for="status">Trạng thái</label>
+                            <%-- Business Rule BR-38: Voucher status chỉ nằm trong ACTIVE hoặc DISABLED. --%>
                             <select class="form-select" id="status" name="status">
                                 <option value="ACTIVE" <%= "ACTIVE".equalsIgnoreCase(status) ? "selected" : "" %>>Đang hoạt động</option>
                                 <option value="DISABLED" <%= "DISABLED".equalsIgnoreCase(status) ? "selected" : "" %>>Tạm tắt</option>
@@ -117,6 +124,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold" for="startDate">Ngày bắt đầu</label>
+                            <%-- Business Rule BR-35: Servlet chặn start date sau end date khi lưu. --%>
                             <input class="form-control" id="startDate" name="startDate" type="datetime-local"
                                    value="<%= dateTimeValue(voucher.getStartDate()) %>" required>
                         </div>

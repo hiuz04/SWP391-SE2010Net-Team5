@@ -139,6 +139,8 @@ public class StaffBillingServlet extends HttpServlet {
                     resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     req.setAttribute("error", "Bạn không có ca làm việc đang hoạt động tại cơ sở này.");
                 } else {
+                    // TODO Business Rule BR-16: SRS yêu cầu chỉ checkout khi current time >= booking end time;
+                    // màn hình hiện tại chưa chặn trường hợp checkout sớm.
                     req.setAttribute("checkout", checkout);
                 }
             } catch (SQLException e) {
