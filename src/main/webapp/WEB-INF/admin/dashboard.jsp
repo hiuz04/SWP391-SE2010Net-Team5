@@ -23,7 +23,7 @@
     NumberFormat currencyFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
 
     BigDecimal todayRevenue = kpis != null && kpis.get("todayRevenue") != null ? new BigDecimal(kpis.get("todayRevenue").toString()) : BigDecimal.ZERO;
-    BigDecimal last7DaysRevenue = kpis != null && kpis.get("last7DaysRevenue") != null ? new BigDecimal(kpis.get("last7DaysRevenue").toString()) : BigDecimal.ZERO;
+    BigDecimal last30DaysRevenue = kpis != null && kpis.get("last30DaysRevenue") != null ? new BigDecimal(kpis.get("last30DaysRevenue").toString()) : BigDecimal.ZERO;
     int todayBookings = kpis != null && kpis.get("todayBookings") != null ? ((Number) kpis.get("todayBookings")).intValue() : 0;
     int newCustomers = kpis != null && kpis.get("newCustomers") != null ? ((Number) kpis.get("newCustomers")).intValue() : 0;
     int pendingBookings = kpis != null && kpis.get("pendingBookings") != null ? ((Number) kpis.get("pendingBookings")).intValue() : 0;
@@ -63,10 +63,10 @@
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card p-4 position-relative h-100" style="border-left-color: #20c997; cursor: pointer;" onclick="location.href='<%= ctx %>/admin/bookings?filter=revenue_7days'">
+                    <div class="stat-card p-4 position-relative h-100" style="border-left-color: #20c997; cursor: pointer;" onclick="location.href='<%= ctx %>/admin/bookings?filter=revenue_30days'">
                         <i class="bi bi-wallet2 stat-icon"></i>
-                        <div class="text-muted fw-semibold">Doanh thu 7 ngày</div>
-                        <h3 class="fw-bold mt-2"><%= currencyFormat.format(last7DaysRevenue) %>₫</h3>
+                        <div class="text-muted fw-semibold">Doanh thu 30 ngày</div>
+                        <h3 class="fw-bold mt-2"><%= currencyFormat.format(last30DaysRevenue) %>₫</h3>
                     </div>
                 </div>
                 <div class="col-md-3">
@@ -91,7 +91,7 @@
                 <div class="col-lg-8">
                     <div class="card soft-card h-100 border-0 shadow-sm">
                         <div class="card-header bg-white border-0 pt-4 pb-0">
-                            <h5 class="fw-bold">Biểu đồ doanh thu 7 ngày qua</h5>
+                            <h5 class="fw-bold">Biểu đồ doanh thu 30 ngày qua</h5>
                         </div>
                         <div class="card-body">
                             <canvas id="revenueChart" height="100"></canvas>
@@ -240,6 +240,7 @@
                     responsive: true,
                     plugins: { legend: { display: false } },
                     scales: {
+                        x: { ticks: { display: false } },
                         y: { beginAtZero: true }
                     }
                 }

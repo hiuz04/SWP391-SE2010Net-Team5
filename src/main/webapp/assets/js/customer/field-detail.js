@@ -66,12 +66,15 @@ function loadData(id) {
                         <tbody>`;
                     
                     data.priceRules.forEach(rule => {
-                        let dayDisplay = rule.dayOfWeek;
-                        if (dayDisplay === 'All') dayDisplay = 'Tất cả các ngày';
-                        else if (dayDisplay === 'Weekday') dayDisplay = 'Thứ 2 - Thứ 6';
-                        else if (dayDisplay === 'Weekend') dayDisplay = 'Thứ 7, Chủ nhật';
-                        else if (dayDisplay === 'SpecificDate') dayDisplay = `Ngày: ${rule.specificDate}`;
-                        
+                        let dayDisplay = 'Tất cả các ngày';
+                        if (rule.specificDate) {
+                            dayDisplay = `Ngày: ${rule.specificDate}`;
+                        } else if (rule.dayOfWeek) {
+                            if (rule.dayOfWeek === 'All') dayDisplay = 'Tất cả các ngày';
+                            else if (rule.dayOfWeek === 'Weekday') dayDisplay = 'Thứ 2 - Thứ 6';
+                            else if (rule.dayOfWeek === 'Weekend') dayDisplay = 'Thứ 7, Chủ nhật';
+                            else dayDisplay = rule.dayOfWeek;
+                        }
                         let timeDisplay = 'Cả ngày';
                         if (rule.startTime && rule.endTime) {
                             timeDisplay = `${rule.startTime} - ${rule.endTime}`;

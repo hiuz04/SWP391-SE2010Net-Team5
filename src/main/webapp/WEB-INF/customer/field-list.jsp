@@ -43,13 +43,20 @@
                     </label>
                     <input type="text" class="form-control" id="complexName" placeholder="Nhập tên sân bóng..." oninput="scheduleLoadData()">
 
-                    <label class="form-label mt-3" for="type">Loại sân</label>
+                    <label class="form-label mt-3" for="fieldType">Loại sân</label>
                     <select class="form-select" id="fieldType" onchange="scheduleLoadData()">
                         <option value="">-- Chọn loại sân --</option>
-                        <option value="1">Sân 5</option>
-                        <option value="2">Sân 7</option>
-                        <option value="3">Sân 11</option>
-                        <option value="4">Sân futsal</option>
+                        <%
+                            @SuppressWarnings("unchecked")
+                            java.util.List<com.swp.model.FieldType> fieldTypes = (java.util.List<com.swp.model.FieldType>) request.getAttribute("fieldTypes");
+                            if (fieldTypes != null) {
+                                for (com.swp.model.FieldType ft : fieldTypes) {
+                        %>
+                        <option value="<%= ft.getFieldTypeId() %>"><%= ft.getTypeName() %></option>
+                        <%
+                                }
+                            }
+                        %>
                     </select>
 
                     <div class="d-grid mt-3">

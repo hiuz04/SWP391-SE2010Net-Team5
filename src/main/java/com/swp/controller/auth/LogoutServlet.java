@@ -24,6 +24,6 @@ public class LogoutServlet extends HttpServlet {
             session.invalidate();
         }
         com.swp.util.RememberMeUtil.clearRememberMeCookie(response);
-        response.sendRedirect(request.getContextPath() + "/");
+        response.sendRedirect(request.getContextPath() + "/login");
     }
 }

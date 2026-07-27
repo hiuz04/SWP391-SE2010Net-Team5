@@ -27,7 +27,7 @@ public class AdminNotificationServlet extends HttpServlet {
         }
 
         User user = (User) session.getAttribute("user");
-        if (!"ADMIN".equals(user.getRoleName())) {
+        if (!"ADMIN".equalsIgnoreCase(user.getRoleName())) {
             resp.sendRedirect(req.getContextPath() + "/index.jsp");
             return;
         }
@@ -47,7 +47,7 @@ public class AdminNotificationServlet extends HttpServlet {
         }
 
         User user = (User) session.getAttribute("user");
-        if (!"ADMIN".equals(user.getRoleName())) {
+        if (!"ADMIN".equalsIgnoreCase(user.getRoleName())) {
             resp.sendRedirect(req.getContextPath() + "/index.jsp");
             return;
         }

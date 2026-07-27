@@ -35,7 +35,7 @@ public class OwnerBookingDetailServlet extends HttpServlet {
         HttpSession session = request.getSession(false);
         User user = (session != null) ? (User) session.getAttribute("user") : null;
         
-        if (user == null || !"OWNER".equals(user.getRoleName())) {
+        if (user == null || !"OWNER".equalsIgnoreCase(user.getRoleName())) {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
