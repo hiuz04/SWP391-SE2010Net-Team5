@@ -154,17 +154,48 @@
          pendingCheckinBookings.sort((a, b) -> {
            String endA = a.get("endTime") != null ? a.get("endTime").toString() : "";
            String endB = b.get("endTime") != null ? b.get("endTime").toString() : "";
+           String startA = a.get("startTime") != null ? a.get("startTime").toString() : "";
+           String startB = b.get("startTime") != null ? b.get("startTime").toString() : "";
+
            boolean expA = false, expB = false;
            try {
              if (!endA.isEmpty()) expA = nowTime.isAfter(java.time.LocalDateTime.parse(endA.replace(" ", "T").substring(0, 19)));
              if (!endB.isEmpty()) expB = nowTime.isAfter(java.time.LocalDateTime.parse(endB.replace(" ", "T").substring(0, 19)));
            } catch (Exception ignored) {}
 
-           if (expA != expB) {
-             return expA ? 1 : -1;
-           }
-           String startA = a.get("startTime") != null ? a.get("startTime").toString() : "";
-           String startB = b.get("startTime") != null ? b.get("startTime").toString() : "";
+           String shiftStartStr = (String) request.getAttribute("shiftStartTime");
+           String shiftEndStr = (String) request.getAttribute("shiftEndTime");
+           boolean inShiftA = true, inShiftB = true;
+
+           try {
+               if (shiftStartStr != null && shiftEndStr != null) {
+                   java.time.LocalTime sT = java.time.LocalTime.parse(shiftStartStr.contains(" ") ? shiftStartStr.split(" ")[1] : shiftStartStr);
+                   java.time.LocalTime eT = java.time.LocalTime.parse(shiftEndStr.contains(" ") ? shiftEndStr.split(" ")[1] : shiftEndStr);
+                   
+                   if (startA != null && !startA.isEmpty()) {
+                       java.time.LocalTime bkT_A = java.time.LocalTime.parse(startA.contains(" ") ? startA.split(" ")[1] : (startA.length() > 5 ? startA.substring(0,5) : startA));
+                       inShiftA = (sT.isBefore(eT) || sT.equals(eT)) ? (!bkT_A.isBefore(sT) && !bkT_A.isAfter(eT)) : (!bkT_A.isBefore(sT) || !bkT_A.isAfter(eT));
+                   }
+                   
+                   if (startB != null && !startB.isEmpty()) {
+                       java.time.LocalTime bkT_B = java.time.LocalTime.parse(startB.contains(" ") ? startB.split(" ")[1] : (startB.length() > 5 ? startB.substring(0,5) : startB));
+                       inShiftB = (sT.isBefore(eT) || sT.equals(eT)) ? (!bkT_B.isBefore(sT) && !bkT_B.isAfter(eT)) : (!bkT_B.isBefore(sT) || !bkT_B.isAfter(eT));
+                   }
+               }
+           } catch (Exception ignored) {}
+
+           // ── Sắp xếp Danh sách Chờ Check-in (Server-side) ───────────
+           // 1. Phân loại theo ca trực và tình trạng quá hạn
+           //    good = Nằm trong ca trực VÀ Chưa quá hạn
+           boolean goodA = inShiftA && !expA;
+           boolean goodB = inShiftB && !expB;
+           if (goodA != goodB) return goodA ? -1 : 1; // Sân hợp lệ đẩy lên đầu
+           
+           // 2. Phân loại theo tình trạng quá hạn (Expired)
+           //    Sân nào đã quá hạn thì luôn đẩy xuống cuối cùng
+           if (expA != expB) return expA ? 1 : -1;
+           
+           // 3. Nếu cùng loại (cùng hợp lệ, cùng quá hạn, cùng khác ca) thì xếp theo giờ sớm lên trước
            return startA.compareTo(startB);
          });
     %>
@@ -208,6 +239,22 @@
                    isLateNoShow = java.time.LocalDateTime.now().isAfter(startDt.plusMinutes(30)) && !isExpired;
                  } catch (Exception ignored) {}
                }
+
+               String shiftStartStr = (String) request.getAttribute("shiftStartTime");
+               String shiftEndStr = (String) request.getAttribute("shiftEndTime");
+               boolean isWithinShift = true;
+               if (shiftStartStr != null && shiftEndStr != null && bStart != null && !bStart.isEmpty()) {
+                   try {
+                       java.time.LocalTime bkT = java.time.LocalTime.parse(bStart.length() > 5 ? bStart.substring(0,5) : bStart);
+                       java.time.LocalTime sT = java.time.LocalTime.parse(shiftStartStr.contains(" ") ? shiftStartStr.split(" ")[1] : shiftStartStr);
+                       java.time.LocalTime eT = java.time.LocalTime.parse(shiftEndStr.contains(" ") ? shiftEndStr.split(" ")[1] : shiftEndStr);
+                       if (sT.isBefore(eT) || sT.equals(eT)) {
+                           isWithinShift = !bkT.isBefore(sT) && !bkT.isAfter(eT);
+                       } else {
+                           isWithinShift = !bkT.isBefore(sT) || !bkT.isAfter(eT);
+                       }
+                   } catch (Exception e) {}
+               }
           %>
             <div class="booking-result-card p-4">
               <div class="row align-items-center g-3">
@@ -234,7 +281,11 @@
                   </div>
                 </div>
                 <div class="col-md-4 text-md-end">
-                  <% if (isExpired) { %>
+                  <% if (!isWithinShift) { %>
+                    <button type="button" class="btn btn-secondary btn-lg px-4 rounded-3" disabled title="Khung giờ này không nằm trong ca trực của bạn" style="min-width: 150px;">
+                      <i class="bi bi-lock-fill me-1"></i>Khóa
+                    </button>
+                  <% } else if (isExpired) { %>
                     <button type="button" class="btn btn-secondary btn-lg px-4 rounded-3" disabled title="Khách quá giờ nhận sân" style="min-width: 150px;">
                       <i class="bi bi-exclamation-circle me-1"></i>Quá giờ nhận
                     </button>
@@ -393,7 +444,7 @@
 <div id="footer" data-root="<%= ctx %>/"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<%= ctx %>/assets/js/app.js"></script>
+<script src="<%= ctx %>/assets/js/app.js?v=<%= System.currentTimeMillis() %>"></script>
 <script>
   let checkinModalInstance = null;
   let qrScannerModalInstance = null;
@@ -402,6 +453,11 @@
   let qrScanTimer = null;
   let qrServerDecodeBusy = false;
   let qrScanLocked = false;
+
+  let globalShiftStart = '<%= request.getAttribute("shiftStartTime") != null ? request.getAttribute("shiftStartTime") : "" %>';
+  let globalShiftEnd = '<%= request.getAttribute("shiftEndTime") != null ? request.getAttribute("shiftEndTime") : "" %>';
+
+  // (Removed duplicate timeOnly and isTimeInShiftStr, now in app.js)
 
   document.addEventListener('DOMContentLoaded', () => {
     const modalEl = document.getElementById('checkinModal');
@@ -753,10 +809,7 @@
     return dateTimeStr.split(' ')[0] || '';
   }
 
-  function formatMoney(amount) {
-    if (amount == null) return '0 ₫';
-    return Number(amount).toLocaleString('vi-VN') + ' ₫';
-  }
+  // (Removed duplicate formatMoney, now using fmtMoney from app.js)
 
   function parseLocalDate(dtStr) {
     if (!dtStr) return null;
@@ -852,8 +905,8 @@
                 <span><i class="bi bi-telephone me-1"></i>${escapeHtml(b.customerPhone || 'Không có SĐT')}</span>
               </div>
               <div class="text-muted small mt-1">
-                <span class="me-3"><i class="bi bi-cash me-1"></i>Tổng tiền: <strong class="text-success">${formatMoney(b.totalAmount)}</strong></span>
-                <span><i class="bi bi-wallet2 me-1"></i>Cọc: <strong>${formatMoney(b.depositAmount)}</strong></span>
+                <span class="me-3"><i class="bi bi-cash me-1"></i>Tổng tiền: <strong class="text-success">${fmtMoney(b.totalAmount)}</strong></span>
+                <span><i class="bi bi-wallet2 me-1"></i>Cọc: <strong>${fmtMoney(b.depositAmount)}</strong></span>
               </div>
             </div>
             <div class="col-md-4 text-md-end">
@@ -864,13 +917,26 @@
     }).join('');
   }
 
+  // ── Sắp xếp Kết quả Tìm kiếm / Quét mã QR ───────────
+  // Quy tắc ưu tiên hiển thị:
+  // 0. Sân hợp lệ để Check-in ngay lập tức
+  // 1. Sân đang chơi, có thể Checkout
+  // 2. Sân bị khóa (Khác ca trực nhưng chưa đến giờ/quá hạn)
+  // 3. Sân chờ thanh toán hoặc đã hoàn thành
+  // 4. Trạng thái khác
+  // 5. Sân quá hạn (Luôn đẩy xuống dưới cùng)
   function bookingActionPriority(booking) {
-    const status = booking.status || '';
     const expired = isBookingExpired(booking.endTime);
-    if (canCheckin(booking, expired)) return 0;
-    if (status === 'CHECKED_IN') return 1;
-    if ((status === 'PENDING_CHECKOUT_PAYMENT' || status === 'COMPLETED') && booking.hasInvoice) return 2;
-    return 3;
+    if (expired) return 5; // 5. Quá hạn đẩy xuống đáy
+
+    const status = booking.status || '';
+    const isOutsideShift = typeof isTimeInShiftStr === 'function' && !isTimeInShiftStr(booking.startTime, globalShiftStart, globalShiftEnd);
+
+    if (canCheckin(booking, expired) && !isOutsideShift) return 0; // 0. Check-in ngay
+    if (status === 'CHECKED_IN' && !isOutsideShift) return 1; // 1. Checkout ngay
+    if (isOutsideShift && (status === 'CONFIRMED' || status === 'CHECKED_IN')) return 2; // 2. Bị khóa (nằm ngoài ca)
+    if ((status === 'PENDING_CHECKOUT_PAYMENT' || status === 'COMPLETED') && booking.hasInvoice) return 3; // 3. Đã xong
+    return 4;
   }
 
   function canCheckin(booking, expired) {
@@ -925,6 +991,16 @@
 
   function resultActionHtml(booking, index, expired) {
     const minWidth = 'min-width: 150px;';
+
+    const isOutsideShift = typeof isTimeInShiftStr === 'function' && !isTimeInShiftStr(booking.startTime, globalShiftStart, globalShiftEnd);
+    if (isOutsideShift) {
+        if (booking.status === 'CONFIRMED' || booking.status === 'CHECKED_IN') {
+             return `<button type="button" class="btn btn-secondary btn-lg px-4 rounded-3" disabled title="Khung giờ này không nằm trong ca trực của bạn" style="${minWidth}">
+                      <i class="bi bi-lock-fill me-1"></i>Khóa
+                    </button>`;
+        }
+    }
+
     if (canCheckin(booking, expired)) {
       return `
         <button class="btn btn-sf-primary btn-lg px-4 rounded-3" onclick="openCheckinModalByIndex(${index})" style="${minWidth}">
@@ -1056,10 +1132,10 @@
     const dep = booking.depositAmount || 0;
     const rem = tot - dep;
 
-    document.getElementById('modal-total').textContent = formatMoney(tot);
-    document.getElementById('modal-deposit').textContent = formatMoney(dep);
+    document.getElementById('modal-total').textContent = fmtMoney(tot);
+    document.getElementById('modal-deposit').textContent = fmtMoney(dep);
     const remEl = document.getElementById('modal-remaining');
-    if (remEl) remEl.textContent = formatMoney(rem >= 0 ? rem : 0);
+    if (remEl) remEl.textContent = fmtMoney(rem >= 0 ? rem : 0);
     document.getElementById('checkin-note').value = '';
     
     const alertBox = document.getElementById('modal-alert');

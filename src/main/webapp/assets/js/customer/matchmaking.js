@@ -1,47 +1,119 @@
-// Community Matchmaking (Bảng tin giao hữu) JavaScript logic
+// ============================================================================
+// Logic xử lý Bảng tin Giao hữu (Tìm đối / Tìm đồng đội) - Community Matchmaking
+// Sử dụng chung cho cả Trang Danh sách (matchmaking-list.jsp) và Trang Chi tiết (matchmaking-details.jsp)
+// ============================================================================
 
-const ctx = window.APP_CTX || "/SWP391-SE2010Net-Team5";
+const ctx = typeof window.APP_CTX !== 'undefined' ? window.APP_CTX : (window.location.pathname.substring(0, window.location.pathname.indexOf('/', 1)) || '');
 
+// Danh sách các trạng thái kỹ năng và badge tương ứng
 const skillLevels = {
     "BEGINNER": { display: "Mới chơi (Beginner)", badge: "badge-skill-beginner" },
     "INTERMEDIATE": { display: "Trung bình (Intermediate)", badge: "badge-skill-intermediate" },
     "ADVANCED": { display: "Khá / Giỏi (Advanced)", badge: "badge-skill-advanced" }
 };
 
-// Lưu danh sách cụm sân
+// Biến lưu trữ danh sách cơ sở/địa điểm
 let complexesList = [];
+// Biến đánh dấu trạng thái hiển thị: false = Tất cả tin, true = Tin của tôi (chỉ áp dụng ở trang Danh sách)
 let myPostsMode = false;
 
-// Tải danh sách địa điểm để nạp vào bộ lọc và Form
+// Cờ xác định xem chúng ta đang ở trang Danh sách hay trang Chi tiết
+const isListPage = document.getElementById("posts-container") !== null;
+const isDetailPage = document.getElementById("editPostForm") !== null || window.location.pathname.includes('matchmaking-details');
+
+// ============================================================================
+// [1] HÀM KHỞI TẠO & LOAD DỮ LIỆU CƠ BẢN
+// ============================================================================
+
+// Tải danh sách địa điểm (cơ sở) từ API để nạp vào bộ lọc và Form tạo mới / chỉnh sửa
 async function loadComplexes() {
     try {
         const response = await fetch(`${ctx}/api/complexes`);
         if (!response.ok) throw new Error("Không tải được danh sách sân.");
         
         const data = await response.json();
-        // data là mảng các đối tượng chứa complex
         complexesList = data.map(item => item.complex);
         
+        // Nạp vào dropdown Bộ lọc (nếu có ở trang Danh sách)
         const filterSelect = document.getElementById("complex");
+        if (filterSelect) {
+            let filterHtml = `<option value="">Tất cả địa điểm</option>`;
+            complexesList.forEach(fac => {
+                filterHtml += `<option value="${fac.complexId}">${fac.complexName} (${fac.city})</option>`;
+            });
+            filterSelect.innerHTML = filterHtml;
+        }
+
+        // Nạp vào dropdown Form Tạo Mới (nếu có ở trang Danh sách)
         const formSelect = document.getElementById("newComplex");
-        
-        let filterHtml = `<option value="">Tất cả địa điểm</option>`;
-        let formHtml = `<option value="">Chọn địa điểm mong muốn</option>`;
-        
-        complexesList.forEach(fac => {
-            const optionStr = `<option value="${fac.complexId}">${fac.complexName} (${fac.city})</option>`;
-            filterHtml += optionStr;
-            formHtml += optionStr;
-        });
-        
-        filterSelect.innerHTML = filterHtml;
         if (formSelect) {
+            let formHtml = `<option value="">Chọn địa điểm mong muốn</option>`;
+            complexesList.forEach(fac => {
+                formHtml += `<option value="${fac.complexId}">${fac.complexName} (${fac.city})</option>`;
+            });
             formSelect.innerHTML = formHtml;
         }
+
+        // Nạp vào dropdown Form Chỉnh Sửa (nếu có ở trang Chi tiết)
+        const editSelect = document.getElementById("editFacility");
+        if (editSelect) {
+            const selectedVal = editSelect.getAttribute("data-selected");
+            let editHtml = `<option value="">Chọn địa điểm mong muốn</option>`;
+            complexesList.forEach(fac => {
+                const isSelected = (fac.complexId == selectedVal) ? 'selected' : '';
+                editHtml += `<option value="${fac.complexId}" ${isSelected}>${fac.complexName} (${fac.city})</option>`;
+            });
+            editSelect.innerHTML = editHtml;
+        }
+
     } catch (error) {
         console.error("Lỗi khi load danh sách cụm sân:", error);
     }
 }
+
+// Cập nhật lại thời gian tối thiểu (min) cho ô chọn thời gian (không cho chọn giờ trong quá khứ)
+function updateMinDateTime(inputId) {
+    const timeInput = document.getElementById(inputId);
+    if (timeInput) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        timeInput.min = `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+}
+
+// Khởi chạy các hàm cơ bản khi tài liệu (DOM) đã sẵn sàng
+document.addEventListener("DOMContentLoaded", async () => {
+    // 1. Tải danh sách địa điểm chung cho cả 2 trang
+    await loadComplexes();
+    
+    // 2. Nếu đang ở trang Danh sách (matchmaking-list.jsp), tự động gọi hàm tìm kiếm ban đầu
+    if (isListPage) {
+        await searchPosts();
+        
+        updateMinDateTime("newExpectedTime");
+        const createPostModal = document.getElementById("createPostModal");
+        if (createPostModal) {
+            createPostModal.addEventListener("show.bs.modal", () => updateMinDateTime("newExpectedTime"));
+        }
+    }
+    
+    // 3. Nếu đang ở trang Chi tiết (matchmaking-details.jsp), set thời gian tối thiểu cho form edit
+    if (isDetailPage) {
+        updateMinDateTime("editExpectedTime");
+        const editPostModal = document.getElementById("editPostModal");
+        if (editPostModal) {
+            editPostModal.addEventListener("show.bs.modal", () => updateMinDateTime("editExpectedTime"));
+        }
+    }
+});
+
+// ============================================================================
+// [2] CÁC CHỨC NĂNG CỦA TRANG DANH SÁCH (LIST)
+// ============================================================================
 
 // Chuyển đổi giữa chế độ xem "Tất cả tin" và "Tin của tôi"
 function togglePostsMode(isMyPosts) {
@@ -57,14 +129,16 @@ function togglePostsMode(isMyPosts) {
             btnMy.classList.remove("active");
         }
     }
-    searchPosts();
+    searchPosts(); // Cập nhật lại danh sách sau khi đổi tab
 }
 
-// Tìm kiếm/Tải danh sách bài viết
+// Gọi API lấy danh sách bài đăng và render HTML
 async function searchPosts() {
-    const postType = document.getElementById("postType").value;
-    const skillLevel = document.getElementById("skillLevel").value;
-    const complexId = document.getElementById("complex").value;
+    if (!isListPage) return; // Bảo vệ an toàn: Nếu không phải trang danh sách thì bỏ qua
+
+    const postType = document.getElementById("postType") ? document.getElementById("postType").value : "ALL";
+    const skillLevel = document.getElementById("skillLevel") ? document.getElementById("skillLevel").value : "ALL";
+    const complexId = document.getElementById("complex") ? document.getElementById("complex").value : "";
     
     const params = new URLSearchParams();
     if (postType && postType !== "ALL") params.append("postType", postType);
@@ -84,7 +158,7 @@ async function searchPosts() {
         
         const posts = await response.json();
         
-        postCountText.textContent = `Tìm thấy ${posts.length} bài đăng phù hợp.`;
+        if (postCountText) postCountText.textContent = `Tìm thấy ${posts.length} bài đăng phù hợp.`;
         
         if (posts.length === 0) {
             postsContainer.innerHTML = `
@@ -112,7 +186,6 @@ async function searchPosts() {
                 typeText = "🔒 Đã đóng";
             }
             
-            // Map skill levels to matching soft badges
             let skillBadgeClass = "bg-light text-secondary border";
             let skillText = "Mới chơi";
             if (post.skillLevel === "INTERMEDIATE") {
@@ -123,17 +196,11 @@ async function searchPosts() {
                 skillText = "Khá / Giỏi";
             }
             
-            // Format expected date/time string
-            let expectedTimeStr = "Chưa xếp lịch";
-            if (post.expectedTime) {
-                expectedTimeStr = post.expectedTime; // Format from server: "yyyy-MM-dd HH:mm" or custom pattern
-            }
-            
+            let expectedTimeStr = post.expectedTime ? post.expectedTime : "Chưa xếp lịch";
             const isMyPost = window.IS_LOGGED_IN && post.authorId == window.CURRENT_USER_ID;
             
             let actionButton = "";
             let myPostBadge = "";
-            
             const detailUrl = `${ctx}/matchmaking-details?id=${post.postId}`;
             
             if (isMyPost) {
@@ -262,36 +329,36 @@ async function searchPosts() {
     }
 }
 
-// Xử lý nộp bài đăng mới
+// Validate số điện thoại (chỉ nhận số, bắt đầu bằng 0, độ dài 10)
+function validatePhoneNumber(phone) {
+    const phonePattern = /^0\d{9}$/;
+    return phonePattern.test(phone.trim());
+}
+
+// Xử lý nộp form tạo bài đăng mới (Tìm đối / đồng đội)
 async function submitNewPost(event) {
     event.preventDefault();
     const form = document.getElementById("createPostForm");
     
-    // Validate expected time
+    // 1. Kiểm tra Validate thời gian dự kiến (không được trong quá khứ)
     const expectedTimeInput = document.getElementById("newExpectedTime");
     if (expectedTimeInput && expectedTimeInput.value) {
         const selectedTime = new Date(expectedTimeInput.value);
-        const currentTime = new Date();
-        if (selectedTime < currentTime) {
+        if (selectedTime < new Date()) {
             showToast("Thời gian dự kiến không được chọn trước ngày và giờ hiện tại.", "danger");
             return;
         }
     }
     
-    // Validate phone number
+    // 2. Kiểm tra Validate số điện thoại liên hệ
     const contactPhoneInput = document.getElementById("newContactPhone");
-    if (contactPhoneInput) {
-        const phone = contactPhoneInput.value.trim();
-        const phonePattern = /^0\d{9}$/;
-        if (!phonePattern.test(phone)) {
-            showToast("Số điện thoại không đúng định dạng (phải bao gồm 10 chữ số và bắt đầu bằng số 0).", "danger");
-            return;
-        }
+    if (contactPhoneInput && !validatePhoneNumber(contactPhoneInput.value)) {
+        showToast("Số điện thoại không đúng định dạng (phải bao gồm 10 chữ số và bắt đầu bằng số 0).", "danger");
+        return;
     }
     
+    // 3. Gửi Request POST dữ liệu lên server
     const formData = new FormData(form);
-    
-    // Gửi AJAX POST dạng urlencoded (hoặc FormData)
     const urlEncoded = new URLSearchParams();
     for (const pair of formData.entries()) {
         urlEncoded.append(pair[0], pair[1]);
@@ -300,9 +367,7 @@ async function submitNewPost(event) {
     try {
         const response = await fetch(`${ctx}/api/matchmaking`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: urlEncoded.toString()
         });
         
@@ -311,72 +376,25 @@ async function submitNewPost(event) {
         
         showToast("Đăng tin tuyển đối/đồng đội thành công!", "success");
         
-        // Đóng modal
-        const modalEl = document.getElementById("createPostModal");
-        const modal = bootstrap.Modal.getInstance(modalEl);
+        // Đóng modal và reset form
+        const modal = bootstrap.Modal.getInstance(document.getElementById("createPostModal"));
         if (modal) modal.hide();
-        
         form.reset();
         
-        // Refresh danh sách
-        searchPosts();
-        
+        // Cập nhật lại danh sách nếu đang ở trang Danh sách
+        if (isListPage) {
+            searchPosts();
+        }
     } catch (error) {
         showToast("Lỗi: " + error.message, "danger");
     }
 }
 
-// Mở modal phản hồi
-async function openRespondModal(postId, postTitle) {
-    if (!window.IS_LOGGED_IN) {
-        window.location.href = `${ctx}/login`;
-        return;
-    }
-    document.getElementById("respondPostId").value = postId;
-    document.getElementById("respondPostTitle").textContent = `Phản hồi cho tin: "${postTitle}"`;
-    
-    // Clear textarea first
-    const messageTextarea = document.getElementById("respondMessage");
-    if (messageTextarea) messageTextarea.value = "";
-    
-    const submitBtn = document.getElementById("respondSubmitBtn");
-    const modalTitle = document.getElementById("respondModalLabel");
-    
-    if (submitBtn) {
-        submitBtn.textContent = "Đang kiểm tra...";
-        submitBtn.disabled = true;
-    }
-    
-    const modalEl = document.getElementById("respondModal");
-    const modal = new bootstrap.Modal(modalEl);
-    modal.show();
-    
-    try {
-        const response = await fetch(`${ctx}/api/matchmaking?action=get_my_response&postId=${postId}`);
-        if (response.ok) {
-            const data = await response.json();
-            if (data.exists) {
-                if (messageTextarea) messageTextarea.value = data.message;
-                if (modalTitle) modalTitle.textContent = "Chỉnh sửa phản hồi / Lời nhắn";
-                if (submitBtn) submitBtn.textContent = "Cập nhật lời nhắn";
-            } else {
-                if (modalTitle) modalTitle.textContent = "Gửi phản hồi / Lời nhắn";
-                if (submitBtn) submitBtn.textContent = "Gửi lời nhắn";
-            }
-        } else {
-            if (modalTitle) modalTitle.textContent = "Gửi phản hồi / Lời nhắn";
-            if (submitBtn) submitBtn.textContent = "Gửi lời nhắn";
-        }
-    } catch (error) {
-        console.error("Lỗi khi tải phản hồi cũ:", error);
-        if (modalTitle) modalTitle.textContent = "Gửi phản hồi / Lời nhắn";
-        if (submitBtn) submitBtn.textContent = "Gửi lời nhắn";
-    } finally {
-        if (submitBtn) submitBtn.disabled = false;
-    }
-}
+// ============================================================================
+// [3] CÁC CHỨC NĂNG DÙNG CHUNG CỦA BÀI VIẾT (GỬI LỜI NHẮN, ĐÓNG, XÓA, XEM LỜI NHẮN)
+// ============================================================================
 
-// Gửi lời nhắn phản hồi
+// Xử lý Gửi lời nhắn / Phản hồi vào một bài đăng cụ thể
 async function submitResponse(event) {
     event.preventDefault();
     const form = document.getElementById("respondForm");
@@ -390,37 +408,82 @@ async function submitResponse(event) {
     try {
         const response = await fetch(`${ctx}/api/matchmaking`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: urlEncoded.toString()
         });
         
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Gửi phản hồi thất bại");
         
-        showToast("Lưu phản hồi thành công! Người đăng tin sẽ nhận được lời nhắn của bạn.", "success");
-        
-        // Đóng modal
-        const modalEl = document.getElementById("respondModal");
-        const modal = bootstrap.Modal.getInstance(modalEl);
+        // Ẩn modal hiện tại
+        const modal = bootstrap.Modal.getInstance(document.getElementById("respondModal"));
         if (modal) modal.hide();
-        
         form.reset();
         
+        // Nếu ở trang danh sách thì hiển thị toast thông thường, nếu ở chi tiết thì hiển thị xong reload lại trang
+        if (isDetailPage) {
+            showToastAfterReload("Gửi phản hồi thành công! Người đăng tin sẽ nhận được lời nhắn của bạn.", "success");
+            window.location.href = window.location.pathname + window.location.search + (window.location.search.includes('?') ? '&' : '?') + '_t=' + new Date().getTime();
+        } else {
+            showToast("Lưu phản hồi thành công! Người đăng tin sẽ nhận được lời nhắn của bạn.", "success");
+        }
     } catch (error) {
         showToast("Lỗi: " + error.message, "danger");
     }
 }
 
-// Mở danh sách các phản hồi gửi đến bài đăng của tôi
+// Mở modal phản hồi (Chỉ áp dụng ở trang danh sách, vì trang chi tiết form đã hiển thị tĩnh)
+async function openRespondModal(postId, postTitle) {
+    if (!window.IS_LOGGED_IN) {
+        window.location.href = `${ctx}/login`;
+        return;
+    }
+    
+    // Nạp dữ liệu vào form
+    document.getElementById("respondPostId").value = postId;
+    document.getElementById("respondPostTitle").textContent = `Phản hồi cho tin: "${postTitle}"`;
+    
+    const messageTextarea = document.getElementById("respondMessage");
+    if (messageTextarea) messageTextarea.value = "";
+    
+    const submitBtn = document.getElementById("respondSubmitBtn");
+    const modalTitle = document.getElementById("respondModalLabel");
+    if (submitBtn) {
+        submitBtn.textContent = "Đang kiểm tra...";
+        submitBtn.disabled = true;
+    }
+    
+    // Hiện modal
+    const modal = new bootstrap.Modal(document.getElementById("respondModal"));
+    modal.show();
+    
+    // Tự động fetch xem người dùng này đã từng gửi lời nhắn cho bài đăng này chưa
+    try {
+        const response = await fetch(`${ctx}/api/matchmaking?action=get_my_response&postId=${postId}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.exists) { // Nếu đã từng phản hồi thì nạp vào TextArea để cập nhật
+                if (messageTextarea) messageTextarea.value = data.message;
+                if (modalTitle) modalTitle.textContent = "Chỉnh sửa phản hồi / Lời nhắn";
+                if (submitBtn) submitBtn.textContent = "Cập nhật lời nhắn";
+            } else {
+                if (modalTitle) modalTitle.textContent = "Gửi phản hồi / Lời nhắn";
+                if (submitBtn) submitBtn.textContent = "Gửi lời nhắn";
+            }
+        }
+    } catch (error) {
+        console.error("Lỗi khi tải phản hồi cũ:", error);
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
+}
+
+// Mở danh sách các phản hồi nhận được (dành riêng cho chủ bài đăng)
 async function openResponsesListModal(postId) {
     const listContainer = document.getElementById("responses-list-container");
     listContainer.innerHTML = `<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Đang tải phản hồi...</p></div>`;
     
-    // Mở modal trước
-    const modalEl = document.getElementById("viewResponsesModal");
-    const modal = new bootstrap.Modal(modalEl);
+    const modal = new bootstrap.Modal(document.getElementById("viewResponsesModal"));
     modal.show();
     
     try {
@@ -430,7 +493,7 @@ async function openResponsesListModal(postId) {
             throw new Error(err.error || "Không tải được danh sách phản hồi");
         }
         
-        const data = await response.json(); // Mảng MatchmakingPostResponseDTO
+        const data = await response.json();
         
         if (data.length === 0) {
             listContainer.innerHTML = `
@@ -442,6 +505,7 @@ async function openResponsesListModal(postId) {
             return;
         }
         
+        // Build giao diện danh sách phản hồi
         listContainer.innerHTML = data.map(item => {
             const resp = item.response;
             const responderName = item.responderName || "Ẩn danh";
@@ -466,26 +530,38 @@ async function openResponsesListModal(postId) {
     }
 }
 
-// Đóng bài viết tìm đối/đồng đội
+// Xử lý: Đóng bài viết tìm đối (Ngừng nhận thêm kèo)
 async function closeMatchmakingPost(postId) {
     showConfirm("Bạn có chắc muốn đóng bài đăng này không? Khi đóng tin, những người dùng khác sẽ không thể gửi phản hồi nữa.", async () => {
         try {
-            const response = await fetch(`${ctx}/api/matchmaking?action=close_post&postId=${postId}`, {
-                method: "POST"
+            const formData = new URLSearchParams();
+            formData.append("action", "close_post");
+            formData.append("postId", postId);
+
+            const response = await fetch(`${ctx}/api/matchmaking`, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: formData.toString()
             });
             
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || "Không đóng được bài viết");
             
-            showToast("Đã đóng bài viết thành công!", "success");
-            searchPosts();
+            // Xử lý UI linh hoạt
+            if (isDetailPage) {
+                showToastAfterReload("Đã đóng bài viết thành công!", "success");
+                window.location.href = `${ctx}/matchmaking-details?id=${postId}&_t=${new Date().getTime()}`;
+            } else {
+                showToast("Đã đóng bài viết thành công!", "success");
+                searchPosts(); // Render lại danh sách
+            }
         } catch (error) {
             showToast("Lỗi: " + error.message, "danger");
         }
     });
 }
 
-// Xóa bài viết tìm đối/đồng đội đã đóng
+// Xử lý: Xóa hoàn toàn bài viết tìm đối đã đóng
 async function deleteMatchmakingPost(postId) {
     showConfirm("Bạn có chắc muốn xóa bài đăng này không? Hành động này sẽ xóa vĩnh viễn tin tuyển đối cùng toàn bộ các phản hồi nhận được.", async () => {
         try {
@@ -495,46 +571,74 @@ async function deleteMatchmakingPost(postId) {
 
             const response = await fetch(`${ctx}/api/matchmaking`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: formData.toString()
             });
 
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || "Không xóa được bài viết");
 
-            showToast("Đã xóa bài viết thành công!", "success");
-            searchPosts();
+            // Xử lý UI linh hoạt
+            if (isDetailPage) {
+                showToastAfterReload("Đã xóa bài viết thành công!", "success");
+                window.location.href = `${ctx}/matchmaking?_t=${new Date().getTime()}`; // Quay lại trang danh sách vì bài đã bị xóa
+            } else {
+                showToast("Đã xóa bài viết thành công!", "success");
+                searchPosts(); // Render lại danh sách
+            }
         } catch (error) {
             showToast("Lỗi: " + error.message, "danger");
         }
     });
 }
 
-// Khởi chạy khi tài liệu sẵn sàng
-document.addEventListener("DOMContentLoaded", async () => {
-    await loadComplexes();
-    await searchPosts();
+// ============================================================================
+// [4] CÁC CHỨC NĂNG DÀNH RIÊNG CHO TRANG CHI TIẾT (DETAILS)
+// ============================================================================
+
+// Xử lý Cập nhật bài đăng hiện có (Ở trang Chi tiết)
+async function submitUpdatePost(event) {
+    event.preventDefault();
+    const form = document.getElementById("editPostForm");
     
-    // Set min date for newExpectedTime
-    const expectedTimeInput = document.getElementById("newExpectedTime");
-    if (expectedTimeInput) {
-        const updateMinDateTime = () => {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            expectedTimeInput.min = `${year}-${month}-${day}T${hours}:${minutes}`;
-        };
-        updateMinDateTime();
-        
-        // Cập nhật lại mỗi khi mở modal để lấy đúng giờ hiện tại
-        const createPostModal = document.getElementById("createPostModal");
-        if (createPostModal) {
-            createPostModal.addEventListener("show.bs.modal", updateMinDateTime);
+    // 1. Validate thời gian
+    const expectedTimeInput = document.getElementById("editExpectedTime");
+    if (expectedTimeInput && expectedTimeInput.value) {
+        const selectedTime = new Date(expectedTimeInput.value);
+        if (selectedTime < new Date()) {
+            showToast("Thời gian dự kiến không được chọn trước ngày và giờ hiện tại.", "danger");
+            return;
         }
     }
-});
+    
+    // 2. Validate số điện thoại
+    const contactPhoneInput = document.getElementById("editContactPhone");
+    if (contactPhoneInput && !validatePhoneNumber(contactPhoneInput.value)) {
+        showToast("Số điện thoại không đúng định dạng (phải bao gồm 10 chữ số và bắt đầu bằng số 0).", "danger");
+        return;
+    }
+    
+    // 3. Gọi API cập nhật
+    const formData = new FormData(form);
+    const urlEncoded = new URLSearchParams();
+    for (const pair of formData.entries()) {
+        urlEncoded.append(pair[0], pair[1]);
+    }
+    
+    try {
+        const response = await fetch(`${ctx}/api/matchmaking`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: urlEncoded.toString()
+        });
+        
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Cập nhật bài đăng thất bại");
+        
+        // Thành công -> Reload trang chi tiết
+        showToastAfterReload("Chỉnh sửa bài đăng tìm đối/đồng đội thành công!", "success");
+        window.location.href = window.location.pathname + window.location.search + (window.location.search.includes('?') ? '&' : '?') + '_t=' + new Date().getTime();
+    } catch (error) {
+        showToast("Lỗi: " + error.message, "danger");
+    }
+}

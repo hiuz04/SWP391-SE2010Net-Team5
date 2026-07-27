@@ -83,6 +83,91 @@
         }, 4500);
     };
 
+    // ====== CÁC HÀM TIỆN ÍCH DÙNG CHUNG CHO STAFF/OWNER ======
+    /**
+     * Trích xuất giờ và phút ("HH:MM") từ một chuỗi ngày giờ
+     */
+    window.timeOnly = function(dtStr) {
+        if (!dtStr) return '';
+        let t = dtStr;
+        if (t.includes('T')) t = t.split('T')[1];
+        else if (t.includes(' ')) t = t.split(' ')[1];
+        if (t.includes('.')) t = t.split('.')[0];
+        return t.substring(0, 5);
+    };
+
+    /**
+     * Kiểm tra xem một mốc thời gian có nằm trong ca trực hay không.
+     * Hàm này tự động xử lý các ca trực đêm vắt ngang qua ngày hôm sau (ví dụ: 22:00 - 05:00)
+     */
+    window.isTimeInShiftStr = function(timeStr, shiftStart, shiftEnd) {
+        if (!timeStr || !shiftStart || !shiftEnd) return true; // Mặc định true nếu thiếu dữ liệu ca trực
+        let t = window.timeOnly(timeStr);
+        let s = window.timeOnly(shiftStart);
+        let e = window.timeOnly(shiftEnd);
+        if (e === '00:00' || e === '24:00') e = '23:59';
+        
+        if (s <= e) {
+            // Ca trực bình thường trong ngày (VD: 07:00 - 15:00)
+            return t >= s && t <= e;
+        } else {
+            // Ca trực đêm vắt qua ngày hôm sau (VD: 22:00 - 05:00)
+            return t >= s || t <= e;
+        }
+    };
+
+    /**
+     * Chuyển đổi an toàn một chuỗi ngày giờ thành đối tượng Date của Javascript
+     */
+    window.parseLocalDate = function(dtStr) {
+        if (!dtStr) return null;
+        try {
+            let t = dtStr.trim();
+            if (t.includes(' ')) t = t.split(' ')[0] + 'T' + t.split(' ')[1];
+            if (t.includes('.')) t = t.split('.')[0];
+            return new Date(t);
+        } catch (e) {
+            return null;
+        }
+    };
+
+    /**
+     * Kiểm tra xem sân đã qua thời gian kết thúc chưa (Đã hết hạn/Quá giờ)
+     */
+    window.isBookingExpired = function(endTimeStr) {
+        if (!endTimeStr) return false;
+        const endDt = window.parseLocalDate(endTimeStr);
+        if (!endDt) return false;
+        return new Date() > endDt;
+    };
+
+    /**
+     * Kiểm tra xem khách hàng có đến trễ quá 30 phút so với giờ bắt đầu không (Late/No-show)
+     */
+    window.isBookingLateNoShow = function(startTimeStr, endTimeStr) {
+        if (!startTimeStr) return false;
+        const startDt = window.parseLocalDate(startTimeStr);
+        if (!startDt) return false;
+        const now = new Date();
+        const lateThreshold = new Date(startDt.getTime() + 30 * 60 * 1000); // Trễ 30 phút
+        if (now > lateThreshold) {
+            if (endTimeStr) {
+                const endDt = window.parseLocalDate(endTimeStr);
+                if (endDt && now > endDt) return false; // Nếu đã quá giờ kết thúc sân thì không tính là trễ nữa
+            }
+            return true;
+        }
+        return false;
+    };
+
+    /**
+     * Định dạng tiền tệ sang chuẩn Việt Nam (VND)
+     */
+    window.fmtMoney = function(amount) {
+        if (amount == null) return '0 ₫';
+        return Number(amount).toLocaleString('vi-VN') + ' ₫';
+    };
+
 
     const pages = {
         customer: [
