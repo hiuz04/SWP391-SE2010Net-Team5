@@ -135,6 +135,7 @@
                             <td><%= dateTime(voucher.getEndDate()) %></td>
                             <td><span class="badge <%= statusBadge(voucher.getStatus()) %>"><%= statusText(voucher.getStatus()) %></span></td>
                             <td class="text-end pe-4">
+                                <%-- Business Rule BR-39: Manage Voucher chỉ cho sửa và bật/tắt, không có thao tác xóa vĩnh viễn. --%>
                                 <a class="btn btn-sm btn-outline-primary" href="<%= ctx %>/owner/vouchers?action=edit&id=<%= voucher.getId() %>">
                                     <i class="bi bi-pencil"></i>
                                 </a>

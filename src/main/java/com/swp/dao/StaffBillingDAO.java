@@ -200,6 +200,8 @@ public class StaffBillingDAO {
                 if (!STATUS_CHECKED_IN.equals(booking.status())) {
                     throw new IllegalArgumentException("Chi lich da nhan san moi duoc checkout.");
                 }
+                // TODO Business Rule BR-16: SRS yêu cầu now >= booking.endTime() trước khi checkout;
+                // transaction hiện tại mới tính overtime, chưa chặn checkout sớm.
 
                 String invoiceCode = generateInvoiceCode(bookingId);
 
@@ -765,7 +767,7 @@ public class StaffBillingDAO {
                 )
                 VALUES (?, ?, ?, ?, 'CHECKOUT', 'SUCCESS', ?, ?, GETDATE(), GETDATE())
                 """;
-        // Business Rule BR-26: Tiền mặt tại quầy được ghi nhận SUCCESS ngay khi Staff xác nhận đã nhận đủ tiền.
+        // Business Rule BR-21: Tiền mặt tại quầy được ghi SUCCESS trước khi invoice/booking hoàn tất checkout.
         try (PreparedStatement ps = conn.prepareStatement(insertPayment)) {
             ps.setLong(1, booking.bookingId());
             ps.setLong(2, booking.customerId());
@@ -872,7 +874,7 @@ public class StaffBillingDAO {
                 VALUES (?, ?, ?, ?, 'CHECKOUT', 'PENDING', ?, GETDATE())
                 """;
         String transactionRef = generateTransactionRef();
-        // Business Rule BR-27: Online request dùng payment PENDING để popup và callback bám vào cùng một bản ghi.
+        // Business Rule BR-20: Online request dùng payment PENDING để Customer thanh toán phần checkout còn lại.
         try (PreparedStatement ps = conn.prepareStatement(insertPayment)) {
             ps.setLong(1, booking.bookingId());
             ps.setLong(2, booking.customerId());

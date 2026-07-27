@@ -103,7 +103,8 @@ public class ProfileServlet extends HttpServlet {
 
         Map<String, String> errors = new HashMap<>();
 
-        // Business Rule BR-26: Hồ sơ cũng áp dụng giới hạn họ tên 2-100 ký tự theo mẫu tên hệ thống.
+        // Business Rule BR-26: SRS yêu cầu họ tên 2-50 ký tự, chỉ chữ cái và khoảng trắng.
+        // Profile hiện tại vẫn kiểm tra 2-100 ký tự và pattern tên rộng hơn.
         // Bước 3: Validate dữ liệu đầu vào (Tên, Email, SDT)
         if (fullName == null || fullName.isBlank()) {
             errors.put("fullName", "Họ tên không được để trống.");
@@ -113,7 +114,8 @@ public class ProfileServlet extends HttpServlet {
             errors.put("fullName", "Họ tên chỉ được chứa chữ cái và khoảng trắng.");
         }
 
-        // Business Rule BR-27: Email hồ sơ phải đúng định dạng, không quá 100 ký tự và không trùng tài khoản khác.
+        // Business Rule BR-27: SRS yêu cầu email đúng định dạng quốc tế và tối đa 50 ký tự.
+        // Profile hiện tại vẫn kiểm tra tối đa 100 ký tự và chống trùng email.
         if (email == null || email.isBlank()) {
             errors.put("email", "Email không được để trống.");
         } else if (email.length() > 100) {
@@ -125,7 +127,8 @@ public class ProfileServlet extends HttpServlet {
             errors.put("email", "Email này đã được sử dụng bởi tài khoản khác.");
         }
 
-        // Business Rule BR-28: Số điện thoại hồ sơ phải khớp regex hệ thống và không trùng tài khoản khác.
+        // Business Rule BR-28: SRS yêu cầu số bắt đầu bằng 0 và dài 10-11 chữ số.
+        // Profile dùng regex 10-11 chữ số và chống trùng số điện thoại.
         if (phone == null || phone.isBlank()) {
             errors.put("phone", "Số điện thoại không được để trống.");
         } else if (!PHONE_PATTERN.matcher(phone).matches()) {
