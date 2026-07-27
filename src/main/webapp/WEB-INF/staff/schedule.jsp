@@ -406,43 +406,65 @@
                                               </div>
                                             </td>
 
-                                            <% for (int m=5 * 60; m <= 22 * 60; m += 30) {
-                                                java.time.LocalTime slotTimeStart = java.time.LocalTime.of(m / 60, m % 60);
-                                                java.time.LocalTime slotTimeEnd = slotTimeStart.plusMinutes(30);
+                                            <% 
+                                                int skipSlots = 0;
+                                                for (int m=5 * 60; m <= 22 * 60 + 30; m += 30) {
+                                                    if (skipSlots > 0) {
+                                                        skipSlots--;
+                                                        continue;
+                                                    }
+                                                    java.time.LocalTime slotTimeStart = java.time.LocalTime.of(m / 60, m % 60);
+                                                    java.time.LocalTime slotTimeEnd = slotTimeStart.plusMinutes(30);
 
-                                                Map<String, Object> foundBooking = null;
-                                                if (bookings != null) {
-                                                for (Map<String, Object> b : bookings) {
-                                                long bFieldId = ((Number) b.get("fieldId")).longValue();
-                                                if (bFieldId != fieldId) continue;
+                                                    Map<String, Object> foundBooking = null;
+                                                    int colspan = 1;
+                                                    String bStartStrOrig = "";
+                                                    String bEndStrOrig = "";
+                                                    
+                                                    if (bookings != null) {
+                                                        for (Map<String, Object> b : bookings) {
+                                                            long bFieldId = ((Number) b.get("fieldId")).longValue();
+                                                            if (bFieldId != fieldId) continue;
 
-                                                String bStartStr = (String) b.get("startTime");
-                                                String bEndStr = (String) b.get("endTime");
+                                                            String bStartStr = (String) b.get("startTime");
+                                                            String bEndStr = (String) b.get("endTime");
 
-                                                String sTimeVal = bStartStr != null ? bStartStr : "00:00:00";
-                                                if (sTimeVal.contains(" ")) sTimeVal = sTimeVal.split(" ")[1];
-                                                if (sTimeVal.contains(".")) sTimeVal = sTimeVal.split("\\.")[0];
-                                                if (sTimeVal.length() > 5) sTimeVal = sTimeVal.substring(0, 5);
-                                                if ("24:00".equals(sTimeVal)) sTimeVal = "23:59";
+                                                            String sTimeVal = bStartStr != null ? bStartStr : "00:00:00";
+                                                            if (sTimeVal.contains(" ")) sTimeVal = sTimeVal.split(" ")[1];
+                                                            if (sTimeVal.contains(".")) sTimeVal = sTimeVal.split("\\.")[0];
+                                                            if (sTimeVal.length() > 5) sTimeVal = sTimeVal.substring(0, 5);
+                                                            if ("24:00".equals(sTimeVal)) sTimeVal = "23:59";
 
-                                                String eTimeVal = bEndStr != null ? bEndStr : "00:00:00";
-                                                if (eTimeVal.contains(" ")) eTimeVal = eTimeVal.split(" ")[1];
-                                                if (eTimeVal.contains(".")) eTimeVal = eTimeVal.split("\\.")[0];
-                                                if (eTimeVal.length() > 5) eTimeVal = eTimeVal.substring(0, 5);
-                                                if ("24:00".equals(eTimeVal)) eTimeVal = "23:59";
+                                                            String eTimeVal = bEndStr != null ? bEndStr : "00:00:00";
+                                                            if (eTimeVal.contains(" ")) eTimeVal = eTimeVal.split(" ")[1];
+                                                            if (eTimeVal.contains(".")) eTimeVal = eTimeVal.split("\\.")[0];
+                                                            if (eTimeVal.length() > 5) eTimeVal = eTimeVal.substring(0, 5);
+                                                            if ("24:00".equals(eTimeVal)) eTimeVal = "23:59";
 
-                                                LocalTime bStart = LocalTime.MIN;
-                                                LocalTime bEnd = LocalTime.MAX;
-                                                try { bStart = LocalTime.parse(sTimeVal); } catch (Exception ign) {}
-                                                try { bEnd = LocalTime.parse(eTimeVal); } catch (Exception ign) {}
+                                                            LocalTime bStart = LocalTime.MIN;
+                                                            LocalTime bEnd = LocalTime.MAX;
+                                                            try { bStart = LocalTime.parse(sTimeVal); } catch (Exception ign) {}
+                                                            try { bEnd = LocalTime.parse(eTimeVal); } catch (Exception ign) {}
 
-                                                // Check overlap with 30-min slot
-                                                if (!bStart.isAfter(slotTimeEnd) && bEnd.isAfter(slotTimeStart)) {
-                                                foundBooking = b;
-                                                break;
-                                                }
-                                                }
-                                                }
+                                                            // Check overlap with 30-min slot
+                                                            if (bStart.isBefore(slotTimeEnd) && bEnd.isAfter(slotTimeStart)) {
+                                                                foundBooking = b;
+                                                                bStartStrOrig = sTimeVal;
+                                                                bEndStrOrig = eTimeVal;
+                                                                
+                                                                int bEndTotalM = bEnd.getHour() * 60 + bEnd.getMinute();
+                                                                if (bEndTotalM == 0) bEndTotalM = 24 * 60;
+                                                                int remainingMins = bEndTotalM - m;
+                                                                int span = (int) Math.ceil(remainingMins / 30.0);
+                                                                int maxCols = ((22 * 60 + 30) - m) / 30 + 1;
+                                                                if (span > maxCols) span = maxCols;
+                                                                if (span < 1) span = 1;
+                                                                colspan = span;
+                                                                skipSlots = span - 1;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
 
                                                 String cellClass = "status-available";
                                                 String cellText = "";
@@ -493,40 +515,41 @@
                                                 }
                                                 }
 
+                                                String timeBadge = "<br><small style='font-size:0.7em;font-weight:500;opacity:0.85;'>(" + bStartStrOrig + " - " + bEndStrOrig + ")</small>";
                                                 if (isCellLate) {
                                                 cellClass = "status-booked-late";
-                                                cellText = slotDisplay;
+                                                cellText = slotDisplay + timeBadge;
                                                 cellTooltip = bCode + " - " + slotDisplay + " (Muộn >30p)";
                                                 } else if (isCellExp) {
                                                 cellClass = "status-booked-late";
-                                                cellText = slotDisplay;
+                                                cellText = slotDisplay + timeBadge;
                                                 cellTooltip = bCode + " - " + slotDisplay + " (Quá giờ)";
                                                 } else {
                                                 cellClass = "status-booked-confirmed";
-                                                cellText = slotDisplay;
+                                                cellText = slotDisplay + timeBadge;
                                                 cellTooltip = bCode + " - " + slotDisplay + " (Chờ check-in)";
                                                 }
                                                 cellOnclick = "showBookingDetails(" + bId + ");";
                                                 } else if ("CHECKED_IN".equals(bStatus)) {
                                                 cellClass = "status-booked-checkedin";
-                                                cellText = slotDisplay;
+                                                cellText = slotDisplay + "<br><small style='font-size:0.7em;font-weight:500;opacity:0.85;'>(" + bStartStrOrig + " - " + bEndStrOrig + ")</small>";
                                                 cellTooltip = bCode + " - " + slotDisplay + " (Đang chơi)";
                                                 cellOnclick = "showBookingDetails(" + bId + ");";
                                                 } else if ("PENDING_CHECKOUT_PAYMENT".equals(bStatus)) {
                                                 cellClass = "status-booked-pending-payment";
-                                                cellText = slotDisplay;
+                                                cellText = slotDisplay + "<br><small style='font-size:0.7em;font-weight:500;opacity:0.85;'>(" + bStartStrOrig + " - " + bEndStrOrig + ")</small>";
                                                 cellTooltip = bCode + " - " + slotDisplay + " (Chờ thanh toán)";
                                                 cellOnclick = "showBookingDetails(" + bId + ");";
                                                 } else if ("COMPLETED".equals(bStatus)) {
                                                 cellClass = "status-booked-completed";
-                                                cellText = slotDisplay;
+                                                cellText = slotDisplay + "<br><small style='font-size:0.7em;font-weight:500;opacity:0.85;'>(" + bStartStrOrig + " - " + bEndStrOrig + ")</small>";
                                                 cellTooltip = bCode + " - " + slotDisplay + " (Hoàn thành)";
                                                 cellOnclick = "showBookingDetails(" + bId + ");";
                                                 }
                                                 }
                                                 %>
                                                 <td class="slot-cell <%= cellClass %>" onclick="<%= cellOnclick %>"
-                                                  title="<%= cellTooltip %>">
+                                                  title="<%= cellTooltip %>" colspan="<%= colspan %>" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle;">
                                                   <%= cellText %>
                                                 </td>
                                                 <% } %>
@@ -598,10 +621,10 @@
                                               </div>
                                               <div class="table-responsive">
                                                 <table class="table table-hover align-middle mb-0"
-                                                  style="font-size:0.9rem;table-layout:fixed;min-width:900px;">
+                                                  style="font-size:0.9rem;table-layout:fixed;min-width:960px;">
                                                   <colgroup>
                                                     <col style="width:110px">
-                                                    <col style="width:130px">
+                                                    <col style="width:190px">
                                                     <col style="width:100px">
                                                     <col style="width:160px">
                                                     <col style="width:130px">
@@ -724,10 +747,10 @@
                                                 </div>
                                                 <div class="table-responsive">
                                                   <table class="table table-hover align-middle mb-0"
-                                                    style="font-size:0.9rem;table-layout:fixed;min-width:900px;opacity:0.88;">
+                                                    style="font-size:0.9rem;table-layout:fixed;min-width:960px;opacity:0.88;">
                                                     <colgroup>
                                                       <col style="width:110px">
-                                                      <col style="width:130px">
+                                                      <col style="width:190px">
                                                       <col style="width:100px">
                                                       <col style="width:160px">
                                                       <col style="width:130px">
@@ -1144,7 +1167,7 @@
 
                       <script
                         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-                      <script src="<%= ctx %>/assets/js/app.js"></script>
+                      <script src="<%= ctx %>/assets/js/app.js?v=<%= System.currentTimeMillis() %>"></script>
                       <script>
                         // ── Global Schedule / Timeline Booking Data ───────────────────────────────
                         const bookingsData = [
@@ -1168,18 +1191,18 @@
     %>
                               {
                                 bookingId: <%= bId %>,
-                              bookingCode: "<%= bCode %>",
-                                startTime: "<%= bStart %>",
-                                  endTime: "<%= bEnd %>",
-                                    status: "<%= bStatus %>",
-                                      fieldName: "<%= fieldName %>",
-                                        customerName: "<%= customerName %>",
-                                          customerPhone: "<%= customerPhone %>",
+                              bookingCode: '<%= bCode %>',
+                                startTime: '<%= bStart %>',
+                                  endTime: '<%= bEnd %>',
+                                    status: '<%= bStatus %>',
+                                      fieldName: '<%= fieldName %>',
+                                        customerName: '<%= customerName %>',
+                                          customerPhone: '<%= customerPhone %>',
                                             totalAmount: <%= total != null ? total : 0 %>,
                                               depositAmount: <%= deposit != null ? deposit : 0 %>,
                                                 hasInvoice: <%= hasInvoice %>,
                                                   checkoutDue: <%= checkoutDue %>,
-                                                    paymentMethodName: "<%= payMethod %>"
+                                                    paymentMethodName: '<%= payMethod %>'
                           }<%= (i < bookings.size() - 1) ? "," : "" %>
     <% 
         }
@@ -1189,6 +1212,10 @@
 
                         const isUpcomingShift = <%= isUpcomingShift %>;
                         const isEndedShift = <%= isEndedShift %>;
+                        const globalShiftStart = '<%= request.getAttribute("shiftStartTime") != null ? request.getAttribute("shiftStartTime") : "" %>';
+                        const globalShiftEnd = '<%= request.getAttribute("shiftEndTime") != null ? request.getAttribute("shiftEndTime") : "" %>';
+
+// (Removed duplicate isTimeInShiftStr, now in app.js)
 
                         let bookingDetailModalInstance = null;
                         let checkinConfirmModalInstance = null;
@@ -1218,13 +1245,7 @@
                           return Number(amount).toLocaleString('vi-VN') + ' ₫';
                         }
 
-                        function timeOnly(dateTimeStr) {
-                          if (!dateTimeStr) return '';
-                          let t = dateTimeStr;
-                          if (t.includes(' ')) t = t.split(' ')[1];
-                          if (t.includes('.')) t = t.split('.')[0];
-                          return t.substring(0, 5);
-                        }
+// (Removed duplicate timeOnly, now in app.js)
 
                         function isBookingExpired(endTimeStr) {
                           if (!endTimeStr) return false;
@@ -1292,6 +1313,8 @@
                           const b = bookingsData.find(x => Number(x.bookingId) === Number(bookingId));
                           if (!b) return;
 
+                          const isOutsideShift = typeof isTimeInShiftStr === 'function' && !isTimeInShiftStr(b.startTime, globalShiftStart, globalShiftEnd);
+
                           if (b.status === 'CONFIRMED') {
                             openCheckinModal(bookingId);
                             return;
@@ -1336,7 +1359,9 @@
                           const footer = document.getElementById('det-modal-footer');
                           let btnHtml = '<button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>';
 
-                          if (isUpcomingShift) {
+                          if (isOutsideShift && (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN')) {
+                            btnHtml += '<button class="btn btn-secondary px-3" disabled title="Khung giờ này không nằm trong ca trực của bạn"><i class="bi bi-lock-fill me-1"></i>Khóa</button>';
+                          } else if (isUpcomingShift) {
                             if (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN') {
                               btnHtml += '<button class="btn btn-secondary px-3" disabled title="Chưa đến giờ làm việc"><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>';
                             }
@@ -1560,13 +1585,27 @@
                           const alertBox = document.getElementById('chk-modal-alert');
                           const actionsBox = document.getElementById('chk-modal-actions');
 
-                          if (isUpcomingShift) {
+                          // ── Kiểm tra Logic Khóa Ca Trực / Quá Hạn ───────────
+                          // 1. Kiểm tra xem sân có nằm ngoài giờ ca trực hiện tại không
+                          const isOutsideShift = typeof isTimeInShiftStr === 'function' && !isTimeInShiftStr(b.startTime, globalShiftStart, globalShiftEnd);
+
+                          if (isOutsideShift) {
+                            // 2. Nếu nằm ngoài ca trực (khác ca) -> Hiển thị cảnh báo và nút Khóa
                             if (alertBox) {
-                              alertBox.innerHTML = '<div class="d-flex align-items-center gap-2 p-3 mb-3 rounded-4" style="background-color:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:0.85rem;font-weight:600;"><i class="bi bi-exclamation-triangle-fill fs-5 text-warning flex-shrink-0"></i><div>Ca trực chưa bắt đầu. Bạn không thể thực hiện check-in.</div></div>';
+                              alertBox.innerHTML = '<div class="d-flex align-items-center gap-2 p-3 mb-3 rounded-4" style="background-color:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:0.85rem;font-weight:600;"><i class="bi bi-exclamation-triangle-fill fs-5 text-warning flex-shrink-0"></i><div>Khung giờ của sân này không nằm trong ca trực của bạn. Không thể thao tác.</div></div>';
                               alertBox.classList.remove('d-none');
                             }
                             if (actionsBox) {
-                              actionsBox.innerHTML = '<button class="btn btn-secondary px-4 py-2 rounded-3" disabled><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>';
+                              actionsBox.innerHTML = '<button type="button" class="btn btn-secondary px-4 py-2 rounded-3" disabled><i class="bi bi-lock-fill me-1"></i>Khóa</button>';
+                            }
+                          } else if (isUpcomingShift) {
+                            // 3. Nếu ca trực chưa bắt đầu (Chờ ca trực)
+                            if (alertBox) {
+                              alertBox.innerHTML = '<div class="d-flex align-items-center gap-2 p-3 mb-3 rounded-4" style="background-color:#e0f2fe;border:1px solid #bae6fd;color:#075985;font-size:0.85rem;font-weight:600;"><i class="bi bi-info-circle-fill fs-5 text-info flex-shrink-0"></i><div>Chưa đến giờ làm việc của ca trực này.</div></div>';
+                              alertBox.classList.remove('d-none');
+                            }
+                            if (actionsBox) {
+                              actionsBox.innerHTML = '<button type="button" class="btn btn-secondary px-4 py-2 rounded-3" disabled><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>';
                             }
                           } else if (isEndedShift) {
                             if (alertBox) {

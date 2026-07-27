@@ -65,6 +65,8 @@ public class StaffPagesServlet extends HttpServlet {
                         resp.sendRedirect(req.getContextPath() + "/staff/dashboard?error=not_in_shift");
                         return;
                     }
+                    req.setAttribute("shiftStartTime", startStr);
+                    req.setAttribute("shiftEndTime", endStr);
                 }
             }
         }
