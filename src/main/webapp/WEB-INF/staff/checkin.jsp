@@ -14,7 +14,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Check-in Khách Hàng | Sport Field Booking</title>
+  <title>Check-in/out | Sport Field Booking</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -64,10 +64,35 @@
       border-radius: 8px;
       padding: 4px 10px;
     }
+    .qr-video-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      background: #020617;
+      aspect-ratio: 4 / 3;
+    }
+    #qr-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .qr-frame {
+      position: absolute;
+      inset: 14%;
+      border: 3px solid rgba(34, 197, 94, .95);
+      border-radius: 18px;
+      box-shadow: 0 0 0 999px rgba(2, 6, 23, .42);
+      pointer-events: none;
+    }
+    .qr-status {
+      min-height: 24px;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Check-in"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Check-in/out"></div>
 
 <main class="py-5">
   <div class="container checkin-container">
@@ -75,8 +100,8 @@
     <!-- Tiêu đề trang -->
     <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
       <div>
-        <h1 class="fw-bold mb-1"><i class="bi bi-person-check-fill text-success me-2"></i>Check-in Khách Nhận Sân</h1>
-        <p class="text-muted mb-0">Tìm kiếm lịch đặt sân và làm thủ tục check-in nhanh chóng.</p>
+        <h1 class="fw-bold mb-1"><i class="bi bi-arrow-left-right text-success me-2"></i>Check-in/out</h1>
+        <p class="text-muted mb-0">Tìm booking để nhận sân, trả sân hoặc xem hóa đơn theo trạng thái hiện tại.</p>
       </div>
       <a href="<%= ctx %>/staff/schedule" class="btn btn-outline-secondary">
         <i class="bi bi-calendar2-week me-1"></i>Lịch sân hôm nay
@@ -85,19 +110,24 @@
 
     <!-- Search Form Card -->
     <div class="search-card mb-4">
-      <h5 class="fw-bold mb-3">Tra cứu thông tin đặt sân</h5>
+      <h5 class="fw-bold mb-3">Tra cứu booking Check-in/out</h5>
       <form id="search-form" onsubmit="handleSearchSubmit(event)">
         <div class="row g-3">
-          <div class="col-md-9">
+          <div class="col-lg-8">
             <div class="input-group input-group-lg">
               <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
               <input type="text" class="form-control form-control-lg border-start-0 ps-0" id="searchQuery" 
-                     placeholder="Nhập mã đặt sân (VD: BK001), tên khách hàng hoặc số điện thoại..." required>
+                     placeholder="Nhập mã booking, tên khách hàng hoặc số điện thoại..." required>
             </div>
           </div>
-          <div class="col-md-3">
+          <div class="col-sm-6 col-lg-2">
             <button type="submit" class="btn btn-sf-primary btn-lg w-100 h-100 rounded-3">
               <i class="bi bi-funnel-fill me-1"></i>Tìm kiếm
+            </button>
+          </div>
+          <div class="col-sm-6 col-lg-2">
+            <button type="button" class="btn btn-outline-success btn-lg w-100 h-100 rounded-3" onclick="openQrScanner()">
+              <i class="bi bi-qr-code-scan me-1"></i>Quét QR
             </button>
           </div>
         </div>
@@ -116,6 +146,51 @@
 
   </div>
 </main>
+
+<!-- QR Scanner Modal -->
+<div class="modal fade" id="qrScannerModal" tabindex="-1" aria-labelledby="qrScannerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-bottom-0 pb-0">
+        <h5 class="modal-title fw-bold" id="qrScannerModalLabel"><i class="bi bi-qr-code-scan text-success me-2"></i>Quét QR Check-in/out</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-4 align-items-stretch">
+          <div class="col-lg-7">
+            <div class="qr-video-wrap">
+              <video id="qr-video" playsinline muted></video>
+              <div class="qr-frame"></div>
+            </div>
+            <div class="qr-status small text-muted mt-3" id="qr-status">Đang chờ camera...</div>
+          </div>
+          <div class="col-lg-5">
+            <div class="h-100 d-flex flex-column justify-content-between gap-3">
+              <div>
+                <label for="qr-manual-code" class="form-label small fw-bold text-muted">Mã booking từ QR</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="bi bi-ticket-perforated"></i></span>
+                  <input type="text" class="form-control" id="qr-manual-code" placeholder="BK...">
+                </div>
+              </div>
+              <div class="d-grid gap-2">
+                <button type="button" class="btn btn-sf-primary" onclick="submitManualQrCode()">
+                  <i class="bi bi-search me-1"></i>Kiểm tra mã
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="restartQrScanner()">
+                  <i class="bi bi-camera-video me-1"></i>Bật lại camera
+                </button>
+              </div>
+              <div class="alert alert-light border rounded-4 small mb-0">
+                Hệ thống chỉ hiển thị booking và hành động phù hợp sau khi server kiểm tra mã QR hợp lệ.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Bootstrap Check-in Modal -->
 <div class="modal fade" id="checkinModal" tabindex="-1" aria-labelledby="checkinModalLabel" aria-hidden="true">
@@ -138,6 +213,12 @@
             <div class="col-8 fw-bold text-dark" id="modal-field">...</div>
             <div class="col-4 text-muted">Khung giờ:</div>
             <div class="col-8 fw-bold text-dark" id="modal-time">...</div>
+            <div class="col-4 text-muted">Tổng tiền:</div>
+            <div class="col-8 fw-bold text-dark" id="modal-total">...</div>
+            <div class="col-4 text-muted">Tiền cọc:</div>
+            <div class="col-8 fw-bold text-dark" id="modal-deposit">...</div>
+            <div class="col-4 text-muted">Thanh toán cọc:</div>
+            <div class="col-8 fw-bold text-dark" id="modal-payment">...</div>
           </div>
         </div>
         <form id="checkin-submit-form">
@@ -163,11 +244,23 @@
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script>
   let checkinModalInstance = null;
+  let qrScannerModalInstance = null;
+  let qrStream = null;
+  let qrDetector = null;
+  let qrScanTimer = null;
+  let qrServerDecodeBusy = false;
+  let qrScanLocked = false;
 
   document.addEventListener('DOMContentLoaded', () => {
     const modalEl = document.getElementById('checkinModal');
     if (modalEl) {
       checkinModalInstance = new bootstrap.Modal(modalEl);
+    }
+
+    const qrModalEl = document.getElementById('qrScannerModal');
+    if (qrModalEl) {
+      qrScannerModalInstance = new bootstrap.Modal(qrModalEl);
+      qrModalEl.addEventListener('hidden.bs.modal', stopQrScanner);
     }
     
     // Check if initial booking is pre-selected from URL parameter
@@ -180,7 +273,14 @@
         fieldName: "<%= booking.get("fieldName") %>",
         startTime: "<%= booking.get("startTime") %>",
         endTime: "<%= booking.get("endTime") %>",
-        totalAmount: <%= booking.get("totalAmount") %>
+        status: "<%= booking.get("status") != null ? booking.get("status") : "" %>",
+        totalAmount: <%= booking.get("totalAmount") %>,
+        depositAmount: <%= booking.get("depositAmount") != null ? booking.get("depositAmount") : 0 %>,
+        paymentStatus: "<%= booking.get("paymentStatus") != null ? booking.get("paymentStatus") : "" %>",
+        hasInvoice: <%= Boolean.TRUE.equals(booking.get("hasInvoice")) ? "true" : "false" %>,
+        checkoutDue: <%= Boolean.TRUE.equals(booking.get("checkoutDue")) ? "true" : "false" %>,
+        bookingToday: <%= Boolean.TRUE.equals(booking.get("bookingToday")) ? "true" : "false" %>,
+        notExpired: <%= Boolean.TRUE.equals(booking.get("notExpired")) ? "true" : "false" %>
       };
       displayBookings([preSelectedBooking]);
     <% } else { %>
@@ -191,6 +291,212 @@
     <% } %>
   });
 
+  async function openQrScanner() {
+    document.getElementById('qr-manual-code').value = '';
+    setQrStatus('Đang mở camera...', 'muted');
+    qrScanLocked = false;
+
+    if (qrScannerModalInstance) {
+      qrScannerModalInstance.show();
+    }
+
+    await startQrScanner();
+  }
+
+  async function restartQrScanner() {
+    stopQrScanner();
+    qrScanLocked = false;
+    await startQrScanner();
+  }
+
+  async function startQrScanner() {
+    const video = document.getElementById('qr-video');
+    if (!video) return;
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setQrStatus('Trình duyệt không hỗ trợ camera. Vui lòng nhập mã booking.', 'danger');
+      return;
+    }
+
+    try {
+      qrStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+      video.srcObject = qrStream;
+      await video.play();
+
+      if ('BarcodeDetector' in window) {
+        qrDetector = new BarcodeDetector({ formats: ['qr_code'] });
+        setQrStatus('Camera đang quét QR...', 'success');
+        scanWithBarcodeDetector();
+      } else {
+        qrDetector = null;
+        setQrStatus('Camera đang quét QR...', 'success');
+        scanWithServerDecoder();
+      }
+    } catch (err) {
+      setQrStatus('Không thể mở camera: ' + err.message, 'danger');
+    }
+  }
+
+  function stopQrScanner() {
+    if (qrScanTimer) {
+      clearTimeout(qrScanTimer);
+      qrScanTimer = null;
+    }
+    if (qrStream) {
+      qrStream.getTracks().forEach(track => track.stop());
+      qrStream = null;
+    }
+    const video = document.getElementById('qr-video');
+    if (video) {
+      video.pause();
+      video.srcObject = null;
+    }
+    qrServerDecodeBusy = false;
+  }
+
+  async function scanWithBarcodeDetector() {
+    const video = document.getElementById('qr-video');
+    if (!qrStream || !video || qrScanLocked) return;
+
+    try {
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        const codes = await qrDetector.detect(video);
+        if (codes && codes.length > 0 && codes[0].rawValue) {
+          const handled = await handleQrBookingCode(codes[0].rawValue);
+          if (handled) {
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      setQrStatus('Không đọc được QR trên khung hình hiện tại.', 'warning');
+    }
+
+    qrScanTimer = setTimeout(scanWithBarcodeDetector, 250);
+  }
+
+  async function scanWithServerDecoder() {
+    if (!qrStream || qrScanLocked) return;
+    const handled = await decodeCurrentFrameOnServer();
+    if (!handled && qrStream && !qrScanLocked) {
+      qrScanTimer = setTimeout(scanWithServerDecoder, 700);
+    }
+  }
+
+  async function decodeCurrentFrameOnServer() {
+    if (qrServerDecodeBusy || qrScanLocked) return false;
+
+    const video = document.getElementById('qr-video');
+    if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return false;
+
+    qrServerDecodeBusy = true;
+    try {
+      const canvas = document.createElement('canvas');
+      const ratio = video.videoWidth > 0 ? Math.min(1, 640 / video.videoWidth) : 1;
+      canvas.width = Math.max(1, Math.floor(video.videoWidth * ratio));
+      canvas.height = Math.max(1, Math.floor(video.videoHeight * ratio));
+      const ctx2d = canvas.getContext('2d', { willReadFrequently: true });
+      ctx2d.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const params = new URLSearchParams();
+      params.append('imageData', canvas.toDataURL('image/jpeg', 0.72));
+
+      const res = await fetch('<%= ctx %>/api/staff/checkin/qr-decode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+        credentials: 'include'
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.found && data.bookingCode) {
+          return await handleQrBookingCode(data.bookingCode);
+        }
+      }
+    } catch (err) {
+      setQrStatus('Camera đang quét QR...', 'success');
+    } finally {
+      qrServerDecodeBusy = false;
+    }
+    return false;
+  }
+
+  async function submitManualQrCode() {
+    const code = document.getElementById('qr-manual-code').value.trim();
+    if (!code) {
+      setQrStatus('Vui lòng nhập mã booking.', 'warning');
+      return;
+    }
+    await handleQrBookingCode(code);
+  }
+
+  async function handleQrBookingCode(rawCode) {
+    const bookingCode = normalizeQrCode(rawCode);
+    if (!bookingCode) {
+      setQrStatus('QR không chứa mã booking hợp lệ.', 'danger');
+      return false;
+    }
+
+    qrScanLocked = true;
+    setQrStatus('Đã đọc mã ' + bookingCode + '. Đang kiểm tra...', 'success');
+    document.getElementById('qr-manual-code').value = bookingCode;
+
+    try {
+      const booking = await previewQrBooking(bookingCode);
+      stopQrScanner();
+      if (qrScannerModalInstance) {
+        qrScannerModalInstance.hide();
+      }
+      document.getElementById('searchQuery').value = booking.bookingCode || bookingCode;
+      displayBookings([booking]);
+      showToast('Đã tìm thấy booking từ QR. Vui lòng chọn hành động phù hợp.', 'success');
+      return true;
+    } catch (err) {
+      qrScanLocked = false;
+      setQrStatus(err.message, 'danger');
+      showToast(err.message, 'danger');
+      return false;
+    }
+  }
+
+  async function previewQrBooking(bookingCode) {
+    const res = await fetch(`<%= ctx %>/api/staff/checkin/qr-preview?bookingCode=${encodeURIComponent(bookingCode)}`, {
+      credentials: 'include'
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      throw new Error(data.error || 'Không thể kiểm tra mã QR.');
+    }
+    if (!data.booking) {
+      throw new Error('Không tìm thấy thông tin booking từ QR.');
+    }
+    return data.booking;
+  }
+
+  function normalizeQrCode(rawValue) {
+    if (!rawValue) return '';
+    let value = String(rawValue).trim();
+    if (value.startsWith('#')) {
+      value = value.substring(1).trim();
+    }
+    return value;
+  }
+
+  function setQrStatus(message, type) {
+    const statusEl = document.getElementById('qr-status');
+    if (!statusEl) return;
+    const color = type === 'danger' ? 'text-danger'
+      : type === 'warning' ? 'text-warning'
+      : type === 'success' ? 'text-success'
+      : 'text-muted';
+    statusEl.className = 'qr-status small mt-3 ' + color;
+    statusEl.textContent = message;
+  }
+
   async function loadPendingBookings() {
     const resultsContainer = document.getElementById('results-container');
     const loadingState = document.getElementById('loading-state');
@@ -200,7 +506,7 @@
     loadingState.classList.remove('d-none');
     
     if (resultsTitle) {
-      resultsTitle.textContent = "Khách hàng chờ check-in trong ca";
+      resultsTitle.textContent = "Booking cần xử lý trong ca";
       resultsTitle.classList.remove('d-none');
     }
 
@@ -284,6 +590,14 @@
     return Number(amount).toLocaleString('vi-VN') + ' ₫';
   }
 
+  function paymentStatusText(status) {
+    if (!status) return 'Đã xác nhận qua trạng thái booking';
+    if (status === 'SUCCESS') return 'Đã thanh toán';
+    if (status === 'PENDING') return 'Đang chờ thanh toán';
+    if (status === 'FAILED') return 'Thanh toán thất bại';
+    return status;
+  }
+
   function isBookingExpired(endTimeStr) {
     if (!endTimeStr) return false;
     try {
@@ -310,76 +624,43 @@
         <div class="card border-0 rounded-4 p-5 text-center shadow-sm">
           <i class="bi bi-calendar-x display-4 text-muted"></i>
           <h5 class="mt-3 fw-bold">Không tìm thấy lịch đặt nào</h5>
-          <p class="text-muted small mb-0">Không có lịch đặt sân nào ở trạng thái "Chờ check-in" khớp với thông tin tìm kiếm.</p>
+          <p class="text-muted small mb-0">Không có booking check-in/out nào khớp với thông tin tìm kiếm.</p>
         </div>`;
       return;
     }
 
-    // Sort bookings: actionable (pending check-in and not expired) first
+    // Sort bookings: actionable check-in/checkout first, then invoices, then inactive states.
     const sortedBookings = [...bookings].sort((x, y) => {
-      const xActionable = (x.status !== 'CHECKED_IN' && x.status !== 'COMPLETED' && !isBookingExpired(x.endTime));
-      const yActionable = (y.status !== 'CHECKED_IN' && y.status !== 'COMPLETED' && !isBookingExpired(y.endTime));
-      if (xActionable && !yActionable) return -1;
-      if (!xActionable && yActionable) return 1;
-      return 0;
+      const priority = bookingActionPriority(x) - bookingActionPriority(y);
+      if (priority !== 0) return priority;
+      return String(y.startTime || '').localeCompare(String(x.startTime || ''));
     });
 
     currentSearchResults = sortedBookings;
 
     resultsContainer.innerHTML = sortedBookings.map((b, index) => {
       const isExpired = isBookingExpired(b.endTime);
-      let statusBadgeHtml = '';
-      let actionBtnHtml = '';
-
-      if (b.status === 'CHECKED_IN') {
-        statusBadgeHtml = '<span class="badge bg-info-subtle text-info fw-bold"><i class="bi bi-play-circle me-1"></i>Đang chơi</span>';
-        actionBtnHtml = `
-          <button class="btn btn-outline-info btn-lg px-4 rounded-3" disabled style="min-width: 150px;">
-            <i class="bi bi-check-all me-1"></i>Đã check-in
-          </button>
-        `;
-      } else if (b.status === 'COMPLETED') {
-        statusBadgeHtml = '<span class="badge bg-success-subtle text-success fw-bold"><i class="bi bi-check-circle me-1"></i>Đã xong</span>';
-        actionBtnHtml = `
-          <button class="btn btn-outline-secondary btn-lg px-4 rounded-3" disabled style="min-width: 150px;">
-            <i class="bi bi-file-earmark-check me-1"></i>Hoàn thành
-          </button>
-        `;
-      } else {
-        if (isExpired) {
-          statusBadgeHtml = '<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Quá giờ</span>';
-          actionBtnHtml = `
-            <button class="btn btn-secondary btn-lg px-4 rounded-3" disabled style="min-width: 150px;">
-              <i class="bi bi-exclamation-circle me-1"></i>Quá giờ nhận
-            </button>
-          `;
-        } else {
-          statusBadgeHtml = '<span class="badge bg-warning-subtle text-warning fw-bold text-dark"><i class="bi bi-hourglass-split me-1"></i>Chờ check-in</span>';
-          actionBtnHtml = `
-            <button class="btn btn-sf-primary btn-lg px-4 rounded-3" onclick="openCheckinModalByIndex(${index})" style="min-width: 150px;">
-              <i class="bi bi-person-check me-1"></i>Check-in
-            </button>
-          `;
-        }
-      }
+      const statusBadgeHtml = statusBadge(b, isExpired);
+      const actionBtnHtml = resultActionHtml(b, index, isExpired);
 
       return `
         <div class="booking-result-card p-4">
           <div class="row align-items-center g-3">
             <div class="col-md-8">
               <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-                <span class="code-badge">${b.bookingCode}</span>
+                <span class="code-badge">${escapeHtml(b.bookingCode || '')}</span>
                 <span class="badge bg-light text-dark border"><i class="bi bi-calendar3 me-1"></i>${formatDate(b.startTime)}</span>
                 <span class="time-badge"><i class="bi bi-clock me-1"></i>${formatTime(b.startTime)} - ${formatTime(b.endTime)}</span>
                 ${statusBadgeHtml}
               </div>
-              <h5 class="fw-bold mb-1 text-dark">${b.fieldName}</h5>
+              <h5 class="fw-bold mb-1 text-dark">${escapeHtml(b.fieldName || '—')}</h5>
               <div class="text-muted small">
-                <span class="me-3"><i class="bi bi-person me-1"></i><strong>${b.customerName}</strong></span>
-                <span><i class="bi bi-telephone me-1"></i>${b.customerPhone || 'Không có SĐT'}</span>
+                <span class="me-3"><i class="bi bi-person me-1"></i><strong>${escapeHtml(b.customerName || '—')}</strong></span>
+                <span><i class="bi bi-telephone me-1"></i>${escapeHtml(b.customerPhone || 'Không có SĐT')}</span>
               </div>
               <div class="text-muted small mt-1">
-                <span><i class="bi bi-cash me-1"></i>Tổng tiền: <strong class="text-success">${formatMoney(b.totalAmount)}</strong></span>
+                <span class="me-3"><i class="bi bi-cash me-1"></i>Tổng tiền: <strong class="text-success">${formatMoney(b.totalAmount)}</strong></span>
+                <span><i class="bi bi-wallet2 me-1"></i>Cọc: <strong>${formatMoney(b.depositAmount)}</strong></span>
               </div>
             </div>
             <div class="col-md-4 text-md-end">
@@ -389,9 +670,116 @@
         </div>`;
     }).join('');
   }
+
+  function bookingActionPriority(booking) {
+    const status = booking.status || '';
+    const expired = isBookingExpired(booking.endTime);
+    if (canCheckin(booking, expired)) return 0;
+    if (status === 'CHECKED_IN') return 1;
+    if ((status === 'PENDING_CHECKOUT_PAYMENT' || status === 'COMPLETED') && booking.hasInvoice) return 2;
+    return 3;
+  }
+
+  function canCheckin(booking, expired) {
+    return booking.status === 'CONFIRMED'
+      && booking.bookingToday !== false
+      && booking.notExpired !== false
+      && !expired;
+  }
+
+  function statusBadge(booking, expired) {
+    const status = booking.status || '';
+    if (status === 'CONFIRMED') {
+      if (booking.bookingToday === false) {
+        return '<span class="badge bg-secondary-subtle text-secondary fw-bold"><i class="bi bi-calendar3 me-1"></i>Khác ngày</span>';
+      }
+      if (booking.notExpired === false || expired) {
+        return '<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Quá giờ</span>';
+      }
+      return '<span class="badge bg-warning-subtle text-warning fw-bold text-dark"><i class="bi bi-hourglass-split me-1"></i>Chờ check-in</span>';
+    }
+    if (status === 'CHECKED_IN') {
+      return '<span class="badge bg-info-subtle text-info fw-bold"><i class="bi bi-play-circle me-1"></i>Đang chơi</span>';
+    }
+    if (status === 'PENDING_CHECKOUT_PAYMENT') {
+      return '<span class="badge fw-bold" style="background:#fae8ff;color:#a21caf;"><i class="bi bi-credit-card me-1"></i>Chờ thanh toán</span>';
+    }
+    if (status === 'COMPLETED') {
+      return '<span class="badge bg-success-subtle text-success fw-bold"><i class="bi bi-check-circle me-1"></i>Đã xong</span>';
+    }
+    if (status === 'HOLD') {
+      return '<span class="badge bg-primary-subtle text-primary fw-bold"><i class="bi bi-hourglass me-1"></i>Chờ cọc</span>';
+    }
+    if (status === 'CANCELLED') {
+      return '<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-x-circle me-1"></i>Đã hủy</span>';
+    }
+    if (status === 'EXPIRED') {
+      return '<span class="badge bg-secondary-subtle text-secondary fw-bold"><i class="bi bi-clock-history me-1"></i>Hết hạn</span>';
+    }
+    return `<span class="badge bg-light text-dark border">${escapeHtml(status || 'Không rõ')}</span>`;
+  }
+
+  function resultActionHtml(booking, index, expired) {
+    const minWidth = 'min-width: 150px;';
+    if (canCheckin(booking, expired)) {
+      return `
+        <button class="btn btn-sf-primary btn-lg px-4 rounded-3" onclick="openCheckinModalByIndex(${index})" style="${minWidth}">
+          <i class="bi bi-person-check me-1"></i>Check-in
+        </button>`;
+    }
+    if (booking.status === 'CHECKED_IN') {
+      return `
+        <a class="btn btn-outline-success btn-lg px-4 rounded-3" href="<%= ctx %>/staff/checkout?id=${booking.bookingId}" style="${minWidth}">
+          <i class="bi bi-receipt-cutoff me-1"></i>Checkout
+        </a>`;
+    }
+    if ((booking.status === 'PENDING_CHECKOUT_PAYMENT' || booking.status === 'COMPLETED') && booking.hasInvoice) {
+      return `
+        <a class="btn btn-outline-secondary btn-lg px-4 rounded-3" href="<%= ctx %>/staff/invoice?id=${booking.bookingId}" style="${minWidth}">
+          <i class="bi bi-file-earmark-text me-1"></i>Hóa đơn
+        </a>`;
+    }
+
+    let label = 'Không thể xử lý';
+    let icon = 'bi-slash-circle';
+    if (booking.status === 'CONFIRMED' && booking.bookingToday === false) {
+      label = 'Khác ngày';
+      icon = 'bi-calendar3';
+    } else if (booking.status === 'CONFIRMED') {
+      label = 'Quá giờ nhận';
+      icon = 'bi-exclamation-circle';
+    } else if (booking.status === 'HOLD') {
+      label = 'Chờ cọc';
+      icon = 'bi-hourglass';
+    } else if (booking.status === 'CANCELLED') {
+      label = 'Đã hủy';
+      icon = 'bi-x-circle';
+    } else if (booking.status === 'EXPIRED') {
+      label = 'Hết hạn';
+      icon = 'bi-clock-history';
+    } else if (booking.status === 'COMPLETED') {
+      label = 'Hoàn thành';
+      icon = 'bi-check-circle';
+    }
+
+    return `
+      <button class="btn btn-secondary btn-lg px-4 rounded-3" disabled style="${minWidth}">
+        <i class="bi ${icon} me-1"></i>${label}
+      </button>`;
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function openCheckinModalByIndex(index) {
     const booking = currentSearchResults[index];
-    if (booking) {
+    if (booking && canCheckin(booking, isBookingExpired(booking.endTime))) {
       openCheckinModal(booking);
     }
   }
@@ -403,6 +791,9 @@
     document.getElementById('modal-phone').textContent = booking.customerPhone || '—';
     document.getElementById('modal-field').textContent = booking.fieldName;
     document.getElementById('modal-time').textContent = `${formatTime(booking.startTime)} - ${formatTime(booking.endTime)}`;
+    document.getElementById('modal-total').textContent = formatMoney(booking.totalAmount);
+    document.getElementById('modal-deposit').textContent = formatMoney(booking.depositAmount);
+    document.getElementById('modal-payment').textContent = paymentStatusText(booking.paymentStatus);
     document.getElementById('checkin-note').value = '';
     
     if (checkinModalInstance) {

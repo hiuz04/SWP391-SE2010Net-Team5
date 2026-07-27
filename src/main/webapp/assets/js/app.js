@@ -89,7 +89,7 @@
             ['Trang chủ', 'index'], ['Tìm sân', 'search'], ['Tìm đối', 'matchmaking'], ['Lịch sử đặt sân', 'booking?action=history'], ['Kho voucher', "vouchers?to=center"], ['Hồ sơ', 'profile']
         ],
         staff: [
-            ['Dashboard', 'staff/dashboard'], ['Lịch trong ngày', 'staff/schedule'], ['Check-in', 'staff/checkin']
+            ['Dashboard', 'staff/dashboard'], ['Lịch trong ngày', 'staff/schedule'], ['Check-in/out', 'staff/checkin']
         ],
         owner: [
             ['Dashboard', 'owner'], ['Cụm sân', 'owner/complex'], ['Sân bóng', 'owner/field'], ['Quản lý ca trực', 'owner/work-shift'], ['Bảng giá', 'owner/price-rules'], ['Mã giảm giá', 'owner/vouchers']

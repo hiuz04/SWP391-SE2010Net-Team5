@@ -41,7 +41,8 @@ public final class RegisterValidator {
             result.addFieldError("email", "Email không đúng định dạng (vd: name@example.com).");
         }
 
-        // Business Rule BR-28: Số điện thoại bắt buộc và được kiểm tra theo regex số điện thoại hệ thống.
+        // Business Rule BR-28: SRS yêu cầu số bắt đầu bằng 0 và dài 10-11 chữ số.
+        // Code đăng ký hiện tại vẫn dùng regex số di động VN 10 chữ số.
         if (phone == null || phone.isBlank()) {
             result.addFieldError("phone", "Số điện thoại không được để trống.");
         } else if (!PHONE_PATTERN.matcher(phone).matches()) {

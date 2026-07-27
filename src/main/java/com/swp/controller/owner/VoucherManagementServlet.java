@@ -20,6 +20,8 @@ import java.util.Locale;
 /**
  * Xử lý các thao tác quản lý voucher của Owner: xem danh sách, tạo mới, cập nhật và bật/tắt voucher.
  * Servlet validate dữ liệu form trước khi gọi {@link VoucherDAO}, đặc biệt là rule quantity không được nhỏ hơn used.
+ * Business Rule BR-30: Endpoint /owner/vouchers được bảo vệ bởi OwnerAuthFilter nên chỉ OWNER được quản lý voucher.
+ * Business Rule BR-39: Manage Voucher không có thao tác xóa vĩnh viễn; Owner dùng bật/tắt trạng thái để dừng voucher.
  */
 @WebServlet("/owner/vouchers")
 public class VoucherManagementServlet extends HttpServlet {
@@ -84,7 +86,9 @@ public class VoucherManagementServlet extends HttpServlet {
         try {
             if ("create".equals(action)) {
                 Voucher voucher = parseVoucher(request, false);
+                // Business Rule BR-36: Voucher mới luôn khởi tạo used = 0, không lấy used từ request.
                 voucher.setUsed(0);
+                // Business Rule BR-31: Code đã chuẩn hóa phải duy nhất trước khi tạo voucher.
                 ensureUniqueCode(voucher.getCode(), 0);
                 voucherDAO.createVoucher(voucher);
                 session.setAttribute("successMessage", "Tạo mã giảm giá thành công.");
@@ -95,9 +99,11 @@ public class VoucherManagementServlet extends HttpServlet {
                 if (existingVoucher == null) {
                     throw new IllegalArgumentException("Không tìm thấy mã giảm giá.");
                 }
-                // Không tin giá trị used gửi từ form; luôn lấy used hiện tại trong DB trước khi kiểm tra quantity.
+                // Business Rule BR-37: Không tin used gửi từ form; luôn giữ used hiện tại trong DB khi chỉnh sửa.
                 voucher.setUsed(existingVoucher.getUsed());
+                // Business Rule BR-37: Quantity mới không được thấp hơn số lượt đã dùng hiện tại.
                 validateEditableQuantity(voucher, existingVoucher.getUsed());
+                // Business Rule BR-31: Code voucher vẫn phải duy nhất, trừ chính bản ghi đang edit.
                 ensureUniqueCode(voucher.getCode(), voucher.getId());
                 voucherDAO.updateVoucher(voucher);
                 session.setAttribute("successMessage", "Cập nhật mã giảm giá thành công.");
@@ -111,6 +117,7 @@ public class VoucherManagementServlet extends HttpServlet {
                 String nextStatus = STATUS_ACTIVE.equalsIgnoreCase(voucher.getStatus())
                         ? STATUS_DISABLED
                         : STATUS_ACTIVE;
+                // Business Rule BR-38/BR-39: Owner chỉ bật/tắt ACTIVE/DISABLED, không xóa voucher khỏi lịch sử.
                 voucherDAO.updateStatus(id, nextStatus);
                 session.setAttribute("successMessage", "Đã cập nhật trạng thái mã giảm giá.");
                 response.sendRedirect(request.getContextPath() + MANAGEMENT_PATH);
@@ -159,12 +166,16 @@ public class VoucherManagementServlet extends HttpServlet {
             voucher.setId(parsePositiveInt(request.getParameter("id"), "Mã giảm giá không hợp lệ."));
         }
 
+        // Business Rule BR-31: Voucher code là bắt buộc, được trim trong requireText và chuẩn hóa uppercase.
         voucher.setCode(requireText(request.getParameter("code"), "Mã giảm giá không được để trống.")
                 .toUpperCase(Locale.ROOT));
+        // Business Rule BR-31: Voucher name là bắt buộc khi Owner tạo hoặc sửa voucher.
+        // Business Rule BR-32: Form giới hạn voucher name tối đa 255 ký tự trước khi submit.
         voucher.setName(requireText(request.getParameter("name"), "Tên mã giảm giá không được để trống."));
         voucher.setDiscountType(normalize(request.getParameter("discountType")));
         voucher.setDiscountValue(parseMoney(request.getParameter("discountValue"), "Giá trị giảm giá không hợp lệ."));
         voucher.setMinOrder(parseMoney(defaultIfBlank(request.getParameter("minOrder"), "0"), "Giá trị đơn tối thiểu không hợp lệ."));
+        // Business Rule BR-34: Quantity phải là số nguyên dương.
         voucher.setQuantity(parsePositiveInt(request.getParameter("quantity"), "Số lượng mã giảm giá phải lớn hơn 0."));
         voucher.setUsed(0);
         voucher.setStartDate(parseDateTime(request.getParameter("startDate"), "Ngày bắt đầu không hợp lệ."));
@@ -202,22 +213,28 @@ public class VoucherManagementServlet extends HttpServlet {
      * thời gian hiệu lực và trạng thái được phép.
      */
     private void validateVoucher(Voucher voucher) {
+        // Business Rule BR-33: Discount type chỉ được là PERCENT hoặc FIXED.
         if (!TYPE_PERCENT.equals(voucher.getDiscountType()) && !TYPE_FIXED.equals(voucher.getDiscountType())) {
             throw new IllegalArgumentException("Loại giảm giá chỉ được là phần trăm hoặc số tiền cố định.");
         }
+        // Business Rule BR-33: Discount value phải lớn hơn 0.
         if (voucher.getDiscountValue().signum() <= 0) {
             throw new IllegalArgumentException("Giá trị giảm giá phải lớn hơn 0.");
         }
+        // Business Rule BR-33: Voucher PERCENT không được vượt quá 100%.
         if (TYPE_PERCENT.equals(voucher.getDiscountType())
                 && voucher.getDiscountValue().compareTo(BigDecimal.valueOf(100)) > 0) {
             throw new IllegalArgumentException("Mã giảm theo phần trăm không được lớn hơn 100.");
         }
+        // Business Rule BR-34: Minimum order amount không được âm.
         if (voucher.getMinOrder().signum() < 0) {
             throw new IllegalArgumentException("Đơn tối thiểu không được âm.");
         }
+        // Business Rule BR-35: Ngày bắt đầu không được sau ngày kết thúc.
         if (voucher.getStartDate().isAfter(voucher.getEndDate())) {
             throw new IllegalArgumentException("Ngày bắt đầu không được sau ngày kết thúc.");
         }
+        // Business Rule BR-38: Trạng thái voucher chỉ được ACTIVE hoặc DISABLED.
         if (!STATUS_ACTIVE.equals(voucher.getStatus()) && !STATUS_DISABLED.equals(voucher.getStatus())) {
             throw new IllegalArgumentException("Trạng thái chỉ được là đang hoạt động hoặc tạm tắt.");
         }
@@ -227,6 +244,7 @@ public class VoucherManagementServlet extends HttpServlet {
      * Ngăn Owner giảm quantity thấp hơn số lượt đã sử dụng để dữ liệu used/quantity không mâu thuẫn.
      */
     private void validateEditableQuantity(Voucher voucher, int currentUsed) {
+        // Business Rule BR-37: Owner không được giảm quantity thấp hơn used hiện tại.
         if (voucher.getQuantity() < currentUsed) {
             throw new IllegalArgumentException("Số lượng mã giảm giá không được nhỏ hơn số lượt đã dùng hiện tại.");
         }
@@ -248,6 +266,7 @@ public class VoucherManagementServlet extends HttpServlet {
      */
     private void ensureUniqueCode(String code, int currentId) throws SQLException {
         Voucher existing = voucherDAO.findByCode(code);
+        // Business Rule BR-31: Code phải duy nhất trên toàn bộ voucher, kể cả voucher đang tắt/hết hạn.
         if (existing != null && existing.getId() != currentId) {
             throw new IllegalArgumentException("Mã giảm giá đã tồn tại.");
         }

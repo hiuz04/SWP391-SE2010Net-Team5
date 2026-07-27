@@ -95,63 +95,66 @@
     </div>
     <% } %>
 
-    <div class="card soft-card border-0 shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                <tr>
-                    <th class="ps-4">Mã</th>
-                    <th>Tên mã giảm giá</th>
-                    <th>Loại giảm</th>
-                    <th>Giá trị giảm</th>
-                    <th>Đơn tối thiểu</th>
-                    <th>Số lượng</th>
-                    <th>Đã dùng</th>
-                    <th>Ngày bắt đầu</th>
-                    <th>Ngày kết thúc</th>
-                    <th>Trạng thái</th>
-                    <th class="text-end pe-4">Thao tác</th>
-                </tr>
-                </thead>
-                <tbody>
-                <% if (vouchers != null && !vouchers.isEmpty()) {
-                    for (Voucher voucher : vouchers) {
-                        boolean active = "ACTIVE".equalsIgnoreCase(voucher.getStatus());
-                %>
-                <tr>
-                    <td class="ps-4 fw-bold"><%= esc(voucher.getCode()) %></td>
-                    <td><%= esc(voucher.getName()) %></td>
-                    <td><span class="badge bg-info"><%= discountTypeText(voucher.getDiscountType()) %></span></td>
-                    <td><%= "PERCENT".equalsIgnoreCase(voucher.getDiscountType())
-                            ? esc(voucher.getDiscountValue() + "%")
-                            : money(voucher.getDiscountValue()) %></td>
-                    <td><%= money(voucher.getMinOrder()) %></td>
-                    <td><%= voucher.getQuantity() %></td>
-                    <td><%= voucher.getUsed() %> / <%= voucher.getQuantity() %></td>
-                    <td><%= dateTime(voucher.getStartDate()) %></td>
-                    <td><%= dateTime(voucher.getEndDate()) %></td>
-                    <td><span class="badge <%= statusBadge(voucher.getStatus()) %>"><%= statusText(voucher.getStatus()) %></span></td>
-                    <td class="text-end pe-4">
-                        <a class="btn btn-sm btn-outline-primary" href="<%= ctx %>/owner/vouchers?action=edit&id=<%= voucher.getId() %>">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <form method="post" action="<%= ctx %>/owner/vouchers" class="d-inline">
-                            <input type="hidden" name="action" value="toggle-status">
-                            <input type="hidden" name="id" value="<%= voucher.getId() %>">
-                            <button type="submit" class="btn btn-sm <%= active ? "btn-outline-secondary" : "btn-outline-success" %>">
-                                <%= active ? "Tắt" : "Bật" %>
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                <%  }
-                } else { %>
-                <tr>
-                    <td colspan="11" class="text-center text-muted py-4">Chưa có mã giảm giá nào.</td>
-                </tr>
-                <% } %>
-                </tbody>
-            </table>
+            <div class="card soft-card border-0 shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Mã</th>
+                            <th>Tên mã giảm giá</th>
+                            <th>Loại giảm</th>
+                            <th>Giá trị giảm</th>
+                            <th>Đơn tối thiểu</th>
+                            <th>Số lượng</th>
+                            <th>Đã dùng</th>
+                            <th>Ngày bắt đầu</th>
+                            <th>Ngày kết thúc</th>
+                            <th>Trạng thái</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <% if (vouchers != null && !vouchers.isEmpty()) {
+                            for (Voucher voucher : vouchers) {
+                                boolean active = "ACTIVE".equalsIgnoreCase(voucher.getStatus());
+                        %>
+                        <tr>
+                            <td class="ps-4 fw-bold"><%= esc(voucher.getCode()) %></td>
+                            <td><%= esc(voucher.getName()) %></td>
+                            <td><span class="badge bg-info"><%= discountTypeText(voucher.getDiscountType()) %></span></td>
+                            <td><%= "PERCENT".equalsIgnoreCase(voucher.getDiscountType())
+                                    ? esc(voucher.getDiscountValue() + "%")
+                                    : money(voucher.getDiscountValue()) %></td>
+                            <td><%= money(voucher.getMinOrder()) %></td>
+                            <td><%= voucher.getQuantity() %></td>
+                            <td><%= voucher.getUsed() %> / <%= voucher.getQuantity() %></td>
+                            <td><%= dateTime(voucher.getStartDate()) %></td>
+                            <td><%= dateTime(voucher.getEndDate()) %></td>
+                            <td><span class="badge <%= statusBadge(voucher.getStatus()) %>"><%= statusText(voucher.getStatus()) %></span></td>
+                            <td class="text-end pe-4">
+                                <%-- Business Rule BR-39: Manage Voucher chỉ cho sửa và bật/tắt, không có thao tác xóa vĩnh viễn. --%>
+                                <a class="btn btn-sm btn-outline-primary" href="<%= ctx %>/owner/vouchers?action=edit&id=<%= voucher.getId() %>">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form method="post" action="<%= ctx %>/owner/vouchers" class="d-inline">
+                                    <input type="hidden" name="action" value="toggle-status">
+                                    <input type="hidden" name="id" value="<%= voucher.getId() %>">
+                                    <button type="submit" class="btn btn-sm <%= active ? "btn-outline-secondary" : "btn-outline-success" %>">
+                                        <%= active ? "Tắt" : "Bật" %>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        <%  }
+                        } else { %>
+                        <tr>
+                            <td colspan="11" class="text-center text-muted py-4">Chưa có mã giảm giá nào.</td>
+                        </tr>
+                        <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </main>

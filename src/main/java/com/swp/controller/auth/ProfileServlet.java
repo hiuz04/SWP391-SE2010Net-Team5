@@ -125,7 +125,8 @@ public class ProfileServlet extends HttpServlet {
             errors.put("email", "Email này đã được sử dụng bởi tài khoản khác.");
         }
 
-        // Business Rule BR-28: Số điện thoại hồ sơ phải khớp regex hệ thống và không trùng tài khoản khác.
+        // Business Rule BR-28: SRS yêu cầu số bắt đầu bằng 0 và dài 10-11 chữ số.
+        // Profile dùng regex 10-11 chữ số và chống trùng số điện thoại.
         if (phone == null || phone.isBlank()) {
             errors.put("phone", "Số điện thoại không được để trống.");
         } else if (!PHONE_PATTERN.matcher(phone).matches()) {

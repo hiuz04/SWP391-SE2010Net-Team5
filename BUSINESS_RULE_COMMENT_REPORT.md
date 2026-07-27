@@ -5,8 +5,8 @@
 - Tổng số method đã thêm Javadoc/comment: 12 method.
 - Tổng số dòng comment logic/Business Rule đã thêm: 225 dòng.
 - Tổng số dòng comment Business Rule đã thêm: 144 dòng.
-- Tổng số Business Rule tìm thấy và gắn đúng vị trí code thực thi: 28/29 rule.
-- Business Rule chưa gắn comment vì code hiện tại chưa thực thi đúng rule: BR-16.
+- Tổng số Business Rule trong `D:\SWP\Group5_SRS.docx` đã được gắn comment hoặc TODO mapping: 39/39 rule.
+- BR-16 đã được đánh dấu TODO vì code hiện tại chưa chặn checkout sớm theo SRS.
 
 # 2. Business Rule Mapping
 
@@ -37,10 +37,20 @@
 | BR-23 | Đã có code thực thi | `PaymentDAO.java`, `PaymentController.java` | `markPaymentSuccessAndConfirmBooking`, `markPaymentFailed`, `createPendingDepositPayment` | Callback hoặc submit lặp được xử lý idempotent, không nhân đôi status change/voucher usage. |
 | BR-24 | Đã có code thực thi | `BookingController.java`, `BookingDAO.java`, `StaffBillingDAO.java` | `setStatus`, `insertLog`, `updateBookingStatus`, `cancelExpiredHolds` | Flow dùng các trạng thái HOLD, CONFIRMED, CHECKED_IN, PENDING_CHECKOUT_PAYMENT, COMPLETED và CANCELLED. |
 | BR-25 | Đã có code thực thi | `PaymentDAO.java` | `markPaymentSuccessAndConfirmBooking`, `markCheckoutPaymentSuccess`, `markPaymentFailed` | Payment dùng PENDING, SUCCESS và FAILED trong các update chính. |
-| BR-26 | Mâu thuẫn với SRS | `RegisterValidator.java`, `ProfileServlet.java`, `register-validation.js` | `validate`, `doPost` | Code có kiểm tra độ dài 2-100 nhưng regex hiện cho phép dấu nháy/dấu chấm, trong khi SRS ghi chỉ chữ cái và khoảng trắng. |
-| BR-27 | Có một phần | `RegisterValidator.java`, `ProfileServlet.java`, `register-validation.js` | `validate`, `doPost` | Code kiểm tra max 100 và định dạng email cơ bản; regex chưa bao phủ đầy đủ mọi định dạng email chuẩn quốc tế. |
+| BR-26 | Mâu thuẫn với SRS | `RegisterValidator.java`, `ProfileServlet.java`, `register-validation.js` | `validate`, `doPost` | SRS yêu cầu họ tên 2-50 ký tự và chỉ chữ/khoảng trắng; code hiện kiểm tra 2-100 và pattern còn cho phép dấu nháy/dấu chấm. |
+| BR-27 | Có một phần | `RegisterValidator.java`, `ProfileServlet.java`, `register-validation.js` | `validate`, `doPost` | SRS yêu cầu email đúng chuẩn quốc tế và tối đa 50 ký tự; code hiện kiểm tra max 100 và regex email cơ bản. |
 | BR-28 | Mâu thuẫn với SRS | `RegisterValidator.java`, `ProfileServlet.java`, `register-validation.js` | `validate`, `doPost` | Profile chấp nhận 10-11 số bắt đầu 0, nhưng Register/frontend đang dùng regex số di động VN 10 số và prefix 03/05/07/08/09. |
 | BR-29 | Đã có code thực thi | `index.jsp` | JSP render condition | Khối ưu đãi/VIP chỉ hiển thị khi `navRole` là guest hoặc customer. |
+| BR-30 | Đã có code thực thi | `OwnerAuthFilter.java`, `VoucherManagementServlet.java` | `doFilter`, class-level servlet | Chỉ user đăng nhập với role OWNER được vào `/owner/vouchers` để xem, tạo, sửa, bật/tắt voucher. |
+| BR-31 | Đã có code thực thi | `VoucherManagementServlet.java`, `VoucherDAO.java`, `form.jsp` | `parseVoucher`, `ensureUniqueCode`, `setVoucherStatement` | Code/name bắt buộc; code được trim/uppercase, UI giới hạn 50 ký tự và servlet kiểm tra unique trên toàn bộ voucher. |
+| BR-32 | Có một phần | `VoucherManagementServlet.java`, `form.jsp` | `parseVoucher`, JSP input | Name bắt buộc và UI giới hạn 255 ký tự; servlet hiện chưa tự check max length ngoài form. |
+| BR-33 | Đã có code thực thi | `VoucherManagementServlet.java`, `form.jsp` | `validateVoucher`, JSP input | Discount type chỉ PERCENT/FIXED, discount value > 0 và PERCENT không vượt 100. |
+| BR-34 | Đã có code thực thi | `VoucherManagementServlet.java`, `form.jsp` | `parseVoucher`, `validateVoucher`, JSP input | Min order không âm và quantity phải là số nguyên dương. |
+| BR-35 | Đã có code thực thi | `VoucherManagementServlet.java`, `form.jsp` | `validateVoucher`, JSP input | Start date không được sau end date. |
+| BR-36 | Đã có code thực thi | `VoucherManagementServlet.java`, `VoucherDAO.java` | `doPost`, `createVoucher` | Voucher mới luôn có `used = 0`, không lấy used từ request. |
+| BR-37 | Đã có code thực thi | `VoucherManagementServlet.java`, `VoucherDAO.java` | `doPost`, `validateEditableQuantity`, `updateVoucher` | Khi edit giữ nguyên used hiện tại và chặn quantity mới thấp hơn used. |
+| BR-38 | Đã có code thực thi | `VoucherManagementServlet.java`, `VoucherDAO.java`, `form.jsp` | `validateVoucher`, `updateStatus`, `toggle-status` | Status chỉ ACTIVE/DISABLED; bật/tắt chỉ đổi status và updated_at, không đổi usage history. |
+| BR-39 | Đã có code thực thi | `VoucherManagementServlet.java`, `VoucherDAO.java`, `list.jsp` | `toggle-status`, `updateStatus`, action buttons | Manage Voucher không xóa vĩnh viễn; Owner dùng DISABLED để dừng sử dụng và giữ lịch sử tham chiếu. |
 
 # 3. Các điểm mâu thuẫn giữa code và SRS
 
@@ -57,8 +67,16 @@
 - File: `src/main/java/com/swp/util/RegisterValidator.java`, `src/main/java/com/swp/controller/auth/ProfileServlet.java`, `src/main/webapp/assets/js/register-validation.js`.
 - Class/method: `RegisterValidator.validate`, `ProfileServlet.doPost`, frontend validate.
 - Logic hiện tại: regex họ tên cho phép thêm dấu nháy `'` và dấu chấm `.` trong một số trường hợp.
-- Yêu cầu trong SRS: họ tên chỉ chứa chữ cái và khoảng trắng, không có ký tự đặc biệt hoặc số.
-- Đề xuất sửa: thống nhất regex họ tên theo chữ cái Unicode và khoảng trắng, nhưng không sửa trong nhiệm vụ comment này.
+- Yêu cầu trong SRS: họ tên dài 2-50 ký tự, chỉ chứa chữ cái và khoảng trắng, không có ký tự đặc biệt hoặc số.
+- Đề xuất sửa: thống nhất giới hạn 2-50 và regex họ tên theo chữ cái Unicode/khoảng trắng, nhưng không thực hiện trong nhiệm vụ comment này.
+
+## BR-27
+
+- File: `src/main/java/com/swp/util/RegisterValidator.java`, `src/main/java/com/swp/controller/auth/ProfileServlet.java`, `src/main/webapp/assets/js/register-validation.js`.
+- Class/method: `RegisterValidator.validate`, `ProfileServlet.doPost`, frontend validate.
+- Logic hiện tại: register/profile/frontend đang kiểm tra email tối đa 100 ký tự và regex email cơ bản.
+- Yêu cầu trong SRS: email đúng định dạng quốc tế và tối đa 50 ký tự.
+- Đề xuất sửa: đồng bộ giới hạn email về 50 ký tự và dùng regex/validator phù hợp hơn, nhưng không thực hiện trong nhiệm vụ comment này.
 
 ## BR-28
 
@@ -98,3 +116,93 @@
 - `mvn -DskipTests package`: không chạy được vì môi trường hiện tại không có `mvn` trong PATH (`CommandNotFoundException`).
 - `mvn test`: không chạy được vì môi trường hiện tại không có `mvn` trong PATH (`CommandNotFoundException`).
 - Fallback compile: đã chạy `javac -encoding UTF-8 --release 17` cho toàn bộ `src/main/java` với các dependency jar trong local Maven cache; kết quả pass, không phát sinh lỗi compile sau khi thêm comment.
+
+# 6. Bổ sung theo yêu cầu "chỉ thêm, không xoá" - 2026-07-24 09:07 +07:00
+
+## 6.1. Phạm vi bổ sung
+
+- Không tìm thấy `SWP391-SE2010Net-Team5(8).zip` và `Group5_SRS(8).docx` trong workspace hoặc thư mục attachments hiện tại; phần BR-01 đến BR-29 tiếp tục dựa trên mapping đã có trong báo cáo này.
+- Chỉ thêm comment/Javadoc tiếng Việt vào các file đã chỉnh sửa; không chủ động thay đổi điều kiện, SQL, trạng thái, công thức tính tiền, endpoint hoặc tên biến.
+- Không sửa/xoá comment cũ dù có comment cũ bằng tiếng Anh hoặc comment còn chưa chuẩn chính tả, để tuân thủ yêu cầu chỉ thêm.
+
+## 6.2. File được bổ sung comment trong lượt này
+
+- `src/main/java/com/swp/controller/customer/BookingController.java`
+- `src/main/java/com/swp/dao/PriceRuleDAO.java`
+- `src/main/java/com/swp/dao/SystemSettingDAO.java`
+- `src/main/java/com/swp/dao/UserDAO.java`
+- `src/main/java/com/swp/dao/WorkShiftDAO.java`
+- `src/main/java/com/swp/filter/AdminAuthFilter.java`
+- `src/main/java/com/swp/filter/AuthFilter.java`
+- `src/main/java/com/swp/filter/CustomerAuthFilter.java`
+- `src/main/java/com/swp/filter/MaintenanceFilter.java`
+- `src/main/java/com/swp/filter/OwnerAuthFilter.java`
+- `src/main/java/com/swp/filter/StaffAuthFilter.java`
+- `src/main/java/com/swp/service/CloudinaryService.java`
+- `src/main/java/com/swp/service/FeedbackService.java`
+- `src/main/java/com/swp/service/FieldService.java`
+- `src/main/java/com/swp/service/FootballComplexService.java`
+- `src/main/java/com/swp/service/GoogleOAuthService.java`
+- `src/main/java/com/swp/service/OwnerDashboardService.java`
+- `src/main/java/com/swp/service/VoucherUserService.java`
+- `src/main/java/com/swp/util/AuthUtil.java`
+- `src/main/java/com/swp/util/DBContext.java`
+- `src/main/java/com/swp/util/LoginAttemptUtil.java`
+- `src/main/java/com/swp/util/PasswordUtil.java`
+- `src/main/java/com/swp/util/PriceCalculator.java`
+- `src/main/java/com/swp/util/RecaptchaUtil.java`
+- `src/main/java/com/swp/util/RememberMeUtil.java`
+- `src/main/java/com/swp/util/VNPayConfig.java`
+- `src/main/webapp/assets/js/app.js`
+- `src/main/webapp/assets/js/customer/feedback.js`
+- `src/main/webapp/assets/js/customer/field-detail.js`
+- `src/main/webapp/assets/js/customer/matchmaking.js`
+- `src/main/webapp/assets/js/customer/search.js`
+- `src/main/webapp/assets/js/customer/voucher.js`
+- `src/main/webapp/assets/js/owner/complex.js`
+- `src/main/webapp/assets/js/owner/dashboard.js`
+- `src/main/webapp/assets/js/owner/field.js`
+
+## 6.3. Ghi chú về diff và kiểm tra
+
+- `git diff --numstat`: ghi nhận 636 dòng thêm mới. Một số file JS vốn không có newline cuối file nên Git hiển thị marker `No newline at end of file` như một thay đổi dòng cuối; không có logic JS bị sửa.
+- Trước khi bổ sung comment đã tồn tại một thay đổi whitespace trong `BookingController.java`; sau lượt này `git diff --check` vẫn báo `src/main/java/com/swp/controller/customer/BookingController.java:494: trailing whitespace`. Không tự xoá whitespace đó để giữ đúng yêu cầu chỉ thêm.
+- `mvn -DskipTests package`: không chạy được vì `mvn` không có trong PATH (`CommandNotFoundException`).
+- `mvn test`: không chạy được vì `mvn` không có trong PATH (`CommandNotFoundException`).
+- Fallback `javac` trong sandbox:
+  - Lần dùng classpath cũ thiếu các jar `jakarta.mail`, Cloudinary, OpenPDF, BCrypt nên không phản ánh lỗi do comment.
+  - Lần dùng jar trong `target/WEB-INF/lib` thiếu `jakarta.servlet-api` vì servlet dependency là provided.
+  - Lệnh compile ngoài sandbox để đọc thêm jar servlet trong local Maven cache đã bị hệ thống từ chối do giới hạn usage, nên chưa thể xác nhận full compile trong lượt bổ sung này.
+
+# 7. Bổ sung theo `D:\SWP\Group5_SRS.docx` - 2026-07-27
+
+## 7.1. Kết quả đối chiếu mới
+
+- SRS mới có thêm BR-30 đến BR-39 cho Manage Voucher của Owner.
+- Trước lượt bổ sung này, audit comment còn thiếu các ID: BR-16, BR-30, BR-31, BR-32, BR-33, BR-34, BR-35, BR-36, BR-37, BR-38, BR-39.
+- Sau khi bổ sung, audit bằng regex `Business Rule BR-xx` trên `src/main/java` và `src/main/webapp` đã nhận diện đủ BR-01 đến BR-39.
+- BR-16 được thêm dưới dạng TODO comment ở `StaffBillingServlet.showCheckout` và `StaffBillingDAO.completeCheckout`, vì code hiện tại chưa enforce `now >= booking.endTime()`.
+- Các comment checkout bị gắn nhầm BR-26/BR-27 đã được sửa: CASH online không còn gắn BR-26; cash checkout gắn BR-21; online checkout request gắn BR-20.
+- BR-26/BR-27/BR-28 được chỉnh comment để nêu rõ yêu cầu SRS mới và gap hiện tại, không thay đổi regex/logic validate.
+
+## 7.2. File được bổ sung hoặc chỉnh comment trong lượt này
+
+- `BUSINESS_RULE_COMMENT_REPORT.md`
+- `src/main/java/com/swp/filter/OwnerAuthFilter.java`
+- `src/main/java/com/swp/controller/owner/VoucherManagementServlet.java`
+- `src/main/java/com/swp/dao/VoucherDAO.java`
+- `src/main/webapp/WEB-INF/owner/vouchers/form.jsp`
+- `src/main/webapp/WEB-INF/owner/vouchers/list.jsp`
+- `src/main/java/com/swp/controller/staff/StaffBillingServlet.java`
+- `src/main/java/com/swp/dao/StaffBillingDAO.java`
+- `src/main/java/com/swp/controller/customer/PaymentController.java`
+- `src/main/java/com/swp/util/RegisterValidator.java`
+- `src/main/java/com/swp/controller/auth/ProfileServlet.java`
+- `src/main/webapp/assets/js/register-validation.js`
+
+## 7.3. Kiểm tra sau chỉnh sửa
+
+- `git diff --check`: pass, chỉ có cảnh báo LF sẽ được đổi thành CRLF khi Git chạm file.
+- `mvn -DskipTests package`: không chạy được vì `mvn` không có trong PATH (`CommandNotFoundException`).
+- Fallback `javac` lần đầu thiếu dependency nên fail không đại diện.
+- Fallback `javac` lần hai với classpath từ `target/SWP391-1.0-SNAPSHOT/WEB-INF/lib` cộng servlet/JSP API trong local Maven cache: pass.

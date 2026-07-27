@@ -744,7 +744,7 @@ public class PaymentController extends HttpServlet {
         if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
             throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
         }
-        // Business Rule BR-26: CASH chỉ được Staff ghi nhận tại quầy checkout, không thuộc flow Customer online.
+        // Flow Customer online không nhận CASH; tiền mặt chỉ do Staff ghi nhận tại quầy checkout.
         if (METHOD_CASH.equalsIgnoreCase(selectedMethod.getMethodCode())) {
             throw new IllegalArgumentException("Phuong thuc tien mat chi duoc Staff ghi nhan tai quay Check-out.");
         }
