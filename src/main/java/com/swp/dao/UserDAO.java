@@ -572,10 +572,11 @@ public class UserDAO {
             }
         }
 
-        // 2. Tính điểm dựa vào Tỉ lệ cấu hình (earned = totalAmount * percentage / 100)
+        // 2. Tính điểm dựa vào Tỉ lệ cấu hình (earned = (totalAmount * percentage / 100)/1000)
         int earnedPoints = totalAmount
                 .multiply(rewardPercentage)
                 .divide(new BigDecimal("100"), RoundingMode.DOWN)
+                .divide(new BigDecimal("1000"), RoundingMode.DOWN)
                 .intValue();
 
         // 3. VIP được cộng thêm 2.5% tổng số điểm nhận được
@@ -584,9 +585,9 @@ public class UserDAO {
         }
 
         String updateSql = """
-        UPDATE users
-        SET available_reward_points = available_reward_points + ?
-        WHERE user_id = ?
+            UPDATE users
+            SET available_reward_points = available_reward_points + ?
+            WHERE user_id = ?
         """;
 
         try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
