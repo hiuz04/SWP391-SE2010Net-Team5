@@ -6,6 +6,7 @@ import com.swp.dao.UserDAO;
 import com.swp.dao.VoucherDAO;
 import com.swp.model.Booking;
 import com.swp.model.Field;
+import com.swp.model.FootballComplex;
 import com.swp.model.FieldMaintenanceSchedule;
 import com.swp.model.FieldType;
 import com.swp.model.User;
@@ -57,12 +58,10 @@ public class BookingController extends HttpServlet {
     private final UserDAO userDAO = new UserDAO();
     private final VoucherDAO voucherDAO = new VoucherDAO();
     private final com.swp.dao.SystemSettingDAO systemSettingDAO = new com.swp.dao.SystemSettingDAO();
+    private final com.swp.dao.FootballComplexDAO complexDAO = new com.swp.dao.FootballComplexDAO();
 
     // Business Rule BR-02: Lưới đặt sân sử dụng các ô 30 phút và thời lượng lấy theo giờ bắt đầu/kết thúc.
     private static final int SLOT_MINUTES = 30;
-    private static final LocalTime GRID_START_TIME = LocalTime.of(5, 0);
-    private static final LocalTime GRID_LAST_SLOT_START = LocalTime.of(20, 30);
-    private static final LocalTime GRID_END_TIME = GRID_LAST_SLOT_START.plusMinutes(SLOT_MINUTES);
     // Business Rule BR-04: Booking sau khi xác nhận được giữ tạm ở trạng thái HOLD trong 15 phút.
     private static final int HOLD_MINUTES = 15;
     private static final int MAX_RECURRING_BOOKINGS = 50;
@@ -176,12 +175,19 @@ public class BookingController extends HttpServlet {
         List<FieldMaintenanceSchedule> maintenances =
                 bookingDAO.getMaintenanceByComplexAndDate(complexId, selectedDate);
 
-        List<String> timeHeaders = buildTimeHeaders();
+        FootballComplex complex = complexDAO.getFootballComplexDataByID(complexId);
+        LocalTime gridStartTime = (complex != null && complex.getOpeningTime() != null) ? complex.getOpeningTime() : LocalTime.of(5, 0);
+        LocalTime gridEndTime = (complex != null && complex.getClosingTime() != null) ? complex.getClosingTime() : LocalTime.of(21, 0);
+        LocalTime gridLastSlotStart = gridEndTime.minusMinutes(SLOT_MINUTES);
+
+        List<String> timeHeaders = buildTimeHeaders(gridStartTime, gridLastSlotStart);
         Map<Long, List<FieldScheduleSlot>> scheduleMap = buildScheduleMap(
                 fields,
                 bookings,
                 maintenances,
-                selectedDate
+                selectedDate,
+                gridStartTime,
+                gridLastSlotStart
         );
 
         request.setAttribute("complexId", complexId);
@@ -479,21 +485,27 @@ public class BookingController extends HttpServlet {
         LocalDateTime startTime = parseLocalDateTime(request.getParameter("startTime"), "Giờ bắt đầu không hợp lệ.");
         LocalDateTime endTime = parseLocalDateTime(request.getParameter("endTime"), "Giờ kết thúc không hợp lệ.");
         // Business Rule BR-02: Thời lượng booking được xác định từ startTime/endTime và phải bám block 30 phút.
-        validateBookingTimeOrThrow(startTime, endTime);
+        BookingView bookingInfo = bookingDAO.getBookingPreviewInfoByFieldId(fieldId, currentUser.getUserId());
+        if (bookingInfo == null) {
+            throw new IllegalArgumentException("Khong tim thay san.");
+        }
+        
+        FootballComplex complex = complexDAO.getFootballComplexDataByID(bookingInfo.getComplexId());
+        LocalTime gridStartTime = (complex != null && complex.getOpeningTime() != null) ? complex.getOpeningTime() : LocalTime.of(5, 0);
+        LocalTime gridEndTime = (complex != null && complex.getClosingTime() != null) ? complex.getClosingTime() : LocalTime.of(21, 0);
+
+        validateBookingTimeOrThrow(startTime, endTime, gridStartTime, gridEndTime);
 
         RepeatRequest repeatRequest = parseRepeatRequest(
                 request.getParameter("repeatType"),
                 startTime.toLocalDate()
         );
     
-        BookingView bookingInfo = bookingDAO.getBookingPreviewInfoByFieldId(fieldId, currentUser.getUserId());
-        if (bookingInfo == null) {
-            throw new IllegalArgumentException("Khong tim thay san.");
-        }
+
 
         boolean activeVip = hasActiveVip(currentUser);
         boolean fullPaymentRequired = REPEAT_MONTHLY.equals(repeatRequest.repeatType());
-        List<BookingSlot> expectedSlots = buildBookingSlots(startTime, endTime, repeatRequest);
+        List<BookingSlot> expectedSlots = buildBookingSlots(startTime, endTime, repeatRequest, gridStartTime, gridEndTime);
         List<CalculatedBookingSlot> validBookingSlots = new ArrayList<>();
         List<BookingSlotPreview> slotPreviews = new ArrayList<>();
         List<SkippedBookingSlot> skippedSlots = new ArrayList<>();
@@ -777,7 +789,9 @@ public class BookingController extends HttpServlet {
     private List<BookingSlot> buildBookingSlots(
             LocalDateTime startTime,
             LocalDateTime endTime,
-            RepeatRequest repeatRequest
+            RepeatRequest repeatRequest,
+            LocalTime gridStartTime,
+            LocalTime gridEndTime
     ) {
         List<BookingSlot> slots = new ArrayList<>();
         LocalDateTime currentStart = startTime;
@@ -793,7 +807,9 @@ public class BookingController extends HttpServlet {
             validateBookingTimeOrThrow(
                     currentStart,
                     currentEnd,
-                    REPEAT_NONE.equals(repeatRequest.repeatType())
+                    REPEAT_NONE.equals(repeatRequest.repeatType()),
+                    gridStartTime,
+                    gridEndTime
             );
             slots.add(new BookingSlot(currentStart, currentEnd));
 
@@ -889,7 +905,9 @@ public class BookingController extends HttpServlet {
             List<Field> fields,
             List<Booking> bookings,
             List<FieldMaintenanceSchedule> maintenances,
-            LocalDate selectedDate
+            LocalDate selectedDate,
+            LocalTime gridStartTime,
+            LocalTime gridLastSlotStart
     ) {
         Map<Long, List<FieldScheduleSlot>> scheduleMap = new LinkedHashMap<>();
 
@@ -897,10 +915,10 @@ public class BookingController extends HttpServlet {
         for (Field field : fields) {
             List<FieldScheduleSlot> slots = new ArrayList<>();
 
-            LocalTime current = GRID_START_TIME;
+            LocalTime current = gridStartTime;
 
             // Sinh tuần tự các slot 30 phút từ giờ mở lưới đến slot cuối trong ngày.
-            while (!current.isAfter(GRID_LAST_SLOT_START)) {
+            while (!current.isAfter(gridLastSlotStart)) {
                 LocalDateTime slotStart = selectedDate.atTime(current);
                 LocalDateTime slotEnd = slotStart.plusMinutes(SLOT_MINUTES);
 
@@ -952,13 +970,13 @@ public class BookingController extends HttpServlet {
         return LocalDate.now().plusDays(maxDays);
     }
 
-    private List<String> buildTimeHeaders() {
+    private List<String> buildTimeHeaders(LocalTime gridStartTime, LocalTime gridLastSlotStart) {
         List<String> headers = new ArrayList<>();
 
-        LocalTime current = GRID_START_TIME;
+        LocalTime current = gridStartTime;
 
         // Header thời gian phải khớp đúng số slot dùng trong scheduleMap.
-        while (!current.isAfter(GRID_LAST_SLOT_START)) {
+        while (!current.isAfter(gridLastSlotStart)) {
             headers.add(current.toString());
             current = current.plusMinutes(SLOT_MINUTES);
         }
@@ -1082,16 +1100,23 @@ public class BookingController extends HttpServlet {
         }
     }
 
-    private void validateBookingTimeOrThrow(LocalDateTime startTime, LocalDateTime endTime) {
-        validateBookingTimeOrThrow(startTime, endTime, true);
+    private void validateBookingTimeOrThrow(
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            LocalTime gridStartTime,
+            LocalTime gridEndTime
+    ) {
+        validateBookingTimeOrThrow(startTime, endTime, true, gridStartTime, gridEndTime);
     }
 
     private void validateBookingTimeOrThrow(
             LocalDateTime startTime,
             LocalDateTime endTime,
-            boolean enforceMaxBookingDate
+            boolean enforceMaxBookingDate,
+            LocalTime gridStartTime,
+            LocalTime gridEndTime
     ) {
-        String errorMessage = validateBookingTime(startTime, endTime, enforceMaxBookingDate);
+        String errorMessage = validateBookingTime(startTime, endTime, enforceMaxBookingDate, gridStartTime, gridEndTime);
         // Có lỗi validate thì ném exception để caller thống nhất cách redirect/hiển thị lỗi.
         if (errorMessage != null) {
             throw new IllegalArgumentException(errorMessage);
@@ -1102,7 +1127,13 @@ public class BookingController extends HttpServlet {
      * Kiểm tra các ràng buộc thời gian trước khi tính tiền hoặc tạo booking:
      * không đặt quá khứ, cùng ngày, đúng block 30 phút và nằm trong giờ hoạt động của sân.
      */
-    private String validateBookingTime(LocalDateTime startTime, LocalDateTime endTime, boolean enforceMaxBookingDate) {
+    private String validateBookingTime(
+            LocalDateTime startTime, 
+            LocalDateTime endTime, 
+            boolean enforceMaxBookingDate,
+            LocalTime gridStartTime,
+            LocalTime gridEndTime
+    ) {
         // Thiếu giờ hoặc giờ bắt đầu không trước giờ kết thúc thì booking không có thời lượng hợp lệ.
         if (startTime == null || endTime == null || !startTime.isBefore(endTime)) {
             return "Gi\u1edd b\u1eaft \u0111\u1ea7u ph\u1ea3i nh\u1ecf h\u01a1n gi\u1edd k\u1ebft th\u00fac.";
@@ -1138,8 +1169,11 @@ public class BookingController extends HttpServlet {
         LocalTime start = startTime.toLocalTime();
         LocalTime end = endTime.toLocalTime();
         // Khung giờ phải nằm trong giờ vận hành đã định nghĩa cho lưới đặt sân.
-        if (start.isBefore(GRID_START_TIME) || end.isAfter(GRID_END_TIME)) {
-            return "Th\u1eddi gian \u0111\u1eb7t s\u00e2n ph\u1ea3i n\u1eb1m trong gi\u1edd ho\u1ea1t \u0111\u1ed9ng t\u1eeb 05:00 \u0111\u1ebfn 21:00.";
+        if (start.isBefore(gridStartTime) || end.isAfter(gridEndTime)) {
+            return "Th\u1eddi gian \u0111\u1eb7t s\u00e2n ph\u1ea3i n\u1eb1m trong gi\u1edd ho\u1ea1t \u0111\u1ed9ng t\u1eeb " 
+                   + String.format("%02d:%02d", gridStartTime.getHour(), gridStartTime.getMinute()) 
+                   + " \u0111\u1ebfn " 
+                   + String.format("%02d:%02d", gridEndTime.getHour(), gridEndTime.getMinute()) + ".";
         }
 
         return null;
