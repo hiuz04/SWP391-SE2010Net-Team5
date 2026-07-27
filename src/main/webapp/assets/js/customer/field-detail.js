@@ -8,8 +8,10 @@ function loadData(id) {
     fetch(`${ctx}/field?id=${id}`)
         .then(res => res.json())
         .then(data => {
-            console.log(">>> role",currentRole);
-            console.log(">>> data",data);
+            document.getElementById("bc-name").innerHTML = data.complexName;
+
+            renderComplexImages(data.complexImages);
+
             document.getElementById("field-name").innerHTML = data.complexName;
             document.getElementById("address").innerHTML = `<i class="bi bi-geo-alt me-1"></i>` + data.complexAddress;
             
@@ -235,5 +237,53 @@ function submitReply(feedbackId) {
     .catch(err => {
         console.error(err);
         alert("Có lỗi xảy ra khi gửi phản hồi.");
+    });
+}
+
+function renderComplexImages(images) {
+    const carousel = document.getElementById("carouselImages");
+    const indicators = document.getElementById("carouselIndicators");
+
+    if (!carousel || !indicators) return;
+
+    carousel.innerHTML = "";
+    indicators.innerHTML = "";
+
+    // Không có ảnh
+    if (!images || images.length === 0) {
+        carousel.innerHTML = `
+            <div class="carousel-item active">
+                <img
+                    src="${ctx}/assets/images/default-field.jpg"
+                    class="d-block w-100"
+                    style="height:420px;object-fit:cover"
+                    alt="Football Complex">
+            </div>
+        `;
+
+        return;
+    }
+
+    images.forEach((img, index) => {
+        carousel.innerHTML += `
+            <div class="carousel-item ${index === 0 ? "active" : ""}">
+                <img
+                    src="${img.imageUrl}"
+                    class="d-block w-100"
+                    style="height:420px;object-fit:cover"
+                    alt="Football Complex">
+            </div>
+        `;
+
+        indicators.innerHTML += `
+            <button
+                type="button"
+                data-bs-target="#complexCarousel"
+                data-bs-slide-to="${index}"
+                class="${index === 0 ? "active" : ""}"
+                ${index === 0 ? 'aria-current="true"' : ""}
+                aria-label="Slide ${index + 1}">
+            </button>
+        `;
     });
 }

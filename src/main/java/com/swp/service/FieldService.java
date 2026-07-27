@@ -66,4 +66,12 @@ public class FieldService {
     public List<Field> searchField(String fieldName, String status, Long typeId, long complexId) {
         return fieldDao.searchField(fieldName, status, typeId, complexId);
     }
+
+    public boolean existsByName(String fieldName, long complexId) {
+        return fieldDao.existsByName(fieldName, complexId);
+    }
+
+    public boolean existsByNameExceptId(String fieldName, long complexId, long fieldId) {
+        return fieldDao.existsByNameExceptId(fieldName, complexId, fieldId);
+    }
 }

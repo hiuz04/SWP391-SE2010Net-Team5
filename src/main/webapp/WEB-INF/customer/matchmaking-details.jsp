@@ -294,7 +294,7 @@
                                         </div>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="editFacility" class="form-label">Địa điểm (Cơ sở)</label>
+                                        <label for="editFacility" class="form-label">Địa điểm (Cụm sân)</label>
                                         <select class="form-select" id="editFacility" name="complexId" data-selected="<%= postDTO.getPost().getComplexId() != null ? postDTO.getPost().getComplexId() : "" %>">
                                             <option value="">Chọn địa điểm mong muốn</option>
                                         </select>

@@ -27,7 +27,7 @@ public class PriceRuleController extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        // Bước 1: Lấy danh sách cơ sở thể thao mà Owner đang quản lý
+        // Bước 1: Lấy danh sách cụm sân thể thao mà Owner đang quản lý
         List<FootballComplex> complexes = complexService.getListFootballComplex();
         req.setAttribute("complexes", complexes);
         
@@ -35,7 +35,7 @@ public class PriceRuleController extends HttpServlet {
         FieldTypeService fieldTypeService = new FieldTypeService();
         req.setAttribute("fieldTypes", fieldTypeService.getAllType());
 
-        // Bước 3: Xác định cơ sở đang được chọn (lấy từ param hoặc mặc định là cơ sở đầu tiên)
+        // Bước 3: Xác định cụm sân đang được chọn (lấy từ param hoặc mặc định là cụm sân đầu tiên)
         long complexId = -1;
         String complexIdParam = req.getParameter("complexId");
         if (complexIdParam != null && !complexIdParam.trim().isEmpty()) {
@@ -44,7 +44,7 @@ public class PriceRuleController extends HttpServlet {
             complexId = complexes.get(0).getComplexId();
         }
 
-        // Bước 4: Lấy danh sách luật giá và danh sách sân nhỏ thuộc cơ sở đang chọn
+        // Bước 4: Lấy danh sách luật giá và danh sách sân nhỏ thuộc cụm sân đang chọn
         if (complexId != -1) {
             List<PriceRule> priceRules = priceRuleDAO.getByComplexId(complexId);
             req.setAttribute("priceRules", priceRules);

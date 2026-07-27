@@ -341,7 +341,7 @@ public class WorkShiftServlet extends HttpServlet {
         LocalDate shiftDate = LocalDate.parse(dateStr);
 
         if (workShiftDAO.hasOverlappingShiftAtComplex(complexId, shiftDate, startTime, endTime, null)) {
-            writeError(resp, "Cơ sở này đã được phân ca trực trùng khung giờ này trong ngày.");
+            writeError(resp, "Cụm sân này đã được phân ca trực trùng khung giờ này trong ngày.");
             return;
         }
 
@@ -414,7 +414,7 @@ public class WorkShiftServlet extends HttpServlet {
         String shiftName = baseName + suffix;
 
         if (workShiftDAO.hasOverlappingShiftAtComplex(complexId, shiftDate, startTime, endTime, shiftId)) {
-            writeError(resp, "Cơ sở này đã được phân ca trực trùng khung giờ này trong ngày.");
+            writeError(resp, "Cụm sân này đã được phân ca trực trùng khung giờ này trong ngày.");
             return;
         }
 

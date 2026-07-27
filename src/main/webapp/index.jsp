@@ -176,7 +176,7 @@
                 <div class="col-lg-6" data-aos="fade-right">
                     <span class="badge text-bg-success mb-3 px-3 py-2">Dịch vụ chuẩn 5 sao</span>
                     <h2 class="fw-bold mb-4">Trải nghiệm tiện ích đẳng cấp</h2>
-                    <p class="lead text-muted mb-4">Cơ sở vật chất hiện đại, mặt sân đạt chuẩn cùng hệ thống chiếu sáng chuyên nghiệp. Nâng tầm mọi trận đấu của bạn với những trải nghiệm tuyệt vời nhất.</p>
+                    <p class="lead text-muted mb-4">cụm sân vật chất hiện đại, mặt sân đạt chuẩn cùng hệ thống chiếu sáng chuyên nghiệp. Nâng tầm mọi trận đấu của bạn với những trải nghiệm tuyệt vời nhất.</p>
                     <ul class="list-unstyled mb-4">
                         <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Mặt cỏ nhân tạo chất lượng FIFA</li>
                         <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Hệ thống đèn chiếu sáng ban đêm chống chói</li>

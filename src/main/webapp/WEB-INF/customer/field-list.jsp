@@ -43,11 +43,6 @@
                     </label>
                     <input type="text" class="form-control" id="complexName" placeholder="Nhập tên sân bóng..." oninput="scheduleLoadData()">
 
-                    <label class="form-label mt-3" for="ward">Phường/Xã</label>
-                    <select class="form-select" id="ward" onchange="scheduleLoadData()">
-                        <option value="">-- Chọn Phường/Xã --</option>
-                    </select>
-
                     <label class="form-label mt-3" for="type">Loại sân</label>
                     <select class="form-select" id="fieldType" onchange="scheduleLoadData()">
                         <option value="">-- Chọn loại sân --</option>

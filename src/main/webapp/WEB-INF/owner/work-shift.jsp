@@ -271,7 +271,7 @@
         <div class="page-header">
           <div class="page-header-left">
             <h1><i class="bi bi-clock-history me-2"></i>Quản lý Ca trực & Phân công</h1>
-            <p>Thiết lập lịch trực, phân ca làm việc cho nhân viên và quản lý nhân sự tại các cơ sở sân bóng.</p>
+            <p>Thiết lập lịch trực, phân ca làm việc cho nhân viên và quản lý nhân sự tại các cụm sân sân bóng.</p>
           </div>
           <button class="btn btn-success px-4 py-2" onclick="openAddShiftModal()">
             <i class="bi bi-plus-lg me-1"></i>
@@ -311,7 +311,7 @@
             <div class="card soft-card p-4">
               <div class="d-flex align-items-center justify-content-between">
                 <div>
-                  <span class="text-muted small fw-semibold">Cơ sở hoạt động</span>
+                  <span class="text-muted small fw-semibold">Cụm sân hoạt động</span>
                   <h3 class="fw-bold mt-1 mb-0"><%= complexes.size() %></h3>
                 </div>
                 <div class="p-3 bg-amber-50 text-amber-600 rounded-3" style="background:#fffbeb; color:#f59e0b;">
@@ -339,9 +339,9 @@
 
           <!-- FootballComplex filter -->
           <div class="d-flex gap-2">
-            <label for="complex-filter" class="visually-hidden">Lọc theo cơ sở</label>
+            <label for="complex-filter" class="visually-hidden">Lọc theo cụm sân</label>
             <select class="form-select border-0 shadow-sm" id="complex-filter" style="min-width: 220px;" onchange="filterShifts()">
-              <option value="ALL">Tất cả cơ sở</option>
+              <option value="ALL">Tất cả cụm sân</option>
               <% for (FootballComplex fc : complexes) { %>
                 <option value="<%= fc.getComplexId() %>"><%= fc.getComplexName() %></option>
               <% } %>
@@ -398,7 +398,7 @@
                     <tr>
                       <th style="width: 40px;"><input type="checkbox" id="selectAllShifts" onclick="toggleSelectAllShifts(this)"></th>
                       <th>Tên ca trực</th>
-                      <th>Cơ sở</th>
+                      <th>Cụm sân</th>
                       <th>Ngày trực</th>
                       <th>Khung giờ</th>
                       <th>Nhân viên trực</th>
@@ -572,9 +572,9 @@
         <div class="modal-body">
 
           <div class="mb-3">
-            <label for="modal-complex" class="form-label small fw-bold text-muted">Cơ sở / Địa điểm</label>
+            <label for="modal-complex" class="form-label small fw-bold text-muted">Cụm sân / Địa điểm</label>
             <select class="form-select" id="modal-complex" required>
-              <option value="" disabled selected>-- Chọn cơ sở --</option>
+              <option value="" disabled selected>-- Chọn cụm sân --</option>
               <% for (FootballComplex fc : complexes) { %>
                 <option value="<%= fc.getComplexId() %>"><%= fc.getComplexName() %></option>
               <% } %>

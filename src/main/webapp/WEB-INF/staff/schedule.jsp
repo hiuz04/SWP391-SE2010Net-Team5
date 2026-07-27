@@ -135,7 +135,7 @@
         <div class="row align-items-center g-3">
           <div class="col-md-6">
             <h1 class="fw-bold mb-1">Lịch sân hàng ngày</h1>
-            <p class="text-muted mb-0">Cơ sở: <strong class="text-success"><%= complexName %></strong></p>
+            <p class="text-muted mb-0">Cụm sân: <strong class="text-success"><%= complexName %></strong></p>
           </div>
           <div class="col-md-6 d-flex justify-content-md-end align-items-center gap-3">
             <div>
@@ -178,7 +178,7 @@
               <% if (fields == null || fields.isEmpty()) { %>
                 <tr>
                   <td class="field-col">Không có sân nào</td>
-                  <td colspan="18" class="text-center text-muted py-4">Không tìm thấy sân bóng nào trong cơ sở này.</td>
+                  <td colspan="18" class="text-center text-muted py-4">Không tìm thấy sân bóng nào trong cụm sân này.</td>
                 </tr>
               <% } else {
                 for (Map<String, Object> field : fields) {
@@ -788,7 +788,7 @@
       if (errorParam != null) {
     %>
       <% if ("facility_mismatch".equals(errorParam)) { %>
-        showToast("Lượt đặt sân này thuộc cơ sở khác. Bạn không thể thực hiện thao tác này.", "danger");
+        showToast("Lượt đặt sân này thuộc cụm sân khác. Bạn không thể thực hiện thao tác này.", "danger");
       <% } else { %>
         showToast("<%= errorParam %>", "danger");
       <% } %>
