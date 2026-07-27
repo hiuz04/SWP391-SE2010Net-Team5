@@ -9,14 +9,18 @@
   const fields = {
     fullName: {
       validate: (v) => {
+        // Business Rule BR-26: SRS yêu cầu họ tên 2-50 ký tự, chỉ chữ cái và khoảng trắng.
+        // Frontend hiện tại vẫn kiểm tra 2-100 ký tự và pattern tên rộng hơn.
         if (!v) return 'Họ tên không được để trống.';
-        if (v.length < 2 || v.length > 100) return 'Họ tên phải từ 2 đến 100 ký tự.';
+        if (v.length < 2 || v.length > 50) return 'Họ tên phải từ 2 đến 50 ký tự.';
         if (!fullNamePattern.test(v)) return 'Họ tên chỉ được chứa chữ cái và khoảng trắng.';
         return '';
       }
     },
     phone: {
       validate: (v) => {
+        // Business Rule BR-28: SRS yêu cầu số bắt đầu bằng 0 và dài 10-11 chữ số.
+        // Frontend đăng ký hiện tại vẫn dùng regex số di động VN 10 chữ số.
         if (!v) return 'Số điện thoại không được để trống.';
         if (!phonePattern.test(v)) return 'Số điện thoại không đúng định dạng (10 số, mạng VN).';
         return '';
@@ -24,8 +28,9 @@
     },
     email: {
       validate: (v) => {
+        // Business Rule BR-27: Email phải có độ dài tối đa 50 ký tự và đúng định dạng trước khi submit.
         if (!v) return 'Email không được để trống.';
-        if (v.length > 100) return 'Email không được vượt quá 100 ký tự.';
+        if (v.length > 50) return 'Email không được vượt quá 50 ký tự.';
         if (!emailPattern.test(v)) return 'Email không đúng định dạng.';
         return '';
       }

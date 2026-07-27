@@ -60,13 +60,17 @@ public class PriceRuleController extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        // Bước 1: Xác định hành động (Thêm/Sửa/Xóa) từ form submit
         String action = req.getParameter("action");
         if (action == null) action = "";
-        
-        long complexId = Long.parseLong(req.getParameter("complexId"));
 
+        long complexId = -1;
         try {
+            String complexIdStr = req.getParameter("complexId");
+            if (complexIdStr == null || complexIdStr.trim().isEmpty()) {
+                throw new IllegalArgumentException("Missing parameter complexId.");
+            }
+            complexId = Long.parseLong(complexIdStr.trim());
+
             // Bước 2: Dựa vào action, gọi các hàm DAO tương ứng và thiết lập thông báo thành công
             switch (action) {
                 case "add":
@@ -78,8 +82,15 @@ public class PriceRuleController extends HttpServlet {
                     req.getSession().setAttribute("successMsg", "Cập nhật bảng giá thành công!");
                     break;
                 case "delete":
-                    long priceRuleId = Long.parseLong(req.getParameter("priceRuleId"));
-                    priceRuleDAO.delete(priceRuleId, complexId);
+                    String priceRuleIdStr = req.getParameter("priceRuleId");
+                    if (priceRuleIdStr == null || priceRuleIdStr.trim().isEmpty()) {
+                        throw new IllegalArgumentException("Thiếu tham số priceRuleId.");
+                    }
+                    long priceRuleId = Long.parseLong(priceRuleIdStr.trim());
+                    boolean deleted = priceRuleDAO.delete(priceRuleId, complexId);
+                    if (!deleted) {
+                        throw new IllegalArgumentException("Không tìm thấy bảng giá với ID = " + priceRuleId + " hoặc bảng giá không thuộc cơ sở này.");
+                    }
                     req.getSession().setAttribute("successMsg", "Xóa bảng giá thành công!");
                     break;
             }
@@ -89,7 +100,11 @@ public class PriceRuleController extends HttpServlet {
         }
 
         // Bước 3: Chuyển hướng lại trang danh sách (tránh submit lại form khi F5)
-        resp.sendRedirect(req.getContextPath() + "/owner/price-rules?complexId=" + complexId);
+        if (complexId != -1) {
+            resp.sendRedirect(req.getContextPath() + "/owner/price-rules?complexId=" + complexId);
+        } else {
+            resp.sendRedirect(req.getContextPath() + "/owner/price-rules");
+        }
     }
 
     private void handleAdd(HttpServletRequest req) throws Exception {
@@ -137,7 +152,21 @@ public class PriceRuleController extends HttpServlet {
             pr.setEndTime(LocalTime.parse(endTime));
         }
 
-        pr.setPrice(new BigDecimal(req.getParameter("price")));
+        // Validate: giờ bắt đầu phải nhỏ hơn giờ kết thúc
+        if (pr.getStartTime() != null && pr.getEndTime() != null
+                && !pr.getStartTime().isBefore(pr.getEndTime())) {
+            throw new IllegalArgumentException("Giờ bắt đầu phải nhỏ hơn giờ kết thúc.");
+        }
+
+        String priceStr = req.getParameter("price");
+        if (priceStr == null || priceStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập giá sân.");
+        }
+        BigDecimal price = new BigDecimal(priceStr.trim());
+        if (price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Giá tiền phải lớn hơn 0.");
+        }
+        pr.setPrice(price);
         pr.setRuleType(req.getParameter("ruleType"));
         
         String priorityStr = req.getParameter("priority");

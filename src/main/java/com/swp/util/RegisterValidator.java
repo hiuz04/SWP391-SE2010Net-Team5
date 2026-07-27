@@ -15,26 +15,34 @@ public final class RegisterValidator {
     private RegisterValidator() {
     }
 
+    /**
+     * Validate dữ liệu đăng ký tài khoản Customer.
+     * Method gom lỗi theo từng field để servlet/JSP hiển thị lại đúng ô nhập bị sai.
+     */
     public static ValidationResult validate(String fullName, String phone, String email,
                                            String password, String confirmPassword) {
         ValidationResult result = new ValidationResult();
 
+        // Business Rule BR-26: Họ tên bắt buộc, dài 2-50 ký tự và chỉ theo mẫu tên được hệ thống cho phép.
         if (fullName == null || fullName.isBlank()) {
             result.addFieldError("fullName", "Họ tên không được để trống.");
-        } else if (fullName.length() < 2 || fullName.length() > 100) {
-            result.addFieldError("fullName", "Họ tên phải từ 2 đến 100 ký tự.");
+        } else if (fullName.length() < 2 || fullName.length() > 50) {
+            result.addFieldError("fullName", "Họ tên phải từ 2 đến 50 ký tự.");
         } else if (!FULL_NAME_PATTERN.matcher(fullName).matches()) {
             result.addFieldError("fullName", "Họ tên chỉ được chứa chữ cái và khoảng trắng.");
         }
 
-        if (email == null || email.isBlank()) {
+        // Business Rule BR-27: Email bắt buộc, tối đa 50 ký tự và phải khớp định dạng email.
+        if (email == null || email  .isBlank()) {
             result.addFieldError("email", "Email không được để trống.");
-        } else if (email.length() > 100) {
-            result.addFieldError("email", "Email không được vượt quá 100 ký tự.");
+        } else if (email.length() > 50) {
+            result.addFieldError("email", "Email không được vượt quá 50 ký tự.");
         } else if (!EMAIL_PATTERN.matcher(email).matches()) {
             result.addFieldError("email", "Email không đúng định dạng (vd: name@example.com).");
         }
 
+        // Business Rule BR-28: SRS yêu cầu số bắt đầu bằng 0 và dài 10-11 chữ số.
+        // Code đăng ký hiện tại vẫn dùng regex số di động VN 10 chữ số.
         if (phone == null || phone.isBlank()) {
             result.addFieldError("phone", "Số điện thoại không được để trống.");
         } else if (!PHONE_PATTERN.matcher(phone).matches()) {

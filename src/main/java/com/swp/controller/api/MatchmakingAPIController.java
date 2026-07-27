@@ -39,6 +39,7 @@ public class MatchmakingAPIController extends HttpServlet {
         
         if ("get_responses".equals(action)) {
             HttpSession session = req.getSession(false);
+            // Business Rule BR-01: Customer phải đăng nhập trước khi xem phản hồi của bài tìm đối.
             if (session == null || session.getAttribute("user") == null) {
                 resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 out.print("{\"error\":\"Vui lòng đăng nhập để xem phản hồi.\"}");
@@ -77,6 +78,7 @@ public class MatchmakingAPIController extends HttpServlet {
             return;
         } else if ("get_my_response".equals(action)) {
             HttpSession session = req.getSession(false);
+            // Business Rule BR-01: Customer phải đăng nhập trước khi xem phản hồi của chính mình.
             if (session == null || session.getAttribute("user") == null) {
                 resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 out.print("{\"error\":\"Vui lòng đăng nhập.\"}");
@@ -164,6 +166,7 @@ public class MatchmakingAPIController extends HttpServlet {
         PrintWriter out = resp.getWriter();
 
         HttpSession session = req.getSession(false);
+        // Business Rule BR-01: Customer phải đăng nhập trước khi tạo, phản hồi hoặc quản lý bài tìm đối.
         if (session == null || session.getAttribute("user") == null) {
             resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             out.print("{\"error\":\"Unauthorized - Vui lòng đăng nhập\"}");
@@ -221,6 +224,7 @@ public class MatchmakingAPIController extends HttpServlet {
                     complexId = Long.parseLong(complexIdStr);
                 }
 
+                // Business Rule BR-01: Bài tìm đối được gắn authorId từ session, không lấy từ request.
                 MatchmakingPost post = new MatchmakingPost();
                 post.setAuthorId(userId);
                 post.setPostType(postType);

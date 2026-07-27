@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Xử lý dữ liệu checkout và invoice cho Staff/Owner: lấy thông tin trả sân,
@@ -30,9 +31,14 @@ public class StaffBillingDAO {
     private static final String STATUS_COMPLETED = "COMPLETED";
     private static final String STATUS_CANCELLED = "CANCELLED";
     private static final String STATUS_PENDING_CHECKOUT_PAYMENT = "PENDING_CHECKOUT_PAYMENT";
+    private static final String STATUS_PENDING = "PENDING";
+    private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String INVOICE_PENDING = "PENDING";
     private static final String INVOICE_PAID = "PAID";
     private static final String INVOICE_ACTIVE_LEGACY = "ACTIVE";
+    private static final String PAYMENT_TYPE_CHECKOUT = "CHECKOUT";
+    private static final String METHOD_CASH = "CASH";
+    private static final String METHOD_ONLINE_REQUEST = "ONLINE_REQUEST";
 
     /**
      * Lấy thông tin preview checkout cho một booking.
@@ -44,7 +50,7 @@ public class StaffBillingDAO {
                        b.status, b.start_time, b.end_time, b.total_amount, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_name,
-                       fc.complex_name, fc.address, fc.ward, fc.district, fc.city
+                       fc.complex_name, fc.address, fc.ward, fc.city
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id = fi.field_id
@@ -59,11 +65,16 @@ public class StaffBillingDAO {
                     return null;
                 }
                 CheckoutView view = mapCheckoutView(rs);
-                enrichCheckoutAmounts(view, getOvertimeFeePerMinute(conn), LocalDateTime.now());
+                enrichCheckoutAmounts(conn, view, getOvertimeFeePerMinute(conn), LocalDateTime.now());
                 InvoiceSummary invoice = findLatestCheckoutInvoice(conn, bookingId, false);
                 if (invoice != null) {
                     view.setExistingInvoiceId(invoice.invoiceId());
                     view.setExistingInvoiceStatus(invoice.status());
+                }
+                PaymentRequestSummary paymentRequest = findPendingCheckoutPayment(conn, bookingId);
+                if (paymentRequest != null) {
+                    view.setPendingPaymentRequestId(paymentRequest.paymentId());
+                    view.setPendingPaymentRequestStatus(paymentRequest.status());
                 }
                 return view;
             }
@@ -119,10 +130,15 @@ public class StaffBillingDAO {
     }
 
     /**
-     * Hoàn tất bước Staff/Owner trả sân.
-     * Booking được khóa, tính tiền sân/phụ phí, trừ cọc và tạo invoice trong một transaction.
+     * Hoàn tất bước Staff/Owner trả sân theo phương thức đã chọn.
+     * Booking được khóa, tiền còn lại được tính lại từ DB và mọi ghi nhận invoice/payment/status đi trong cùng transaction.
      */
-    public CheckoutResult completeCheckout(long bookingId, long actorId, boolean staffRole) throws SQLException {
+    public CheckoutResult completeCheckout(
+            long bookingId,
+            long actorId,
+            boolean staffRole,
+            String checkoutPaymentMethod
+    ) throws SQLException {
         try (Connection conn = DBContext.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -130,84 +146,134 @@ public class StaffBillingDAO {
                 if (booking == null) {
                     throw new IllegalArgumentException("Khong tim thay lich dat san.");
                 }
+                // Business Rule BR-12: Staff chỉ được checkout booking tại complex có ca trực đang hoạt động.
                 if (staffRole && !hasActiveShiftForComplex(conn, actorId, booking.complexId())) {
                     throw new SecurityException("Ban khong co ca lam viec dang hoat dong tai co so nay.");
                 }
 
-                // Nếu đã có invoice thì không tạo mới; chỉ gửi lại notification khi invoice còn PENDING.
+                LocalDateTime now = LocalDateTime.now();
+                CheckoutAmounts amounts = calculateCheckoutAmounts(conn, booking, now);
+
+                // Nếu đã có invoice thì xử lý tiếp đúng nhánh; không tạo trùng hóa đơn/payment request.
                 InvoiceSummary existingInvoice = findLatestCheckoutInvoice(conn, bookingId, true);
                 if (existingInvoice != null) {
-                    if (INVOICE_PENDING.equals(existingInvoice.status())) {
-                        insertCheckoutPaymentNotification(conn, booking, existingInvoice.invoiceId(), existingInvoice.totalAmount());
+                    if (isPaidInvoice(existingInvoice.status())) {
                         conn.commit();
                         return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode(),
-                                "Da gui lai yeu cau thanh toan cho khach.");
+                                "Hoa don da duoc thanh toan.");
+                    }
+
+                    if (amounts.remainingAmount().signum() == 0) {
+                        markInvoicePaid(conn, existingInvoice.invoiceId(), amounts, BigDecimal.ZERO);
+                        completeBookingAfterCheckout(conn, booking, actorId,
+                                "Checkout completed with zero amount due.");
+                        conn.commit();
+                        return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode(),
+                                "Booking da duoc thanh toan du, khong can tao them yeu cau.");
+                    }
+
+                    String method = requireCheckoutMethod(checkoutPaymentMethod, amounts.remainingAmount());
+                    if (METHOD_CASH.equals(method)) {
+                        recordCashCheckoutPayment(conn, booking, existingInvoice.invoiceId(), amounts, actorId);
+                        completeBookingAfterCheckout(conn, booking, actorId,
+                                "Checkout completed by cash payment.");
+                        conn.commit();
+                        return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode(),
+                                "Đã ghi nhận thanh toán tiền mặt " + moneyPlain(amounts.remainingAmount()) + ". Checkout thành công.");
+                    }
+
+                    updatePendingInvoiceAmounts(conn, existingInvoice.invoiceId(), amounts);
+                    PaymentRequestSummary requestSummary = createOrUpdatePendingCheckoutPaymentRequest(conn, booking, existingInvoice.invoiceId(),
+                            amounts.remainingAmount());
+                    ensurePendingCheckoutStatus(conn, booking, actorId);
+                    if (!requestSummary.existing()) {
+                        insertCheckoutPaymentNotification(conn, booking, existingInvoice.invoiceId(), amounts.remainingAmount());
                     }
                     conn.commit();
-                    return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode(),
-                            "Hoa don da duoc thanh toan.");
+                    String message = requestSummary.existing()
+                            ? "Booking này đã có một yêu cầu thanh toán đang chờ khách xử lý."
+                            : "Đã gửi yêu cầu thanh toán " + moneyPlain(amounts.remainingAmount()) + " cho khách hàng.";
+                    return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode(), message);
                 }
 
+                // Business Rule BR-15: Chỉ booking CHECKED_IN mới được checkout.
                 if (!STATUS_CHECKED_IN.equals(booking.status())) {
                     throw new IllegalArgumentException("Chi lich da nhan san moi duoc checkout.");
                 }
+                // TODO Business Rule BR-16: SRS yêu cầu now >= booking.endTime() trước khi checkout;
+                // transaction hiện tại mới tính overtime, chưa chặn checkout sớm.
 
-                // Số tiền checkout được tính từ booking trong DB và thời điểm trả sân thực tế.
-                LocalDateTime now = LocalDateTime.now();
-                BigDecimal overtimeFeePerMinute = getOvertimeFeePerMinute(conn);
-                long overtimeMinutes = calculateOvertimeMinutes(booking.endTime(), now);
-                BigDecimal overtimeFee = overtimeFeePerMinute.multiply(BigDecimal.valueOf(overtimeMinutes));
-                BigDecimal fieldTotal = safe(booking.fieldFee());
-                BigDecimal subtotal = fieldTotal.add(overtimeFee);
-                BigDecimal finalAmount = maxZero(subtotal.subtract(safe(booking.depositAmount())));
                 String invoiceCode = generateInvoiceCode(bookingId);
 
-                if (finalAmount.signum() == 0) {
+                // Business Rule BR-19: Nếu không còn tiền phải trả thì invoice PAID và booking COMPLETED ngay.
+                if (amounts.remainingAmount().signum() == 0) {
                     // Khi tiền cọc đã đủ bù toàn bộ chi phí, invoice được đánh dấu PAID và booking hoàn tất ngay.
                     long invoiceId = insertInvoice(
                             conn,
                             invoiceCode,
                             booking,
                             actorId,
-                            subtotal,
+                            amounts.subtotal(),
                             BigDecimal.ZERO,
                             BigDecimal.ZERO,
                             INVOICE_PAID,
-                            overtimeMinutes,
-                            overtimeFee
+                            amounts.overtimeMinutes(),
+                            amounts.overtimeFee()
                     );
-                    updateBookingStatus(conn, bookingId, STATUS_CHECKED_IN, STATUS_COMPLETED);
-                    releaseField(conn, booking.fieldId());
-                    insertBookingStatusLog(conn, booking.bookingId(), STATUS_CHECKED_IN, STATUS_COMPLETED,
-                            actorId, "Checkout completed with zero amount due.");
+                    completeBookingAfterCheckout(conn, booking, actorId,
+                            "Checkout completed with zero amount due.");
                     conn.commit();
                     return new CheckoutResult(invoiceId, bookingId, invoiceCode,
-                            "Booking khong con so tien phai thanh toan. Da hoan tat checkout.");
+                            "Booking không còn số tiền phải thanh toán. Đã hoàn tất checkout.");
                 }
 
-                // Còn tiền phải trả thì tạo invoice PENDING và chuyển booking sang chờ Customer thanh toán checkout.
+                String method = requireCheckoutMethod(checkoutPaymentMethod, amounts.remainingAmount());
+                if (METHOD_CASH.equals(method)) {
+                    long invoiceId = insertInvoice(
+                            conn,
+                            invoiceCode,
+                            booking,
+                            actorId,
+                            amounts.subtotal(),
+                            amounts.remainingAmount(),
+                            BigDecimal.ZERO,
+                            INVOICE_PENDING,
+                            amounts.overtimeMinutes(),
+                            amounts.overtimeFee()
+                    );
+                    recordCashCheckoutPayment(conn, booking, invoiceId, amounts, actorId);
+                    completeBookingAfterCheckout(conn, booking, actorId,
+                            "Checkout completed by cash payment.");
+                    conn.commit();
+                    return new CheckoutResult(invoiceId, bookingId, invoiceCode,
+                            "Đã ghi nhận thanh toán tiền mặt " + moneyPlain(amounts.remainingAmount())
+                                    + ". Checkout booking thành công.");
+                }
+
+                // Business Rule BR-20: Còn tiền phải trả và Staff chọn online thì tạo invoice/payment PENDING.
                 long invoiceId = insertInvoice(
                         conn,
                         invoiceCode,
                         booking,
                         actorId,
-                        subtotal,
-                        finalAmount,
+                        amounts.subtotal(),
+                        amounts.remainingAmount(),
                         BigDecimal.ZERO,
                         INVOICE_PENDING,
-                        overtimeMinutes,
-                        overtimeFee
+                        amounts.overtimeMinutes(),
+                        amounts.overtimeFee()
                 );
+                createOrUpdatePendingCheckoutPaymentRequest(conn, booking, invoiceId, amounts.remainingAmount());
                 updateBookingStatus(conn, bookingId, STATUS_CHECKED_IN, STATUS_PENDING_CHECKOUT_PAYMENT);
                 insertBookingStatusLog(conn, booking.bookingId(), STATUS_CHECKED_IN, STATUS_PENDING_CHECKOUT_PAYMENT,
                         actorId, "Checkout payment request created.");
-                insertCheckoutPaymentNotification(conn, booking, invoiceId, finalAmount);
+                insertCheckoutPaymentNotification(conn, booking, invoiceId, amounts.remainingAmount());
 
                 conn.commit();
                 return new CheckoutResult(invoiceId, bookingId, invoiceCode,
-                        "Da gui yeu cau thanh toan cho khach.");
+                        "Đã gửi yêu cầu thanh toán " + moneyPlain(amounts.remainingAmount()) + " cho khách hàng.");
             } catch (SQLException | RuntimeException e) {
-                rollback(conn, e);
+                    rollback(conn, e);
                 throw e;
             }
         }
@@ -225,12 +291,15 @@ public class StaffBillingDAO {
                 if (booking == null) {
                     throw new IllegalArgumentException("Khong tim thay lich dat san.");
                 }
+                // Business Rule BR-14: Chỉ booking CONFIRMED chưa check-in mới được hủy no-show.
                 if (!STATUS_CONFIRMED.equals(booking.status())) {
                     throw new IllegalArgumentException("Chi booking da xac nhan va chua check-in moi co the huy no-show.");
                 }
+                // Business Rule BR-14: Chỉ được hủy no-show sau 30 phút kể từ giờ bắt đầu booking.
                 if (booking.startTime() == null || LocalDateTime.now().isBefore(booking.startTime().plusMinutes(30))) {
                     throw new IllegalArgumentException("Booking chua qua 30 phut ke tu gio bat dau.");
                 }
+                // Business Rule BR-12: Staff hủy no-show cũng phải có ca đang hoạt động tại đúng complex.
                 if (staffRole && !hasActiveShiftForComplex(conn, actorId, booking.complexId())) {
                     throw new SecurityException("Ban khong co ca lam viec dang hoat dong tai co so nay.");
                 }
@@ -251,13 +320,14 @@ public class StaffBillingDAO {
                     }
                 }
 
+                // Business Rule BR-14: Hủy no-show giải phóng sân và ghi log CANCELLED.
                 releaseField(conn, booking.fieldId());
                 insertBookingStatusLog(conn, booking.bookingId(), STATUS_CONFIRMED, STATUS_CANCELLED,
                         actorId, "NO_SHOW_LATE_30_MINUTES");
                 insertNotification(conn,
                         booking.customerId(),
-                        "Booking da bi huy do den muon",
-                        "Booking " + booking.bookingCode() + " da bi huy vi khach chua check-in sau 30 phut ke tu gio bat dau.",
+                        "Booking đã bị hủy do đến muộn",
+                        "Booking " + booking.bookingCode() + " đã bị hủy vì khách chưa check-in sau 30 phút kể từ giờ bắt đầu.",
                         "BOOKING",
                         booking.bookingId());
 
@@ -283,10 +353,13 @@ public class StaffBillingDAO {
                        b.field_id, b.total_amount AS field_fee, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
                        fi.field_name,
-                       fc.complex_id, fc.complex_name, fc.address, fc.ward, fc.district, fc.city,
+                       fc.complex_id, fc.complex_name, fc.address, fc.ward, fc.city,
                        staff.full_name AS staff_name,
                        lp.payment_status,
-                       lp.payment_method_name
+                       lp.payment_method_name,
+                       lp.payment_amount,
+                       lp.paid_at,
+                       dp.deposit_payment_method_name
                 FROM invoices i
                 JOIN bookings b ON i.booking_id = b.booking_id
                 JOIN users u ON i.customer_id = u.user_id
@@ -295,7 +368,9 @@ public class StaffBillingDAO {
                 LEFT JOIN users staff ON i.staff_id = staff.user_id
                 OUTER APPLY (
                     SELECT TOP 1 p.status AS payment_status,
-                           pm.method_name AS payment_method_name
+                           CASE WHEN UPPER(pm.method_code) = 'CASH' THEN N'Tiền mặt' ELSE pm.method_name END AS payment_method_name,
+                           p.amount AS payment_amount,
+                           p.paid_at
                     FROM payments p
                     LEFT JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
                     WHERE p.booking_id = i.booking_id
@@ -303,6 +378,17 @@ public class StaffBillingDAO {
                       AND p.payment_type = 'CHECKOUT'
                     ORDER BY p.created_at DESC, p.payment_id DESC
                 ) lp
+                OUTER APPLY (
+                    SELECT TOP 1
+                           CASE WHEN UPPER(pm.method_code) = 'CASH' THEN N'Tiền mặt' ELSE pm.method_name END AS deposit_payment_method_name
+                    FROM payments p
+                    LEFT JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
+                    WHERE p.booking_id = i.booking_id
+                      AND p.customer_id = i.customer_id
+                      AND p.payment_type = 'DEPOSIT'
+                      AND p.status = 'SUCCESS'
+                    ORDER BY p.paid_at DESC, p.created_at DESC, p.payment_id DESC
+                ) dp
                 WHERE %s
                   AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
                 ORDER BY i.issued_at DESC, i.invoice_id DESC
@@ -372,26 +458,75 @@ public class StaffBillingDAO {
     /**
      * Bổ sung các số tiền checkout cho màn hình preview: phụ phí quá giờ, subtotal và số còn phải trả sau khi trừ cọc.
      */
-    private void enrichCheckoutAmounts(CheckoutView view, BigDecimal overtimeFeePerMinute, LocalDateTime now) {
+    private void enrichCheckoutAmounts(Connection conn, CheckoutView view, BigDecimal overtimeFeePerMinute, LocalDateTime now)
+            throws SQLException {
         view.setCheckoutTime(now);
         view.setOvertimeFeePerMinute(overtimeFeePerMinute);
+        // Business Rule BR-17: Preview checkout cũng tính số phút quá giờ theo thời điểm hiện tại.
         long overtimeMinutes = calculateOvertimeMinutes(view.getEndTime(), now);
         BigDecimal overtimeFee = overtimeFeePerMinute.multiply(BigDecimal.valueOf(overtimeMinutes));
         BigDecimal subtotal = safe(view.getFieldFee()).add(overtimeFee);
-        BigDecimal finalAmount = maxZero(subtotal.subtract(safe(view.getDepositAmount())));
+        BigDecimal paidAmount = getSuccessfulPaidAmountForBooking(conn, view.getBookingId());
+        // Business Rule BR-18: Preview số tiền còn lại không được nhỏ hơn 0 và luôn dựa trên payment SUCCESS trong DB.
+        BigDecimal finalAmount = maxZero(subtotal.subtract(paidAmount));
 
         view.setOvertimeMinutes(overtimeMinutes);
         view.setOvertimeFee(overtimeFee);
         view.setSubtotal(subtotal);
         view.setFinalAmount(finalAmount);
+        view.setPaidAmountBeforeCheckout(paidAmount);
         view.setCheckoutAllowed(STATUS_CHECKED_IN.equals(view.getStatus()));
         view.setCheckoutBlockedReason(null);
+    }
+
+    private CheckoutAmounts calculateCheckoutAmounts(Connection conn, BookingLock booking, LocalDateTime now)
+            throws SQLException {
+        BigDecimal overtimeFeePerMinute = getOvertimeFeePerMinute(conn);
+        long overtimeMinutes = calculateOvertimeMinutes(booking.endTime(), now);
+        BigDecimal overtimeFee = overtimeFeePerMinute.multiply(BigDecimal.valueOf(overtimeMinutes));
+        BigDecimal subtotal = safe(booking.fieldFee()).add(overtimeFee);
+        BigDecimal paidAmount = getSuccessfulPaidAmountForBooking(conn, booking.bookingId());
+        BigDecimal remainingAmount = maxZero(subtotal.subtract(paidAmount));
+        return new CheckoutAmounts(subtotal, paidAmount, remainingAmount, overtimeMinutes, overtimeFee);
+    }
+
+    private BigDecimal getSuccessfulPaidAmountForBooking(Connection conn, Long bookingId) throws SQLException {
+        if (bookingId == null) {
+            return BigDecimal.ZERO;
+        }
+        String sql = """
+                SELECT COALESCE(SUM(amount), 0) AS paid_amount
+                FROM payments WITH (UPDLOCK, HOLDLOCK)
+                WHERE booking_id = ?
+                  AND status = 'SUCCESS'
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? safe(rs.getBigDecimal("paid_amount")) : BigDecimal.ZERO;
+            }
+        }
+    }
+
+    private String requireCheckoutMethod(String rawMethod, BigDecimal remainingAmount) {
+        if (safe(remainingAmount).signum() == 0) {
+            return "";
+        }
+        String method = rawMethod == null ? "" : rawMethod.trim().toUpperCase();
+        if (method.isEmpty()) {
+            throw new IllegalArgumentException("Vui long chon phuong thuc xu ly thanh toan checkout.");
+        }
+        if (!METHOD_CASH.equals(method) && !METHOD_ONLINE_REQUEST.equals(method)) {
+            throw new IllegalArgumentException("Phuong thuc xu ly checkout khong hop le.");
+        }
+        return method;
     }
 
     /**
      * Tính số phút quá giờ, làm tròn lên để chỉ cần quá một phần phút vẫn bị tính một phút.
      */
     private long calculateOvertimeMinutes(LocalDateTime endTime, LocalDateTime now) {
+        // Business Rule BR-17: Chưa quá giờ kết thúc thì không phát sinh phụ phí quá giờ.
         if (endTime == null || now == null || !now.isAfter(endTime)) {
             return 0;
         }
@@ -429,6 +564,7 @@ public class StaffBillingDAO {
                 WHERE booking_id = ?
                   AND status = ?
                 """;
+        // Business Rule BR-24: Booking chỉ được chuyển trạng thái khi oldStatus khớp trạng thái hiện tại.
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, newStatus);
             ps.setLong(2, bookingId);
@@ -447,6 +583,7 @@ public class StaffBillingDAO {
                 WHERE field_id = ?
                   AND status NOT IN ('MAINTENANCE', 'DISABLED')
                 """;
+        // Business Rule BR-12: SQL kiểm tra ca trực cùng ngày, cùng complex và đang nằm trong khoảng giờ làm việc.
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, fieldId);
             ps.executeUpdate();
@@ -506,6 +643,355 @@ public class StaffBillingDAO {
                     throw new SQLException("Khong the tao hoa don.");
                 }
                 return rs.getLong(1);
+            }
+        }
+    }
+
+    private void updatePendingInvoiceAmounts(Connection conn, long invoiceId, CheckoutAmounts amounts)
+            throws SQLException {
+        String sql = """
+                UPDATE invoices
+                SET subtotal = ?,
+                    total_amount = ?,
+                    paid_amount = 0,
+                    overtime_minutes = ?,
+                    overtime_fee = ?
+                WHERE invoice_id = ?
+                  AND status = 'PENDING'
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBigDecimal(1, amounts.subtotal());
+            ps.setBigDecimal(2, amounts.remainingAmount());
+            ps.setLong(3, amounts.overtimeMinutes());
+            ps.setBigDecimal(4, amounts.overtimeFee());
+            ps.setLong(5, invoiceId);
+            if (ps.executeUpdate() != 1) {
+                throw new SQLException("Khong cap nhat duoc hoa don checkout dang cho.");
+            }
+        }
+    }
+
+    private void markInvoicePaid(
+            Connection conn,
+            long invoiceId,
+            CheckoutAmounts amounts,
+            BigDecimal paidAmount
+    ) throws SQLException {
+        String sql = """
+                UPDATE invoices
+                SET status = 'PAID',
+                    subtotal = ?,
+                    total_amount = ?,
+                    paid_amount = ?,
+                    overtime_minutes = ?,
+                    overtime_fee = ?
+                WHERE invoice_id = ?
+                  AND status IN ('PENDING', 'ACTIVE')
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBigDecimal(1, amounts.subtotal());
+            ps.setBigDecimal(2, amounts.remainingAmount());
+            ps.setBigDecimal(3, safe(paidAmount));
+            ps.setLong(4, amounts.overtimeMinutes());
+            ps.setBigDecimal(5, amounts.overtimeFee());
+            ps.setLong(6, invoiceId);
+            if (ps.executeUpdate() != 1) {
+                throw new SQLException("Khong cap nhat duoc trang thai hoa don.");
+            }
+        }
+    }
+
+    private void completeBookingAfterCheckout(
+            Connection conn,
+            BookingLock booking,
+            long actorId,
+            String note
+    ) throws SQLException {
+        String updateBooking = """
+                UPDATE bookings
+                SET status = 'COMPLETED',
+                    updated_at = GETDATE()
+                WHERE booking_id = ?
+                  AND status = ?
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(updateBooking)) {
+            ps.setLong(1, booking.bookingId());
+            ps.setString(2, booking.status());
+            if (ps.executeUpdate() != 1) {
+                throw new IllegalArgumentException("Booking khong con hop le de checkout.");
+            }
+        }
+        releaseField(conn, booking.fieldId());
+        insertBookingStatusLog(conn, booking.bookingId(), booking.status(), STATUS_COMPLETED, actorId, note);
+    }
+
+    private void ensurePendingCheckoutStatus(Connection conn, BookingLock booking, long actorId)
+            throws SQLException {
+        if (STATUS_PENDING_CHECKOUT_PAYMENT.equals(booking.status())) {
+            return;
+        }
+        updateBookingStatus(conn, booking.bookingId(), STATUS_CHECKED_IN, STATUS_PENDING_CHECKOUT_PAYMENT);
+        insertBookingStatusLog(conn, booking.bookingId(), STATUS_CHECKED_IN, STATUS_PENDING_CHECKOUT_PAYMENT,
+                actorId, "Checkout payment request created.");
+    }
+
+    private void recordCashCheckoutPayment(
+            Connection conn,
+            BookingLock booking,
+            long invoiceId,
+            CheckoutAmounts amounts,
+            long staffId
+    ) throws SQLException {
+        if (amounts.remainingAmount().signum() <= 0) {
+            return;
+        }
+        if (hasSuccessfulCheckoutPayment(conn, booking.bookingId())) {
+            throw new IllegalArgumentException("Khoan checkout nay da duoc thanh toan.");
+        }
+
+        int cashMethodId = getOrCreatePaymentMethod(conn, METHOD_CASH, "Tiền mặt");
+        String transactionRef = generateTransactionRef();
+        String gatewayRef = "CASH-" + staffId + "-" + transactionRef;
+        String insertPayment = """
+                INSERT INTO payments (
+                    booking_id,
+                    customer_id,
+                    payment_method_id,
+                    amount,
+                    payment_type,
+                    status,
+                    transaction_ref,
+                    gateway_transaction_id,
+                    paid_at,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, 'CHECKOUT', 'SUCCESS', ?, ?, GETDATE(), GETDATE())
+                """;
+        // Business Rule BR-21: Tiền mặt tại quầy được ghi SUCCESS trước khi invoice/booking hoàn tất checkout.
+        try (PreparedStatement ps = conn.prepareStatement(insertPayment)) {
+            ps.setLong(1, booking.bookingId());
+            ps.setLong(2, booking.customerId());
+            ps.setInt(3, cashMethodId);
+            ps.setBigDecimal(4, amounts.remainingAmount());
+            ps.setString(5, transactionRef);
+            ps.setString(6, gatewayRef);
+            if (ps.executeUpdate() != 1) {
+                throw new SQLException("Khong ghi nhan duoc giao dich tien mat.");
+            }
+        }
+
+        markInvoicePaid(conn, invoiceId, amounts, amounts.remainingAmount());
+        failPendingCheckoutPayments(conn, booking.bookingId(), transactionRef);
+        insertNotification(conn,
+                booking.customerId(),
+                "Đã ghi nhận thanh toán tiền mặt",
+                "Booking " + booking.bookingCode() + " đã được ghi nhận thanh toán tiền mặt "
+                        + moneyPlain(amounts.remainingAmount()) + " tại quầy.",
+                "CHECKOUT_PAYMENT_SUCCESS",
+                invoiceId);
+    }
+
+    private boolean hasSuccessfulCheckoutPayment(Connection conn, long bookingId) throws SQLException {
+        String sql = """
+                SELECT TOP 1 1
+                FROM payments WITH (UPDLOCK, HOLDLOCK)
+                WHERE booking_id = ?
+                  AND payment_type = 'CHECKOUT'
+                  AND status = 'SUCCESS'
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private void failPendingCheckoutPayments(Connection conn, long bookingId, String paidTransactionRef)
+            throws SQLException {
+        String sql = """
+                UPDATE payments
+                SET status = 'FAILED'
+                WHERE booking_id = ?
+                  AND payment_type = 'CHECKOUT'
+                  AND status = 'PENDING'
+                  AND transaction_ref <> ?
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            ps.setString(2, paidTransactionRef);
+            ps.executeUpdate();
+        }
+    }
+
+    private PaymentRequestSummary createOrUpdatePendingCheckoutPaymentRequest(
+            Connection conn,
+            BookingLock booking,
+            long invoiceId,
+            BigDecimal amount
+    ) throws SQLException {
+        if (safe(amount).signum() <= 0) {
+            throw new IllegalArgumentException("Booking da duoc thanh toan du, khong can tao them yeu cau.");
+        }
+        if (hasSuccessfulCheckoutPayment(conn, booking.bookingId())) {
+            throw new IllegalArgumentException("Khoan checkout nay da duoc thanh toan.");
+        }
+
+        int onlineMethodId = getDefaultOnlinePaymentMethodId(conn);
+        String selectExisting = """
+                SELECT TOP 1 payment_id, status
+                FROM payments WITH (UPDLOCK, HOLDLOCK)
+                WHERE booking_id = ?
+                  AND customer_id = ?
+                  AND payment_type = 'CHECKOUT'
+                  AND status = 'PENDING'
+                ORDER BY created_at DESC, payment_id DESC
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(selectExisting)) {
+            ps.setLong(1, booking.bookingId());
+            ps.setLong(2, booking.customerId());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    long paymentId = rs.getLong("payment_id");
+                    updatePendingCheckoutPaymentAmount(conn, paymentId, onlineMethodId, amount);
+                    return new PaymentRequestSummary(paymentId, rs.getString("status"), true);
+                }
+            }
+        }
+
+        String insertPayment = """
+                INSERT INTO payments (
+                    booking_id,
+                    customer_id,
+                    payment_method_id,
+                    amount,
+                    payment_type,
+                    status,
+                    transaction_ref,
+                    created_at
+                )
+                OUTPUT INSERTED.payment_id
+                VALUES (?, ?, ?, ?, 'CHECKOUT', 'PENDING', ?, GETDATE())
+                """;
+        String transactionRef = generateTransactionRef();
+        // Business Rule BR-20: Online request dùng payment PENDING để Customer thanh toán phần checkout còn lại.
+        try (PreparedStatement ps = conn.prepareStatement(insertPayment)) {
+            ps.setLong(1, booking.bookingId());
+            ps.setLong(2, booking.customerId());
+            ps.setInt(3, onlineMethodId);
+            ps.setBigDecimal(4, amount);
+            ps.setString(5, transactionRef);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("Khong tao duoc yeu cau thanh toan online.");
+                }
+                return new PaymentRequestSummary(rs.getLong(1), STATUS_PENDING, false);
+            }
+        }
+    }
+
+    private void updatePendingCheckoutPaymentAmount(
+            Connection conn,
+            long paymentId,
+            int paymentMethodId,
+            BigDecimal amount
+    ) throws SQLException {
+        String sql = """
+                UPDATE payments
+                SET amount = ?,
+                    payment_method_id = ?
+                WHERE payment_id = ?
+                  AND status = 'PENDING'
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBigDecimal(1, amount);
+            ps.setInt(2, paymentMethodId);
+            ps.setLong(3, paymentId);
+            if (ps.executeUpdate() != 1) {
+                throw new SQLException("Khong cap nhat duoc yeu cau thanh toan checkout.");
+            }
+        }
+    }
+
+    private PaymentRequestSummary findPendingCheckoutPayment(Connection conn, long bookingId) throws SQLException {
+        String sql = """
+                SELECT TOP 1 payment_id, status
+                FROM payments
+                WHERE booking_id = ?
+                  AND payment_type = 'CHECKOUT'
+                  AND status = 'PENDING'
+                ORDER BY created_at DESC, payment_id DESC
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                return new PaymentRequestSummary(rs.getLong("payment_id"), rs.getString("status"), true);
+            }
+        }
+    }
+
+    private int getDefaultOnlinePaymentMethodId(Connection conn) throws SQLException {
+        String sql = """
+                SELECT TOP 1 payment_method_id
+                FROM payment_methods
+                WHERE status = 'ACTIVE'
+                  AND UPPER(method_code) <> 'CASH'
+                ORDER BY CASE
+                             WHEN UPPER(method_code) = 'VNPAY' THEN 0
+                             WHEN UPPER(method_code) = 'SIMULATED' THEN 1
+                             ELSE 2
+                         END,
+                         payment_method_id
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (!rs.next()) {
+                throw new IllegalArgumentException("Chua cau hinh phuong thuc thanh toan online.");
+            }
+            return rs.getInt("payment_method_id");
+        }
+    }
+
+    private int getOrCreatePaymentMethod(Connection conn, String methodCode, String methodName) throws SQLException {
+        Integer existing = findPaymentMethodIdByCode(conn, methodCode);
+        if (existing != null) {
+            return existing;
+        }
+        String sql = """
+                INSERT INTO payment_methods (method_code, method_name, status)
+                OUTPUT INSERTED.payment_method_id
+                VALUES (?, ?, 'ACTIVE')
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, methodCode);
+            ps.setString(2, methodName);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        Integer created = findPaymentMethodIdByCode(conn, methodCode);
+        if (created == null) {
+            throw new SQLException("Khong cau hinh duoc phuong thuc thanh toan " + methodCode + ".");
+        }
+        return created;
+    }
+
+    private Integer findPaymentMethodIdByCode(Connection conn, String methodCode) throws SQLException {
+        String sql = """
+                SELECT TOP 1 payment_method_id
+                FROM payment_methods WITH (UPDLOCK, HOLDLOCK)
+                WHERE UPPER(method_code) = UPPER(?)
+                ORDER BY payment_method_id
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, methodCode);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt("payment_method_id") : null;
             }
         }
     }
@@ -677,6 +1163,9 @@ public class StaffBillingDAO {
         view.setBookingStatus(rs.getString("booking_status"));
         view.setPaymentStatus(rs.getString("payment_status"));
         view.setPaymentMethodName(rs.getString("payment_method_name"));
+        view.setCheckoutPaymentAmount(rs.getBigDecimal("payment_amount"));
+        view.setCheckoutPaidAt(toLocalDateTime(rs.getTimestamp("paid_at")));
+        view.setDepositPaymentMethodName(rs.getString("deposit_payment_method_name"));
         view.setStaffName(rs.getString("staff_name"));
         return view;
     }
@@ -685,7 +1174,6 @@ public class StaffBillingDAO {
         List<String> parts = new ArrayList<>();
         addPart(parts, rs.getString("address"));
         addPart(parts, rs.getString("ward"));
-        addPart(parts, rs.getString("district"));
         addPart(parts, rs.getString("city"));
         return String.join(", ", parts);
     }
@@ -720,6 +1208,13 @@ public class StaffBillingDAO {
         return "INV" + DateTimeFormatter.ofPattern("yyyyMMddHHmmss").format(LocalDateTime.now()) + bookingId;
     }
 
+    private String generateTransactionRef() {
+        String timestamp = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS")
+                .format(LocalDateTime.now());
+        String random = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+        return "TXN" + timestamp + random;
+    }
+
     private void rollback(Connection conn, Exception original) {
         try {
             conn.rollback();
@@ -747,6 +1242,22 @@ public class StaffBillingDAO {
             String invoiceCode,
             String status,
             BigDecimal totalAmount
+    ) {
+    }
+
+    private record CheckoutAmounts(
+            BigDecimal subtotal,
+            BigDecimal paidAmount,
+            BigDecimal remainingAmount,
+            long overtimeMinutes,
+            BigDecimal overtimeFee
+    ) {
+    }
+
+    private record PaymentRequestSummary(
+            long paymentId,
+            String status,
+            boolean existing
     ) {
     }
 }

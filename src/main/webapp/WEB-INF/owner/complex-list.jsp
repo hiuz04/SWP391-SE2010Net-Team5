@@ -24,40 +24,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
   <link href="<%= ctx %>/assets/css/owner/complex.css" rel="stylesheet">
+  <link href="<%= ctx %>/assets/css/owner/dashboard.css" rel="stylesheet">
   <title>Quản lý cơ sở | Sport Field Booking</title>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Cơ sở"></div>
-<main class="py-5 main-wrapper">
-  <div class="container">
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <h1 class="section-title mb-1">Quản lý cơ sở</h1>
-                    <p class="text-muted mb-0">
-                        Quản lý danh sách các cơ sở bóng đá.
-                    </p>
-                </div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Cụm sân"></div>
 
-                <button class="btn btn-success"
-                        onclick="navigateComplexForm()">
-                    <i class="bi bi-plus-lg me-1"></i>
-                    Thêm cơ sở mới
-                </button>
+<main class="main-wrapper owner-content">
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <h1><i class="bi bi-buildings me-2 text-success"></i>Quản lý cơ sở</h1>
+                <p>Quản lý danh sách các cơ sở bóng đá của bạn.</p>
             </div>
+            <button class="btn btn-success px-4 py-2"
+                    onclick="navigateComplexForm()">
+                <i class="bi bi-plus-lg me-1"></i>
+                Thêm cơ sở mới
+            </button>
+        </div>
 
+        <!-- Filter Card -->
+        <div class="filter-card">
             <div class="row g-3 align-items-center">
+
                 <div class="col-lg-5">
                     <div class="input-group">
                         <span class="input-group-text">
                             <i class="bi bi-search"></i>
                         </span>
-
                         <input
                                 id="keyword"
                                 class="form-control"
@@ -67,30 +71,34 @@
                     </div>
                 </div>
 
-                <div class="col-lg-3">
+                <div class="col-lg-4">
                     <select
                             id="status"
                             class="form-select"
                             onchange="scheduleLoadData()"
                     >
                         <option value="">Tất cả trạng thái</option>
-                        <option value="ACTIVE">Hoạt động</option>
-                        <option value="INACTIVE">Ngừng hoạt động</option>
-                        <option value="PENDING">Đang chờ</option>
-                        <option value="MAINTENANCE">Bảo trì</option>
+                        <option value="ACTIVE">✅ Hoạt động</option>
+                        <option value="INACTIVE">🔴 Ngừng hoạt động</option>
+                        <option value="PENDING">🟡 Đang thiết lập</option>
+                        <option value="MAINTENANCE">🔵 Bảo trì</option>
                     </select>
                 </div>
 
-                <div class="col-lg-4 text-end">
-                    <span class="text-muted" id="complex-count"></span>
+                <div class="col-lg-3 text-end">
+                    <span class="stat-pill" id="complex-count">
+                        <i class="bi bi-buildings"></i>
+                        <strong>0</strong> cơ sở
+                    </span>
                 </div>
+
             </div>
         </div>
-    </div>
-    <!-- Hiển thị danh sách cơ sở -->
-    <div class="border-0 shadow-sm px-4 data-container py-3" id="complex-data-container"></div>
-  </div>
-</main>
+
+        <!-- Data container -->
+        <div id="complex-data-container"></div>
+
+    </main>
 <div id="footer" data-root="../../"></div>
 
 <script>
@@ -99,6 +107,8 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/owner/complex.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
-<script>loadData()</script>
+<script>
+    loadData();
+</script>
 </body>
 </html>

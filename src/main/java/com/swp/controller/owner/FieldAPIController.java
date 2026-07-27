@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-@WebServlet("/api/fields")
+@WebServlet("/owner/api/fields")
 public class FieldAPIController extends HttpServlet {
 
     private static final FieldService fieldService = new FieldService();
@@ -68,18 +68,20 @@ public class FieldAPIController extends HttpServlet {
             List<FieldType> fieldTypes = fieldTypeService.getAllType();
 
             Map<Integer, FieldType> fieldTypeMap = fieldTypes.stream()
-                    .collect(Collectors.toMap(FieldType::getFieldTypeId, Function.identity()));
+                    .collect(Collectors.toMap(FieldType::getFieldTypeId, Function.identity(), (a, b) -> a));
 
             List<FieldList> lists = new ArrayList<>();
+            String complexName = complex != null ? complex.getComplexName() : "";
 
             for (Field f : fields) {
                 FieldType ft = fieldTypeMap.get(f.getFieldTypeId());
+                String typeName = ft != null ? ft.getTypeName() : "Khác";
 
                 lists.add(new FieldList(
                         f.getFieldId(),
                         f.getFieldName(),
-                        ft.getTypeName(),
-                        complex.getComplexName(), // hoặc bỏ hẳn thuộc tính complexName nếu không dùng
+                        typeName,
+                        complexName,
                         f.getDescription(),
                         f.getStatus(),
                         f.isHot()

@@ -25,17 +25,33 @@ public class OwnerAuthFilter implements Filter {
 
         HttpSession session = req.getSession(false);
 
-        // Chưa đăng nhập
+        boolean isApiRequest = req.getRequestURI().contains("/api/")
+                || "XMLHttpRequest".equalsIgnoreCase(req.getHeader("X-Requested-With"))
+                || (req.getHeader("Accept") != null && req.getHeader("Accept").contains("application/json"));
+
+        // Business Rule BR-30: Chỉ user đã đăng nhập mới được vào nhóm chức năng /owner, gồm Manage Voucher.
         if (session == null || session.getAttribute("user") == null) {
-            resp.sendRedirect(req.getContextPath() + "/login");
+            if (isApiRequest) {
+                resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                resp.setContentType("application/json;charset=UTF-8");
+                resp.getWriter().write("{\"error\":\"UNAUTHORIZED\",\"message\":\"Chưa đăng nhập\"}");
+            } else {
+                resp.sendRedirect(req.getContextPath() + "/login");
+            }
             return;
         }
 
         User user = (User) session.getAttribute("user");
 
-        // Không phải Owner
+        // Business Rule BR-30: Manage Voucher chỉ cho phép role OWNER tiếp tục xử lý request.
         if (!OWNER_ROLE_NAME.equalsIgnoreCase(user.getRoleName())) {
-            resp.sendRedirect(req.getContextPath() + "/error/403.jsp");
+            if (isApiRequest) {
+                resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                resp.setContentType("application/json;charset=UTF-8");
+                resp.getWriter().write("{\"error\":\"FORBIDDEN\",\"message\":\"Không có quyền truy cập\"}");
+            } else {
+                resp.sendRedirect(req.getContextPath() + "/error/403.jsp");
+            }
             return;
         }
 

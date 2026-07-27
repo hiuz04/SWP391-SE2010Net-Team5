@@ -1,6 +1,7 @@
 package com.swp.controller.customer;
 
 import com.google.gson.*;
+import com.swp.dao.UserDAO;
 import com.swp.model.User;
 import com.swp.model.dto.UserVoucherDTO;
 import com.swp.model.dto.VoucherExchangeDTO;
@@ -20,6 +21,7 @@ import java.util.List;
 public class VoucherAPIController extends HttpServlet {
 
     private static final VoucherUserService voucherService = new VoucherUserService();
+    private static final UserDAO userDao = new UserDAO();
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(LocalDateTime.class,
                     (JsonSerializer<LocalDateTime>) (src, typeOfSrc, context) ->
@@ -30,6 +32,10 @@ public class VoucherAPIController extends HttpServlet {
             .create();
 
     @Override
+    /**
+     * Trả dữ liệu JSON cho kho voucher đổi điểm hoặc danh sách voucher của Customer.
+     * Request phải có session đăng nhập; dữ liệu lọc theo tham số `to` và `status/type`.
+     */
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String page = req.getParameter("to");
 
@@ -43,6 +49,10 @@ public class VoucherAPIController extends HttpServlet {
 
     }
 
+    /**
+     * Lấy danh sách voucher còn hiệu lực để Customer có thể đổi bằng điểm thưởng.
+     * Kết quả trả về kèm số điểm hiện tại của user được cập nhật từ CSDL.
+     */
     private void getVoucherExchange(HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
 
@@ -57,28 +67,45 @@ public class VoucherAPIController extends HttpServlet {
             return;
         }
 
-        String targetUser = req.getParameter("type");
-        if (targetUser == null || targetUser.isBlank()) {
-            targetUser = "ALL_TYPE";
+        int updatedPoints = userDao.getAvailableRewardPoints(user.getUserId());
+        user.setRewardPoints(updatedPoints);
+        req.getSession().setAttribute("user", user);
+
+        String type = req.getParameter("type");
+        if (type == null || type.isBlank()) {
+            type = "ALL_TYPE";
         }
 
         try {
-            List<VoucherExchangeDTO> vouchers = voucherService.getExchangeVouchers(targetUser);
+            List<VoucherExchangeDTO> vouchers = voucherService.getExchangeVouchers(
+                    type,
+                    user.isVip()
+            );
 
             JsonObject json = new JsonObject();
             json.addProperty("success", true);
-            json.addProperty("point", user.getRewardPoints());
+            json.addProperty("point", updatedPoints);
             json.add("data", GSON.toJsonTree(vouchers));
 
             resp.getWriter().write(json.toString());
 
         } catch (Exception e) {
             e.printStackTrace();
+
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            resp.getWriter().write("{\"success\":false,\"message\":\"Đã có lỗi xảy ra.\"}");
+
+            JsonObject json = new JsonObject();
+            json.addProperty("success", false);
+            json.addProperty("message", "Đã có lỗi xảy ra.");
+
+            resp.getWriter().write(json.toString());
         }
     }
 
+    /**
+     * Lấy các voucher đã thuộc về Customer hiện tại.
+     * Tham số status chỉ lọc dữ liệu hiển thị, không thay đổi trạng thái voucher.
+     */
     private void getMyVoucher(HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
 
@@ -87,11 +114,17 @@ public class VoucherAPIController extends HttpServlet {
 
         User user = (User) req.getSession().getAttribute("user");
 
+        // Business Rule BR-01: Customer phải đăng nhập trước khi xem voucher thuộc tài khoản mình.
         if (user == null) {
             resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             resp.getWriter().write("{\"success\":false,\"message\":\"Bạn chưa đăng nhập.\"}");
             return;
         }
+
+        // Cập nhật lại điểm thưởng từ CSDL vào session
+        int updatedPoints = userDao.getAvailableRewardPoints(user.getUserId());
+        user.setRewardPoints(updatedPoints);
+        req.getSession().setAttribute("user", user);
 
         String status = req.getParameter("status");
         if (status == null || status.isBlank()) {
@@ -103,6 +136,7 @@ public class VoucherAPIController extends HttpServlet {
 
             JsonObject json = new JsonObject();
             json.addProperty("success", true);
+            json.addProperty("point", updatedPoints);
             json.add("data", GSON.toJsonTree(vouchers));
 
             resp.getWriter().write(json.toString());

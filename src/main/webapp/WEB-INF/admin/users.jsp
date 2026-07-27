@@ -99,6 +99,10 @@
     String searchVal = request.getAttribute("search") != null ? (String) request.getAttribute("search") : "";
     String roleVal = request.getAttribute("role") != null ? (String) request.getAttribute("role") : "";
     String statusVal = request.getAttribute("status") != null ? (String) request.getAttribute("status") : "";
+    String joinDateVal = request.getAttribute("joinDate") != null ? (String) request.getAttribute("joinDate") : "";
+    if ("today".equalsIgnoreCase(joinDateVal)) {
+        joinDateVal = java.time.LocalDate.now().toString();
+    }
 %>
 
         <!-- Filters & Toolbar -->
@@ -106,7 +110,7 @@
             <div class="card-body p-3">
                 <form method="GET" action="<%= ctx %>/admin/users">
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="input-group">
                             <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
                             <input type="text" name="search" value="<%= esc(searchVal) %>" class="form-control border-start-0 ps-0" placeholder="Tìm theo tên, email, SĐT...">
@@ -130,6 +134,9 @@
                         </select>
                     </div>
                     <div class="col-md-2">
+                        <input type="date" name="joinDate" class="form-control" value="<%= esc(joinDateVal) %>" title="Ngày tham gia">
+                    </div>
+                    <div class="col-md-2">
                         <button type="submit" class="btn btn-outline-secondary w-100"><i class="bi bi-funnel me-1"></i> Lọc</button>
                     </div>
                 </div>
@@ -146,6 +153,8 @@
                             <th class="ps-4">Người dùng</th>
                             <th>Liên hệ</th>
                             <th>Vai trò</th>
+                            <th>Điểm thưởng</th>
+                            <th>Loại thành viên</th>
                             <th>Ngày tham gia</th>
                             <th>Trạng thái</th>
                             <th class="text-end pe-4">Thao tác</th>
@@ -198,6 +207,14 @@
                                 <div class="small mt-1"><i class="bi bi-telephone me-1 text-muted"></i> <%= esc(u.getPhone()) %></div>
                             </td>
                             <td><span class="badge <%= roleBadgeClass %>"><%= esc(roleName) %></span></td>
+                            <td><span class="fw-bold text-success"><%= u.getRewardPoints() %></span> <small class="text-muted">điểm</small></td>
+                            <td>
+                                <% if (u.isVip()) { %>
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i> VIP</span>
+                                <% } else { %>
+                                    <span class="badge bg-secondary">Thường</span>
+                                <% } %>
+                            </td>
                             <td><span class="text-muted small"><%= u.getCreatedAt() != null ? u.getCreatedAt().format(formatter) : "" %></span></td>
                             <td><span class="badge rounded-pill <%= statusBadgeClass %> px-2"><%= statusText %></span></td>
                             <td class="text-end pe-4">
@@ -226,7 +243,7 @@
     } else {
 %>
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">Không có dữ liệu người dùng</td>
+                            <td colspan="8" class="text-center py-4 text-muted">Không có dữ liệu người dùng</td>
                         </tr>
 <%
     }
@@ -246,7 +263,8 @@
     String searchParam = searchVal != null && !searchVal.isEmpty() ? "&search=" + esc(searchVal) : "";
     String roleParam = roleVal != null && !roleVal.isEmpty() ? "&role=" + esc(roleVal) : "";
     String statusParam = statusVal != null && !statusVal.isEmpty() ? "&status=" + esc(statusVal) : "";
-    String queryParams = searchParam + roleParam + statusParam;
+    String joinDateParam = joinDateVal != null && !joinDateVal.isEmpty() ? "&joinDate=" + esc(joinDateVal) : "";
+    String queryParams = searchParam + roleParam + statusParam + joinDateParam;
 %>
             <div class="card-footer bg-white border-top p-3">
                 <div class="d-flex justify-content-between align-items-center">

@@ -46,11 +46,19 @@ public class BookingView implements Serializable {
     private LocalDateTime holdExpiresAt;
     private String cancellationReason;
     private LocalDateTime cancelledAt;
-    private String qrCode;
     private String paymentStatus;
     private String paymentMethodName;
     private BigDecimal paidAmount;
     private LocalDateTime paidAt;
+    private Long checkoutInvoiceId;
+    private String checkoutInvoiceStatus;
+    private BigDecimal checkoutTotalAmount;
+    private BigDecimal checkoutPaidAmount;
+    private BigDecimal checkoutRemainingAmount;
+    private String checkoutPaymentStatus;
+    private String checkoutPaymentMethodName;
+    private LocalDateTime checkoutPaidAt;
+    private String checkoutStaffName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private boolean canCancel;
@@ -302,14 +310,6 @@ public class BookingView implements Serializable {
         this.cancelledAt = cancelledAt;
     }
 
-    public String getQrCode() {
-        return qrCode;
-    }
-
-    public void setQrCode(String qrCode) {
-        this.qrCode = qrCode;
-    }
-
     public String getPaymentStatus() {
         return paymentStatus;
     }
@@ -340,6 +340,78 @@ public class BookingView implements Serializable {
 
     public void setPaidAt(LocalDateTime paidAt) {
         this.paidAt = paidAt;
+    }
+
+    public Long getCheckoutInvoiceId() {
+        return checkoutInvoiceId;
+    }
+
+    public void setCheckoutInvoiceId(Long checkoutInvoiceId) {
+        this.checkoutInvoiceId = checkoutInvoiceId;
+    }
+
+    public String getCheckoutInvoiceStatus() {
+        return checkoutInvoiceStatus;
+    }
+
+    public void setCheckoutInvoiceStatus(String checkoutInvoiceStatus) {
+        this.checkoutInvoiceStatus = checkoutInvoiceStatus;
+    }
+
+    public BigDecimal getCheckoutTotalAmount() {
+        return checkoutTotalAmount;
+    }
+
+    public void setCheckoutTotalAmount(BigDecimal checkoutTotalAmount) {
+        this.checkoutTotalAmount = checkoutTotalAmount;
+    }
+
+    public BigDecimal getCheckoutPaidAmount() {
+        return checkoutPaidAmount;
+    }
+
+    public void setCheckoutPaidAmount(BigDecimal checkoutPaidAmount) {
+        this.checkoutPaidAmount = checkoutPaidAmount;
+    }
+
+    public BigDecimal getCheckoutRemainingAmount() {
+        return checkoutRemainingAmount;
+    }
+
+    public void setCheckoutRemainingAmount(BigDecimal checkoutRemainingAmount) {
+        this.checkoutRemainingAmount = checkoutRemainingAmount;
+    }
+
+    public String getCheckoutPaymentStatus() {
+        return checkoutPaymentStatus;
+    }
+
+    public void setCheckoutPaymentStatus(String checkoutPaymentStatus) {
+        this.checkoutPaymentStatus = checkoutPaymentStatus;
+    }
+
+    public String getCheckoutPaymentMethodName() {
+        return checkoutPaymentMethodName;
+    }
+
+    public void setCheckoutPaymentMethodName(String checkoutPaymentMethodName) {
+        this.checkoutPaymentMethodName = checkoutPaymentMethodName;
+    }
+
+    public LocalDateTime getCheckoutPaidAt() {
+        return checkoutPaidAt;
+    }
+
+    public void setCheckoutPaidAt(LocalDateTime checkoutPaidAt) {
+        this.checkoutPaidAt = checkoutPaidAt;
+    }
+
+    public String getCheckoutStaffName() {
+        return checkoutStaffName;
+    }
+
+    public void setCheckoutStaffName(String checkoutStaffName) {
+        this.checkoutStaffName = checkoutStaffName;
     }
 
     public LocalDateTime getCreatedAt() {

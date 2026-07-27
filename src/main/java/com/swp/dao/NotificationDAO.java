@@ -184,4 +184,50 @@ public class NotificationDAO {
         }
         return n;
     }
+
+    public List<Notification> getGlobalNotifications() {
+        List<Notification> list = new ArrayList<>();
+        String sql = "SELECT title, message, notification_type, MAX(created_at) as created_at, MAX(reference_id) as reference_id " +
+                     "FROM notifications " +
+                     "GROUP BY title, message, notification_type " +
+                     "ORDER BY created_at DESC";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Notification n = new Notification();
+                n.setTitle(rs.getString("title"));
+                n.setMessage(rs.getString("message"));
+                n.setNotificationType(rs.getString("notification_type"));
+                
+                long refId = rs.getLong("reference_id");
+                if (!rs.wasNull()) {
+                    n.setReferenceId(refId);
+                }
+                
+                Timestamp created = rs.getTimestamp("created_at");
+                if (created != null) {
+                    n.setCreatedAt(created.toLocalDateTime());
+                }
+                list.add(n);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public boolean deleteGlobalNotification(String title, String message, String type) {
+        String sql = "DELETE FROM notifications WHERE title = ? AND message = ? AND notification_type = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, title);
+            ps.setString(2, message);
+            ps.setString(3, type);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 }

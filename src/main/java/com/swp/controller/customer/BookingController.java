@@ -9,8 +9,11 @@ import com.swp.model.Field;
 import com.swp.model.FieldMaintenanceSchedule;
 import com.swp.model.FieldType;
 import com.swp.model.User;
+import com.swp.model.dto.BookingSlotPreview;
 import com.swp.model.dto.BookingView;
 import com.swp.model.dto.FieldScheduleSlot;
+import com.swp.model.dto.RecurringBookingCreationResult;
+import com.swp.model.dto.SkippedBookingSlot;
 import com.swp.model.dto.VoucherValidationResult;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -55,12 +58,15 @@ public class BookingController extends HttpServlet {
     private final VoucherDAO voucherDAO = new VoucherDAO();
     private final com.swp.dao.SystemSettingDAO systemSettingDAO = new com.swp.dao.SystemSettingDAO();
 
+    // Business Rule BR-02: Lưới đặt sân sử dụng các ô 30 phút và thời lượng lấy theo giờ bắt đầu/kết thúc.
     private static final int SLOT_MINUTES = 30;
     private static final LocalTime GRID_START_TIME = LocalTime.of(5, 0);
     private static final LocalTime GRID_LAST_SLOT_START = LocalTime.of(20, 30);
     private static final LocalTime GRID_END_TIME = GRID_LAST_SLOT_START.plusMinutes(SLOT_MINUTES);
+    // Business Rule BR-04: Booking sau khi xác nhận được giữ tạm ở trạng thái HOLD trong 15 phút.
     private static final int HOLD_MINUTES = 15;
     private static final int MAX_RECURRING_BOOKINGS = 50;
+    // Business Rule BR-06: Booking thường thanh toán cọc 30% trên số tiền cuối cùng.
     private static final BigDecimal DEPOSIT_RATE = new BigDecimal("0.30");
     private static final BigDecimal VIP_DISCOUNT_RATE = new BigDecimal("0.05");
     private static final String STATUS_HOLD = "HOLD";
@@ -69,6 +75,9 @@ public class BookingController extends HttpServlet {
     private static final String STATUS_CHECKED_IN = "CHECKED_IN";
     private static final String REPEAT_NONE = "NONE";
     private static final String REPEAT_MONTHLY = "MONTHLY";
+    private static final String SLOT_STATUS_AVAILABLE = "Khả dụng";
+    private static final String SLOT_STATUS_SKIPPED = "Bỏ qua";
+    private static final String MONTHLY_NO_AVAILABLE_SLOT = "Không có buổi nào khả dụng trong tháng đã chọn.";
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -79,7 +88,9 @@ public class BookingController extends HttpServlet {
 
         String action = trim(request.getParameter("action"));
 
+        // Điều hướng request GET theo action để mỗi màn hình booking dùng đúng luồng dữ liệu.
         try {
+            // Nếu không truyền action thì mặc định mở màn hình tạo booking.
             switch (action == null || action.isEmpty() ? "create" : action) {
                 case "create" -> showSchedulePage(request, response);
                 case "confirm" -> showConfirmationPage(request, response);
@@ -90,6 +101,7 @@ public class BookingController extends HttpServlet {
         } catch (SQLException e) {
             handleError(response, e);
         } catch (IllegalArgumentException e) {
+            // Riêng lỗi khi xác nhận booking cần quay lại màn hình chọn sân kèm thông báo để Customer nhập lại.
             if ("confirm".equals(action)) {
                 redirectWithError(request, response, "create", e.getMessage());
             } else {
@@ -107,10 +119,13 @@ public class BookingController extends HttpServlet {
 
         String action = trim(request.getParameter("action"));
 
+        // Chỉ các action ghi dữ liệu hợp lệ mới được phép đi vào luồng POST của booking.
         try {
+            // Action confirm tạo booking HOLD sau khi đã preview/xác nhận thông tin.
             if ("confirm".equals(action)) {
                 createBookingHoldWithRepeat(request, response);
             } else if ("cancel".equals(action)) {
+                // Action cancel dùng luồng kiểm tra quyền sở hữu và quy tắc hủy booking.
                 cancelBooking(request, response);
             } else {
                 response.sendRedirect(request.getContextPath() + "/");
@@ -137,6 +152,7 @@ public class BookingController extends HttpServlet {
 
         Long complexId = getComplexIdFromRequest(request);
 
+        // Không có complexId thì không thể dựng lịch sân theo cụm, nên quay về trang chủ với lỗi.
         if (complexId == null) {
             request.setAttribute("error", "Không tìm thấy cơ sở sân.");
             request.getRequestDispatcher("/index.jsp").forward(request, response);
@@ -146,6 +162,7 @@ public class BookingController extends HttpServlet {
         LocalDate selectedDate = parseBookingDate(request.getParameter("date"));
         LocalDate today = LocalDate.now();
         LocalDate maxBookingDate = getMaxBookingDate();
+        // Ngày ngoài phạm vi cấu hình được ép về hôm nay để tránh render slot không cho phép đặt.
         if (selectedDate.isBefore(today) || selectedDate.isAfter(maxBookingDate)) {
             selectedDate = today;
             request.setAttribute("error", "Chỉ cho phép đặt sân trong giới hạn ngày đã cấu hình (Tối đa đến " + maxBookingDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ").");
@@ -175,6 +192,7 @@ public class BookingController extends HttpServlet {
         request.setAttribute("fieldTypeNameByFieldId", fieldTypeNameByFieldId);
         request.setAttribute("timeHeaders", timeHeaders);
         request.setAttribute("scheduleMap", scheduleMap);
+        // Chỉ lấy lỗi từ query string khi trước đó chưa có lỗi validate quan trọng hơn.
         if (request.getAttribute("error") == null) {
             request.setAttribute("error", request.getParameter("error"));
         }
@@ -184,8 +202,10 @@ public class BookingController extends HttpServlet {
 
     private Map<Long, String> buildFieldTypeNameByFieldId(List<Field> fields, List<FieldType> fieldTypes) {
         Map<Integer, String> fieldTypeNameById = new LinkedHashMap<>();
+        // Tạo map loại sân trước để tra cứu nhanh tên loại sân cho từng sân trong cụm.
         if (fieldTypes != null) {
             for (FieldType fieldType : fieldTypes) {
+                // Bỏ qua loại sân thiếu khóa để không tạo mapping sai.
                 if (fieldType == null || fieldType.getFieldTypeId() == null) {
                     continue;
                 }
@@ -195,8 +215,10 @@ public class BookingController extends HttpServlet {
         }
 
         Map<Long, String> fieldTypeNameByFieldId = new LinkedHashMap<>();
+        // Ghép từng sân với tên loại sân tương ứng để JSP hiển thị dễ đọc.
         if (fields != null) {
             for (Field field : fields) {
+                // Sân thiếu id hoặc loại sân không đủ dữ liệu để mapping.
                 if (field == null || field.getFieldId() == null || field.getFieldTypeId() == null) {
                     continue;
                 }
@@ -213,6 +235,7 @@ public class BookingController extends HttpServlet {
 
     private String resolveFieldTypeName(FieldType fieldType) {
         String typeName = trim(fieldType.getTypeName());
+        // Nếu loại sân chưa đặt tên thì dùng số người chơi làm nhãn fallback.
         if ((typeName == null || typeName.isEmpty()) && fieldType.getNumberOfPlayers() != null) {
             return "Sân " + fieldType.getNumberOfPlayers();
         }
@@ -246,9 +269,9 @@ public class BookingController extends HttpServlet {
      */
     private void createBookingHoldWithRepeat(HttpServletRequest request, HttpServletResponse response)
             throws IOException, SQLException, ServletException {
-        //Check login
+        // Business Rule BR-01: Customer phải đăng nhập trước khi hệ thống cho tạo booking HOLD.
         User currentUser = requireLogin(request, response);
-        // Neu chua dang nhap thi dung xu ly de tranh tao booking khong co customer.
+        // Nếu chưa đăng nhập thì dừng xử lý để tránh tạo booking không gắn customer.
         if (currentUser == null) {
             return;
         }
@@ -270,7 +293,7 @@ public class BookingController extends HttpServlet {
          */
 
         long bookingId;
-        // Thue don le thi chi insert mot booking HOLD.
+        // Thuê đơn lẻ thì chỉ insert một booking HOLD cho đúng một khung giờ đã chọn.
         if (REPEAT_NONE.equals(context.repeatRequest().repeatType())) {
             Booking booking = buildBooking(
                     currentUser.getUserId(),
@@ -287,37 +310,49 @@ public class BookingController extends HttpServlet {
                     "Customer created booking hold"
             );
         } else {
+            if (context.validBookingSlots().isEmpty()) {
+                request.setAttribute("creationError", MONTHLY_NO_AVAILABLE_SLOT);
+                forwardConfirmationPage(request, response, context);
+                return;
+            }
+
             List<Booking> bookings = new ArrayList<>();
-            boolean fullPaymentRequired = REPEAT_MONTHLY.equals(context.repeatRequest().repeatType());
-            for (BookingSlot slot : context.bookingSlots()) {
-                BookingAmounts amounts = calculateBookingAmounts(
-                        context.bookingPreview().getFieldId(),
-                        slot.startTime(),
-                        slot.endTime(),
-                        fullPaymentRequired
-                );
-                if (context.activeVip()) {
-                    amounts = applyVipDiscount(amounts, fullPaymentRequired);
-                }
+            for (CalculatedBookingSlot slot : context.validBookingSlots()) {
                 bookings.add(buildBooking(
                         currentUser.getUserId(),
                         context.bookingInfo().getComplexId(),
                         context.bookingPreview().getFieldId(),
-                        slot.startTime(),
-                        slot.endTime(),
+                        slot.slot().startTime(),
+                        slot.slot().endTime(),
                         context.bookingPreview().getHoldExpiresAt(),
-                        amounts
+                        slot.amounts()
                 ));
             }
-            // Thue lap thi insert nhom recurring va nhieu booking trong cung transaction.
-            List<Long> bookingIds = bookingDAO.createRecurringBookingHolds(
+            // Thuê lặp thì insert nhóm recurring và nhiều booking trong cùng transaction.
+            RecurringBookingCreationResult creationResult = bookingDAO.createRecurringBookingHolds(
                     bookings,
                     context.repeatRequest().repeatType(),
                     context.repeatRequest().repeatUntil(),
                     currentUser.getUserId(),
                     "Customer created recurring booking hold"
             );
-            bookingId = bookingIds.get(0);
+            List<SkippedBookingSlot> finalSkippedSlots =
+                    combineSkippedSlots(context.skippedSlots(), creationResult.getSkippedSlots());
+            if (!creationResult.hasCreatedBookings()) {
+                request.setAttribute("creationError", MONTHLY_NO_AVAILABLE_SLOT);
+                request.setAttribute("creationSkippedSlots", finalSkippedSlots);
+                forwardConfirmationPage(request, response, context);
+                return;
+            }
+
+            bookingId = creationResult.getBookingIds().get(0);
+            storeRecurringCreationFlash(
+                    request,
+                    bookingId,
+                    creationResult.getCreatedCount(),
+                    context.expectedSlots().size(),
+                    finalSkippedSlots
+            );
         }
 
         response.sendRedirect(request.getContextPath()
@@ -331,6 +366,7 @@ public class BookingController extends HttpServlet {
     private void showBookingHistory(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException, SQLException {
 
+        // Business Rule BR-01: Customer phải đăng nhập trước khi xem lịch sử đặt sân của chính mình.
         User currentUser = requireLogin(request, response);
         if (currentUser == null) {
             return;
@@ -352,6 +388,7 @@ public class BookingController extends HttpServlet {
     private void showBookingDetail(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException, SQLException {
 
+        // Business Rule BR-01: Customer phải đăng nhập trước khi xem chi tiết booking và thao tác thanh toán/hủy.
         User currentUser = requireLogin(request, response);
         if (currentUser == null) {
             return;
@@ -365,9 +402,19 @@ public class BookingController extends HttpServlet {
             return;
         }
 
+        List<BookingView> recurringBookings = List.of();
+        if (booking.getRecurringGroupId() != null) {
+            recurringBookings = bookingDAO.getBookingsByRecurringGroupIdAndCustomerId(
+                    booking.getRecurringGroupId(),
+                    currentUser.getUserId()
+            );
+        }
+
         // Gan du lieu va thong bao truoc khi render trang chi tiet.
         request.setAttribute("booking", booking);
+        request.setAttribute("recurringBookings", recurringBookings);
         request.setAttribute("success", request.getParameter("success"));
+        consumeRecurringCreationFlash(request, booking.getBookingId());
         applyCancellationRule(booking);
         request.getRequestDispatcher("/WEB-INF/booking/booking-details.jsp").forward(request, response);
     }
@@ -379,8 +426,9 @@ public class BookingController extends HttpServlet {
     private void cancelBooking(HttpServletRequest request, HttpServletResponse response)
             throws IOException, SQLException {
 
+        // Business Rule BR-01: Customer phải đăng nhập trước khi gửi yêu cầu hủy booking.
         User currentUser = requireLogin(request, response);
-        // Neu chua dang nhap thi khong cho gui yeu cau huy.
+        // Nếu chưa đăng nhập thì không cho gửi yêu cầu hủy.
         if (currentUser == null) {
             return;
         }
@@ -394,7 +442,8 @@ public class BookingController extends HttpServlet {
         }
 
         applyCancellationRule(booking);
-        // Neu vi pham rule huy thi quay lai trang chi tiet kem ly do.
+        // Business Rule BR-07: Chỉ cho phép Customer hủy khi trạng thái và hạn hủy còn hợp lệ.
+        // Nếu vi phạm rule hủy thì quay lại trang chi tiết kèm lý do.
         if (!booking.isCanCancel()) {
             response.sendRedirect(request.getContextPath()
                     + "/booking?action=detail&id=" + bookingId
@@ -435,42 +484,63 @@ public class BookingController extends HttpServlet {
         Long fieldId = parseLong(request.getParameter("fieldId"), "fieldId không hợp lệ.");
         LocalDateTime startTime = parseLocalDateTime(request.getParameter("startTime"), "Giờ bắt đầu không hợp lệ.");
         LocalDateTime endTime = parseLocalDateTime(request.getParameter("endTime"), "Giờ kết thúc không hợp lệ.");
+        // Business Rule BR-02: Thời lượng booking được xác định từ startTime/endTime và phải bám block 30 phút.
         validateBookingTimeOrThrow(startTime, endTime);
 
         RepeatRequest repeatRequest = parseRepeatRequest(
                 request.getParameter("repeatType"),
                 startTime.toLocalDate()
         );
-
+    
         BookingView bookingInfo = bookingDAO.getBookingPreviewInfoByFieldId(fieldId, currentUser.getUserId());
         if (bookingInfo == null) {
             throw new IllegalArgumentException("Khong tim thay san.");
         }
 
-        List<BookingSlot> bookingSlots = buildBookingSlots(startTime, endTime, repeatRequest);
-        // Kiểm tra trước để báo lỗi nhanh trên trang xác nhận; transaction tạo booking sẽ kiểm tra lại để tránh race condition.
-        for (BookingSlot slot : bookingSlots) {
-            if (!bookingDAO.isFieldAvailable(fieldId, slot.startTime(), slot.endTime())) {
-                throw new IllegalArgumentException("Khung giờ đã được đặt hoặc sân đang bảo trì.");
-            }
-        }
-
         boolean activeVip = hasActiveVip(currentUser);
         boolean fullPaymentRequired = REPEAT_MONTHLY.equals(repeatRequest.repeatType());
-        BookingAmounts amounts = calculateAggregateBookingAmounts(
-                fieldId,
-                bookingSlots,
-                fullPaymentRequired,
-                activeVip && !REPEAT_NONE.equals(repeatRequest.repeatType())
-        );
+        List<BookingSlot> expectedSlots = buildBookingSlots(startTime, endTime, repeatRequest);
+        List<CalculatedBookingSlot> validBookingSlots = new ArrayList<>();
+        List<BookingSlotPreview> slotPreviews = new ArrayList<>();
+        List<SkippedBookingSlot> skippedSlots = new ArrayList<>();
+
+        for (BookingSlot slot : expectedSlots) {
+            BookingDAO.SlotAvailabilityResult availability =
+                    bookingDAO.checkFieldAvailability(fieldId, slot.startTime(), slot.endTime());
+            if (!availability.available()) {
+                if (REPEAT_NONE.equals(repeatRequest.repeatType())) {
+                    throw new IllegalArgumentException(availability.reason());
+                }
+                SkippedBookingSlot skippedSlot = toSkippedSlot(slot, availability.reason());
+                skippedSlots.add(skippedSlot);
+                slotPreviews.add(toSlotPreview(slot, BigDecimal.ZERO, false, availability.reason()));
+                continue;
+            }
+
+            BookingAmounts slotAmounts = calculateBookingAmounts(
+                    fieldId,
+                    slot.startTime(),
+                    slot.endTime(),
+                    fullPaymentRequired
+            );
+            if (activeVip && !REPEAT_NONE.equals(repeatRequest.repeatType())) {
+                slotAmounts = applyVipDiscount(slotAmounts, fullPaymentRequired);
+            }
+            validBookingSlots.add(new CalculatedBookingSlot(slot, slotAmounts));
+            slotPreviews.add(toSlotPreview(slot, slotAmounts.finalAmount(), true, null));
+        }
+
+        BookingAmounts amounts = calculateAggregateBookingAmounts(validBookingSlots, fullPaymentRequired);
 
         String voucherCode = trim(rawVoucherCode);
         String voucherError = null;
         String voucherMessage = null;
+        // Business Rule BR-10: Một booking chỉ nhận tối đa một voucher được nhập trong request xác nhận.
         if (voucherCode != null && !voucherCode.isEmpty()) {
             if (!REPEAT_NONE.equals(repeatRequest.repeatType())) {
                 voucherError = "Mã giảm giá hiện chưa hỗ trợ cho đặt lịch lặp lại.";
             } else {
+                // Business Rule BR-09: Voucher phải hợp lệ theo trạng thái, thời gian, số lượng, min order và lịch sử dùng của Customer.
                 // Voucher được validate bằng giá gốc của đơn, customer_id và số lượt dùng trước khi áp dụng vào preview.
                 VoucherValidationResult validationResult =
                         voucherDAO.validateVoucher(voucherCode, amounts.originalPrice(), currentUser.getUserId());
@@ -487,6 +557,7 @@ public class BookingController extends HttpServlet {
             amounts = applyVipDiscount(amounts, fullPaymentRequired);
         }
 
+        // Business Rule BR-04: hold_expires_at bằng thời điểm tạo preview cộng 15 phút giữ chỗ.
         // HOLD chỉ giữ chỗ tạm thời; thanh toán thành công mới chuyển booking sang CONFIRMED.
         LocalDateTime holdExpiresAt = LocalDateTime.now().plusMinutes(HOLD_MINUTES);
         Booking bookingPreview = new Booking();
@@ -501,6 +572,7 @@ public class BookingController extends HttpServlet {
         bookingPreview.setTotalAmount(amounts.totalAmount());
         bookingPreview.setFinalAmount(amounts.finalAmount());
         bookingPreview.setDepositAmount(amounts.depositAmount());
+        // Business Rule BR-24: Trạng thái HOLD là trạng thái đầu tiên trong luồng booking đã triển khai.
         bookingPreview.setStatus(STATUS_HOLD);
         bookingPreview.setHoldExpiresAt(holdExpiresAt);
 
@@ -513,6 +585,7 @@ public class BookingController extends HttpServlet {
         bookingInfo.setTotalAmount(amounts.totalAmount());
         bookingInfo.setFinalAmount(amounts.finalAmount());
         bookingInfo.setDepositAmount(amounts.depositAmount());
+        // Business Rule BR-24: View xác nhận cũng dùng HOLD để hiển thị đúng trạng thái giữ chỗ tạm thời.
         bookingInfo.setStatus(STATUS_HOLD);
         bookingInfo.setHoldExpiresAt(holdExpiresAt);
 
@@ -520,7 +593,10 @@ public class BookingController extends HttpServlet {
                 bookingInfo,
                 bookingPreview,
                 repeatRequest,
-                bookingSlots,
+                expectedSlots,
+                validBookingSlots,
+                slotPreviews,
+                skippedSlots,
                 amounts,
                 voucherCode,
                 voucherMessage,
@@ -539,7 +615,16 @@ public class BookingController extends HttpServlet {
         request.setAttribute("startTimeValue", context.bookingPreview().getStartTime().toString());
         request.setAttribute("endTimeValue", context.bookingPreview().getEndTime().toString());
         request.setAttribute("repeatType", context.repeatRequest().repeatType());
-        request.setAttribute("recurringCount", context.bookingSlots().size());
+        request.setAttribute("recurringCount", context.validBookingSlots().size());
+        request.setAttribute("slotPreviews", context.slotPreviews());
+        request.setAttribute("validSlots", context.slotPreviews().stream()
+                .filter(BookingSlotPreview::isAvailable)
+                .toList());
+        request.setAttribute("skippedSlots", context.skippedSlots());
+        request.setAttribute("totalExpectedSlots", context.expectedSlots().size());
+        request.setAttribute("validSlotCount", context.validBookingSlots().size());
+        request.setAttribute("skippedSlotCount", context.skippedSlots().size());
+        request.setAttribute("totalAmount", context.amounts().finalAmount());
         request.setAttribute("voucherCode", context.voucherCode());
         request.setAttribute("voucherMessage", context.voucherMessage());
         request.setAttribute("voucherError", context.voucherError());
@@ -555,7 +640,7 @@ public class BookingController extends HttpServlet {
             LocalDateTime holdExpiresAt,
             BookingAmounts amounts
     ) {
-        // Ham helper dung object Booking thong nhat cho ca thue don va thue lap.
+        // Hàm helper dùng object Booking thống nhất cho cả thuê đơn và thuê lặp.
         Booking booking = new Booking();
         booking.setBookingCode(generateBookingCode());
         booking.setCustomerId(customerId);
@@ -569,31 +654,124 @@ public class BookingController extends HttpServlet {
         booking.setTotalAmount(amounts.totalAmount());
         booking.setFinalAmount(amounts.finalAmount());
         booking.setDepositAmount(amounts.depositAmount());
+        // Business Rule BR-24: Booking mới được dựng với trạng thái HOLD trước khi DAO ghi DB.
         booking.setStatus(STATUS_HOLD);
         booking.setHoldExpiresAt(holdExpiresAt);
-        booking.setQrCode(booking.getBookingCode());
         return booking;
+    }
+
+    private BookingSlotPreview toSlotPreview(
+            BookingSlot slot,
+            BigDecimal price,
+            boolean available,
+            String reason
+    ) {
+        return new BookingSlotPreview(
+                slot.startTime().toLocalDate(),
+                slot.startTime().toLocalTime(),
+                slot.endTime().toLocalTime(),
+                available ? money(price) : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
+                available,
+                available ? SLOT_STATUS_AVAILABLE : SLOT_STATUS_SKIPPED,
+                reason
+        );
+    }
+
+    private SkippedBookingSlot toSkippedSlot(BookingSlot slot, String reason) {
+        return new SkippedBookingSlot(
+                slot.startTime().toLocalDate(),
+                slot.startTime().toLocalTime(),
+                slot.endTime().toLocalTime(),
+                reason
+        );
+    }
+
+    private List<SkippedBookingSlot> combineSkippedSlots(
+            List<SkippedBookingSlot> previewSkippedSlots,
+            List<SkippedBookingSlot> creationSkippedSlots
+    ) {
+        List<SkippedBookingSlot> combined = new ArrayList<>();
+        if (previewSkippedSlots != null) {
+            combined.addAll(previewSkippedSlots);
+        }
+        if (creationSkippedSlots != null) {
+            combined.addAll(creationSkippedSlots);
+        }
+        return combined;
+    }
+
+    private void storeRecurringCreationFlash(
+            HttpServletRequest request,
+            Long representativeBookingId,
+            int createdCount,
+            int totalExpectedSlots,
+            List<SkippedBookingSlot> skippedSlots
+    ) {
+        int skippedCount = skippedSlots == null ? 0 : skippedSlots.size();
+        String message = skippedCount == 0
+                ? "Đặt sân theo tháng thành công với " + createdCount + " buổi."
+                : "Đặt sân thành công " + createdCount + "/" + totalExpectedSlots
+                + " buổi. Có " + skippedCount + " buổi bị bỏ qua do không khả dụng.";
+
+        HttpSession session = request.getSession();
+        session.setAttribute("recurringRepresentativeBookingId", representativeBookingId);
+        session.setAttribute("recurringCreatedCount", createdCount);
+        session.setAttribute("recurringTotalExpectedSlots", totalExpectedSlots);
+        session.setAttribute("recurringSuccessMessage", message);
+        session.setAttribute("recurringSkippedSlots", skippedSlots);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void consumeRecurringCreationFlash(HttpServletRequest request, Long bookingId) {
+        HttpSession session = request.getSession(false);
+        if (session == null || bookingId == null) {
+            return;
+        }
+
+        String message = (String) session.getAttribute("recurringSuccessMessage");
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        Long representativeBookingId = (Long) session.getAttribute("recurringRepresentativeBookingId");
+        if (representativeBookingId != null && !representativeBookingId.equals(bookingId)) {
+            return;
+        }
+
+        request.setAttribute("recurringSuccessMessage", message);
+        request.setAttribute("recurringCreatedCount", session.getAttribute("recurringCreatedCount"));
+        request.setAttribute("recurringTotalExpectedSlots", session.getAttribute("recurringTotalExpectedSlots"));
+        Object skipped = session.getAttribute("recurringSkippedSlots");
+        if (skipped instanceof List<?>) {
+            request.setAttribute("recurringSkippedSlots", (List<SkippedBookingSlot>) skipped);
+        }
+
+        session.removeAttribute("recurringRepresentativeBookingId");
+        session.removeAttribute("recurringCreatedCount");
+        session.removeAttribute("recurringTotalExpectedSlots");
+        session.removeAttribute("recurringSuccessMessage");
+        session.removeAttribute("recurringSkippedSlots");
     }
 
     private RepeatRequest parseRepeatRequest(String rawRepeatType, LocalDate bookingDate) {
         String repeatType = trim(rawRepeatType);
-        // Khong chon loai lap thi mac dinh la thue mot lan.
+        // Không chọn loại lặp thì mặc định là thuê một lần.
         if (repeatType == null || repeatType.isEmpty()) {
             repeatType = REPEAT_NONE;
         }
         repeatType = repeatType.toUpperCase(Locale.ROOT);
 
-        // Hien tai chi ho tro khong lap hoac lap theo thang.
+        // Hiện tại chỉ hỗ trợ không lặp hoặc lặp theo tháng.
         if (!REPEAT_NONE.equals(repeatType) && !REPEAT_MONTHLY.equals(repeatType)) {
             throw new IllegalArgumentException("Ch\u1ec9 h\u1ed7 tr\u1ee3 thu\u00ea \u0111\u01a1n l\u1ebb ho\u1eb7c thu\u00ea theo th\u00e1ng.");
         }
 
-        // Thue don thi khong can ngay ket thuc lap.
+        // Thuê đơn thì không cần ngày kết thúc lặp.
         if (REPEAT_NONE.equals(repeatType)) {
             return new RepeatRequest(REPEAT_NONE, null);
         }
 
-        LocalDate repeatUntil = getMaxBookingDate();
+        // Với thuê theo tháng, giới hạn nghiệp vụ là ngày cuối cùng của chính tháng chứa ngày đầu tiên.
+        LocalDate repeatUntil = bookingDate.withDayOfMonth(bookingDate.lengthOfMonth());
 
         return new RepeatRequest(repeatType, repeatUntil);
     }
@@ -608,28 +786,28 @@ public class BookingController extends HttpServlet {
             RepeatRequest repeatRequest
     ) {
         List<BookingSlot> slots = new ArrayList<>();
-        LocalDate maxBookingDate = getMaxBookingDate();
         LocalDateTime currentStart = startTime;
         LocalDateTime currentEnd = endTime;
 
         while (true) {
-            if (currentStart.toLocalDate().isAfter(maxBookingDate)) {
-                break;
-            }
             if (repeatRequest.repeatUntil() != null
                     && currentStart.toLocalDate().isAfter(repeatRequest.repeatUntil())) {
                 break;
             }
 
-            // Validate each generated occurrence before any booking is inserted.
-            validateBookingTimeOrThrow(currentStart, currentEnd);
+            // Monthly đã được kiểm tra ngày đầu theo MAX_BOOKING_DAYS_AHEAD; các lần lặp chỉ bị giới hạn bởi cuối tháng.
+            validateBookingTimeOrThrow(
+                    currentStart,
+                    currentEnd,
+                    REPEAT_NONE.equals(repeatRequest.repeatType())
+            );
             slots.add(new BookingSlot(currentStart, currentEnd));
 
-            // Thue don thi chi can mot slot.
+            // Thuê đơn thì chỉ cần một slot.
             if (REPEAT_NONE.equals(repeatRequest.repeatType())) {
                 break;
             }
-            // Chan tao qua nhieu booking lap trong mot lan submit.
+            // Chặn tạo quá nhiều booking lặp trong một lần submit để tránh ghi hàng loạt ngoài kiểm soát.
             if (slots.size() >= MAX_RECURRING_BOOKINGS) {
                 throw new IllegalArgumentException("Khung giờ lặp lại vượt quá giới hạn " + MAX_RECURRING_BOOKINGS + " lần.");
             }
@@ -655,7 +833,7 @@ public class BookingController extends HttpServlet {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime startTime = booking.getStartTime();
 
-        // Thieu gio bat dau thi khong du du lieu de xet quyen huy.
+        // Thiếu giờ bắt đầu thì không đủ dữ liệu để xét quyền hủy.
         if (startTime == null) {
             booking.setCanCancel(false);
             booking.setCancelReasonMessage("Booking thieu thoi gian bat dau.");
@@ -663,21 +841,24 @@ public class BookingController extends HttpServlet {
         }
 
         String status = booking.getStatus();
-        // Cac trang thai ket thuc hoac dang su dung san khong duoc huy nua.
+        // Business Rule BR-07: Các trạng thái kết thúc hoặc đang sử dụng sân không được Customer hủy nữa.
+        // Các trạng thái kết thúc hoặc đang sử dụng sân không được hủy nữa.
         if (STATUS_CANCELLED.equals(status) || STATUS_COMPLETED.equals(status) || STATUS_CHECKED_IN.equals(status)) {
             booking.setCanCancel(false);
             booking.setCancelReasonMessage("Booking khong the huy voi trang thai hien tai.");
             return;
         }
 
-        // Booking da bat dau thi customer khong con duoc huy.
+        // Business Rule BR-07: Booking đã bắt đầu thì Customer không còn được hủy.
+        // Booking đã bắt đầu thì customer không còn được hủy.
         if (!now.isBefore(startTime)) {
             booking.setCanCancel(false);
             booking.setCancelReasonMessage("Booking da bat dau nen khong the huy.");
             return;
         }
 
-        // Neu da qua sat gio da so voi cau hinh thi chan huy.
+        // Business Rule BR-07: Nếu đã quá sát giờ đá so với cấu hình thì chặn hủy.
+        // Nếu đã quá sát giờ đá so với cấu hình thì chặn hủy.
         if (now.isAfter(startTime.minusHours(cancelBeforeHours))) {
             booking.setCanCancel(false);
             booking.setCancelReasonMessage("Chi co the huy truoc gio bat dau toi thieu "
@@ -685,7 +866,7 @@ public class BookingController extends HttpServlet {
             return;
         }
 
-        // Qua het cac dieu kien chan thi booking duoc phep huy.
+        // Qua hết các điều kiện chặn thì booking được phép hủy.
         booking.setCanCancel(true);
         booking.setCancelReasonMessage("Co the huy booking.");
     }
@@ -693,12 +874,12 @@ public class BookingController extends HttpServlet {
         String complexIdRaw = request.getParameter("complexId");
         String fieldIdRaw = request.getParameter("fieldId");
 
-        // Uu tien complexId neu request da truyen truc tiep.
+        // Ưu tiên complexId nếu request đã truyền trực tiếp.
         if (complexIdRaw != null && !complexIdRaw.trim().isEmpty()) {
             return Long.parseLong(complexIdRaw.trim());
         }
 
-        // Neu chi co fieldId thi suy ra complexId tu DB.
+        // Nếu chỉ có fieldId thì suy ra complexId từ DB.
         if (fieldIdRaw != null && !fieldIdRaw.trim().isEmpty()) {
             return bookingDAO.getComplexIdByFieldId(Long.parseLong(fieldIdRaw.trim()));
         }
@@ -718,11 +899,13 @@ public class BookingController extends HttpServlet {
     ) {
         Map<Long, List<FieldScheduleSlot>> scheduleMap = new LinkedHashMap<>();
 
+        // Mỗi sân có một danh sách slot riêng để JSP render thành từng hàng lịch.
         for (Field field : fields) {
             List<FieldScheduleSlot> slots = new ArrayList<>();
 
             LocalTime current = GRID_START_TIME;
 
+            // Sinh tuần tự các slot 30 phút từ giờ mở lưới đến slot cuối trong ngày.
             while (!current.isAfter(GRID_LAST_SLOT_START)) {
                 LocalDateTime slotStart = selectedDate.atTime(current);
                 LocalDateTime slotEnd = slotStart.plusMinutes(SLOT_MINUTES);
@@ -750,10 +933,12 @@ public class BookingController extends HttpServlet {
     }
 
     private LocalDate parseBookingDate(String rawDate) {
+        // Không truyền ngày thì mặc định xem lịch hôm nay.
         if (rawDate == null || rawDate.trim().isEmpty()) {
             return LocalDate.now();
         }
 
+        // Parse ngày từ query string; dữ liệu sai format sẽ fallback về hôm nay thay vì làm hỏng màn hình.
         try {
             return LocalDate.parse(rawDate.trim());
         } catch (Exception e) {
@@ -764,6 +949,7 @@ public class BookingController extends HttpServlet {
     private LocalDate getMaxBookingDate() {
         int maxDays = 30; // default 30 days
         java.util.Optional<com.swp.model.SystemSetting> setting = systemSettingDAO.getSettingByKey("MAX_BOOKING_DAYS_AHEAD");
+        // Nếu admin đã cấu hình số ngày đặt trước thì dùng cấu hình thay cho mặc định 30 ngày.
         if (setting.isPresent()) {
             try {
                 maxDays = Integer.parseInt(setting.get().getSettingValue());
@@ -777,6 +963,7 @@ public class BookingController extends HttpServlet {
 
         LocalTime current = GRID_START_TIME;
 
+        // Header thời gian phải khớp đúng số slot dùng trong scheduleMap.
         while (!current.isAfter(GRID_LAST_SLOT_START)) {
             headers.add(current.toString());
             current = current.plusMinutes(SLOT_MINUTES);
@@ -796,22 +983,28 @@ public class BookingController extends HttpServlet {
             List<Booking> bookings,
             List<FieldMaintenanceSchedule> maintenances
     ) {
+        // Slot trong quá khứ bị khóa để Customer không chọn giờ đã qua.
         if (slotStart != null && slotStart.isBefore(LocalDateTime.now())) {
             return "DISABLED";
         }
 
+        // Sân không ở trạng thái AVAILABLE thì toàn bộ slot của sân đó không cho đặt.
         if (field.getStatus() == null || !"AVAILABLE".equalsIgnoreCase(field.getStatus())) {
             return "DISABLED";
         }
 
+        // Lịch bảo trì có độ ưu tiên cao hơn booking vì sân không thể phục vụ trong khoảng này.
         for (FieldMaintenanceSchedule maintenance : maintenances) {
+            // Nếu slot giao với lịch bảo trì của cùng sân thì đánh dấu bảo trì.
             if (maintenance.getFieldId().equals(field.getFieldId())
                     && isOverlap(slotStart, slotEnd, maintenance.getStartTime(), maintenance.getEndTime())) {
                 return "MAINTENANCE";
             }
         }
 
+        // Sau bảo trì, kiểm tra booking đang chiếm khung giờ để khóa slot trên giao diện.
         for (Booking booking : bookings) {
+            // Slot giao với booking của cùng sân thì không còn khả dụng.
             if (booking.getFieldId().equals(field.getFieldId())
                     && isOverlap(slotStart, slotEnd, booking.getStartTime(), booking.getEndTime())) {
                 return "BOOKED";
@@ -827,6 +1020,7 @@ public class BookingController extends HttpServlet {
             LocalDateTime start2,
             LocalDateTime end2
     ) {
+        // Thiếu mốc thời gian thì không thể kết luận overlap, trả về false để caller xử lý an toàn.
         if (start1 == null || end1 == null || start2 == null || end2 == null) {
             return false;
         }
@@ -835,10 +1029,12 @@ public class BookingController extends HttpServlet {
     }
 
     private String getSlotTitle(String status) {
+        // Status null được xem là không khả dụng để tránh hiển thị slot có thể đặt nhầm.
         if (status == null) {
             return "Không khả dụng";
         }
 
+        // Chuyển mã trạng thái kỹ thuật thành nhãn tiếng Việt cho tooltip/lịch đặt sân.
         return switch (status) {
             case "AVAILABLE" -> "Còn trống";
             case "BOOKED" -> "Đã có booking";
@@ -853,6 +1049,7 @@ public class BookingController extends HttpServlet {
 
         HttpSession session = request.getSession(false);
 
+        // Chưa có session đăng nhập thì chuyển về login và dừng luồng booking.
         if (session == null || session.getAttribute("user") == null) {
             response.sendRedirect(request.getContextPath() + "/login");
             return null;
@@ -892,7 +1089,16 @@ public class BookingController extends HttpServlet {
     }
 
     private void validateBookingTimeOrThrow(LocalDateTime startTime, LocalDateTime endTime) {
-        String errorMessage = validateBookingTime(startTime, endTime);
+        validateBookingTimeOrThrow(startTime, endTime, true);
+    }
+
+    private void validateBookingTimeOrThrow(
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            boolean enforceMaxBookingDate
+    ) {
+        String errorMessage = validateBookingTime(startTime, endTime, enforceMaxBookingDate);
+        // Có lỗi validate thì ném exception để caller thống nhất cách redirect/hiển thị lỗi.
         if (errorMessage != null) {
             throw new IllegalArgumentException(errorMessage);
         }
@@ -902,11 +1108,13 @@ public class BookingController extends HttpServlet {
      * Kiểm tra các ràng buộc thời gian trước khi tính tiền hoặc tạo booking:
      * không đặt quá khứ, cùng ngày, đúng block 30 phút và nằm trong giờ hoạt động của sân.
      */
-    private String validateBookingTime(LocalDateTime startTime, LocalDateTime endTime) {
+    private String validateBookingTime(LocalDateTime startTime, LocalDateTime endTime, boolean enforceMaxBookingDate) {
+        // Thiếu giờ hoặc giờ bắt đầu không trước giờ kết thúc thì booking không có thời lượng hợp lệ.
         if (startTime == null || endTime == null || !startTime.isBefore(endTime)) {
             return "Gi\u1edd b\u1eaft \u0111\u1ea7u ph\u1ea3i nh\u1ecf h\u01a1n gi\u1edd k\u1ebft th\u00fac.";
         }
 
+        // Không cho đặt slot đã bắt đầu trong quá khứ theo thời điểm xử lý request.
         if (startTime.isBefore(LocalDateTime.now())) {
             return "Kh\u00f4ng th\u1ec3 \u0111\u1eb7t s\u00e2n trong qu\u00e1 kh\u1ee9.";
         }
@@ -914,23 +1122,28 @@ public class BookingController extends HttpServlet {
         LocalDate today = LocalDate.now();
         LocalDate maxBookingDate = getMaxBookingDate();
         LocalDate bookingDate = startTime.toLocalDate();
+        // Chặn thêm lần nữa theo ngày để tránh trường hợp giờ đã parse nhưng ngày bị lùi.
         if (bookingDate.isBefore(today)) {
             return "Kh\u00f4ng th\u1ec3 \u0111\u1eb7t s\u00e2n trong qu\u00e1 kh\u1ee9.";
         }
-        if (bookingDate.isAfter(maxBookingDate)) {
+        // Một số flow preview định kỳ có thể bỏ qua giới hạn này, còn booking chính thì phải tuân thủ cấu hình.
+        if (enforceMaxBookingDate && bookingDate.isAfter(maxBookingDate)) {
             return "Ch\u1ec9 cho ph\u00e9p \u0111\u1eb7t s\u00e2n trong th\u00e1ng n\u00e0y v\u00e0 th\u00e1ng sau.";
         }
 
+        // Booking không được kéo qua ngày khác để công thức giá và slot grid luôn nhất quán.
         if (!startTime.toLocalDate().equals(endTime.toLocalDate())) {
             return "Th\u1eddi gian \u0111\u1eb7t s\u00e2n ph\u1ea3i trong c\u00f9ng m\u1ed9t ng\u00e0y.";
         }
 
+        // Business Rule BR-02: Cả giờ bắt đầu và giờ kết thúc đều phải nằm trên mốc 00 hoặc 30 phút.
         if (!isOnThirtyMinuteBlock(startTime) || !isOnThirtyMinuteBlock(endTime)) {
             return "Th\u1eddi gian \u0111\u1eb7t s\u00e2n ph\u1ea3i theo block 30 ph\u00fat.";
         }
 
         LocalTime start = startTime.toLocalTime();
         LocalTime end = endTime.toLocalTime();
+        // Khung giờ phải nằm trong giờ vận hành đã định nghĩa cho lưới đặt sân.
         if (start.isBefore(GRID_START_TIME) || end.isAfter(GRID_END_TIME)) {
             return "Th\u1eddi gian \u0111\u1eb7t s\u00e2n ph\u1ea3i n\u1eb1m trong gi\u1edd ho\u1ea1t \u0111\u1ed9ng t\u1eeb 05:00 \u0111\u1ebfn 21:00.";
         }
@@ -939,6 +1152,7 @@ public class BookingController extends HttpServlet {
     }
 
     private boolean isOnThirtyMinuteBlock(LocalDateTime dateTime) {
+        // Thiếu thời điểm thì không thể xác nhận mốc 30 phút.
         if (dateTime == null) {
             return false;
         }
@@ -950,6 +1164,7 @@ public class BookingController extends HttpServlet {
     }
 
     private boolean hasActiveVip(User currentUser) {
+        // Không có user hợp lệ thì không áp dụng ưu đãi VIP.
         if (currentUser == null || currentUser.getUserId() == null) {
             return false;
         }
@@ -972,6 +1187,7 @@ public class BookingController extends HttpServlet {
             boolean fullPaymentRequired
     ) throws SQLException {
 
+        // Giá gốc được lấy từ DAO theo sân và khung giờ trước khi áp voucher/VIP/cọc.
         BigDecimal originalPrice = bookingDAO.calculatePrice(fieldId, startTime, endTime)
                 .setScale(2, RoundingMode.HALF_UP);
         return createBookingAmounts(
@@ -984,40 +1200,19 @@ public class BookingController extends HttpServlet {
         );
     }
 
-    /**
-     * Cộng tiền của toàn bộ slot trong một request booking.
-     * Với booking định kỳ, VIP discount được tính theo từng slot để giá từng booking con nhất quán với DB.
-     */
     private BookingAmounts calculateAggregateBookingAmounts(
-            Long fieldId,
-            List<BookingSlot> bookingSlots,
+            List<CalculatedBookingSlot> bookingSlots,
             boolean fullPaymentRequired
-    ) throws SQLException {
-        return calculateAggregateBookingAmounts(fieldId, bookingSlots, fullPaymentRequired, false);
-    }
-
-    private BookingAmounts calculateAggregateBookingAmounts(
-            Long fieldId,
-            List<BookingSlot> bookingSlots,
-            boolean fullPaymentRequired,
-            boolean applyVipDiscountPerSlot
-    ) throws SQLException {
+    ) {
         BigDecimal originalPrice = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         BigDecimal discountAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         BigDecimal vipDiscountAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         BigDecimal totalAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         BigDecimal finalAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
-        for (BookingSlot slot : bookingSlots) {
-            BookingAmounts slotAmounts = calculateBookingAmounts(
-                    fieldId,
-                    slot.startTime(),
-                    slot.endTime(),
-                    fullPaymentRequired
-            );
-            if (applyVipDiscountPerSlot) {
-                slotAmounts = applyVipDiscount(slotAmounts, fullPaymentRequired);
-            }
+        // Cộng tiền từng slot hợp lệ để ra tổng tiền cho nhóm booking định kỳ.
+        for (CalculatedBookingSlot slot : bookingSlots) {
+            BookingAmounts slotAmounts = slot.amounts();
             originalPrice = originalPrice.add(slotAmounts.originalPrice());
             discountAmount = discountAmount.add(slotAmounts.discountAmount());
             vipDiscountAmount = vipDiscountAmount.add(slotAmounts.vipDiscountAmount());
@@ -1044,6 +1239,7 @@ public class BookingController extends HttpServlet {
             VoucherValidationResult validationResult,
             boolean fullPaymentRequired
     ) {
+        // Business Rule BR-10: Discount từ voucher được đưa vào phép tính nhưng sẽ bị giới hạn không vượt quá đơn hàng.
         BigDecimal discountAmount = money(validationResult.getDiscountAmount());
         return createBookingAmounts(
                 baseAmounts.originalPrice(),
@@ -1059,6 +1255,7 @@ public class BookingController extends HttpServlet {
             BookingAmounts baseAmounts,
             boolean fullPaymentRequired
     ) {
+        // Ưu đãi VIP tính trên giá gốc của booking trước khi tạo lại bộ số tiền cuối.
         BigDecimal vipDiscountAmount = money(baseAmounts.originalPrice().multiply(VIP_DISCOUNT_RATE));
         return createBookingAmounts(
                 baseAmounts.originalPrice(),
@@ -1078,9 +1275,12 @@ public class BookingController extends HttpServlet {
             Integer voucherId,
             String voucherCode
     ) {
+        // Chuẩn hóa toàn bộ số tiền về scale 2 để tránh lệch số khi lưu DB hoặc hiển thị.
         BigDecimal safeOriginalPrice = money(originalPrice);
+        // Business Rule BR-10: Giới hạn discount voucher để final amount không thể âm.
         BigDecimal safeDiscountAmount = capDiscount(discountAmount, safeOriginalPrice);
         BigDecimal afterVoucher = safeOriginalPrice.subtract(safeDiscountAmount).setScale(2, RoundingMode.HALF_UP);
+        // Giới hạn ưu đãi VIP theo số tiền còn lại sau voucher để final amount không âm.
         BigDecimal safeVipDiscountAmount = capDiscount(vipDiscountAmount, afterVoucher);
         BigDecimal finalAmount = afterVoucher.subtract(safeVipDiscountAmount).setScale(2, RoundingMode.HALF_UP);
         BigDecimal depositAmount = calculateDepositAmount(finalAmount, fullPaymentRequired);
@@ -1100,9 +1300,11 @@ public class BookingController extends HttpServlet {
     private BigDecimal capDiscount(BigDecimal discountAmount, BigDecimal maxAmount) {
         BigDecimal safeDiscountAmount = money(discountAmount);
         BigDecimal safeMaxAmount = money(maxAmount);
+        // Discount âm không hợp lệ nên được đưa về 0 trước khi tính final amount.
         if (safeDiscountAmount.signum() < 0) {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
+        // Discount vượt quá số tiền tối đa thì chỉ giảm đến mức bằng đơn hàng.
         if (safeDiscountAmount.compareTo(safeMaxAmount) > 0) {
             return safeMaxAmount;
         }
@@ -1111,12 +1313,15 @@ public class BookingController extends HttpServlet {
 
     private BigDecimal calculateDepositAmount(BigDecimal finalAmount, boolean fullPaymentRequired) {
         BigDecimal safeFinalAmount = money(finalAmount);
+        // Business Rule BR-06: Booking thường lấy 30% final amount, booking yêu cầu full payment thì lấy toàn bộ.
+        // Toán tử ba ngôi tách rõ booking cần thanh toán đủ và booking chỉ cần đặt cọc.
         return fullPaymentRequired
                 ? safeFinalAmount
                 : safeFinalAmount.multiply(DEPOSIT_RATE).setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal money(BigDecimal value) {
+        // Giá trị tiền null được xem như 0 để các phép cộng/trừ không phát sinh lỗi.
         return value == null
                 ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
                 : value.setScale(2, RoundingMode.HALF_UP);
@@ -1130,15 +1335,19 @@ public class BookingController extends HttpServlet {
                 .append(URLEncoder.encode(message, StandardCharsets.UTF_8));
 
         String complexId = trim(request.getParameter("complexId"));
+        // Nếu request lỗi không mang complexId, thử suy ra từ fieldId để quay lại đúng cụm sân.
         if (complexId == null || complexId.isEmpty()) {
             Long fieldId = null;
+            // FieldId sai định dạng thì bỏ qua, vì redirect lỗi vẫn có thể quay về trang tạo booking chung.
             try {
                 fieldId = parseLong(request.getParameter("fieldId"), "fieldId không hợp lệ.");
             } catch (IllegalArgumentException ignored) {
             }
+            // Chỉ gọi DB khi fieldId parse được để tránh exception không cần thiết trong luồng xử lý lỗi.
             if (fieldId != null) {
                 try {
                     Long complex = bookingDAO.getComplexIdByFieldId(fieldId);
+                    // Có complex tương ứng thì giữ lại để màn hình create mở đúng cụm sân ban đầu.
                     if (complex != null) {
                         complexId = complex.toString();
                     }
@@ -1147,11 +1356,13 @@ public class BookingController extends HttpServlet {
             }
         }
 
+        // Gắn complexId vào URL lỗi để Customer không phải chọn lại cụm sân.
         if (complexId != null && !complexId.isEmpty()) {
             url.append("&complexId=").append(complexId);
         }
 
         String startTime = trim(request.getParameter("startTime"));
+        // Giữ lại ngày từ startTime để lịch quay về đúng ngày Customer vừa chọn.
         if (startTime != null && startTime.length() >= 10) {
             url.append("&date=").append(startTime, 0, 10);
         }
@@ -1192,7 +1403,10 @@ public class BookingController extends HttpServlet {
             BookingView bookingInfo,
             Booking bookingPreview,
             RepeatRequest repeatRequest,
-            List<BookingSlot> bookingSlots,
+            List<BookingSlot> expectedSlots,
+            List<CalculatedBookingSlot> validBookingSlots,
+            List<BookingSlotPreview> slotPreviews,
+            List<SkippedBookingSlot> skippedSlots,
             BookingAmounts amounts,
             String voucherCode,
             String voucherMessage,
@@ -1210,6 +1424,12 @@ public class BookingController extends HttpServlet {
     private record BookingSlot(
             LocalDateTime startTime,
             LocalDateTime endTime
+    ) {
+    }
+
+    private record CalculatedBookingSlot(
+            BookingSlot slot,
+            BookingAmounts amounts
     ) {
     }
 }

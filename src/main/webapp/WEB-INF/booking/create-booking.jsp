@@ -80,6 +80,7 @@
         LocalTime current = LocalTime.of(5, 0);
         LocalTime last = LocalTime.of(20, 30);
 
+        // Business Rule BR-02: Fallback UI cũng dựng lưới thời gian theo từng slot 30 phút.
         while (!current.isAfter(last)) {
             timeHeaders.add(current.toString());
             current = current.plusMinutes(30);
@@ -537,7 +538,7 @@
         fieldTypeFilter.addEventListener('change', applyFieldTypeFilter);
     }
 
-    // Phần chọn slot ở client chỉ giúp Customer preview nhanh; server vẫn validate lại trước khi tạo HOLD.
+    // Business Rule BR-03: Client chỉ cho chọn slot AVAILABLE để hỗ trợ preview; server vẫn validate lại trước khi tạo HOLD.
     document.querySelectorAll('.slot-cell').forEach(cell => {
         cell.addEventListener('click', function () {
             if (this.dataset.status !== 'AVAILABLE') {
@@ -567,7 +568,7 @@
         const from = Math.min(startIndex, endIndex);
         const to = Math.max(startIndex, endIndex);
 
-        // Một booking chỉ được chọn các slot AVAILABLE liên tiếp trên cùng một sân.
+        // Business Rule BR-03: Một booking chỉ được chọn các slot AVAILABLE liên tiếp trên cùng một sân.
         for (let i = from; i <= to; i++) {
             if (cells[i].dataset.status !== 'AVAILABLE') {
                 alert('Khoảng giờ bạn chọn có ô đã bận hoặc sân đang bảo trì.');
@@ -640,6 +641,7 @@
 
     continueButton.addEventListener('click', function () {
         if (startCell !== null && endCell !== null) {
+            // Business Rule BR-02: Gửi startTime/endTime đã chọn để backend tính đúng thời lượng booking.
             // Chuyển sang trang xác nhận để controller tính tiền, voucher/VIP và kiểm tra trùng lịch từ DB.
             window.location.href =
                 ctx

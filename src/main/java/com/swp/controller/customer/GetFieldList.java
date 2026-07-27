@@ -33,7 +33,7 @@ public class GetFieldList extends HttpServlet {
                          HttpServletResponse resp)
             throws ServletException, IOException {
         try {
-            String province = req.getParameter("province");
+            String complexName = req.getParameter("complexName");
             String ward = req.getParameter("ward");
             String fieldTypeId = req.getParameter("fieldTypeId");
             String sortOrder = req.getParameter("sortOrder");
@@ -52,8 +52,6 @@ public class GetFieldList extends HttpServlet {
 
             for (FootballComplex fc : complexes) {
                 try {
-                    System.out.println("Đang xử lý Complex ID = " + fc.getComplexId());
-
                     FootballComplexImage thumbnail =
                             FOOTBALL_COMPLEX_DAO.getThumbnail(fc.getComplexId());
 
@@ -65,10 +63,12 @@ public class GetFieldList extends HttpServlet {
                             .filter(Objects::nonNull)
                             .toList();
 
-                    // Filter province
-                    if (province != null
-                            && !province.isBlank()
-                            && !province.equalsIgnoreCase(fc.getCity())) {
+                    // Filter Address
+                    if (complexName != null
+                            && !complexName.isBlank()
+                            && (fc.getComplexName() == null
+                            || !fc.getComplexName().toLowerCase()
+                            .contains(complexName.toLowerCase()))) {
                         continue;
                     }
 
@@ -108,9 +108,6 @@ public class GetFieldList extends HttpServlet {
                         card.setThumbnailUrl(thumbnail.getImageUrl());
                     }
 
-                    // Giá
-                    System.out.println("Đang lấy giá cho Complex " + fc.getComplexId());
-
                     card.setCurrentPrice(
                             FOOTBALL_COMPLEX_DAO.getCurrentPriceForComplex(fc.getComplexId())
                     );
@@ -118,11 +115,7 @@ public class GetFieldList extends HttpServlet {
                     lists.add(card);
 
                 } catch (Exception ex) {
-                    System.err.println("======================================");
-                    System.err.println("Lỗi tại Complex ID: " + fc.getComplexId());
-                    System.err.println("Tên: " + fc.getComplexName());
                     ex.printStackTrace();
-                    System.err.println("======================================");
                 }
             }
 
@@ -157,9 +150,7 @@ public class GetFieldList extends HttpServlet {
             resp.getWriter().write(gson.toJson(lists));
 
         } catch (Exception e) {
-            System.err.println("========== API ERROR ==========");
             e.printStackTrace();
-            System.err.println("===============================");
 
             resp.sendError(
                     HttpServletResponse.SC_INTERNAL_SERVER_ERROR,

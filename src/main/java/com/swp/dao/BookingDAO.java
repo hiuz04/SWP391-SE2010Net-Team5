@@ -4,9 +4,10 @@ import com.swp.model.Booking;
 import com.swp.model.Field;
 import com.swp.model.FieldMaintenanceSchedule;
 import com.swp.model.dto.BookingView;
+import com.swp.model.dto.RecurringBookingCreationResult;
+import com.swp.model.dto.SkippedBookingSlot;
 import com.swp.util.DBContext;
 
-import java.awt.print.Book;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Connection;
@@ -34,6 +35,10 @@ import java.util.List;
 public class BookingDAO {
 
     private static final String STATUS_CANCELLED = "CANCELLED";
+    private static final String REASON_SLOT_BOOKED = "Khung giờ đã được đặt";
+    private static final String REASON_FIELD_MAINTENANCE = "Sân đang bảo trì";
+    private static final String REASON_FIELD_INACTIVE = "Sân không hoạt động";
+    private static final String REASON_INVALID_TIME = "Dữ liệu khung giờ không hợp lệ";
     private static final String HOLD_EXPIRED_CANCEL_REASON =
             "Th\u1eddi gian gi\u1eef ch\u1ed7 \u0111\u00e3 h\u1ebft h\u1ea1n.";
     private static final int DEFAULT_CANCEL_BEFORE_HOURS = 24;
@@ -135,6 +140,7 @@ public class BookingDAO {
      * Trước khi đọc lịch, HOLD quá hạn được hủy để slot đã hết thời gian giữ chỗ có thể mở lại.
      */
     public List<Booking> getBookingsByComplexAndDate(Long complexId, LocalDate date) throws SQLException {
+        // Business Rule BR-05: Trước khi hiển thị lịch, dọn các booking HOLD đã quá hạn để giải phóng slot.
         cancelExpiredHolds();
 
         String sql = """
@@ -156,12 +162,11 @@ public class BookingDAO {
                        hold_expires_at,
                        cancellation_reason,
                        cancelled_at,
-                       qr_code,
                        created_at,
                        updated_at
                 FROM bookings
                 WHERE complex_id = ?
-                  AND status NOT IN ('CANCELLED', 'EXPIRED', 'REJECTED')
+                  AND status IN ('HOLD', 'CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT')
                   AND start_time < ?
                   AND end_time > ?
                 """;
@@ -261,7 +266,7 @@ public class BookingDAO {
                        fa.complex_id,
                        fa.complex_name,
                        fa.address AS complex_address,
-                       fa.hotline AS complex_address,
+                       fa.hotline AS complex_hotline,
                        f.field_id,
                        f.field_name,
                        ft.type_name AS field_type_name,
@@ -277,7 +282,6 @@ public class BookingDAO {
                        NULL AS deposit_amount,
                        NULL AS status,
                        NULL AS hold_expires_at,
-                       NULL AS qr_code,
                        NULL AS created_at,
                        NULL AS updated_at,
                        NULL AS cancellation_reason,
@@ -286,6 +290,15 @@ public class BookingDAO {
                        NULL AS payment_method_name,
                        NULL AS paid_amount,
                        NULL AS paid_at,
+                       NULL AS checkout_invoice_id,
+                       NULL AS checkout_invoice_status,
+                       NULL AS checkout_total_amount,
+                       NULL AS checkout_paid_amount,
+                       NULL AS checkout_remaining_amount,
+                       NULL AS checkout_payment_status,
+                       NULL AS checkout_payment_method_name,
+                       NULL AS checkout_paid_at,
+                       NULL AS checkout_staff_name,
                        NULL AS feedback_id,
                        0 AS reviewed
                 FROM fields f
@@ -319,6 +332,13 @@ public class BookingDAO {
     public boolean isFieldAvailable(Long fieldId, LocalDateTime startTime, LocalDateTime endTime) throws SQLException {
         try (Connection conn = DBContext.getConnection()) {
             return isFieldAvailable(conn, fieldId, startTime, endTime);
+        }
+    }
+
+    public SlotAvailabilityResult checkFieldAvailability(Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
+            throws SQLException {
+        try (Connection conn = DBContext.getConnection()) {
+            return checkFieldAvailability(conn, fieldId, startTime, endTime);
         }
     }
 
@@ -492,12 +512,11 @@ public class BookingDAO {
                     deposit_amount,
                     status,
                     hold_expires_at,
-                    qr_code,
                     created_at,
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
                 """;
 
         String insertLog = """
@@ -521,13 +540,15 @@ public class BookingDAO {
             originalAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
 
-            // Kiem tra lai trang thai san trong transaction de tranh trung lich.
+            // Business Rule BR-03: Kiểm tra lại trạng thái sân, bảo trì và booking trùng ngay trong transaction ghi HOLD.
+            // Kiểm tra lại trạng thái sân trong transaction để tránh trùng lịch.
             if (!isFieldAvailable(conn, booking.getFieldId(), booking.getStartTime(), booking.getEndTime())) {
                 throw new SQLException("Khung giờ đã được đặt hoặc sân đang bảo trì.");
             }
 
             long bookingId;
-            // Insert booking HOLD va lay booking_id vua tao bang OUTPUT INSERTED.
+            // Business Rule BR-04: Booking được insert ở trạng thái HOLD cùng hold_expires_at đã tính từ controller.
+            // Insert booking HOLD và lấy booking_id vừa tạo bằng OUTPUT INSERTED.
             try (PreparedStatement ps = conn.prepareStatement(insertBooking)) {
                 ps.setString(1, booking.getBookingCode());
                 ps.setLong(2, booking.getCustomerId());
@@ -542,7 +563,6 @@ public class BookingDAO {
                 ps.setBigDecimal(11, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
                 ps.setBigDecimal(12, safeMoney(booking.getDepositAmount()));
                 ps.setTimestamp(13, Timestamp.valueOf(booking.getHoldExpiresAt()));
-                ps.setString(14, booking.getQrCode());
 
                 try (ResultSet rs = ps.executeQuery()) {
                     // Neu DB khong tra ve id thi booking chua duoc tao hop le.
@@ -553,7 +573,8 @@ public class BookingDAO {
                 }
             }
 
-            // Ghi lich su trang thai de audit duoc booking moi tao.
+            // Business Rule BR-24: Ghi log trạng thái HOLD để audit vòng đời booking đã triển khai.
+            // Ghi lịch sử trạng thái để audit được booking mới tạo.
             try (PreparedStatement ps = conn.prepareStatement(insertLog)) {
                 ps.setLong(1, bookingId);
                 // changedBy co the null neu log duoc sinh boi he thong.
@@ -611,11 +632,68 @@ public class BookingDAO {
         return null;
     }
 
+    public List<BookingView> getBookingsByRecurringGroupIdAndCustomerId(Long recurringGroupId, Long customerId)
+            throws SQLException {
+        cancelExpiredHolds(customerId);
+
+        String sql = baseBookingViewSql() + """
+                WHERE b.recurring_group_id = ?
+                  AND b.customer_id = ?
+                ORDER BY b.start_time ASC,
+                         b.booking_id ASC
+                """;
+
+        List<BookingView> bookings = new ArrayList<>();
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, recurringGroupId);
+            ps.setLong(2, customerId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    bookings.add(mapBookingView(rs));
+                }
+            }
+        }
+
+        return bookings;
+    }
+
+    /**
+     * Lấy booking_code theo booking_id và customer_id để sinh QR động mà không phụ thuộc cột qr_code.
+     */
+    public String getBookingCodeByIdAndCustomerId(Long bookingId, Long customerId) throws SQLException {
+        String sql = """
+                SELECT booking_code
+                FROM bookings
+                WHERE booking_id = ?
+                  AND customer_id = ?
+                """;
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, bookingId);
+            ps.setLong(2, customerId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("booking_code");
+                }
+            }
+        }
+
+        return null;
+    }
+
     /**
      * Tạo một nhóm booking định kỳ.
-     * Tất cả slot phải còn trống trước khi insert; nếu một slot lỗi thì rollback toàn bộ nhóm để không tạo lịch dở dang.
+     * Slot bị trùng/bảo trì/sân khóa là kết quả nghiệp vụ bình thường nên được bỏ qua,
+     * còn lỗi ghi DB vẫn rollback toàn bộ các booking hợp lệ đã insert trong transaction.
      */
-    public List<Long> createRecurringBookingHolds(
+    public RecurringBookingCreationResult createRecurringBookingHolds(
             List<Booking> bookings,
             String repeatType,
             LocalDate repeatUntil,
@@ -650,12 +728,11 @@ public class BookingDAO {
                     deposit_amount,
                     status,
                     hold_expires_at,
-                    qr_code,
                     created_at,
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, ?, GETDATE(), GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
                 """;
 
         String insertLog = """
@@ -678,22 +755,31 @@ public class BookingDAO {
             originalAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
 
+            List<Booking> availableBookings = new ArrayList<>();
+            List<SkippedBookingSlot> skippedSlots = new ArrayList<>();
+
             /*
-             * Kiem tra thoi gian cho booking lap.
-             * Tat ca slot phai con trong; chi can mot slot bi trung lich/bao tri
-             * thi rollback ca nhom booking lap.
+             * Business Rule BR-03: Kiểm tra lại từng slot ngay trong transaction để chống race condition.
+             * Slot không còn khả dụng sẽ bị bỏ qua, không làm rollback các slot hợp lệ còn lại.
              */
             for (Booking booking : bookings) {
-                // Kiem tra tung lan dat truoc khi insert bat ky booking nao.
-                if (!isFieldAvailable(conn, booking.getFieldId(), booking.getStartTime(), booking.getEndTime())) {
-                    throw new SQLException("Khung gio " + booking.getStartTime()
-                            + " - " + booking.getEndTime()
-                            + " da duoc dat hoac san dang bao tri.");
+                SlotAvailabilityResult availability =
+                        checkFieldAvailability(conn, booking.getFieldId(), booking.getStartTime(), booking.getEndTime());
+                if (availability.available()) {
+                    availableBookings.add(booking);
+                } else {
+                    skippedSlots.add(toSkippedSlot(booking, availability.reason()));
                 }
             }
+
+            if (availableBookings.isEmpty()) {
+                conn.commit();
+                return new RecurringBookingCreationResult(List.of(), skippedSlots, bookings.size());
+            }
+
             Long recurringGroupId;
-            Booking firstBooking = bookings.get(0);
-            // Tao nhom recurring truoc de cac booking con tro ve cung mot group.
+            Booking firstBooking = availableBookings.get(0);
+            // Tạo nhóm recurring trước để các booking con trỏ về cùng một group.
             try (PreparedStatement ps = conn.prepareStatement(insertRecurringGroup)) {
                 ps.setLong(1, firstBooking.getCustomerId());
                 ps.setString(2, repeatType);
@@ -709,8 +795,9 @@ public class BookingDAO {
             }
 
             List<Long> bookingIds = new ArrayList<>();
-            // Insert tung booking HOLD thuoc nhom recurring.
-            for (Booking booking : bookings) {
+            // Business Rule BR-04: Mỗi booking con trong nhóm lặp cũng được tạo ở trạng thái HOLD.
+            // Chỉ insert các booking đã được kiểm tra là hợp lệ; slot bị skip không sinh dữ liệu rỗng/trùng.
+            for (Booking booking : availableBookings) {
                 // Luu booking con va lay booking_id vua tao.
                 try (PreparedStatement ps = conn.prepareStatement(insertBooking)) {
                     ps.setString(1, booking.getBookingCode());
@@ -727,7 +814,6 @@ public class BookingDAO {
                     ps.setBigDecimal(12, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
                     ps.setBigDecimal(13, safeMoney(booking.getDepositAmount()));
                     ps.setTimestamp(14, Timestamp.valueOf(booking.getHoldExpiresAt()));
-                    ps.setString(15, booking.getQrCode());
 
                     try (ResultSet rs = ps.executeQuery()) {
                         // Moi booking con bat buoc phai tra ve id de ghi log dung.
@@ -738,7 +824,8 @@ public class BookingDAO {
                     }
                 }
 
-                // Ghi log HOLD cho booking con vua insert.
+                // Business Rule BR-24: Mỗi booking con đều có log HOLD để theo dõi trạng thái đã triển khai.
+                // Ghi log HOLD cho booking con vừa insert.
                 try (PreparedStatement ps = conn.prepareStatement(insertLog)) {
                     ps.setLong(1, bookingIds.get(bookingIds.size() - 1));
                     // changedBy co the null neu log duoc sinh boi he thong.
@@ -753,9 +840,9 @@ public class BookingDAO {
             }
 
             conn.commit();
-            return bookingIds;
+            return new RecurringBookingCreationResult(bookingIds, skippedSlots, bookings.size());
         } catch (SQLException e) {
-            // Co loi o bat ky slot nao thi rollback ca nhom recurring.
+            // Lỗi DB khi tạo group/booking/log thì rollback toàn bộ dữ liệu đã insert trong transaction.
             if (conn != null) {
                 conn.rollback();
             }
@@ -854,23 +941,23 @@ public class BookingDAO {
             }
 
             /*
-             * Kiem tra quy tac huy booking.
-             * Chi cho huy khi booking chua bat dau, chua o trang thai ket thuc,
-             * va con truoc moc chan huy theo cau hinh.
+             * Business Rule BR-07: Chỉ cho hủy khi trạng thái booking và hạn hủy theo cấu hình còn hợp lệ.
+             * Booking phải chưa bắt đầu, chưa ở trạng thái kết thúc và còn trước mốc chặn hủy.
              */
             int cancelBeforeHours = getCancelBeforeHours();
             LocalDateTime latestCancelTime = startTime.minusHours(cancelBeforeHours);
             LocalDateTime now = LocalDateTime.now();
-            // Trang thai da ket thuc/dang check-in thi khong duoc huy.
+            // Trạng thái đã kết thúc hoặc đang check-in thì không được hủy.
             if (STATUS_CANCELLED.equals(oldStatus) || "COMPLETED".equals(oldStatus) || "CHECKED_IN".equals(oldStatus)) {
                 throw new SQLException("Booking khong the huy voi trang thai hien tai.");
             }
-            // Qua gio bat dau hoac qua moc cho phep huy thi chan request.
+            // Quá giờ bắt đầu hoặc quá mốc cho phép hủy thì chặn request.
             if (!now.isBefore(startTime) || now.isAfter(latestCancelTime)) {
                 throw new SQLException("Booking chi duoc huy truoc gio bat dau toi thieu "
                         + cancelBeforeHours + " gio.");
             }
-            // Update booking sang CANCELLED va luu ly do huy.
+            // Business Rule BR-24: Trạng thái CANCELLED được dùng khi booking bị Customer hủy hợp lệ.
+            // Update booking sang CANCELLED và lưu lý do hủy.
             try (PreparedStatement ps = conn.prepareStatement(updateBooking)) {
                 ps.setString(1, STATUS_CANCELLED);
                 ps.setString(2, reason);
@@ -1035,7 +1122,6 @@ public class BookingDAO {
                        hold_expires_at,
                        cancellation_reason,
                        cancelled_at,
-                       qr_code,
                        created_at,
                        updated_at
                 FROM bookings
@@ -1078,7 +1164,6 @@ public class BookingDAO {
                     booking.setDepositAmount(rs.getBigDecimal("deposit_amount"));
                     booking.setStatus(rs.getString("status"));
                     booking.setCancellationReason(rs.getString("cancellation_reason"));
-                    booking.setQrCode(rs.getString("qr_code"));
 
                     Timestamp holdExpiresAt = rs.getTimestamp("hold_expires_at");
                     if (holdExpiresAt != null) {
@@ -1112,40 +1197,50 @@ public class BookingDAO {
 
     /**
      * Kiểm tra khả dụng trong cùng connection transaction.
-     * UPDLOCK/HOLDLOCK trên sân giúp serialize các request cùng tranh một sân, còn hai NOT EXISTS chặn booking/bảo trì overlap.
+     * UPDLOCK/HOLDLOCK trên sân giúp serialize các request cùng tranh một sân.
      */
     private boolean isFieldAvailable(Connection conn, Long fieldId, LocalDateTime startTime, LocalDateTime endTime)
             throws SQLException {
+        return checkFieldAvailability(conn, fieldId, startTime, endTime).available();
+    }
+
+    private SlotAvailabilityResult checkFieldAvailability(
+            Connection conn,
+            Long fieldId,
+            LocalDateTime startTime,
+            LocalDateTime endTime
+    ) throws SQLException {
+        if (fieldId == null || startTime == null || endTime == null || !startTime.isBefore(endTime)) {
+            return new SlotAvailabilityResult(false, REASON_INVALID_TIME);
+        }
+
+        // Business Rule BR-05: Dọn HOLD hết hạn trước khi kiểm tra availability để slot quá hạn được mở lại.
         cancelExpiredHolds(conn, null);
 
         String sql = """
                 SELECT
-                    CASE
-                        WHEN EXISTS (
-                            SELECT 1
-                            FROM fields f WITH (UPDLOCK, HOLDLOCK)
-                            WHERE f.field_id = ?
-                              AND f.status = 'AVAILABLE'
-                        )
-                        AND NOT EXISTS (
-                            SELECT 1
-                            FROM bookings b
-                            WHERE b.field_id = ?
-                              AND b.status NOT IN ('CANCELLED', 'EXPIRED', 'REJECTED')
-                              AND b.start_time < ?
-                              AND b.end_time > ?
-                        )
-                        AND NOT EXISTS (
-                            SELECT 1
-                            FROM field_maintenance_schedules m
-                            WHERE m.field_id = ?
-                              AND m.status <> 'CANCELLED'
-                              AND m.start_time < ?
-                              AND m.end_time > ?
-                        )
-                        THEN 1
-                        ELSE 0
-                    END AS available
+                    CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM fields f WITH (UPDLOCK, HOLDLOCK)
+                        WHERE f.field_id = ?
+                          AND f.status = 'AVAILABLE'
+                    ) THEN 1 ELSE 0 END AS field_available,
+                    CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM field_maintenance_schedules m
+                        WHERE m.field_id = ?
+                          AND m.status <> 'CANCELLED'
+                          AND m.start_time < ?
+                          AND m.end_time > ?
+                    ) THEN 1 ELSE 0 END AS has_maintenance,
+                    CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM bookings b WITH (UPDLOCK, HOLDLOCK)
+                        WHERE b.field_id = ?
+                          AND b.status IN ('HOLD', 'CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT')
+                          AND b.start_time < ?
+                          AND b.end_time > ?
+                    ) THEN 1 ELSE 0 END AS has_booking
                 """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1158,9 +1253,28 @@ public class BookingDAO {
             ps.setTimestamp(7, Timestamp.valueOf(startTime));
 
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() && rs.getInt("available") == 1;
+                if (!rs.next() || rs.getInt("field_available") != 1) {
+                    return new SlotAvailabilityResult(false, REASON_FIELD_INACTIVE);
+                }
+                if (rs.getInt("has_maintenance") == 1) {
+                    return new SlotAvailabilityResult(false, REASON_FIELD_MAINTENANCE);
+                }
+                if (rs.getInt("has_booking") == 1) {
+                    return new SlotAvailabilityResult(false, REASON_SLOT_BOOKED);
+                }
             }
         }
+
+        return new SlotAvailabilityResult(true, null);
+    }
+
+    private SkippedBookingSlot toSkippedSlot(Booking booking, String reason) {
+        return new SkippedBookingSlot(
+                booking.getStartTime() == null ? null : booking.getStartTime().toLocalDate(),
+                booking.getStartTime() == null ? null : booking.getStartTime().toLocalTime(),
+                booking.getEndTime() == null ? null : booking.getEndTime().toLocalTime(),
+                reason == null || reason.isBlank() ? REASON_INVALID_TIME : reason
+        );
     }
 
     /**
@@ -1181,7 +1295,7 @@ public class BookingDAO {
                        b.complex_id,
                        fa.complex_name,
                        fa.address AS complex_address,
-                       fa.hotline AS complex_address,
+                       fa.hotline AS complex_hotline,
                        b.field_id,
                        f.field_name,
                        ft.type_name AS field_type_name,
@@ -1197,7 +1311,6 @@ public class BookingDAO {
                        grp.deposit_amount,
                        b.status,
                        b.hold_expires_at,
-                       b.qr_code,
                        b.created_at,
                        b.updated_at,
                        b.cancellation_reason,
@@ -1212,6 +1325,18 @@ public class BookingDAO {
                        lp.payment_method_name,
                        CASE WHEN lp.payment_status = 'SUCCESS' THEN lp.paid_amount ELSE NULL END AS paid_amount,
                        lp.paid_at,
+                       ci.invoice_id AS checkout_invoice_id,
+                       ci.invoice_status AS checkout_invoice_status,
+                       ci.checkout_total_amount,
+                       ci.checkout_paid_amount,
+                       CASE WHEN ci.invoice_id IS NULL
+                            THEN NULL
+                            ELSE IIF(ci.checkout_total_amount - ci.checkout_paid_amount < 0, 0, ci.checkout_total_amount - ci.checkout_paid_amount)
+                       END AS checkout_remaining_amount,
+                       cp.checkout_payment_status,
+                       cp.checkout_payment_method_name,
+                       cp.checkout_paid_at,
+                       ci.checkout_staff_name,
                        fb.feedback_id,
                        IIF(fb.feedback_id IS NULL, 0, 1) AS reviewed
                 FROM bookings b
@@ -1262,6 +1387,30 @@ public class BookingDAO {
                         p.created_at DESC,
                         p.payment_id DESC
                 ) lp
+                OUTER APPLY (
+                    SELECT TOP 1 i.invoice_id,
+                           i.status AS invoice_status,
+                           i.total_amount AS checkout_total_amount,
+                           i.paid_amount AS checkout_paid_amount,
+                           staff.full_name AS checkout_staff_name
+                    FROM invoices i
+                    LEFT JOIN users staff ON i.staff_id = staff.user_id
+                    WHERE i.booking_id = b.booking_id
+                      AND i.customer_id = b.customer_id
+                      AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
+                    ORDER BY i.issued_at DESC, i.invoice_id DESC
+                ) ci
+                OUTER APPLY (
+                    SELECT TOP 1 p.status AS checkout_payment_status,
+                           CASE WHEN UPPER(pm.method_code) = 'CASH' THEN N'Tiền mặt' ELSE pm.method_name END AS checkout_payment_method_name,
+                           p.paid_at AS checkout_paid_at
+                    FROM payments p
+                    LEFT JOIN payment_methods pm ON p.payment_method_id = pm.payment_method_id
+                    WHERE p.booking_id = b.booking_id
+                      AND p.customer_id = b.customer_id
+                      AND p.payment_type = 'CHECKOUT'
+                    ORDER BY p.created_at DESC, p.payment_id DESC
+                ) cp
                 """;
     }
 
@@ -1282,6 +1431,7 @@ public class BookingDAO {
             originalAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
 
+            // Business Rule BR-05: HOLD quá hạn được cập nhật trong transaction để trạng thái và log đi cùng nhau.
             int updatedRows = cancelExpiredHolds(conn, customerId);
             conn.commit();
             return updatedRows;
@@ -1298,6 +1448,85 @@ public class BookingDAO {
         }
     }
 
+    public java.util.List<BookingView> getAdminBookingsPaginated(String search, String filter, int offset, int limit) throws SQLException {
+        StringBuilder sql = new StringBuilder(baseBookingViewSql() + " WHERE b.status NOT IN ('EXPIRED') ");
+
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (b.booking_code LIKE ? OR u.full_name LIKE ? OR u.phone LIKE ?) ");
+        }
+
+        if (filter != null && !filter.trim().isEmpty()) {
+            if ("revenue_today".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND CAST(i.issued_at AS DATE) = CAST(GETDATE() AS DATE)) ");
+            } else if ("revenue_7days".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -7, GETDATE())) ");
+            } else if ("bookings_today".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
+            }
+        }
+
+        sql.append(" ORDER BY b.created_at DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY ");
+
+        java.util.List<BookingView> bookings = new java.util.ArrayList<>();
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            int paramIndex = 1;
+            if (search != null && !search.trim().isEmpty()) {
+                String likeSearch = "%" + search.trim() + "%";
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+            }
+            ps.setInt(paramIndex++, offset);
+            ps.setInt(paramIndex++, limit);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    bookings.add(mapBookingView(rs));
+                }
+            }
+        }
+        return bookings;
+    }
+
+    public int countAdminBookings(String search, String filter) throws SQLException {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM bookings b JOIN users u ON b.customer_id = u.user_id WHERE b.status NOT IN ('EXPIRED') ");
+
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (b.booking_code LIKE ? OR u.full_name LIKE ? OR u.phone LIKE ?) ");
+        }
+
+        if (filter != null && !filter.trim().isEmpty()) {
+            if ("revenue_today".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND CAST(i.issued_at AS DATE) = CAST(GETDATE() AS DATE)) ");
+            } else if ("revenue_7days".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -7, GETDATE())) ");
+            } else if ("bookings_today".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
+            }
+        }
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            int paramIndex = 1;
+            if (search != null && !search.trim().isEmpty()) {
+                String likeSearch = "%" + search.trim() + "%";
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+                ps.setString(paramIndex++, likeSearch);
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        return 0;
+    }
+
     /**
      * Cập nhật trạng thái HOLD quá hạn và ghi log bằng một câu SQL dùng bảng tạm.
      * Cách này giữ danh sách booking vừa bị hủy để log chính xác trong cùng transaction.
@@ -1309,6 +1538,7 @@ public class BookingDAO {
                     booking_id BIGINT NOT NULL
                 );
                 
+                -- Business Rule BR-05: Booking HOLD quá hạn và chưa có payment SUCCESS bị hủy để giải phóng slot.
                 UPDATE b
                 SET b.status = 'CANCELLED',
                     b.cancellation_reason = ?,
@@ -1328,6 +1558,7 @@ public class BookingDAO {
                         AND p.status = 'SUCCESS'
                   )
                 
+                -- Business Rule BR-24: Log trạng thái CANCELLED được ghi cho các HOLD bị hủy tự động.
                 INSERT INTO booking_status_logs (
                     booking_id,
                     old_status,
@@ -1381,7 +1612,6 @@ public class BookingDAO {
         booking.setHoldExpiresAt(toLocalDateTime(rs.getTimestamp("hold_expires_at")));
         booking.setCancellationReason(rs.getString("cancellation_reason"));
         booking.setCancelledAt(toLocalDateTime(rs.getTimestamp("cancelled_at")));
-        booking.setQrCode(rs.getString("qr_code"));
         booking.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
         booking.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
 
@@ -1403,7 +1633,7 @@ public class BookingDAO {
         view.setComplexId(getLongOrNull(rs, "complex_id"));
         view.setComplexName(rs.getString("complex_name"));
         view.setComplexAddress(rs.getString("complex_address"));
-        view.setComplexHotline(rs.getString("complex_address"));
+        view.setComplexHotline(rs.getString("complex_hotline"));
         view.setFieldId(getLongOrNull(rs, "field_id"));
         view.setFieldName(rs.getString("field_name"));
         view.setFieldTypeName(rs.getString("field_type_name"));
@@ -1419,7 +1649,6 @@ public class BookingDAO {
         view.setDepositAmount(rs.getBigDecimal("deposit_amount"));
         view.setStatus(rs.getString("status"));
         view.setHoldExpiresAt(toLocalDateTime(rs.getTimestamp("hold_expires_at")));
-        view.setQrCode(rs.getString("qr_code"));
         view.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
         view.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
         view.setCancellationReason(rs.getString("cancellation_reason"));
@@ -1428,10 +1657,37 @@ public class BookingDAO {
         view.setPaymentMethodName(rs.getString("payment_method_name"));
         view.setPaidAmount(rs.getBigDecimal("paid_amount"));
         view.setPaidAt(toLocalDateTime(rs.getTimestamp("paid_at")));
+        view.setCheckoutInvoiceId(getLongOrNull(rs, "checkout_invoice_id"));
+        view.setCheckoutInvoiceStatus(rs.getString("checkout_invoice_status"));
+        view.setCheckoutTotalAmount(rs.getBigDecimal("checkout_total_amount"));
+        view.setCheckoutPaidAmount(rs.getBigDecimal("checkout_paid_amount"));
+        view.setCheckoutRemainingAmount(rs.getBigDecimal("checkout_remaining_amount"));
+        view.setCheckoutPaymentStatus(rs.getString("checkout_payment_status"));
+        view.setCheckoutPaymentMethodName(rs.getString("checkout_payment_method_name"));
+        view.setCheckoutPaidAt(toLocalDateTime(rs.getTimestamp("checkout_paid_at")));
+        view.setCheckoutStaffName(rs.getString("checkout_staff_name"));
         view.setFeedbackId(getLongOrNull(rs, "feedback_id"));
         view.setReviewed(rs.getBoolean("reviewed"));
 
         return view;
+    }
+
+    public BookingView getAdminBookingDetailById(Long bookingId) throws SQLException {
+        String sql = baseBookingViewSql() + " WHERE b.booking_id = ? ";
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, bookingId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapBookingView(rs);
+                }
+            }
+        }
+
+        return null;
     }
 
     private Long getLongOrNull(ResultSet rs, String column) throws SQLException {
@@ -1475,5 +1731,8 @@ public class BookingDAO {
             Integer priority,
             Boolean exactSpecificDate
     ) {
+    }
+
+    public record SlotAvailabilityResult(boolean available, String reason) {
     }
 }

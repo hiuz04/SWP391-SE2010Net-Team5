@@ -38,7 +38,11 @@ function loadVoucherStock(type = "ALL_TYPE") {
                 return;
             }
 
-            currentPoint = data.point;
+            if (typeof data.point !== "undefined") {
+                currentPoint = data.point;
+                const pointEl = document.getElementById("available-point");
+                if (pointEl) pointEl.textContent = Number(data.point).toLocaleString("vi-VN");
+            }
             allVouchers = data.data;
 
             renderVoucherStock(allVouchers);
@@ -123,6 +127,13 @@ function loadMyVoucher(status = "ALL") {
             if (!data.success) {
                 listEl.innerHTML = `<div class="col-12 text-center text-danger py-5">${escapeHtml(data.message || "Không thể tải dữ liệu.")}</div>`;
                 return;
+            }
+            if (typeof data.point !== "undefined") {
+                currentPoint = data.point;
+                const pointDisplay = document.getElementById("userPointDisplay");
+                if (pointDisplay) {
+                    pointDisplay.textContent = Number(data.point).toLocaleString("vi-VN");
+                }
             }
             renderMyVoucher(data.data);
         })

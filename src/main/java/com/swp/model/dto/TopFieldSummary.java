@@ -19,7 +19,6 @@ public class TopFieldSummary {
     private long complexId;
     private String complexName;
     private String address;
-    private String district;
     private String city;
 
     private int bookingCount;
@@ -31,7 +30,7 @@ public class TopFieldSummary {
 
     public TopFieldSummary(long fieldId, String fieldName, String description, String status,
                            String fieldTypeName, boolean isHot, long complexId, String complexName,
-                           String address, String district, String city, int bookingCount, String imageUrl,
+                           String address, String city, int bookingCount, String imageUrl,
                            java.math.BigDecimal currentPrice) {
         this.fieldId = fieldId;
         this.fieldName = fieldName;
@@ -42,7 +41,6 @@ public class TopFieldSummary {
         this.complexId = complexId;
         this.complexName = complexName;
         this.address = address;
-        this.district = district;
         this.city = city;
         this.bookingCount = bookingCount;
         this.imageUrl = imageUrl;
@@ -76,9 +74,6 @@ public class TopFieldSummary {
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
 
-    public String getDistrict() { return district; }
-    public void setDistrict(String district) { this.district = district; }
-
     public String getCity() { return city; }
     public void setCity(String city) { this.city = city; }
 
@@ -91,10 +86,10 @@ public class TopFieldSummary {
     public java.math.BigDecimal getCurrentPrice() { return currentPrice; }
     public void setCurrentPrice(java.math.BigDecimal currentPrice) { this.currentPrice = currentPrice; }
 
-    /** Trả về địa chỉ đầy đủ gồm district + city */
+    /** Trả về địa chỉ đầy đủ gồm address + city */
     public String getFullLocation() {
         StringBuilder sb = new StringBuilder();
-        if (district != null && !district.isBlank()) sb.append(district);
+        if (address != null && !address.isBlank()) sb.append(address);
         if (city != null && !city.isBlank()) {
             if (sb.length() > 0) sb.append(", ");
             sb.append(city);

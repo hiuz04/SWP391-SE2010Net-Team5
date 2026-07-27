@@ -282,6 +282,7 @@
         </div>
     </section>
 
+    <%-- Business Rule BR-29: Khối ưu đãi/VIP chỉ hiển thị cho khách vãng lai và Customer. --%>
     <% if ("guest".equalsIgnoreCase(navRole) || "customer".equalsIgnoreCase(navRole)) { %>
     <section class="py-5 bg-sf-primary text-white" data-aos="fade-up">
         <div class="container text-center">

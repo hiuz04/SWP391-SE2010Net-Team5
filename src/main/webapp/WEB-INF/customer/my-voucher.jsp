@@ -26,10 +26,15 @@
 <div class="container py-4">
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="fw-bold mb-1">My Vouchers</h2>
+        <h2 class="fw-bold mb-1">Voucher Của Tôi</h2>
         <p class="text-muted mb-0">
-            Bạn đang sở hữu <span id="voucherCount">8</span> voucher
+            Bạn đang sở hữu <span id="voucherCount">0</span> voucher | Điểm thưởng hiện có: <strong id="userPointDisplay" class="text-success"><%= sessionUser != null ? sessionUser.getRewardPoints() : 0 %></strong> điểm
         </p>
+    </div>
+    <div>
+        <a href="<%= ctx %>/vouchers?to=center" class="btn btn-outline-success">
+            <i class="bi bi-ticket-perforated me-1"></i> Đổi thêm voucher
+        </a>
     </div>
 </div>
 

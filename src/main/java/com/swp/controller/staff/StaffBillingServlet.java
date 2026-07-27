@@ -96,10 +96,12 @@ public class StaffBillingServlet extends HttpServlet {
 
         try {
             long bookingId = requirePositiveLong(req.getParameter("bookingId"), "Mã đặt sân không được bỏ trống.");
+            String checkoutPaymentMethod = trim(req.getParameter("checkoutPaymentMethod"));
             CheckoutResult result = billingDAO.completeCheckout(
                     bookingId,
                     user.getUserId(),
-                    user.getRoleId() == ROLE_STAFF
+                    user.getRoleId() == ROLE_STAFF,
+                    checkoutPaymentMethod
             );
             writeCheckoutSuccess(resp, result, req.getContextPath() + "/staff/invoice?id=" + result.getBookingId());
         } catch (SecurityException e) {
@@ -127,14 +129,18 @@ public class StaffBillingServlet extends HttpServlet {
                 if (checkout == null) {
                     req.setAttribute("error", "Không tìm thấy lịch đặt sân.");
                 } else if (!"CHECKED_IN".equals(checkout.getStatus())) {
+                    // Business Rule BR-15: Màn hình checkout chỉ mở cho booking đã CHECKED_IN.
                     req.setAttribute("error", "Chỉ lịch đã nhận sân mới được trả sân.");
                 } else if (billingDAO.hasPaidInvoice(bookingId)) {
                     req.setAttribute("error", "Lịch đặt sân này đã có hóa đơn thanh toán.");
                 } else if (user.getRoleId() == ROLE_STAFF
                         && !billingDAO.canStaffCheckoutComplex(user.getUserId(), checkout.getComplexId())) {
+                    // Business Rule BR-12: Staff chỉ được checkout tại complex có ca đang hoạt động.
                     resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     req.setAttribute("error", "Bạn không có ca làm việc đang hoạt động tại cơ sở này.");
                 } else {
+                    // TODO Business Rule BR-16: SRS yêu cầu chỉ checkout khi current time >= booking end time;
+                    // màn hình hiện tại chưa chặn trường hợp checkout sớm.
                     req.setAttribute("checkout", checkout);
                 }
             } catch (SQLException e) {
@@ -159,6 +165,7 @@ public class StaffBillingServlet extends HttpServlet {
                     req.setAttribute("error", "Không tìm thấy hóa đơn.");
                 } else if (user.getRoleId() == ROLE_STAFF
                         && !billingDAO.canStaffViewComplexToday(user.getUserId(), invoice.getComplexId())) {
+                    // Business Rule BR-12: Staff chỉ được xem hóa đơn thuộc complex mình có ca trong ngày.
                     resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     req.setAttribute("error", "Bạn không có quyền xem hóa đơn này.");
                 } else {
@@ -183,6 +190,7 @@ public class StaffBillingServlet extends HttpServlet {
                 resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Không tìm thấy hóa đơn.");
                 return;
             }
+            // Business Rule BR-12: Xuất PDF invoice cũng phải kiểm tra quyền xem theo ca của Staff.
             if (user.getRoleId() == ROLE_STAFF
                     && !billingDAO.canStaffViewComplexToday(user.getUserId(), invoice.getComplexId())) {
                 resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền xuất hóa đơn này.");

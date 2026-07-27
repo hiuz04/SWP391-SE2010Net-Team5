@@ -44,6 +44,7 @@ public class PaymentController extends HttpServlet {
     private static final String GATEWAY_VNPAY = "VNPAY";
     private static final String MODE_VNPAY = "VNPAY";
     private static final String MODE_SIMULATED = "SIMULATED";
+    private static final String METHOD_CASH = "CASH";
     private static final String PAYMENT_TYPE_CHECKOUT = "CHECKOUT";
     private static final String PAYMENT_TYPE_MEMBERSHIP = "MEMBERSHIP";
 
@@ -135,6 +136,7 @@ public class PaymentController extends HttpServlet {
      */
     private void showPaymentMethod(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException, SQLException {
+        // Business Rule BR-01: Customer phải đăng nhập trước khi chọn phương thức thanh toán booking/checkout/membership.
         User currentUser = requireLogin(request, response);
         if (currentUser == null) {
             return;
@@ -155,13 +157,14 @@ public class PaymentController extends HttpServlet {
                 request.getParameter("id")
         ), "bookingId khong hop le.");
         BookingView booking = paymentDAO.getBookingForPayment(bookingId, currentUser.getUserId());
+        // Business Rule BR-01: Query payment đã giới hạn booking theo customer_id để Customer không thanh toán booking của người khác.
         if (booking == null) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND,
                     "Khong tim thay booking con hieu luc de thanh toan.");
             return;
         }
 
-        List<PaymentMethod> methods = paymentDAO.getActivePaymentMethods();
+        List<PaymentMethod> methods = paymentDAO.getActiveOnlinePaymentMethods();
         request.setAttribute("booking", booking);
         request.setAttribute("paymentContext", "DEPOSIT");
         request.setAttribute("paymentMethods", methods);
@@ -171,7 +174,7 @@ public class PaymentController extends HttpServlet {
 
     private void showMembershipPaymentMethod(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws IOException, ServletException, SQLException {
-        List<PaymentMethod> methods = paymentDAO.getActivePaymentMethods();
+        List<PaymentMethod> methods = paymentDAO.getActiveOnlinePaymentMethods();
         request.setAttribute("paymentContext", PAYMENT_TYPE_MEMBERSHIP);
         request.setAttribute("amountToPay", getVipPrice());
         request.setAttribute("paymentMethods", methods);
@@ -188,13 +191,14 @@ public class PaymentController extends HttpServlet {
         long invoiceId = parsePositiveLong(request.getParameter("invoiceId"),
                 "invoiceId khong hop le.");
         InvoiceView invoice = paymentDAO.getCheckoutInvoiceForPayment(invoiceId, currentUser.getUserId());
+        // Business Rule BR-20: Chỉ invoice checkout PENDING mới cần Customer thanh toán phần còn lại.
         if (invoice == null || !"PENDING".equals(invoice.getInvoiceStatus())) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND,
                     "Khong tim thay hoa don checkout dang cho thanh toan.");
             return;
         }
 
-        List<PaymentMethod> methods = paymentDAO.getActivePaymentMethods();
+        List<PaymentMethod> methods = paymentDAO.getActiveOnlinePaymentMethods();
         request.setAttribute("paymentContext", PAYMENT_TYPE_CHECKOUT);
         request.setAttribute("invoice", invoice);
         request.setAttribute("amountToPay", invoice.getTotalAmount());
@@ -209,6 +213,7 @@ public class PaymentController extends HttpServlet {
      */
     private void processPayment(HttpServletRequest request, HttpServletResponse response)
             throws IOException, SQLException {
+        // Business Rule BR-01: Customer phải đăng nhập trước khi submit thanh toán.
         User currentUser = requireLogin(request, response);
         if (currentUser == null) {
             return;
@@ -230,9 +235,7 @@ public class PaymentController extends HttpServlet {
                 "Vui long chon phuong thuc thanh toan.");
 
         PaymentMethod selectedMethod = paymentDAO.getPaymentMethodById(paymentMethodId);
-        if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
-            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
-        }
+        validateOnlinePaymentMethod(selectedMethod);
 
         // paymentMode quyết định đi VNPay thật hay mô phỏng; payment method vẫn phải ACTIVE trong DB.
         String paymentMode = trim(request.getParameter("paymentMode"));
@@ -247,6 +250,7 @@ public class PaymentController extends HttpServlet {
             throw new IllegalArgumentException("Vui long chon phuong thuc VNPay Sandbox.");
         }
 
+        // Business Rule BR-22: Với VNPay thật, tạo payment PENDING trước để callback có transactionRef đối chiếu.
         if (useVNPay) {
             processVNPayPayment(request, response, bookingId, currentUser.getUserId(), paymentMethodId);
             return;
@@ -269,9 +273,7 @@ public class PaymentController extends HttpServlet {
                 "Vui long chon phuong thuc thanh toan.");
 
         PaymentMethod selectedMethod = paymentDAO.getPaymentMethodById(paymentMethodId);
-        if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
-            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
-        }
+        validateOnlinePaymentMethod(selectedMethod);
 
         String paymentMode = trim(request.getParameter("paymentMode"));
         String simulateStatus = trim(request.getParameter("simulateStatus"));
@@ -285,6 +287,7 @@ public class PaymentController extends HttpServlet {
             throw new IllegalArgumentException("Vui long chon phuong thuc VNPay Sandbox.");
         }
 
+        // Business Rule BR-22: Payment checkout VNPay phải có transactionRef để callback xác minh amount/trạng thái.
         if (useVNPay) {
             processCheckoutVNPayPayment(request, response, invoiceId, currentUser.getUserId(), paymentMethodId);
             return;
@@ -306,9 +309,7 @@ public class PaymentController extends HttpServlet {
                 "Vui long chon phuong thuc thanh toan.");
 
         PaymentMethod selectedMethod = paymentDAO.getPaymentMethodById(paymentMethodId);
-        if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
-            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
-        }
+        validateOnlinePaymentMethod(selectedMethod);
 
         String paymentMode = trim(request.getParameter("paymentMode"));
         String simulateStatus = trim(request.getParameter("simulateStatus"));
@@ -322,6 +323,7 @@ public class PaymentController extends HttpServlet {
             throw new IllegalArgumentException("Vui long chon phuong thuc VNPay Sandbox.");
         }
 
+        // VNPay membership cũng đi qua payment PENDING để callback được xác minh nhất quán.
         if (useVNPay) {
             processMembershipVNPayPayment(request, response, currentUser.getUserId(), paymentMethodId);
             return;
@@ -386,6 +388,7 @@ public class PaymentController extends HttpServlet {
         } else {
             String gatewayTransactionId = "SIM"
                     + DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS").format(LocalDateTime.now());
+            // Business Rule BR-21: Checkout payment thành công sẽ cập nhật payment/invoice/booking trong DAO.
             paymentDAO.markPaymentSuccessAndConfirmBooking(
                     transactionRef,
                     gatewayTransactionId,
@@ -447,6 +450,7 @@ public class PaymentController extends HttpServlet {
         } else {
             String gatewayTransactionId = "SIM"
                     + java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS").format(java.time.LocalDateTime.now());
+            // Payment membership thành công dùng chung callback success nhưng không gắn booking sân.
             paymentDAO.markPaymentSuccessAndConfirmBooking(
                     transactionRef,
                     gatewayTransactionId,
@@ -514,6 +518,7 @@ public class PaymentController extends HttpServlet {
         } else {
             String gatewayTransactionId = "SIM"
                     + DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS").format(LocalDateTime.now());
+            // Business Rule BR-08: Thanh toán đặt cọc thành công cho booking HOLD sẽ xác nhận booking trong DAO.
             boolean success = paymentDAO.markPaymentSuccessAndConfirmBooking(
                     transactionRef,
                     gatewayTransactionId,
@@ -547,7 +552,7 @@ public class PaymentController extends HttpServlet {
 
         String rawPayload = VNPayUtil.buildRawPayload(params);
         String signature = trim(params.get("vnp_SecureHash"));
-        // Không tin bất kỳ tham số callback nào cho tới khi chữ ký VNPay khớp với hashSecret.
+        // Business Rule BR-22: Không tin bất kỳ tham số callback nào cho tới khi chữ ký VNPay khớp với hashSecret.
         VNPayUtil.SignatureDebug signatureDebug = VNPayUtil.verifySignatureDebug(params);
         if (!signatureDebug.valid()) {
             logVNPaySignatureFailure("RETURN", transactionRef, signatureDebug, params);
@@ -566,6 +571,7 @@ public class PaymentController extends HttpServlet {
         String responseCode = trim(params.get("vnp_ResponseCode"));
         String transactionStatus = trim(params.get("vnp_TransactionStatus"));
 
+        // Business Rule BR-23: DAO xử lý idempotent nên Return/IPN lặp không tạo thêm thay đổi trạng thái.
         if (isVNPaySuccess(responseCode, transactionStatus)) {
             paymentDAO.markPaymentSuccessAndConfirmBooking(
                     transactionRef,
@@ -599,6 +605,7 @@ public class PaymentController extends HttpServlet {
         String signature = trim(params.get("vnp_SecureHash"));
         String rawPayload = VNPayUtil.buildRawPayload(params);
 
+        // Business Rule BR-22: IPN server-to-server cũng bắt buộc kiểm tra chữ ký/hash trước khi đọc amount.
         VNPayUtil.SignatureDebug signatureDebug = VNPayUtil.verifySignatureDebug(params);
         if (!signatureDebug.valid()) {
             logVNPaySignatureFailure("IPN", transactionRef, signatureDebug, params);
@@ -626,7 +633,7 @@ public class PaymentController extends HttpServlet {
             return;
         }
 
-        // Số tiền VNPay gửi về phải khớp amount trong DB, không dựa vào dữ liệu từ trình duyệt.
+        // Business Rule BR-22: Số tiền VNPay gửi về phải khớp amount trong DB, không dựa vào dữ liệu từ trình duyệt.
         String requestAmount = trim(params.get("vnp_Amount"));
         String expectedAmount = VNPayUtil.toVNPayAmount(payment.amount());
         if (!expectedAmount.equals(requestAmount)) {
@@ -645,7 +652,7 @@ public class PaymentController extends HttpServlet {
         String transactionStatus = trim(params.get("vnp_TransactionStatus"));
         String gatewayTransactionId = trim(params.get("vnp_TransactionNo"));
 
-        // DAO xử lý idempotent: callback lặp không làm đổi lại booking/invoice đã xử lý.
+        // Business Rule BR-23: DAO xử lý idempotent, callback lặp không làm đổi lại booking/invoice đã xử lý.
         PaymentUpdateResult result;
         if (isVNPaySuccess(responseCode, transactionStatus)) {
             result = paymentDAO.markPaymentSuccessAndConfirmBooking(
@@ -733,6 +740,16 @@ public class PaymentController extends HttpServlet {
         return user;
     }
 
+    private void validateOnlinePaymentMethod(PaymentMethod selectedMethod) {
+        if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
+            throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
+        }
+        // Flow Customer online không nhận CASH; tiền mặt chỉ do Staff ghi nhận tại quầy checkout.
+        if (METHOD_CASH.equalsIgnoreCase(selectedMethod.getMethodCode())) {
+            throw new IllegalArgumentException("Phuong thuc tien mat chi duoc Staff ghi nhan tai quay Check-out.");
+        }
+    }
+
     private void redirectToMethodWithError(
             HttpServletRequest request,
             HttpServletResponse response,
@@ -747,6 +764,12 @@ public class PaymentController extends HttpServlet {
             }
             response.sendRedirect(request.getContextPath()
                     + "/payment?action=method&type=checkout&invoiceId=" + rawInvoiceId
+                    + "&error=" + URLEncoder.encode(message, StandardCharsets.UTF_8));
+            return;
+        }
+        if (PAYMENT_TYPE_MEMBERSHIP.equalsIgnoreCase(paymentType)) {
+            response.sendRedirect(request.getContextPath()
+                    + "/payment?action=method&type=membership"
                     + "&error=" + URLEncoder.encode(message, StandardCharsets.UTF_8));
             return;
         }

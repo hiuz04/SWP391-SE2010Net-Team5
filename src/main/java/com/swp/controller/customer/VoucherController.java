@@ -20,12 +20,22 @@ public class VoucherController extends HttpServlet {
     private static final UserDAO userDao = new UserDAO();
 
     @Override
+    /**
+     * Hiển thị trang kho voucher hoặc voucher cá nhân của Customer.
+     * Method chỉ forward JSP sau khi session đăng nhập đã được xác nhận.
+     */
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // Business Rule BR-01: Customer phải đăng nhập trước khi mở kho hoặc danh sách voucher cá nhân.
         User currentUser = requireLogin(req, resp);
-        // Neu chua dang nhap thi requireLogin da chuyen huong sang trang login.
+        // Nếu chưa đăng nhập thì requireLogin đã chuyển hướng sang trang login.
         if (currentUser == null) {
             return;
         }
+
+        // Cập nhật lại điểm thưởng mới nhất từ CSDL vào session để tránh trễ điểm khi có sự thay đổi
+        int updatedPoints = userDao.getAvailableRewardPoints(currentUser.getUserId());
+        currentUser.setRewardPoints(updatedPoints);
+        req.getSession().setAttribute("user", currentUser);
 
         String page = req.getParameter("to");
 
@@ -42,9 +52,14 @@ public class VoucherController extends HttpServlet {
     }
 
     @Override
+    /**
+     * Nhận thao tác đổi voucher bằng điểm thưởng.
+     * Method validate đăng nhập và chuyển phần kiểm tra điểm/số lượng xuống service/DAO.
+     */
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // Business Rule BR-01: Customer phải đăng nhập trước khi đổi voucher.
         User currentUser = requireLogin(req, resp);
-        // Neu chua dang nhap thi requireLogin da chuyen huong sang trang login.
+        // Nếu chưa đăng nhập thì requireLogin đã chuyển hướng sang trang login.
         if (currentUser == null) {
             return;
         }
@@ -69,6 +84,10 @@ public class VoucherController extends HttpServlet {
         return (User) session.getAttribute("user");
     }
 
+    /**
+     * Parse voucherId và trả JSON kết quả đổi voucher.
+     * Nếu đổi thành công, điểm thưởng mới được nạp lại vào session để navbar/UI hiển thị đúng.
+     */
     private void redeemVoucher(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws IOException {
 

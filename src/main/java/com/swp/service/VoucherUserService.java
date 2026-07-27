@@ -15,8 +15,12 @@ public class VoucherUserService {
     private static final VoucherDAO voucherDao = new VoucherDAO();
     private static final UserDAO userDao = new UserDAO();
 
-    public List<VoucherExchangeDTO> getExchangeVouchers(String targetUser) {
-        List<Voucher> vouchers = voucherDao.getAllExchangeVouchers(targetUser);
+    public List<VoucherExchangeDTO> getExchangeVouchers(String targetUser,
+                                                        boolean isVip) {
+
+        List<Voucher> vouchers =
+                voucherDao.getAllExchangeVouchers(targetUser, isVip);
+
         List<VoucherExchangeDTO> result = new ArrayList<>();
 
         for (Voucher v : vouchers) {
@@ -32,6 +36,7 @@ public class VoucherUserService {
             dto.setExchangePoints(v.getExchangePoint());
             dto.setEndDate(v.getEndDate());
             dto.setTargetUser(v.getTargetUser());
+
             result.add(dto);
         }
 

@@ -4,6 +4,8 @@ import com.swp.model.User;
 import com.swp.util.DBContext;
 import com.swp.util.PasswordUtil;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -300,7 +302,7 @@ public class UserDAO {
         return users;
     }
 
-    public java.util.List<User> getUsersPaginated(String search, String role, String status, int offset, int limit) {
+    public java.util.List<User> getUsersPaginated(String search, String role, String status, String joinDate, int offset, int limit) {
         java.util.List<User> users = new java.util.ArrayList<>();
         StringBuilder sql = new StringBuilder(USER_SELECT + " WHERE 1=1 ");
 
@@ -312,6 +314,13 @@ public class UserDAO {
         }
         if (status != null && !status.trim().isEmpty()) {
             sql.append(" AND u.status = ? ");
+        }
+        if (joinDate != null && !joinDate.trim().isEmpty()) {
+            if ("today".equalsIgnoreCase(joinDate.trim())) {
+                sql.append(" AND CAST(u.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
+            } else {
+                sql.append(" AND CAST(u.created_at AS DATE) = CAST(? AS DATE) ");
+            }
         }
         sql.append(" ORDER BY u.created_at DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY ");
 
@@ -331,6 +340,9 @@ public class UserDAO {
             if (status != null && !status.trim().isEmpty()) {
                 ps.setString(paramIndex++, status.trim());
             }
+            if (joinDate != null && !joinDate.trim().isEmpty() && !"today".equalsIgnoreCase(joinDate.trim())) {
+                ps.setString(paramIndex++, joinDate.trim());
+            }
             ps.setInt(paramIndex++, offset);
             ps.setInt(paramIndex++, limit);
 
@@ -345,7 +357,7 @@ public class UserDAO {
         return users;
     }
 
-    public int countUsers(String search, String role, String status) {
+    public int countUsers(String search, String role, String status, String joinDate) {
         StringBuilder sql = new StringBuilder(
                 "SELECT COUNT(*) FROM users u INNER JOIN roles r ON u.role_id = r.role_id WHERE 1=1 ");
 
@@ -357,6 +369,13 @@ public class UserDAO {
         }
         if (status != null && !status.trim().isEmpty()) {
             sql.append(" AND u.status = ? ");
+        }
+        if (joinDate != null && !joinDate.trim().isEmpty()) {
+            if ("today".equalsIgnoreCase(joinDate.trim())) {
+                sql.append(" AND CAST(u.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
+            } else {
+                sql.append(" AND CAST(u.created_at AS DATE) = CAST(? AS DATE) ");
+            }
         }
 
         try (Connection conn = DBContext.getConnection();
@@ -374,6 +393,9 @@ public class UserDAO {
             }
             if (status != null && !status.trim().isEmpty()) {
                 ps.setString(paramIndex++, status.trim());
+            }
+            if (joinDate != null && !joinDate.trim().isEmpty() && !"today".equalsIgnoreCase(joinDate.trim())) {
+                ps.setString(paramIndex++, joinDate.trim());
             }
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -503,6 +525,75 @@ public class UserDAO {
         }
 
         return 0;
+    }
+
+    public void awardRewardPoints(Connection conn,
+                                  long userId,
+                                  long bookingId)
+            throws SQLException {
+
+        String sql = """
+        SELECT b.total_amount, u.is_vip
+        FROM bookings b
+        JOIN users u ON b.customer_id = u.user_id
+        WHERE b.booking_id = ?
+          AND u.user_id = ?
+        """;
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        boolean isVip = false;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            ps.setLong(2, userId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("Không tìm thấy booking hoặc user.");
+                }
+
+                totalAmount = rs.getBigDecimal("total_amount");
+                isVip = rs.getBoolean("is_vip");
+            }
+        }
+
+        // 1. Lấy tỉ lệ tích điểm từ CSDL (Mặc định 0.1% nếu chưa cài đặt)
+        BigDecimal rewardPercentage = new BigDecimal("0.1"); 
+        String getSettingSql = "SELECT setting_value FROM system_settings WHERE setting_key = 'REWARD_POINTS_PERCENTAGE'";
+        try (PreparedStatement ps = conn.prepareStatement(getSettingSql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                String val = rs.getString("setting_value");
+                if (val != null && !val.isEmpty()) {
+                    try {
+                        rewardPercentage = new BigDecimal(val);
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+
+        // 2. Tính điểm dựa vào Tỉ lệ cấu hình (earned = totalAmount * percentage / 100)
+        int earnedPoints = totalAmount
+                .multiply(rewardPercentage)
+                .divide(new BigDecimal("100"), RoundingMode.DOWN)
+                .intValue();
+
+        // 3. VIP được cộng thêm 2.5% tổng số điểm nhận được
+        if (isVip) {
+            earnedPoints += (int) Math.floor(earnedPoints * 0.025);
+        }
+
+        String updateSql = """
+        UPDATE users
+        SET available_reward_points = available_reward_points + ?
+        WHERE user_id = ?
+        """;
+
+        try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+            ps.setInt(1, earnedPoints);
+            ps.setLong(2, userId);
+            ps.executeUpdate();
+        }
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {

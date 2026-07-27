@@ -70,37 +70,55 @@ public class FieldController extends HttpServlet {
     }
 
     protected void add(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String fieldName = req.getParameter("fieldName");
-        String fieldDesc = req.getParameter("description");
-        int fieldTypeID = Integer.parseInt(req.getParameter("fieldTypeID"));
-        long complexId = Long.parseLong(req.getParameter("complexId"));
+        try {
+            String fieldName = req.getParameter("fieldName");
+            String fieldDesc = req.getParameter("description");
+            int fieldTypeID = Integer.parseInt(req.getParameter("fieldTypeID"));
+            long complexId = Long.parseLong(req.getParameter("complexId"));
 
-        Field field = new Field();
-        field.setFieldName(fieldName);
-        field.setDescription(fieldDesc);
-        field.setFieldTypeId(fieldTypeID);
-        field.setComplexId(complexId);
+            Field field = new Field();
+            field.setFieldName(fieldName);
+            field.setDescription(fieldDesc);
+            field.setFieldTypeId(fieldTypeID);
+            field.setComplexId(complexId);
 
-        fieldService.insertField(field);
+            fieldService.insertField(field);
+            resp.setStatus(HttpServletResponse.SC_OK);
+            resp.getWriter().write("SUCCESS");
+        } catch (Exception e) {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            resp.setContentType("text/plain;charset=UTF-8");
+            resp.getWriter().write(e.getMessage() != null ? e.getMessage() : "Lỗi thêm sân bóng.");
+        }
     }
 
     protected void edit(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        long fieldId = Long.parseLong(req.getParameter("fieldID"));
-        String fieldName = req.getParameter("fieldName");
-        String fieldDesc = req.getParameter("description");
-        int fieldTypeID = Integer.parseInt(req.getParameter("fieldTypeID"));
-        long complexId = Long.parseLong(req.getParameter("complexId"));
-        String status = req.getParameter("status");
+        try {
+            long fieldId = Long.parseLong(req.getParameter("fieldID"));
+            String fieldName = req.getParameter("fieldName");
+            String fieldDesc = req.getParameter("description");
+            int fieldTypeID = Integer.parseInt(req.getParameter("fieldTypeID"));
+            long complexId = Long.parseLong(req.getParameter("complexId"));
+            String status = req.getParameter("status");
 
-        Field f = new Field();
-        f.setFieldId(fieldId);
-        f.setFieldName(fieldName);
-        f.setDescription(fieldDesc);
-        f.setFieldTypeId(fieldTypeID);
-        f.setComplexId(complexId);
-        f.setStatus(status);
+            Field f = new Field();
+            f.setFieldId(fieldId);
+            f.setFieldName(fieldName);
+            f.setDescription(fieldDesc);
+            f.setFieldTypeId(fieldTypeID);
+            f.setComplexId(complexId);
+            if (status != null && !status.isBlank()) {
+                f.setStatus(status);
+            }
 
-        fieldService.updateField(f);
+            fieldService.updateField(f);
+            resp.setStatus(HttpServletResponse.SC_OK);
+            resp.getWriter().write("SUCCESS");
+        } catch (Exception e) {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            resp.setContentType("text/plain;charset=UTF-8");
+            resp.getWriter().write(e.getMessage() != null ? e.getMessage() : "Lỗi cập nhật sân bóng.");
+        }
     }
 
     protected void delete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
