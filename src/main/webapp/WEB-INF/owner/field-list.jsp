@@ -26,21 +26,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link href="<%= ctx %>/assets/css/styles.css" rel="stylesheet">
     <link href="<%= ctx %>/assets/css/owner/dashboard.css" rel="stylesheet">
     <link href="<%= ctx %>/assets/css/owner/field.css" rel="stylesheet">
     <title>Quản lý sân bóng | Sport Field Booking</title>
 </head>
 <body>
-<div class="owner-layout">
-    <aside class="owner-sidebar" id="owner-sidebar"></aside>
-    <main class="main-wrapper owner-content">
-        <div class="topbar" id="topbar"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Sân bóng"></div>
+
+<main class="main-wrapper owner-content">
 
         <!-- Page Header -->
         <div class="page-header">
             <div class="page-header-left">
-                <h1><i class="bi bi-dribbble me-2 text-success"></i>Quản lý sân bóng</h1>
+                <h1 class="d-flex gap-1 align-items-center"><i class="fa-solid fa-futbol"></i>Quản lý sân bóng</h1>
                 <div class="d-flex align-items-center gap-2 mt-1">
                     <span class="text-muted" style="font-size:.875rem;font-weight:500">Đang quản lý:</span>
                     <select id="complexSelect"
@@ -106,7 +106,6 @@
         <!-- Modal container -->
         <div id="modal"></div>
     </main>
-</div>
 <div id="footer" data-root="../../"></div>
 
 <script>
@@ -115,17 +114,12 @@
     current_role = '<%= navRole %>';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<%= ctx %>/assets/js/owner/dashboard.js"></script>
 <script src="<%= ctx %>/assets/js/owner/field.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script>
     getComplex();
     loadFieldTypeDataForSearch();
     loadData();
-    renderTopbar({
-        title: "Quản lý sân bóng",
-        subtitle: "Quản lý danh sách sân bóng của cơ sở."
-    });
 </script>
 </body>
 </html>

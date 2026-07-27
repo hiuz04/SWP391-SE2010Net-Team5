@@ -12,7 +12,7 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-@WebServlet({"/api/staff/checkin", "/api/staff/checkin/search", "/api/staff/field/update-status"})
+@WebServlet({"/api/staff/checkin", "/api/staff/checkin/search", "/api/staff/field/update-status", "/api/staff/checkin/noshow"})
 public class StaffActionServlet extends HttpServlet {
 
     private final StaffDashboardDAO staffDAO = new StaffDashboardDAO();
@@ -67,13 +67,7 @@ public class StaffActionServlet extends HttpServlet {
         try {
             if (path.startsWith("/api/staff/checkin/search")) {
                 String query = req.getParameter("query");
-                if (query == null) {
-                    query = "";
-                }
-                query = query.trim();
-                if (query.startsWith("#")) {
-                    query = query.substring(1).trim();
-                }
+                String pendingOnly = req.getParameter("pendingOnly");
 
                 java.util.Map<String, Object> shift = staffDAO.getCurrentShift(staffId);
                 if (shift.isEmpty()) {
@@ -82,7 +76,19 @@ public class StaffActionServlet extends HttpServlet {
                 }
                 long complexId = (Long) shift.get("complexId");
 
-                java.util.List<java.util.Map<String, Object>> list = staffDAO.searchConfirmedBookings(complexId, query);
+                java.util.List<java.util.Map<String, Object>> list;
+                if ("true".equalsIgnoreCase(pendingOnly)) {
+                    list = staffDAO.getPendingCheckinBookings(complexId);
+                } else {
+                    if (query == null) {
+                        query = "";
+                    }
+                    query = query.trim();
+                    if (query.startsWith("#")) {
+                        query = query.substring(1).trim();
+                    }
+                    list = staffDAO.searchConfirmedBookings(complexId, query);
+                }
                 write(resp, toJson(list));
                 return;
             }
@@ -118,7 +124,12 @@ public class StaffActionServlet extends HttpServlet {
         }
 
         try {
-            if (path.startsWith("/api/staff/checkin")) {
+            if (path.equals("/api/staff/checkin/noshow")) {
+                handleCancelNoshow(req, resp, staffId);
+                return;
+            }
+
+            if (path.equals("/api/staff/checkin")) {
                 handleCheckin(req, resp, staffId);
                 return;
             }
@@ -179,6 +190,32 @@ public class StaffActionServlet extends HttpServlet {
             write(resp, "{\"success\":true}");
         } else {
             write(resp, "{\"error\":\"Check-in không thành công. Lịch đặt có thể đã check-in hoặc hủy.\"}");
+        }
+    }
+
+    private void handleCancelNoshow(HttpServletRequest req, HttpServletResponse resp, long staffId) throws IOException {
+        String bookingIdStr = req.getParameter("bookingId");
+        if (bookingIdStr == null || bookingIdStr.trim().isEmpty()) {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            write(resp, "{\"error\":\"Mã đặt sân không được bỏ trống\"}");
+            return;
+        }
+
+        long bookingId = Long.parseLong(bookingIdStr.trim());
+        try {
+            com.swp.dao.StaffBillingDAO billingDAO = new com.swp.dao.StaffBillingDAO();
+            boolean success = billingDAO.cancelLateNoShowBooking(bookingId, staffId, true);
+            if (success) {
+                write(resp, "{\"success\":true}");
+            } else {
+                write(resp, "{\"error\":\"Hủy no-show không thành công.\"}");
+            }
+        } catch (IllegalArgumentException | SecurityException e) {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            write(resp, "{\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+        } catch (Exception e) {
+            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            write(resp, "{\"error\":\"Lỗi hệ thống khi hủy đặt sân: " + escapeJson(e.getMessage()) + "\"}");
         }
     }
 

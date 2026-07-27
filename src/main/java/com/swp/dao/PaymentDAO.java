@@ -1235,17 +1235,19 @@ public class PaymentDAO {
             ps.executeUpdate();
         }
 
+        userDAO.awardRewardPoints(conn, payment.customerId, payment.bookingId);
+
         insertNotification(conn,
                 payment.customerId(),
-                "Thanh toan hoa don thanh cong",
-                "Hoa don checkout cua booking da duoc thanh toan thanh cong. Ma giao dich: " + transactionRef,
+                "Thanh toán hóa đơn thành công",
+                "Hóa đơn checkout của booking đã được thanh toán thành công. Mã giao dịch: " + transactionRef,
                 "CHECKOUT_PAYMENT_SUCCESS",
                 payment.invoiceId());
         if (payment.checkoutStaffId() != null) {
             insertNotification(conn,
                     payment.checkoutStaffId(),
-                    "Khach da thanh toan checkout",
-                    "Khach hang da thanh toan thanh cong " + payment.amount()
+                    "Khách đã thanh toán checkout",
+                    "Khách hàng đã thanh toán thành công " + payment.amount()
                             + " cho booking #" + payment.bookingId() + ".",
                     "CHECKOUT_PAYMENT_SUCCESS",
                     payment.invoiceId());

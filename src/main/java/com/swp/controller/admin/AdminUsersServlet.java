@@ -35,6 +35,7 @@ public class AdminUsersServlet extends HttpServlet {
         String search = request.getParameter("search");
         String role = request.getParameter("role");
         String status = request.getParameter("status");
+        String joinDate = request.getParameter("joinDate");
         
         // Bước 2: Khởi tạo giá trị phân trang mặc định (trang 1, mỗi trang 10 dòng)
         int page = 1;
@@ -50,10 +51,10 @@ public class AdminUsersServlet extends HttpServlet {
         int offset = (page - 1) * limit;
         
         // Bước 3: Gọi DAO lấy danh sách người dùng theo bộ lọc và giới hạn phân trang
-        List<User> userList = userDAO.getUsersPaginated(search, role, status, offset, limit);
+        List<User> userList = userDAO.getUsersPaginated(search, role, status, joinDate, offset, limit);
         
         // Bước 4: Lấy tổng số lượng người dùng thỏa mãn điều kiện để tính tổng số trang
-        int totalUsers = userDAO.countUsers(search, role, status);
+        int totalUsers = userDAO.countUsers(search, role, status, joinDate);
         int totalPages = (int) Math.ceil((double) totalUsers / limit);
         
         // Bước 5: Truyền toàn bộ dữ liệu (danh sách user, phân trang, bộ lọc hiện tại) sang JSP
@@ -63,6 +64,7 @@ public class AdminUsersServlet extends HttpServlet {
         request.setAttribute("search", search);
         request.setAttribute("role", role);
         request.setAttribute("status", status);
+        request.setAttribute("joinDate", joinDate);
 
         // Forward to JSP để hiển thị danh sách tài khoản
         request.getRequestDispatcher("/WEB-INF/admin/users.jsp").forward(request, response);

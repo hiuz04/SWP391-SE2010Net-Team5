@@ -69,34 +69,31 @@
     <title>Quản lý mã giảm giá | Sport Field Booking</title>
 </head>
 <body class="bg-light">
-<div class="owner-layout">
-    <aside class="owner-sidebar" id="owner-sidebar"></aside>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= esc(currentName) %>" data-active="Mã giảm giá"></div>
 
-    <main class="owner-content">
-    <div class="topbar" id="topbar"></div>
-        <div class="container">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h1 class="section-title mb-1">Quản lý mã giảm giá</h1>
-                    <p class="text-muted mb-0">Tạo, sửa và bật/tắt mã giảm giá cho luồng đặt sân.</p>
-                </div>
-                <a class="btn btn-success" href="<%= ctx %>/owner/vouchers?action=create">
-                    <i class="bi bi-plus-circle me-2"></i>Thêm mã giảm giá
-                </a>
-            </div>
+<main class="owner-content">
+    <div class="page-header">
+        <div class="page-header-left">
+            <h1><i class="bi bi-ticket-perforated me-2"></i>Quản lý mã giảm giá</h1>
+            <p>Tạo, sửa và bật/tắt mã giảm giá cho luồng đặt sân.</p>
+        </div>
+        <a class="btn btn-success px-4 py-2" href="<%= ctx %>/owner/vouchers?action=create">
+            <i class="bi bi-plus-circle me-1"></i>Thêm mã giảm giá
+        </a>
+    </div>
 
-            <% if (successMessage != null) { %>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <%= esc(successMessage) %>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
-            </div>
-            <% } %>
-            <% if (errorMessage != null) { %>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <%= esc(errorMessage) %>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
-            </div>
-            <% } %>
+    <% if (successMessage != null) { %>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <%= esc(successMessage) %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+    </div>
+    <% } %>
+    <% if (errorMessage != null) { %>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <%= esc(errorMessage) %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+    </div>
+    <% } %>
 
             <div class="card soft-card border-0 shadow-sm">
                 <div class="table-responsive">
@@ -159,8 +156,8 @@
                 </div>
             </div>
         </div>
-    </main>
-</div>
+    </div>
+</main>
 
 <div id="footer" data-root="<%= ctx %>/"></div>
 
@@ -171,12 +168,5 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
-<script src="<%= ctx %>/assets/js/owner/dashboard.js"></script>
-<script>
-    renderTopbar({
-        title: "Owner Dashboard",
-        subtitle: "Theo dõi hiệu quả kinh doanh cơ sở sân."
-    });
-</script>
 </body>
 </html>

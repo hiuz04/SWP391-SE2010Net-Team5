@@ -36,11 +36,9 @@
   <title>Quản lý cơ sở | Sport Field Booking</title>
 </head>
 <body>
-<div class="owner-layout">
-    <aside class="owner-sidebar" id="owner-sidebar"></aside>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Cụm sân"></div>
 
-    <main class="main-wrapper owner-content">
-        <div class="topbar" id="topbar"></div>
+<main class="main-wrapper owner-content">
 
         <!-- Page Header -->
         <div class="page-header">
@@ -101,24 +99,16 @@
         <div id="complex-data-container"></div>
 
     </main>
-</div>
 <div id="footer" data-root="../../"></div>
 
 <script>
     window.APP_CTX = '<%= ctx %>';
-    display_name = '<%= displayName %>';
-    current_role = '<%= navRole %>';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<%= ctx %>/assets/js/owner/dashboard.js"></script>
 <script src="<%= ctx %>/assets/js/owner/complex.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script>
     loadData();
-    renderTopbar({
-        title: "Thêm / Sửa cụm sân",
-        subtitle: "Điền thông tin để thêm mới hoặc cập nhật cụm sân."
-    });
 </script>
 </body>
 </html>

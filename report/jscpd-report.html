@@ -1,0 +1,3609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Copy/Paste Detector Report</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f7fafc; color: #2d3748; }
+    a { color: #3182ce; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .header { background: #fff; box-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px 0 rgba(0,0,0,.06); padding: 1rem 0; }
+    .header-inner { max-width: 80rem; margin: 0 auto; padding: 0 1rem; }
+    .header h1 { font-size: 1.875rem; font-weight: 600; color: #2d3748; margin: 0; }
+    .main { max-width: 80rem; margin: 2rem auto; padding: 0 1rem; }
+    .card { background: #fff; box-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px 0 rgba(0,0,0,.06); border-radius: 0.25rem; padding: 1.5rem; margin-bottom: 2rem; }
+    h2 { font-size: 1.5rem; font-weight: 600; color: #4a5568; margin: 0 0 1rem 0; }
+    .dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .stat-card { padding: 1rem; border-radius: 0.25rem; text-align: center; }
+    .stat-card h3 { font-size: 1.125rem; font-weight: 600; margin: 0 0 0.5rem 0; }
+    .stat-card .val { font-size: 2.25rem; font-weight: 700; }
+    .stat-blue { background: #bee3f8; color: #2a4365; }
+    .stat-green { background: #c6f6d5; color: #276749; }
+    .stat-yellow { background: #fefcbf; color: #975a16; }
+    .stat-red { background: #fed7d7; color: #9b2c2c; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: #edf2f7; color: #718096; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; padding: 0.75rem 1.5rem; text-align: left; }
+    tbody td { padding: 0.75rem 1.5rem; border-bottom: 1px solid #edf2f7; font-size: 0.875rem; }
+    tbody tr:hover { background: #f7fafc; }
+    .clone-section { margin-bottom: 2rem; }
+    .clone-section h2 { border-bottom: 2px solid #edf2f7; padding-bottom: 0.5rem; }
+    .clone-item { padding: 1rem 0; border-bottom: 1px solid #edf2f7; }
+    .clone-item:last-child { border-bottom: none; }
+    .clone-info { color: #718096; font-size: 0.875rem; margin-bottom: 0.25rem; }
+    .toggle-btn { background: #a0aec0; color: #fff; border: none; padding: 0.125rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem; cursor: pointer; margin-left: 0.5rem; }
+    .toggle-btn:focus { outline: none; }
+    .code-block { background: #f7fafc; border: 1px solid #edf2f7; border-radius: 0.25rem; padding: 1rem; margin-top: 0.5rem; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.875rem; color: #2d3748; white-space: pre-wrap; overflow-x: auto; display: none; }
+    .code-block.visible { display: block; }
+    .no-dupes { color: #27ae60; font-weight: 700; font-size: 1.125rem; }
+    .footer { margin-top: 3rem; padding: 2rem 0; border-top: 1px solid #e0e0e0; text-align: center; font-family: -apple-system, sans-serif; color: #666; }
+    .footer p { margin: 0.5rem 0; font-size: 0.875rem; }
+    .footer a { color: #0066cc; }
+    .footer .small { font-size: 0.75rem; color: #999; }
+    @media (max-width: 768px) { .dashboard { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <h1>jscpd - copy/paste report</h1>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="card">
+      <section>
+        <h2>Dashboard</h2>
+        <div class="dashboard">
+          <div class="stat-card stat-blue">
+            <h3>Total Files</h3>
+            <div class="val">164</div>
+          </div>
+          <div class="stat-card stat-green">
+            <h3>Total Lines of Code</h3>
+            <div class="val">27102</div>
+          </div>
+          <div class="stat-card stat-yellow">
+            <h3>Number of Clones</h3>
+            <div class="val">315</div>
+          </div>
+          <div class="stat-card stat-red">
+            <h3>Duplicated Lines</h3>
+            <div class="val">4207 (15.52%)</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="card">
+      <section>
+        <h2>Formats with Duplications</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Format</th>
+              <th>Files</th>
+              <th>Lines</th>
+              <th>Clones</th>
+              <th>Duplicated Lines</th>
+              <th>Duplicated Tokens</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td><a href="#java-clones">java</a></td>
+              <td>164</td>
+              <td>27102</td>
+              <td>315</td>
+              <td>4207 (15.52%)</td>
+              <td>26005 (14.17%)</td>
+            </tr>
+            
+            <tr style="font-weight: 700;">
+              <td>Total</td>
+              <td>164</td>
+              <td>27102</td>
+              <td>315</td>
+              <td>4207 (15.52%)</td>
+              <td>26005 (14.17%)</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    
+    
+    <div class="card">
+      <section class="clone-section">
+        <a name="java-clones"></a>
+        <h2>java</h2>
+        <div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 10:28),
+              com\swp\controller\HelloServlet.java (Line 1:27 - Line 9:28)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-1')">Show code</button>
+            </div>
+            <pre id="code-java-1" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 12:13),
+              com\swp\controller\admin\AdminDashboardExportServlet.java (Line 3:37 - Line 12:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-2')">Show code</button>
+            </div>
+            <pre id="code-java-2" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:13),
+              com\swp\controller\admin\AdminSettingsServlet.java (Line 4:35 - Line 12:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-3')">Show code</button>
+            </div>
+            <pre id="code-java-3" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 12:13),
+              com\swp\controller\api\NotificationApiServlet.java (Line 5:26 - Line 14:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-4')">Show code</button>
+            </div>
+            <pre id="code-java-4" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:13),
+              com\swp\controller\auth\ForgotPasswordServlet.java (Line 12:39 - Line 20:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-5')">Show code</button>
+            </div>
+            <pre id="code-java-5" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:13),
+              com\swp\controller\customer\FieldDetailAPIController.java (Line 19:46 - Line 27:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-6')">Show code</button>
+            </div>
+            <pre id="code-java-6" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:13),
+              com\swp\controller\customer\FieldDetailsController.java (Line 1:36 - Line 11:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-7')">Show code</button>
+            </div>
+            <pre id="code-java-7" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:28),
+              com\swp\controller\customer\GetCitiesList.java (Line 4:38 - Line 12:23)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-8')">Show code</button>
+            </div>
+            <pre id="code-java-8" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:16),
+              com\swp\controller\customer\GetFieldList.java (Line 11:37 - Line 19:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-9')">Show code</button>
+            </div>
+            <pre id="code-java-9" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:16),
+              com\swp\controller\customer\VoucherAPIController.java (Line 8:42 - Line 16:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-10')">Show code</button>
+            </div>
+            <pre id="code-java-10" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:13),
+              com\swp\controller\owner\ComplexFormController.java (Line 10:33 - Line 20:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-11')">Show code</button>
+            </div>
+            <pre id="code-java-11" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:28),
+              com\swp\controller\owner\DashboardApiController.java (Line 8:45 - Line 16:28)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-12')">Show code</button>
+            </div>
+            <pre id="code-java-12" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:13),
+              com\swp\controller\owner\FeedbackController.java (Line 3:39 - Line 12:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-13')">Show code</button>
+            </div>
+            <pre id="code-java-13" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:16),
+              com\swp\controller\owner\FieldAPIController.java (Line 20:40 - Line 28:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-14')">Show code</button>
+            </div>
+            <pre id="code-java-14" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\DbTestServlet.java (Line 3:30 - Line 11:13),
+              com\swp\controller\owner\ToggleFieldHotStatusServlet.java (Line 3:28 - Line 12:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-15')">Show code</button>
+            </div>
+            <pre id="code-java-15" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 19:13),
+              com\swp\controller\NotificationAPI.java (Line 6:26 - Line 15:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-16')">Show code</button>
+            </div>
+            <pre id="code-java-16" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 19:13),
+              com\swp\controller\admin\AdminBookingDetailServlet.java (Line 4:37 - Line 13:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-17')">Show code</button>
+            </div>
+            <pre id="code-java-17" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 20:13),
+              com\swp\controller\admin\AdminUsersServlet.java (Line 8:37 - Line 19:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-18')">Show code</button>
+            </div>
+            <pre id="code-java-18" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 20:13),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 12:44 - Line 22:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-19')">Show code</button>
+            </div>
+            <pre id="code-java-19" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 19:18),
+              com\swp\controller\auth\GoogleAuthServlet.java (Line 8:33 - Line 17:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-20')">Show code</button>
+            </div>
+            <pre id="code-java-20" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 19:18),
+              com\swp\controller\auth\GoogleCallbackServlet.java (Line 14:38 - Line 23:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-21')">Show code</button>
+            </div>
+            <pre id="code-java-21" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 20:23),
+              com\swp\controller\auth\LoginServlet.java (Line 11:37 - Line 21:23)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-22')">Show code</button>
+            </div>
+            <pre id="code-java-22" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 18:28),
+              com\swp\controller\auth\LogoutServlet.java (Line 5:32 - Line 14:28)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-23')">Show code</button>
+            </div>
+            <pre id="code-java-23" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 19:18),
+              com\swp\controller\auth\ProfileServlet.java (Line 10:33 - Line 19:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-24')">Show code</button>
+            </div>
+            <pre id="code-java-24" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 19:13),
+              com\swp\controller\auth\RegisterServlet.java (Line 15:29 - Line 24:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-25')">Show code</button>
+            </div>
+            <pre id="code-java-25" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 19:13),
+              com\swp\controller\customer\BookingController.java (Line 17:49 - Line 26:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-26')">Show code</button>
+            </div>
+            <pre id="code-java-26" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 19:30),
+              com\swp\controller\customer\CustomerCheckoutInvoiceServlet.java (Line 5:37 - Line 14:30)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-27')">Show code</button>
+            </div>
+            <pre id="code-java-27" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 20:13),
+              com\swp\controller\customer\CustomerPaymentRequestApiServlet.java (Line 7:52 - Line 17:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-28')">Show code</button>
+            </div>
+            <pre id="code-java-28" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 20:13),
+              com\swp\controller\customer\FeedbackController.java (Line 9:39 - Line 20:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-29')">Show code</button>
+            </div>
+            <pre id="code-java-29" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 20:13),
+              com\swp\controller\customer\MatchmakingDetailsPage.java (Line 7:52 - Line 18:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-30')">Show code</button>
+            </div>
+            <pre id="code-java-30" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 19:13),
+              com\swp\controller\customer\PaymentController.java (Line 16:30 - Line 25:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-31')">Show code</button>
+            </div>
+            <pre id="code-java-31" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 19:13),
+              com\swp\controller\customer\VoucherController.java (Line 6:42 - Line 16:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-32')">Show code</button>
+            </div>
+            <pre id="code-java-32" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 20:13),
+              com\swp\controller\owner\VoucherManagementServlet.java (Line 5:29 - Line 15:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-33')">Show code</button>
+            </div>
+            <pre id="code-java-33" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 10:41 - Line 20:18),
+              com\swp\controller\owner\WorkShiftServlet.java (Line 8:31 - Line 18:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-34')">Show code</button>
+            </div>
+            <pre id="code-java-34" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\HomeController.java (Line 11:40 - Line 20:13),
+              com\swp\controller\staff\StaffDashboardServlet.java (Line 4:26 - Line 13:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-35')">Show code</button>
+            </div>
+            <pre id="code-java-35" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationAPI.java (Line 3:28 - Line 15:16),
+              com\swp\controller\NotificationController.java (Line 1:27 - Line 14:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-36')">Show code</button>
+            </div>
+            <pre id="code-java-36" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationAPI.java (Line 3:28 - Line 16:13),
+              com\swp\controller\admin\AdminNotificationServlet.java (Line 1:33 - Line 16:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-37')">Show code</button>
+            </div>
+            <pre id="code-java-37" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationAPI.java (Line 3:28 - Line 15:7),
+              com\swp\controller\user\NotificationServlet.java (Line 1:32 - Line 15:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-38')">Show code</button>
+            </div>
+            <pre id="code-java-38" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationAPI.java (Line 5:34 - Line 15:28),
+              com\swp\controller\admin\AdminDashboardServlet.java (Line 3:37 - Line 13:23)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-39')">Show code</button>
+            </div>
+            <pre id="code-java-39" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationAPI.java (Line 5:34 - Line 16:13),
+              com\swp\controller\admin\AdminUserDetailsServlet.java (Line 5:37 - Line 17:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-40')">Show code</button>
+            </div>
+            <pre id="code-java-40" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationAPI.java (Line 5:34 - Line 12:7),
+              com\swp\controller\api\NotificationApiServlet.java (Line 4:35 - Line 12:7)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-41')">Show code</button>
+            </div>
+            <pre id="code-java-41" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationAPI.java (Line 5:34 - Line 15:28),
+              com\swp\controller\auth\VerifyOtpServlet.java (Line 5:40 - Line 15:27)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-42')">Show code</button>
+            </div>
+            <pre id="code-java-42" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationAPI.java (Line 5:34 - Line 15:13),
+              com\swp\controller\auth\VerifyRegistrationServlet.java (Line 3:27 - Line 13:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-43')">Show code</button>
+            </div>
+            <pre id="code-java-43" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationAPI.java (Line 5:34 - Line 15:28),
+              com\swp\controller\staff\StaffActionServlet.java (Line 3:37 - Line 13:28)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-44')">Show code</button>
+            </div>
+            <pre id="code-java-44" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationAPI.java (Line 31:25 - Line 45:40),
+              com\swp\controller\NotificationAPI.java (Line 70:26 - Line 84:40)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-45')">Show code</button>
+            </div>
+            <pre id="code-java-45" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationAPI.java (Line 64:62 - Line 75:53),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 157:123 - Line 168:53)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-46')">Show code</button>
+            </div>
+            <pre id="code-java-46" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationController.java (Line 7:45 - Line 16:2),
+              com\swp\controller\admin\AdminDashboardServlet.java (Line 6:45 - Line 14:7)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-47')">Show code</button>
+            </div>
+            <pre id="code-java-47" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationController.java (Line 17:37 - Line 25:53),
+              com\swp\controller\admin\AdminNotificationServlet.java (Line 17:39 - Line 25:53)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-48')">Show code</button>
+            </div>
+            <pre id="code-java-48" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationController.java (Line 22:25 - Line 29:57),
+              com\swp\controller\NotificationController.java (Line 37:26 - Line 44:57)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-49')">Show code</button>
+            </div>
+            <pre id="code-java-49" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\NotificationController.java (Line 33:67 - Line 48:61),
+              com\swp\controller\admin\AdminNotificationServlet.java (Line 38:68 - Line 53:10)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-50')">Show code</button>
+            </div>
+            <pre id="code-java-50" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\admin\AdminBookingDetailServlet.java (Line 1:1 - Line 13:30),
+              com\swp\controller\admin\AdminBookingsServlet.java (Line 1:1 - Line 13:30)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-51')">Show code</button>
+            </div>
+            <pre id="code-java-51" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\admin\AdminBookingDetailServlet.java (Line 3:30 - Line 16:59),
+              com\swp\controller\owner\OwnerBookingDetailServlet.java (Line 6:26 - Line 19:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-52')">Show code</button>
+            </div>
+            <pre id="code-java-52" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\admin\AdminBookingDetailServlet.java (Line 22:9 - Line 31:61),
+              com\swp\controller\admin\AdminUserDetailsServlet.java (Line 26:9 - Line 34:61)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-53')">Show code</button>
+            </div>
+            <pre id="code-java-53" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\admin\AdminNotificationServlet.java (Line 22:45 - Line 35:13),
+              com\swp\controller\admin\AdminNotificationServlet.java (Line 42:46 - Line 55:15)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-54')">Show code</button>
+            </div>
+            <pre id="code-java-54" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\admin\AdminNotificationServlet.java (Line 24:9 - Line 30:14),
+              com\swp\controller\owner\WorkShiftServlet.java (Line 50:9 - Line 56:14)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-55')">Show code</button>
+            </div>
+            <pre id="code-java-55" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\admin\AdminSettingsServlet.java (Line 1:33 - Line 13:18),
+              com\swp\controller\api\SettingsApiServlet.java (Line 1:31 - Line 13:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-56')">Show code</button>
+            </div>
+            <pre id="code-java-56" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\admin\AdminUserDetailsServlet.java (Line 72:31 - Line 78:45),
+              com\swp\dao\PaymentDAO.java (Line 810:13 - Line 816:37)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-57')">Show code</button>
+            </div>
+            <pre id="code-java-57" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\admin\AdminUsersServlet.java (Line 120:9 - Line 136:21),
+              com\swp\controller\admin\AdminUsersServlet.java (Line 170:9 - Line 186:21)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-58')">Show code</button>
+            </div>
+            <pre id="code-java-58" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\api\MatchmakingAPIController.java (Line 50:13 - Line 59:57),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 90:13 - Line 98:57)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-59')">Show code</button>
+            </div>
+            <pre id="code-java-59" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\api\MatchmakingAPIController.java (Line 60:72 - Line 68:39),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 145:107 - Line 153:35)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-60')">Show code</button>
+            </div>
+            <pre id="code-java-60" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\api\MatchmakingAPIController.java (Line 183:62 - Line 192:21),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 338:61 - Line 347:21)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-61')">Show code</button>
+            </div>
+            <pre id="code-java-61" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\api\MatchmakingAPIController.java (Line 193:49 - Line 200:18),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 348:43 - Line 355:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-62')">Show code</button>
+            </div>
+            <pre id="code-java-62" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\api\MatchmakingAPIController.java (Line 205:21 - Line 215:21),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 384:21 - Line 394:21)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-63')">Show code</button>
+            </div>
+            <pre id="code-java-63" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\api\MatchmakingAPIController.java (Line 215:45 - Line 225:18),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 394:21 - Line 404:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-64')">Show code</button>
+            </div>
+            <pre id="code-java-64" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\api\MatchmakingAPIController.java (Line 230:42 - Line 237:52),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 406:57 - Line 413:52)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-65')">Show code</button>
+            </div>
+            <pre id="code-java-65" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\api\MatchmakingAPIController.java (Line 244:60 - Line 263:35),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 301:61 - Line 319:35)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-66')">Show code</button>
+            </div>
+            <pre id="code-java-66" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\api\MatchmakingAPIController.java (Line 300:36 - Line 330:31),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 417:37 - Line 446:31)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-67')">Show code</button>
+            </div>
+            <pre id="code-java-67" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\api\MatchmakingAPIController.java (Line 314:81 - Line 330:31),
+              com\swp\controller\api\MatchmakingAPIController.java (Line 362:83 - Line 377:31)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-68')">Show code</button>
+            </div>
+            <pre id="code-java-68" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\api\NotificationApiServlet.java (Line 30:25 - Line 45:13),
+              com\swp\controller\api\NotificationApiServlet.java (Line 56:26 - Line 71:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-69')">Show code</button>
+            </div>
+            <pre id="code-java-69" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\ForgotPasswordServlet.java (Line 148:29 - Line 160:2),
+              com\swp\controller\auth\LoginServlet.java (Line 184:75 - Line 196:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-70')">Show code</button>
+            </div>
+            <pre id="code-java-70" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\ForgotPasswordServlet.java (Line 148:28 - Line 160:2),
+              com\swp\controller\auth\ProfileServlet.java (Line 203:79 - Line 217:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-71')">Show code</button>
+            </div>
+            <pre id="code-java-71" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\GoogleAuthServlet.java (Line 1:1 - Line 7:16),
+              com\swp\controller\auth\GoogleCallbackServlet.java (Line 1:1 - Line 7:16)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-72')">Show code</button>
+            </div>
+            <pre id="code-java-72" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\GoogleAuthServlet.java (Line 1:1 - Line 7:24),
+              com\swp\controller\auth\LoginServlet.java (Line 1:1 - Line 7:20)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-73')">Show code</button>
+            </div>
+            <pre id="code-java-73" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\GoogleAuthServlet.java (Line 1:1 - Line 10:35),
+              com\swp\controller\auth\RegisterServlet.java (Line 1:1 - Line 10:16)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-74')">Show code</button>
+            </div>
+            <pre id="code-java-74" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\GoogleCallbackServlet.java (Line 16:45 - Line 25:7),
+              com\swp\controller\auth\LoginServlet.java (Line 13:45 - Line 23:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-75')">Show code</button>
+            </div>
+            <pre id="code-java-75" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\LoginServlet.java (Line 30:1 - Line 35:71),
+              com\swp\controller\auth\RegisterServlet.java (Line 36:1 - Line 41:71)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-76')">Show code</button>
+            </div>
+            <pre id="code-java-76" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\LoginServlet.java (Line 57:9 - Line 63:10),
+              com\swp\controller\auth\RegisterServlet.java (Line 60:9 - Line 66:10)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-77')">Show code</button>
+            </div>
+            <pre id="code-java-77" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\ProfileServlet.java (Line 9:26 - Line 19:13),
+              com\swp\controller\auth\ResetPasswordServlet.java (Line 5:27 - Line 16:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-78')">Show code</button>
+            </div>
+            <pre id="code-java-78" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\ProfileServlet.java (Line 54:9 - Line 60:40),
+              com\swp\controller\auth\ProfileServlet.java (Line 149:9 - Line 154:40)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-79')">Show code</button>
+            </div>
+            <pre id="code-java-79" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\ProfileServlet.java (Line 203:52 - Line 211:6),
+              com\swp\controller\auth\RegisterServlet.java (Line 184:53 - Line 190:5)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-80')">Show code</button>
+            </div>
+            <pre id="code-java-80" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\ResetPasswordServlet.java (Line 24:25 - Line 30:10),
+              com\swp\controller\auth\ResetPasswordServlet.java (Line 35:26 - Line 42:10)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-81')">Show code</button>
+            </div>
+            <pre id="code-java-81" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\VerifyOtpServlet.java (Line 24:25 - Line 30:10),
+              com\swp\controller\auth\VerifyOtpServlet.java (Line 35:26 - Line 41:10)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-82')">Show code</button>
+            </div>
+            <pre id="code-java-82" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\auth\VerifyRegistrationServlet.java (Line 21:25 - Line 27:10),
+              com\swp\controller\auth\VerifyRegistrationServlet.java (Line 32:26 - Line 38:10)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-83')">Show code</button>
+            </div>
+            <pre id="code-java-83" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\BookingController.java (Line 1017:5 - Line 1030:6),
+              com\swp\controller\customer\FeedbackController.java (Line 151:5 - Line 164:6)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-84')">Show code</button>
+            </div>
+            <pre id="code-java-84" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\CustomerCheckoutInvoiceServlet.java (Line 4:26 - Line 14:17),
+              com\swp\controller\staff\StaffBillingServlet.java (Line 18:38 - Line 28:16)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-85')">Show code</button>
+            </div>
+            <pre id="code-java-85" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\FeedbackController.java (Line 1:1 - Line 7:16),
+              com\swp\controller\customer\FieldDetailAPIController.java (Line 1:1 - Line 7:16)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-86')">Show code</button>
+            </div>
+            <pre id="code-java-86" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\FeedbackController.java (Line 1:1 - Line 10:41),
+              com\swp\controller\customer\GetFieldList.java (Line 1:1 - Line 10:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-87')">Show code</button>
+            </div>
+            <pre id="code-java-87" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\FeedbackController.java (Line 8:26 - Line 15:7),
+              com\swp\controller\owner\FeedbackController.java (Line 1:33 - Line 10:7)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-88')">Show code</button>
+            </div>
+            <pre id="code-java-88" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\FeedbackController.java (Line 50:71 - Line 58:24),
+              com\swp\controller\owner\ComplexController.java (Line 38:67 - Line 45:24)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-89')">Show code</button>
+            </div>
+            <pre id="code-java-89" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\FeedbackController.java (Line 50:71 - Line 70:45),
+              com\swp\controller\owner\FieldController.java (Line 50:65 - Line 70:6)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-90')">Show code</button>
+            </div>
+            <pre id="code-java-90" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\FeedbackController.java (Line 87:47 - Line 99:17),
+              com\swp\controller\customer\FeedbackController.java (Line 116:48 - Line 127:17)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-91')">Show code</button>
+            </div>
+            <pre id="code-java-91" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\FeedbackController.java (Line 149:85 - Line 164:6),
+              com\swp\controller\customer\VoucherController.java (Line 70:49 - Line 85:6)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-92')">Show code</button>
+            </div>
+            <pre id="code-java-92" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\FieldDetailAPIController.java (Line 18:40 - Line 28:13),
+              com\swp\controller\owner\FieldController.java (Line 9:36 - Line 19:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-93')">Show code</button>
+            </div>
+            <pre id="code-java-93" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\FieldDetailAPIController.java (Line 91:69 - Line 100:44),
+              com\swp\controller\owner\ComplexAPIController.java (Line 60:37 - Line 69:44)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-94')">Show code</button>
+            </div>
+            <pre id="code-java-94" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\FieldDetailsController.java (Line 1:1 - Line 11:13),
+              com\swp\controller\customer\MatchmakingServlet.java (Line 1:1 - Line 11:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-95')">Show code</button>
+            </div>
+            <pre id="code-java-95" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\FieldDetailsController.java (Line 1:1 - Line 11:13),
+              com\swp\controller\customer\SearchPage.java (Line 1:1 - Line 11:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-96')">Show code</button>
+            </div>
+            <pre id="code-java-96" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\GetCitiesList.java (Line 1:1 - Line 14:13),
+              com\swp\controller\customer\GetWardsList.java (Line 1:1 - Line 14:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-97')">Show code</button>
+            </div>
+            <pre id="code-java-97" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\GetFieldList.java (Line 123:32 - Line 128:31),
+              com\swp\controller\customer\GetFieldList.java (Line 130:40 - Line 135:31)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-98')">Show code</button>
+            </div>
+            <pre id="code-java-98" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\PaymentController.java (Line 179:56 - Line 186:8),
+              com\swp\controller\customer\PaymentController.java (Line 204:67 - Line 211:8)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-99')">Show code</button>
+            </div>
+            <pre id="code-java-99" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\PaymentController.java (Line 241:9 - Line 251:10),
+              com\swp\controller\customer\PaymentController.java (Line 278:9 - Line 288:10)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-100')">Show code</button>
+            </div>
+            <pre id="code-java-100" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\PaymentController.java (Line 272:9 - Line 288:10),
+              com\swp\controller\customer\PaymentController.java (Line 308:9 - Line 324:10)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-101')">Show code</button>
+            </div>
+            <pre id="code-java-101" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\PaymentController.java (Line 382:101 - Line 390:100),
+              com\swp\controller\customer\PaymentController.java (Line 512:72 - Line 520:100)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-102')">Show code</button>
+            </div>
+            <pre id="code-java-102" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\PaymentController.java (Line 392:13 - Line 404:34),
+              com\swp\controller\customer\PaymentController.java (Line 454:13 - Line 466:34)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-103')">Show code</button>
+            </div>
+            <pre id="code-java-103" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\PaymentController.java (Line 888:40 - Line 901:19),
+              com\swp\controller\owner\VoucherManagementServlet.java (Line 290:28 - Line 303:19)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-104')">Show code</button>
+            </div>
+            <pre id="code-java-104" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\PaymentController.java (Line 903:65 - Line 914:65),
+              com\swp\controller\staff\StaffBillingServlet.java (Line 405:53 - Line 417:39)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-105')">Show code</button>
+            </div>
+            <pre id="code-java-105" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\VoucherAPIController.java (Line 7:44 - Line 15:7),
+              com\swp\controller\customer\VoucherController.java (Line 5:26 - Line 12:7)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-106')">Show code</button>
+            </div>
+            <pre id="code-java-106" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\VoucherAPIController.java (Line 9:40 - Line 18:18),
+              com\swp\controller\owner\ComplexAPIController.java (Line 22:36 - Line 31:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-107')">Show code</button>
+            </div>
+            <pre id="code-java-107" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\customer\VoucherAPIController.java (Line 83:13 - Line 95:74),
+              com\swp\controller\customer\VoucherAPIController.java (Line 135:100 - Line 146:74)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-108')">Show code</button>
+            </div>
+            <pre id="code-java-108" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\ComplexAPIController.java (Line 12:1 - Line 19:22),
+              com\swp\controller\owner\ComplexController.java (Line 1:1 - Line 8:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-109')">Show code</button>
+            </div>
+            <pre id="code-java-109" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\ComplexAPIController.java (Line 12:1 - Line 18:22),
+              com\swp\controller\owner\DashboardApiController.java (Line 1:1 - Line 7:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-110')">Show code</button>
+            </div>
+            <pre id="code-java-110" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\ComplexAPIController.java (Line 12:1 - Line 18:22),
+              com\swp\controller\owner\FieldController.java (Line 1:1 - Line 7:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-111')">Show code</button>
+            </div>
+            <pre id="code-java-111" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\ComplexController.java (Line 29:85 - Line 37:10),
+              com\swp\controller\owner\FieldController.java (Line 25:92 - Line 33:10)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-112')">Show code</button>
+            </div>
+            <pre id="code-java-112" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\ComplexController.java (Line 38:76 - Line 60:12),
+              com\swp\controller\owner\FieldController.java (Line 50:74 - Line 72:14)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-113')">Show code</button>
+            </div>
+            <pre id="code-java-113" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\ComplexController.java (Line 61:9 - Line 93:12),
+              com\swp\controller\owner\ComplexController.java (Line 124:9 - Line 156:12)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-114')">Show code</button>
+            </div>
+            <pre id="code-java-114" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\ComplexController.java (Line 92:50 - Line 103:42),
+              com\swp\controller\owner\ComplexController.java (Line 156:34 - Line 167:42)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-115')">Show code</button>
+            </div>
+            <pre id="code-java-115" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\ComplexController.java (Line 181:49 - Line 199:6),
+              com\swp\controller\owner\FieldController.java (Line 131:37 - Line 149:6)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-116')">Show code</button>
+            </div>
+            <pre id="code-java-116" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\ComplexController.java (Line 246:17 - Line 253:44),
+              com\swp\controller\owner\FieldController.java (Line 155:37 - Line 163:44)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-117')">Show code</button>
+            </div>
+            <pre id="code-java-117" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\ComplexController.java (Line 292:50 - Line 305:2),
+              com\swp\controller\owner\FieldController.java (Line 173:46 - Line 186:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-118')">Show code</button>
+            </div>
+            <pre id="code-java-118" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\ComplexFormController.java (Line 4:117 - Line 20:13),
+              com\swp\controller\owner\DashboardController.java (Line 4:124 - Line 20:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-119')">Show code</button>
+            </div>
+            <pre id="code-java-119" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\FieldAPIController.java (Line 4:123 - Line 15:31),
+              com\swp\controller\owner\FieldFormController.java (Line 4:106 - Line 20:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-120')">Show code</button>
+            </div>
+            <pre id="code-java-120" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\FieldAPIController.java (Line 17:35 - Line 28:13),
+              com\swp\controller\owner\PriceRuleController.java (Line 5:37 - Line 16:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-121')">Show code</button>
+            </div>
+            <pre id="code-java-121" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\FieldAPIController.java (Line 19:36 - Line 29:13),
+              com\swp\controller\owner\FieldTypeAPIController.java (Line 13:31 - Line 24:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-122')">Show code</button>
+            </div>
+            <pre id="code-java-122" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\FieldController.java (Line 85:43 - Line 91:77),
+              com\swp\controller\owner\FieldController.java (Line 114:39 - Line 120:77)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-123')">Show code</button>
+            </div>
+            <pre id="code-java-123" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\WorkShiftServlet.java (Line 250:55 - Line 262:46),
+              com\swp\controller\owner\WorkShiftServlet.java (Line 404:54 - Line 414:46)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-124')">Show code</button>
+            </div>
+            <pre id="code-java-124" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\WorkShiftServlet.java (Line 343:101 - Line 351:93),
+              com\swp\controller\owner\WorkShiftServlet.java (Line 416:104 - Line 424:93)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-125')">Show code</button>
+            </div>
+            <pre id="code-java-125" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\WorkShiftServlet.java (Line 379:27 - Line 385:14),
+              com\swp\controller\owner\WorkShiftServlet.java (Line 526:13 - Line 532:14)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-126')">Show code</button>
+            </div>
+            <pre id="code-java-126" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\WorkShiftServlet.java (Line 571:13 - Line 606:15),
+              com\swp\controller\staff\StaffActionServlet.java (Line 295:30 - Line 331:15)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-127')">Show code</button>
+            </div>
+            <pre id="code-java-127" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\WorkShiftServlet.java (Line 573:24 - Line 593:36),
+              com\swp\controller\staff\StaffDashboardServlet.java (Line 210:38 - Line 231:36)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-128')">Show code</button>
+            </div>
+            <pre id="code-java-128" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\owner\WorkShiftServlet.java (Line 593:41 - Line 609:12),
+              com\swp\controller\staff\StaffDashboardServlet.java (Line 231:55 - Line 247:12)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-129')">Show code</button>
+            </div>
+            <pre id="code-java-129" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\staff\StaffActionServlet.java (Line 1:1 - Line 13:16),
+              com\swp\controller\staff\StaffPagesServlet.java (Line 1:1 - Line 13:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-130')">Show code</button>
+            </div>
+            <pre id="code-java-130" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\staff\StaffActionServlet.java (Line 27:25 - Line 37:41),
+              com\swp\controller\staff\StaffActionServlet.java (Line 109:26 - Line 119:41)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-131')">Show code</button>
+            </div>
+            <pre id="code-java-131" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\staff\StaffActionServlet.java (Line 45:118 - Line 55:36),
+              com\swp\controller\staff\StaffPagesServlet.java (Line 43:99 - Line 53:40)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-132')">Show code</button>
+            </div>
+            <pre id="code-java-132" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\staff\StaffActionServlet.java (Line 46:23 - Line 57:28),
+              com\swp\controller\staff\StaffActionServlet.java (Line 220:25 - Line 231:24)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-133')">Show code</button>
+            </div>
+            <pre id="code-java-133" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\staff\StaffActionServlet.java (Line 169:98 - Line 174:26),
+              com\swp\controller\staff\StaffPagesServlet.java (Line 97:94 - Line 102:38)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-134')">Show code</button>
+            </div>
+            <pre id="code-java-134" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\staff\StaffActionServlet.java (Line 261:5 - Line 267:27),
+              com\swp\controller\staff\StaffDashboardServlet.java (Line 173:5 - Line 179:27)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-135')">Show code</button>
+            </div>
+            <pre id="code-java-135" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\staff\StaffActionServlet.java (Line 267:38 - Line 275:27),
+              com\swp\controller\staff\StaffDashboardServlet.java (Line 179:28 - Line 187:27)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-136')">Show code</button>
+            </div>
+            <pre id="code-java-136" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\staff\StaffActionServlet.java (Line 278:60 - Line 285:10),
+              com\swp\controller\staff\StaffDashboardServlet.java (Line 190:40 - Line 197:10)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-137')">Show code</button>
+            </div>
+            <pre id="code-java-137" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\staff\StaffActionServlet.java (Line 286:9 - Line 295:19),
+              com\swp\controller\staff\StaffDashboardServlet.java (Line 199:9 - Line 208:19)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-138')">Show code</button>
+            </div>
+            <pre id="code-java-138" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\staff\StaffActionServlet.java (Line 293:5 - Line 334:2),
+              com\swp\controller\staff\StaffPagesServlet.java (Line 112:5 - Line 153:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-139')">Show code</button>
+            </div>
+            <pre id="code-java-139" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\controller\staff\StaffDashboardServlet.java (Line 205:79 - Line 245:6),
+              com\swp\dao\StaffDashboardDAO.java (Line 571:58 - Line 611:6)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-140')">Show code</button>
+            </div>
+            <pre id="code-java-140" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\AdminDashboardDAO.java (Line 1:1 - Line 10:13),
+              com\swp\dao\StaffDashboardDAO.java (Line 1:1 - Line 10:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-141')">Show code</button>
+            </div>
+            <pre id="code-java-141" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\AdminDashboardDAO.java (Line 111:17 - Line 117:25),
+              com\swp\dao\AdminDashboardDAO.java (Line 137:17 - Line 143:25)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-142')">Show code</button>
+            </div>
+            <pre id="code-java-142" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\AdminDashboardDAO.java (Line 111:17 - Line 117:25),
+              com\swp\dao\AdminDashboardDAO.java (Line 163:17 - Line 169:25)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-143')">Show code</button>
+            </div>
+            <pre id="code-java-143" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 8:44 - Line 18:13),
+              com\swp\dao\VoucherDAO.java (Line 5:49 - Line 15:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-144')">Show code</button>
+            </div>
+            <pre id="code-java-144" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 12:30 - Line 20:18),
+              com\swp\dao\StaffBillingDAO.java (Line 8:28 - Line 16:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-145')">Show code</button>
+            </div>
+            <pre id="code-java-145" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 49:17 - Line 60:27),
+              com\swp\dao\BookingDAO.java (Line 72:17 - Line 83:27)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-146')">Show code</button>
+            </div>
+            <pre id="code-java-146" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 110:47 - Line 118:36),
+              com\swp\dao\PriceRuleDAO.java (Line 14:131 - Line 19:36)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-147')">Show code</button>
+            </div>
+            <pre id="code-java-147" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 110:28 - Line 118:36),
+              com\swp\dao\StaffDashboardDAO.java (Line 82:40 - Line 87:36)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-148')">Show code</button>
+            </div>
+            <pre id="code-java-148" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 110:47 - Line 119:38),
+              com\swp\dao\WorkShiftDAO.java (Line 37:111 - Line 43:30)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-149')">Show code</button>
+            </div>
+            <pre id="code-java-149" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 118:17 - Line 127:27),
+              com\swp\dao\FieldDAO.java (Line 397:13 - Line 406:23)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-150')">Show code</button>
+            </div>
+            <pre id="code-java-150" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 146:9 - Line 169:22),
+              com\swp\dao\BookingDAO.java (Line 1085:9 - Line 1108:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-151')">Show code</button>
+            </div>
+            <pre id="code-java-151" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 178:32 - Line 188:36),
+              com\swp\dao\BookingDAO.java (Line 223:50 - Line 233:36)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-152')">Show code</button>
+            </div>
+            <pre id="code-java-152" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 506:29 - Line 522:60),
+              com\swp\dao\BookingDAO.java (Line 697:39 - Line 713:60)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-153')">Show code</button>
+            </div>
+            <pre id="code-java-153" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 522:25 - Line 538:43),
+              com\swp\dao\BookingDAO.java (Line 713:28 - Line 729:43)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-154')">Show code</button>
+            </div>
+            <pre id="code-java-154" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 555:13 - Line 560:20),
+              com\swp\dao\BookingDAO.java (Line 780:17 - Line 785:24)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-155')">Show code</button>
+            </div>
+            <pre id="code-java-155" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 583:40 - Line 592:14),
+              com\swp\dao\BookingDAO.java (Line 809:72 - Line 818:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-156')">Show code</button>
+            </div>
+            <pre id="code-java-156" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 621:17 - Line 629:53),
+              com\swp\dao\PaymentDAO.java (Line 150:17 - Line 157:53)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-157')">Show code</button>
+            </div>
+            <pre id="code-java-157" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1000:36 - Line 1008:36),
+              com\swp\dao\PaymentDAO.java (Line 1395:36 - Line 1401:36)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-158')">Show code</button>
+            </div>
+            <pre id="code-java-158" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1000:36 - Line 1008:36),
+              com\swp\dao\PaymentDAO.java (Line 1452:51 - Line 1458:36)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-159')">Show code</button>
+            </div>
+            <pre id="code-java-159" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1046:34 - Line 1063:11),
+              com\swp\dao\BookingDAO.java (Line 1067:32 - Line 1084:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-160')">Show code</button>
+            </div>
+            <pre id="code-java-160" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1046:17 - Line 1061:6),
+              com\swp\dao\FieldDAO.java (Line 191:21 - Line 208:6)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-161')">Show code</button>
+            </div>
+            <pre id="code-java-161" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1108:23 - Line 1116:21),
+              com\swp\dao\StaffBillingDAO.java (Line 58:25 - Line 64:21)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-162')">Show code</button>
+            </div>
+            <pre id="code-java-162" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1111:9 - Line 1116:33),
+              com\swp\dao\BookingDAO.java (Line 1662:9 - Line 1668:33)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-163')">Show code</button>
+            </div>
+            <pre id="code-java-163" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1116:32 - Line 1123:64),
+              com\swp\dao\BookingDAO.java (Line 1571:66 - Line 1578:52)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-164')">Show code</button>
+            </div>
+            <pre id="code-java-164" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1139:73 - Line 1146:29),
+              com\swp\dao\BookingDAO.java (Line 1587:64 - Line 1594:17)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-165')">Show code</button>
+            </div>
+            <pre id="code-java-165" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1341:21 - Line 1366:29),
+              com\swp\dao\PaymentDAO.java (Line 90:21 - Line 115:29)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-166')">Show code</button>
+            </div>
+            <pre id="code-java-166" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1356:27 - Line 1365:22),
+              com\swp\dao\PaymentDAO.java (Line 251:38 - Line 260:35)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-167')">Show code</button>
+            </div>
+            <pre id="code-java-167" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1434:107 - Line 1448:10),
+              com\swp\dao\BookingDAO.java (Line 1476:157 - Line 1490:10)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-168')">Show code</button>
+            </div>
+            <pre id="code-java-168" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1452:74 - Line 1462:14),
+              com\swp\dao\UserDAO.java (Line 325:87 - Line 336:14)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-169')">Show code</button>
+            </div>
+            <pre id="code-java-169" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1453:9 - Line 1462:14),
+              com\swp\dao\BookingDAO.java (Line 1492:9 - Line 1501:14)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-170')">Show code</button>
+            </div>
+            <pre id="code-java-170" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1488:88 - Line 1514:2),
+              com\swp\dao\UserDAO.java (Line 377:80 - Line 399:14)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-171')">Show code</button>
+            </div>
+            <pre id="code-java-171" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\BookingDAO.java (Line 1639:75 - Line 1644:13),
+              com\swp\dao\PaymentDAO.java (Line 1537:80 - Line 1542:15)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-172')">Show code</button>
+            </div>
+            <pre id="code-java-172" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FieldDAO.java (Line 96:61 - Line 106:11),
+              com\swp\dao\FootballComplexDAO.java (Line 130:75 - Line 140:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-173')">Show code</button>
+            </div>
+            <pre id="code-java-173" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FieldDAO.java (Line 96:61 - Line 106:11),
+              com\swp\dao\FootballComplexDAO.java (Line 288:78 - Line 298:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-174')">Show code</button>
+            </div>
+            <pre id="code-java-174" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FieldDAO.java (Line 108:63 - Line 115:22),
+              com\swp\dao\FootballComplexDAO.java (Line 141:77 - Line 151:23)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-175')">Show code</button>
+            </div>
+            <pre id="code-java-175" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FieldDAO.java (Line 138:13 - Line 158:11),
+              com\swp\dao\FieldDAO.java (Line 164:13 - Line 187:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-176')">Show code</button>
+            </div>
+            <pre id="code-java-176" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FieldDAO.java (Line 242:49 - Line 262:10),
+              com\swp\dao\FieldDAO.java (Line 299:55 - Line 318:14)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-177')">Show code</button>
+            </div>
+            <pre id="code-java-177" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FieldDAO.java (Line 386:42 - Line 397:32),
+              com\swp\dao\FootballComplexDAO.java (Line 532:47 - Line 543:32)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-178')">Show code</button>
+            </div>
+            <pre id="code-java-178" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FieldDAO.java (Line 386:42 - Line 397:32),
+              com\swp\dao\MatchmakingPostDAO.java (Line 55:50 - Line 65:32)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-179')">Show code</button>
+            </div>
+            <pre id="code-java-179" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FieldTypeDAO.java (Line 3:31 - Line 13:13),
+              com\swp\dao\MatchmakingPostResponseDAO.java (Line 4:52 - Line 14:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-180')">Show code</button>
+            </div>
+            <pre id="code-java-180" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FieldTypeDAO.java (Line 3:31 - Line 11:23),
+              com\swp\dao\SystemSettingDAO.java (Line 3:35 - Line 11:23)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-181')">Show code</button>
+            </div>
+            <pre id="code-java-181" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FootballComplexDAO.java (Line 33:95 - Line 63:16),
+              com\swp\dao\FootballComplexDAO.java (Line 92:62 - Line 122:16)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-182')">Show code</button>
+            </div>
+            <pre id="code-java-182" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FootballComplexDAO.java (Line 151:24 - Line 171:18),
+              com\swp\dao\FootballComplexDAO.java (Line 189:26 - Line 209:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-183')">Show code</button>
+            </div>
+            <pre id="code-java-183" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FootballComplexDAO.java (Line 183:80 - Line 217:11),
+              com\swp\dao\FootballComplexDAO.java (Line 219:56 - Line 253:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-184')">Show code</button>
+            </div>
+            <pre id="code-java-184" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FootballComplexDAO.java (Line 187:13 - Line 207:54),
+              com\swp\dao\FootballComplexDAO.java (Line 541:13 - Line 562:54)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-185')">Show code</button>
+            </div>
+            <pre id="code-java-185" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FootballComplexDAO.java (Line 349:31 - Line 368:11),
+              com\swp\dao\FootballComplexDAO.java (Line 373:32 - Line 392:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-186')">Show code</button>
+            </div>
+            <pre id="code-java-186" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FootballComplexDAO.java (Line 448:114 - Line 454:45),
+              com\swp\dao\FootballComplexDAO.java (Line 464:114 - Line 470:45)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-187')">Show code</button>
+            </div>
+            <pre id="code-java-187" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FootballComplexDAO.java (Line 448:114 - Line 453:33),
+              com\swp\dao\StaffDashboardDAO.java (Line 161:32 - Line 166:33)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-188')">Show code</button>
+            </div>
+            <pre id="code-java-188" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\FootballComplexDAO.java (Line 449:9 - Line 454:31),
+              com\swp\dao\StaffDashboardDAO.java (Line 186:9 - Line 191:31)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-189')">Show code</button>
+            </div>
+            <pre id="code-java-189" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\MatchmakingPostDAO.java (Line 4:44 - Line 13:18),
+              com\swp\dao\PasswordResetTokenDAO.java (Line 3:40 - Line 12:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-190')">Show code</button>
+            </div>
+            <pre id="code-java-190" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\MatchmakingPostDAO.java (Line 5:30 - Line 14:23),
+              com\swp\dao\VoucherDAO.java (Line 9:30 - Line 17:23)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-191')">Show code</button>
+            </div>
+            <pre id="code-java-191" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\MatchmakingPostDAO.java (Line 65:19 - Line 88:67),
+              com\swp\dao\MatchmakingPostDAO.java (Line 112:16 - Line 135:67)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-192')">Show code</button>
+            </div>
+            <pre id="code-java-192" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\MatchmakingPostResponseDAO.java (Line 46:19 - Line 55:33),
+              com\swp\dao\MatchmakingPostResponseDAO.java (Line 87:20 - Line 96:37)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-193')">Show code</button>
+            </div>
+            <pre id="code-java-193" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\NotificationDAO.java (Line 31:92 - Line 37:27),
+              com\swp\dao\UserDAO.java (Line 413:58 - Line 419:27)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-194')">Show code</button>
+            </div>
+            <pre id="code-java-194" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\NotificationDAO.java (Line 31:92 - Line 37:38),
+              com\swp\dao\UserDAO.java (Line 429:83 - Line 435:38)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-195')">Show code</button>
+            </div>
+            <pre id="code-java-195" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\NotificationDAO.java (Line 32:9 - Line 40:35),
+              com\swp\dao\UserDAO.java (Line 513:9 - Line 523:35)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-196')">Show code</button>
+            </div>
+            <pre id="code-java-196" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\NotificationDAO.java (Line 107:59 - Line 112:35),
+              com\swp\dao\NotificationDAO.java (Line 221:107 - Line 226:35)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-197')">Show code</button>
+            </div>
+            <pre id="code-java-197" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\NotificationDAO.java (Line 169:42 - Line 177:10),
+              com\swp\dao\NotificationDAO.java (Line 198:51 - Line 206:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-198')">Show code</button>
+            </div>
+            <pre id="code-java-198" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\OwnerDashboardDAO.java (Line 18:67 - Line 34:11),
+              com\swp\dao\OwnerDashboardDAO.java (Line 39:56 - Line 57:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-199')">Show code</button>
+            </div>
+            <pre id="code-java-199" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\OwnerDashboardDAO.java (Line 18:76 - Line 26:27),
+              com\swp\dao\OwnerDashboardDAO.java (Line 62:58 - Line 70:27)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-200')">Show code</button>
+            </div>
+            <pre id="code-java-200" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\OwnerDashboardDAO.java (Line 20:17 - Line 34:15),
+              com\swp\dao\OwnerDashboardDAO.java (Line 106:17 - Line 121:15)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-201')">Show code</button>
+            </div>
+            <pre id="code-java-201" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\OwnerDashboardDAO.java (Line 20:17 - Line 34:11),
+              com\swp\dao\OwnerDashboardDAO.java (Line 125:17 - Line 140:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-202')">Show code</button>
+            </div>
+            <pre id="code-java-202" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\OwnerDashboardDAO.java (Line 62:57 - Line 79:11),
+              com\swp\dao\OwnerDashboardDAO.java (Line 84:71 - Line 101:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-203')">Show code</button>
+            </div>
+            <pre id="code-java-203" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 9:37 - Line 18:13),
+              com\swp\dao\StaffBillingDAO.java (Line 5:37 - Line 14:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-204')">Show code</button>
+            </div>
+            <pre id="code-java-204" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 168:26 - Line 183:11),
+              com\swp\dao\PaymentDAO.java (Line 194:26 - Line 209:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-205')">Show code</button>
+            </div>
+            <pre id="code-java-205" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 220:52 - Line 226:58),
+              com\swp\dao\PaymentDAO.java (Line 477:58 - Line 483:58)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-206')">Show code</button>
+            </div>
+            <pre id="code-java-206" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 270:110 - Line 279:18),
+              com\swp\dao\PaymentDAO.java (Line 979:53 - Line 988:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-207')">Show code</button>
+            </div>
+            <pre id="code-java-207" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 289:45 - Line 302:25),
+              com\swp\dao\PaymentDAO.java (Line 506:38 - Line 519:25)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-208')">Show code</button>
+            </div>
+            <pre id="code-java-208" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 316:19 - Line 341:36),
+              com\swp\dao\PaymentDAO.java (Line 522:56 - Line 547:36)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-209')">Show code</button>
+            </div>
+            <pre id="code-java-209" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 380:130 - Line 387:64),
+              com\swp\dao\PaymentDAO.java (Line 579:96 - Line 586:64)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-210')">Show code</button>
+            </div>
+            <pre id="code-java-210" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 380:130 - Line 393:18),
+              com\swp\dao\PaymentDAO.java (Line 722:79 - Line 735:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-211')">Show code</button>
+            </div>
+            <pre id="code-java-211" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 403:61 - Line 420:52),
+              com\swp\dao\PaymentDAO.java (Line 606:54 - Line 623:52)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-212')">Show code</button>
+            </div>
+            <pre id="code-java-212" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 420:90 - Line 436:8),
+              com\swp\dao\PaymentDAO.java (Line 763:101 - Line 779:8)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-213')">Show code</button>
+            </div>
+            <pre id="code-java-213" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 440:22 - Line 449:85),
+              com\swp\dao\StaffBillingDAO.java (Line 345:16 - Line 354:85)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-214')">Show code</button>
+            </div>
+            <pre id="code-java-214" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 460:21 - Line 466:21),
+              com\swp\dao\StaffBillingDAO.java (Line 372:21 - Line 378:21)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-215')">Show code</button>
+            </div>
+            <pre id="code-java-215" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 500:9 - Line 520:38),
+              com\swp\dao\PaymentDAO.java (Line 669:9 - Line 689:39)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-216')">Show code</button>
+            </div>
+            <pre id="code-java-216" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 522:19 - Line 547:25),
+              com\swp\dao\PaymentDAO.java (Line 690:19 - Line 715:25)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-217')">Show code</button>
+            </div>
+            <pre id="code-java-217" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 580:17 - Line 594:149),
+              com\swp\dao\PaymentDAO.java (Line 723:17 - Line 737:20)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-218')">Show code</button>
+            </div>
+            <pre id="code-java-218" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 798:9 - Line 804:10),
+              com\swp\dao\PaymentDAO.java (Line 1088:17 - Line 1094:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-219')">Show code</button>
+            </div>
+            <pre id="code-java-219" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 861:17 - Line 867:53),
+              com\swp\dao\PaymentDAO.java (Line 1378:17 - Line 1384:53)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-220')">Show code</button>
+            </div>
+            <pre id="code-java-220" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 941:40 - Line 955:45),
+              com\swp\dao\PaymentDAO.java (Line 1276:34 - Line 1290:45)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-221')">Show code</button>
+            </div>
+            <pre id="code-java-221" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 1011:17 - Line 1020:18),
+              com\swp\dao\PaymentDAO.java (Line 1305:17 - Line 1314:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-222')">Show code</button>
+            </div>
+            <pre id="code-java-222" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 1585:47 - Line 1612:72),
+              com\swp\dao\StaffBillingDAO.java (Line 1136:39 - Line 1163:72)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-223')">Show code</button>
+            </div>
+            <pre id="code-java-223" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 1590:71 - Line 1596:14),
+              com\swp\dao\StaffBillingDAO.java (Line 1117:46 - Line 1123:14)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-224')">Show code</button>
+            </div>
+            <pre id="code-java-224" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 1595:46 - Line 1603:43),
+              com\swp\dao\StaffBillingDAO.java (Line 1123:45 - Line 1131:43)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-225')">Show code</button>
+            </div>
+            <pre id="code-java-225" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 1600:13 - Line 1613:15),
+              com\swp\dao\StaffBillingDAO.java (Line 1151:13 - Line 1164:13)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-226')">Show code</button>
+            </div>
+            <pre id="code-java-226" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 1720:17 - Line 1727:18),
+              com\swp\dao\StaffBillingDAO.java (Line 404:17 - Line 411:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-227')">Show code</button>
+            </div>
+            <pre id="code-java-227" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 1721:17 - Line 1728:30),
+              com\swp\dao\StaffBillingDAO.java (Line 922:17 - Line 929:27)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-228')">Show code</button>
+            </div>
+            <pre id="code-java-228" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 1788:18 - Line 1800:35),
+              com\swp\dao\StaffBillingDAO.java (Line 1017:18 - Line 1029:35)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-229')">Show code</button>
+            </div>
+            <pre id="code-java-229" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 1820:5 - Line 1829:12),
+              com\swp\dao\StaffBillingDAO.java (Line 1207:5 - Line 1216:12)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-230')">Show code</button>
+            </div>
+            <pre id="code-java-230" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\PaymentDAO.java (Line 1830:70 - Line 1847:12),
+              com\swp\dao\StaffBillingDAO.java (Line 1168:20 - Line 1185:12)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-231')">Show code</button>
+            </div>
+            <pre id="code-java-231" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffBillingDAO.java (Line 56:50 - Line 64:32),
+              com\swp\dao\StaffDashboardDAO.java (Line 326:48 - Line 334:33)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-232')">Show code</button>
+            </div>
+            <pre id="code-java-232" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffBillingDAO.java (Line 141:5 - Line 148:18),
+              com\swp\dao\StaffBillingDAO.java (Line 284:91 - Line 291:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-233')">Show code</button>
+            </div>
+            <pre id="code-java-233" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffBillingDAO.java (Line 406:9 - Line 412:27),
+              com\swp\dao\StaffBillingDAO.java (Line 440:9 - Line 446:27)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-234')">Show code</button>
+            </div>
+            <pre id="code-java-234" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffBillingDAO.java (Line 1063:45 - Line 1071:70),
+              com\swp\dao\StaffBillingDAO.java (Line 1097:52 - Line 1105:70)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-235')">Show code</button>
+            </div>
+            <pre id="code-java-235" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffBillingDAO.java (Line 1086:19 - Line 1097:12),
+              com\swp\dao\StaffBillingDAO.java (Line 1105:69 - Line 1116:12)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-236')">Show code</button>
+            </div>
+            <pre id="code-java-236" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffDashboardDAO.java (Line 60:69 - Line 66:27),
+              com\swp\dao\StaffDashboardDAO.java (Line 360:87 - Line 364:27)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-237')">Show code</button>
+            </div>
+            <pre id="code-java-237" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffDashboardDAO.java (Line 65:79 - Line 78:51),
+              com\swp\dao\StaffDashboardDAO.java (Line 364:35 - Line 376:51)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-238')">Show code</button>
+            </div>
+            <pre id="code-java-238" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffDashboardDAO.java (Line 79:19 - Line 86:18),
+              com\swp\dao\StaffDashboardDAO.java (Line 377:19 - Line 384:16)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-239')">Show code</button>
+            </div>
+            <pre id="code-java-239" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffDashboardDAO.java (Line 79:58 - Line 99:42),
+              com\swp\dao\StaffDashboardDAO.java (Line 493:44 - Line 516:40)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-240')">Show code</button>
+            </div>
+            <pre id="code-java-240" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffDashboardDAO.java (Line 82:9 - Line 89:29),
+              com\swp\dao\StaffDashboardDAO.java (Line 412:9 - Line 419:29)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-241')">Show code</button>
+            </div>
+            <pre id="code-java-241" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffDashboardDAO.java (Line 85:36 - Line 98:29),
+              com\swp\dao\StaffDashboardDAO.java (Line 384:36 - Line 397:29)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-242')">Show code</button>
+            </div>
+            <pre id="code-java-242" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffDashboardDAO.java (Line 85:36 - Line 95:29),
+              com\swp\dao\StaffDashboardDAO.java (Line 458:40 - Line 468:29)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-243')">Show code</button>
+            </div>
+            <pre id="code-java-243" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffDashboardDAO.java (Line 97:75 - Line 105:40),
+              com\swp\dao\StaffDashboardDAO.java (Line 397:61 - Line 405:40)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-244')">Show code</button>
+            </div>
+            <pre id="code-java-244" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\StaffDashboardDAO.java (Line 432:90 - Line 443:31),
+              com\swp\dao\StaffDashboardDAO.java (Line 480:78 - Line 491:31)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-245')">Show code</button>
+            </div>
+            <pre id="code-java-245" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\SystemSettingDAO.java (Line 22:19 - Line 29:19),
+              com\swp\dao\SystemSettingDAO.java (Line 44:20 - Line 51:23)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-246')">Show code</button>
+            </div>
+            <pre id="code-java-246" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\UserDAO.java (Line 176:25 - Line 185:16),
+              com\swp\dao\UserDAO.java (Line 195:31 - Line 204:16)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-247')">Show code</button>
+            </div>
+            <pre id="code-java-247" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\UserDAO.java (Line 254:75 - Line 262:16),
+              com\swp\dao\UserDAO.java (Line 471:75 - Line 480:16)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-248')">Show code</button>
+            </div>
+            <pre id="code-java-248" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\UserDAO.java (Line 307:74 - Line 324:10),
+              com\swp\dao\UserDAO.java (Line 362:102 - Line 379:10)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-249')">Show code</button>
+            </div>
+            <pre id="code-java-249" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\UserDAO.java (Line 331:59 - Line 346:15),
+              com\swp\dao\UserDAO.java (Line 385:59 - Line 401:16)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-250')">Show code</button>
+            </div>
+            <pre id="code-java-250" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\UserDAO.java (Line 430:55 - Line 439:18),
+              com\swp\dao\UserDAO.java (Line 513:55 - Line 524:14)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-251')">Show code</button>
+            </div>
+            <pre id="code-java-251" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\WorkShiftDAO.java (Line 71:104 - Line 76:61),
+              com\swp\dao\WorkShiftDAO.java (Line 94:62 - Line 99:61)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-252')">Show code</button>
+            </div>
+            <pre id="code-java-252" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\WorkShiftDAO.java (Line 147:14 - Line 162:22),
+              com\swp\dao\WorkShiftDAO.java (Line 193:18 - Line 208:26)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-253')">Show code</button>
+            </div>
+            <pre id="code-java-253" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\WorkShiftDAO.java (Line 265:35 - Line 274:40),
+              com\swp\dao\WorkShiftDAO.java (Line 302:37 - Line 311:40)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-254')">Show code</button>
+            </div>
+            <pre id="code-java-254" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\dao\WorkShiftDAO.java (Line 274:75 - Line 294:6),
+              com\swp\dao\WorkShiftDAO.java (Line 311:84 - Line 331:6)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-255')">Show code</button>
+            </div>
+            <pre id="code-java-255" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\filter\AdminAuthFilter.java (Line 1:1 - Line 12:12),
+              com\swp\filter\CustomerAuthFilter.java (Line 1:1 - Line 12:12)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-256')">Show code</button>
+            </div>
+            <pre id="code-java-256" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\filter\AdminAuthFilter.java (Line 1:1 - Line 12:12),
+              com\swp\filter\OwnerAuthFilter.java (Line 1:1 - Line 12:12)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-257')">Show code</button>
+            </div>
+            <pre id="code-java-257" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\filter\AdminAuthFilter.java (Line 1:1 - Line 12:12),
+              com\swp\filter\StaffAuthFilter.java (Line 1:1 - Line 12:12)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-258')">Show code</button>
+            </div>
+            <pre id="code-java-258" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\filter\AdminAuthFilter.java (Line 15:60 - Line 34:57),
+              com\swp\filter\StaffAuthFilter.java (Line 16:60 - Line 35:57)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-259')">Show code</button>
+            </div>
+            <pre id="code-java-259" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\filter\OwnerAuthFilter.java (Line 15:5 - Line 26:53),
+              com\swp\filter\StaffAuthFilter.java (Line 16:5 - Line 27:53)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-260')">Show code</button>
+            </div>
+            <pre id="code-java-260" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 60:35 - Line 79:11),
+              com\swp\model\dto\CheckoutPaymentRequestView.java (Line 37:35 - Line 56:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-261')">Show code</button>
+            </div>
+            <pre id="code-java-261" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 60:35 - Line 103:16),
+              com\swp\model\dto\InvoiceView.java (Line 70:33 - Line 113:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-262')">Show code</button>
+            </div>
+            <pre id="code-java-262" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 61:5 - Line 79:16),
+              com\swp\model\dto\BookingView.java (Line 72:5 - Line 90:16)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-263')">Show code</button>
+            </div>
+            <pre id="code-java-263" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 63:5 - Line 103:11),
+              com\swp\model\dto\CheckoutView.java (Line 39:5 - Line 79:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-264')">Show code</button>
+            </div>
+            <pre id="code-java-264" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 108:49 - Line 127:11),
+              com\swp\model\FieldMaintenanceSchedule.java (Line 42:31 - Line 61:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-265')">Show code</button>
+            </div>
+            <pre id="code-java-265" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 108:49 - Line 135:11),
+              com\swp\model\dto\BookingView.java (Line 207:47 - Line 234:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-266')">Show code</button>
+            </div>
+            <pre id="code-java-266" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 108:49 - Line 127:11),
+              com\swp\model\dto\CheckoutPaymentRequestView.java (Line 69:35 - Line 88:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-267')">Show code</button>
+            </div>
+            <pre id="code-java-267" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 132:35 - Line 215:11),
+              com\swp\model\dto\BookingView.java (Line 239:39 - Line 322:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-268')">Show code</button>
+            </div>
+            <pre id="code-java-268" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 140:43 - Line 159:22),
+              com\swp\model\Invoice.java (Line 86:33 - Line 105:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-269')">Show code</button>
+            </div>
+            <pre id="code-java-269" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 212:29 - Line 229:6),
+              com\swp\model\Feedback.java (Line 97:29 - Line 114:6)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-270')">Show code</button>
+            </div>
+            <pre id="code-java-270" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 212:29 - Line 230:2),
+              com\swp\model\Field.java (Line 86:27 - Line 104:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-271')">Show code</button>
+            </div>
+            <pre id="code-java-271" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 212:29 - Line 230:2),
+              com\swp\model\Voucher.java (Line 134:37 - Line 152:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-272')">Show code</button>
+            </div>
+            <pre id="code-java-272" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Booking.java (Line 212:29 - Line 230:2),
+              com\swp\model\dto\BookingView.java (Line 423:51 - Line 442:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-273')">Show code</button>
+            </div>
+            <pre id="code-java-273" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Feedback.java (Line 89:37 - Line 106:6),
+              com\swp\model\FieldMaintenanceSchedule.java (Line 66:29 - Line 83:6)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-274')">Show code</button>
+            </div>
+            <pre id="code-java-274" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Feedback.java (Line 89:37 - Line 116:11),
+              com\swp\model\FootballComplex.java (Line 140:41 - Line 166:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-275')">Show code</button>
+            </div>
+            <pre id="code-java-275" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Feedback.java (Line 89:37 - Line 116:11),
+              com\swp\model\MatchmakingPost.java (Line 118:41 - Line 144:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-276')">Show code</button>
+            </div>
+            <pre id="code-java-276" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Feedback.java (Line 89:37 - Line 108:11),
+              com\swp\model\MatchmakingPostResponse.java (Line 56:31 - Line 74:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-277')">Show code</button>
+            </div>
+            <pre id="code-java-277" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Feedback.java (Line 89:37 - Line 108:11),
+              com\swp\model\PriceRule.java (Line 139:33 - Line 157:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-278')">Show code</button>
+            </div>
+            <pre id="code-java-278" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Feedback.java (Line 89:37 - Line 116:11),
+              com\swp\model\User.java (Line 106:33 - Line 133:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-279')">Show code</button>
+            </div>
+            <pre id="code-java-279" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Feedback.java (Line 89:37 - Line 108:11),
+              com\swp\model\dto\CheckoutPaymentRequestView.java (Line 109:91 - Line 127:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-280')">Show code</button>
+            </div>
+            <pre id="code-java-280" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Field.java (Line 38:31 - Line 57:11),
+              com\swp\model\PriceRule.java (Line 51:39 - Line 70:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-281')">Show code</button>
+            </div>
+            <pre id="code-java-281" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Field.java (Line 54:39 - Line 81:11),
+              com\swp\model\dto\TopFieldSummary.java (Line 51:66 - Line 62:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-282')">Show code</button>
+            </div>
+            <pre id="code-java-282" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\FootballComplex.java (Line 44:35 - Line 63:18),
+              com\swp\model\dto\BookingView.java (Line 143:43 - Line 162:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-283')">Show code</button>
+            </div>
+            <pre id="code-java-283" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\FootballComplex.java (Line 116:31 - Line 135:18),
+              com\swp\model\dto\ComplexCard.java (Line 91:43 - Line 110:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-284')">Show code</button>
+            </div>
+            <pre id="code-java-284" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\FootballComplex.java (Line 116:31 - Line 135:11),
+              com\swp\model\dto\FieldDetail.java (Line 111:39 - Line 130:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-285')">Show code</button>
+            </div>
+            <pre id="code-java-285" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Invoice.java (Line 41:5 - Line 57:11),
+              com\swp\model\dto\InvoiceView.java (Line 41:5 - Line 57:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-286')">Show code</button>
+            </div>
+            <pre id="code-java-286" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Invoice.java (Line 54:39 - Line 73:11),
+              com\swp\model\Payment.java (Line 47:35 - Line 66:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-287')">Show code</button>
+            </div>
+            <pre id="code-java-287" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Invoice.java (Line 54:39 - Line 73:11),
+              com\swp\model\dto\PaymentView.java (Line 46:35 - Line 65:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-288')">Show code</button>
+            </div>
+            <pre id="code-java-288" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Payment.java (Line 71:47 - Line 114:11),
+              com\swp\model\dto\PaymentView.java (Line 102:31 - Line 145:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-289')">Show code</button>
+            </div>
+            <pre id="code-java-289" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Payment.java (Line 111:57 - Line 128:6),
+              com\swp\model\dto\PaymentView.java (Line 150:51 - Line 167:6)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-290')">Show code</button>
+            </div>
+            <pre id="code-java-290" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\PriceRule.java (Line 99:41 - Line 118:11),
+              com\swp\model\WorkShift.java (Line 60:35 - Line 79:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-291')">Show code</button>
+            </div>
+            <pre id="code-java-291" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\PriceRule.java (Line 99:41 - Line 126:11),
+              com\swp\model\dto\BookingSlotPreview.java (Line 45:25 - Line 72:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-292')">Show code</button>
+            </div>
+            <pre id="code-java-292" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Voucher.java (Line 37:27 - Line 97:11),
+              com\swp\model\dto\VoucherExchangeDTO.java (Line 41:28 - Line 101:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-293')">Show code</button>
+            </div>
+            <pre id="code-java-293" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\Voucher.java (Line 54:25 - Line 81:15),
+              com\swp\model\dto\UserVoucherDTO.java (Line 68:39 - Line 95:15)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-294')">Show code</button>
+            </div>
+            <pre id="code-java-294" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\BookingSlotPreview.java (Line 36:29 - Line 64:11),
+              com\swp\model\dto\SkippedBookingSlot.java (Line 21:31 - Line 49:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-295')">Show code</button>
+            </div>
+            <pre id="code-java-295" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\BookingView.java (Line 119:37 - Line 138:18),
+              com\swp\model\dto\CheckoutView.java (Line 84:29 - Line 103:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-296')">Show code</button>
+            </div>
+            <pre id="code-java-296" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\BookingView.java (Line 119:37 - Line 178:16),
+              com\swp\model\dto\InvoiceView.java (Line 110:31 - Line 169:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-297')">Show code</button>
+            </div>
+            <pre id="code-java-297" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\BookingView.java (Line 150:35 - Line 170:11),
+              com\swp\model\dto\FieldDetail.java (Line 78:35 - Line 98:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-298')">Show code</button>
+            </div>
+            <pre id="code-java-298" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\BookingView.java (Line 151:35 - Line 170:18),
+              com\swp\model\dto\CheckoutView.java (Line 100:43 - Line 119:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-299')">Show code</button>
+            </div>
+            <pre id="code-java-299" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\BookingView.java (Line 175:45 - Line 194:11),
+              com\swp\model\dto\FieldScheduleSlot.java (Line 26:27 - Line 45:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-300')">Show code</button>
+            </div>
+            <pre id="code-java-300" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\BookingView.java (Line 319:29 - Line 338:22),
+              com\swp\model\dto\InvoiceView.java (Line 238:43 - Line 257:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-301')">Show code</button>
+            </div>
+            <pre id="code-java-301" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\CheckoutPaymentRequestView.java (Line 29:49 - Line 48:11),
+              com\swp\model\dto\PaymentView.java (Line 38:35 - Line 57:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-302')">Show code</button>
+            </div>
+            <pre id="code-java-302" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\CheckoutPaymentRequestView.java (Line 45:35 - Line 88:22),
+              com\swp\model\dto\PaymentView.java (Line 62:37 - Line 105:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-303')">Show code</button>
+            </div>
+            <pre id="code-java-303" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\CheckoutPaymentRequestView.java (Line 61:39 - Line 88:11),
+              com\swp\model\dto\CheckoutView.java (Line 116:45 - Line 143:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-304')">Show code</button>
+            </div>
+            <pre id="code-java-304" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\CheckoutView.java (Line 148:41 - Line 175:22),
+              com\swp\model\dto\InvoiceView.java (Line 166:31 - Line 193:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-305')">Show code</button>
+            </div>
+            <pre id="code-java-305" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\CheckoutView.java (Line 180:106 - Line 199:22),
+              com\swp\model\dto\InvoiceView.java (Line 190:60 - Line 209:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-306')">Show code</button>
+            </div>
+            <pre id="code-java-306" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\ComplexCard.java (Line 51:35 - Line 78:11),
+              com\swp\model\dto\TopFieldSummary.java (Line 69:74 - Line 80:11)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-307')">Show code</button>
+            </div>
+            <pre id="code-java-307" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\model\dto\FieldDetail.java (Line 71:31 - Line 90:18),
+              com\swp\model\dto\TopFieldSummary.java (Line 66:59 - Line 74:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-308')">Show code</button>
+            </div>
+            <pre id="code-java-308" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\util\MailUtil.java (Line 92:83 - Line 103:24),
+              com\swp\util\MailUtil.java (Line 151:71 - Line 162:22)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-309')">Show code</button>
+            </div>
+            <pre id="code-java-309" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\util\MailUtil.java (Line 132:64 - Line 145:19),
+              com\swp\util\MailUtil.java (Line 180:72 - Line 193:19)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-310')">Show code</button>
+            </div>
+            <pre id="code-java-310" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\util\MailUtil.java (Line 151:39 - Line 165:64),
+              com\swp\util\MailUtil.java (Line 198:51 - Line 212:64)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-311')">Show code</button>
+            </div>
+            <pre id="code-java-311" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\util\MailUtil.java (Line 170:137 - Line 179:54),
+              com\swp\util\MailUtil.java (Line 217:150 - Line 226:54)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-312')">Show code</button>
+            </div>
+            <pre id="code-java-312" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\util\MailUtil.java (Line 179:80 - Line 194:6),
+              com\swp\util\MailUtil.java (Line 226:73 - Line 241:6)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-313')">Show code</button>
+            </div>
+            <pre id="code-java-313" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\util\MailUtil.java (Line 185:39 - Line 195:7),
+              com\swp\util\MailUtil.java (Line 232:39 - Line 242:2)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-314')">Show code</button>
+            </div>
+            <pre id="code-java-314" class="code-block"></pre>
+          </div>
+          
+          <div class="clone-item">
+            <div class="clone-info">
+              com\swp\util\VNPayUtil.java (Line 165:29 - Line 170:18),
+              com\swp\util\VNPayUtil.java (Line 184:32 - Line 189:18)
+            </div>
+            <div>
+              <button class="toggle-btn" onclick="toggle('code-java-315')">Show code</button>
+            </div>
+            <pre id="code-java-315" class="code-block"></pre>
+          </div>
+          
+        </div>
+      </section>
+    </div>
+    
+    
+  </div>
+
+  <div class="footer">
+    <p>Generated by <a href="https://jscpd.dev" target="_blank">jscpd</a> v0.1.7 by <a href="https://github.com/kucherenko" target="_blank">Andrey Kucherenko</a></p>
+    <p><a href="https://www.npmjs.com/package/jscpd" target="_blank"><img src="https://img.shields.io/npm/dw/jscpd.svg?style=flat-square" alt="npm weekly downloads" style="vertical-align: middle;"></a></p>
+  </div>
+
+  <script>
+    function toggle(id) {
+      var el = document.getElementById(id);
+      if (el) { el.classList.toggle('visible'); }
+    }
+  </script>
+</body>
+</html>

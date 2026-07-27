@@ -179,7 +179,7 @@ public class StaffBillingDAO {
                                 "Checkout completed by cash payment.");
                         conn.commit();
                         return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode(),
-                                "Da ghi nhan thanh toan tien mat " + moneyPlain(amounts.remainingAmount()) + ". Checkout thanh cong.");
+                                "Đã ghi nhận thanh toán tiền mặt " + moneyPlain(amounts.remainingAmount()) + ". Checkout thành công.");
                     }
 
                     updatePendingInvoiceAmounts(conn, existingInvoice.invoiceId(), amounts);
@@ -191,8 +191,8 @@ public class StaffBillingDAO {
                     }
                     conn.commit();
                     String message = requestSummary.existing()
-                            ? "Booking nay da co mot yeu cau thanh toan dang cho khach xu ly."
-                            : "Da gui yeu cau thanh toan " + moneyPlain(amounts.remainingAmount()) + " cho khach hang.";
+                            ? "Booking này đã có một yêu cầu thanh toán đang chờ khách xử lý."
+                            : "Đã gửi yêu cầu thanh toán " + moneyPlain(amounts.remainingAmount()) + " cho khách hàng.";
                     return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode(), message);
                 }
 
@@ -224,7 +224,7 @@ public class StaffBillingDAO {
                             "Checkout completed with zero amount due.");
                     conn.commit();
                     return new CheckoutResult(invoiceId, bookingId, invoiceCode,
-                            "Booking khong con so tien phai thanh toan. Da hoan tat checkout.");
+                            "Booking không còn số tiền phải thanh toán. Đã hoàn tất checkout.");
                 }
 
                 String method = requireCheckoutMethod(checkoutPaymentMethod, amounts.remainingAmount());
@@ -246,8 +246,8 @@ public class StaffBillingDAO {
                             "Checkout completed by cash payment.");
                     conn.commit();
                     return new CheckoutResult(invoiceId, bookingId, invoiceCode,
-                            "Da ghi nhan thanh toan tien mat " + moneyPlain(amounts.remainingAmount())
-                                    + ". Checkout booking thanh cong.");
+                            "Đã ghi nhận thanh toán tiền mặt " + moneyPlain(amounts.remainingAmount())
+                                    + ". Checkout booking thành công.");
                 }
 
                 // Business Rule BR-20: Còn tiền phải trả và Staff chọn online thì tạo invoice/payment PENDING.
@@ -271,9 +271,9 @@ public class StaffBillingDAO {
 
                 conn.commit();
                 return new CheckoutResult(invoiceId, bookingId, invoiceCode,
-                        "Da gui yeu cau thanh toan " + moneyPlain(amounts.remainingAmount()) + " cho khach hang.");
+                        "Đã gửi yêu cầu thanh toán " + moneyPlain(amounts.remainingAmount()) + " cho khách hàng.");
             } catch (SQLException | RuntimeException e) {
-                rollback(conn, e);
+                    rollback(conn, e);
                 throw e;
             }
         }
@@ -326,8 +326,8 @@ public class StaffBillingDAO {
                         actorId, "NO_SHOW_LATE_30_MINUTES");
                 insertNotification(conn,
                         booking.customerId(),
-                        "Booking da bi huy do den muon",
-                        "Booking " + booking.bookingCode() + " da bi huy vi khach chua check-in sau 30 phut ke tu gio bat dau.",
+                        "Booking đã bị hủy do đến muộn",
+                        "Booking " + booking.bookingCode() + " đã bị hủy vì khách chưa check-in sau 30 phút kể từ giờ bắt đầu.",
                         "BOOKING",
                         booking.bookingId());
 
@@ -784,9 +784,9 @@ public class StaffBillingDAO {
         failPendingCheckoutPayments(conn, booking.bookingId(), transactionRef);
         insertNotification(conn,
                 booking.customerId(),
-                "Da ghi nhan thanh toan tien mat",
-                "Booking " + booking.bookingCode() + " da duoc ghi nhan thanh toan tien mat "
-                        + moneyPlain(amounts.remainingAmount()) + " tai quay.",
+                "Đã ghi nhận thanh toán tiền mặt",
+                "Booking " + booking.bookingCode() + " đã được ghi nhận thanh toán tiền mặt "
+                        + moneyPlain(amounts.remainingAmount()) + " tại quầy.",
                 "CHECKOUT_PAYMENT_SUCCESS",
                 invoiceId);
     }

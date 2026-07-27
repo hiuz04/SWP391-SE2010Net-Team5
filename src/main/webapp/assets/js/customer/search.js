@@ -71,47 +71,31 @@ function loadData() {
         .catch(err => console.error("Lỗi khi load dữ liệu mặc định:", err));
 }
 
-async function loadProvinces() {
-    const citySelect = document.getElementById("province");
-    if (!citySelect) return;
-    try {
-        const res = await fetch("https://provinces.open-api.vn/api/v2/p/");
-        if (!res.ok) throw new Error("Lỗi kết nối API tỉnh thành");
-        provincesList = await res.json();
-        citySelect.innerHTML = '<option value="">-- Chọn Tỉnh/Thành phố --</option>';
-        provincesList.forEach(p => {
-            const opt = document.createElement("option");
-            opt.value = p.name;
-            opt.dataset.code = p.code;
-            opt.textContent = p.name;
-            citySelect.appendChild(opt);
-        });
-    } catch (err) {
-        console.error("Lỗi khi tải danh sách Tỉnh/Thành phố:", err);
-    }
-}
-
-async function loadWards(provinceCode) {
+async function loadHanoiWards() {
     const wardSelect = document.getElementById("ward");
     if (!wardSelect) return;
+
     wardSelect.disabled = true;
     wardSelect.innerHTML = '<option value="">Đang tải Phường/Xã...</option>';
+
     try {
-        const res = await fetch(`https://provinces.open-api.vn/api/v2/p/${provinceCode}?depth=2`);
-        if (!res.ok) throw new Error("Lỗi kết nối API phường xã");
+        const res = await fetch("https://provinces.open-api.vn/api/v2/p/01?depth=2");
+        if (!res.ok) throw new Error("Lỗi kết nối API");
+
         const data = await res.json();
+
         wardSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
-        if (data.wards && data.wards.length > 0) {
-            data.wards.forEach(w => {
-                const opt = document.createElement("option");
-                opt.value = w.name;
-                opt.textContent = w.name;
-                wardSelect.appendChild(opt);
-            });
-        }
+
+        data.wards.forEach(ward => {
+            const opt = document.createElement("option");
+            opt.value = ward.name;
+            opt.textContent = ward.name;
+            wardSelect.appendChild(opt);
+        });
+
         wardSelect.disabled = false;
     } catch (err) {
-        console.error("Lỗi khi tải danh sách Phường/Xã:", err);
+        console.error(err);
         wardSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
         wardSelect.disabled = false;
     }
@@ -147,7 +131,7 @@ function searchData() {
 // Khởi tạo trang: tải danh sách filter một lần duy nhất, sau đó kiểm tra URL params
 async function initPage() {
     // Load danh sách tỉnh
-    await loadProvinces();
+    await loadHanoiWards();
 
     // Đọc query parameter
     const urlParams = new URLSearchParams(window.location.search);
@@ -199,4 +183,17 @@ function scheduleLoadData() {
     filterTimer = setTimeout(() => {
         searchData();
     }, 500);
+}
+
+function clearAll() {
+    document.querySelectorAll("#complexName, #ward, #fieldType")
+        .forEach(el => {
+            if (el.tagName === "INPUT") {
+                el.value = "";
+            } else if (el.tagName === "SELECT") {
+                el.selectedIndex = 0;
+            }
+        });
+
+    loadData();
 }

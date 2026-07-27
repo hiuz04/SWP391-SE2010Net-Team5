@@ -51,7 +51,7 @@ body {
 
 /* ==================== LAYOUT ==================== */
 .owner-layout {
-    display: flex;
+    display: block;
     min-height: 100vh;
 }
 
@@ -173,10 +173,20 @@ body {
 
 /* ==================== CONTENT AREA ==================== */
 .owner-content {
-    flex: 1;
-    margin-left: 250px;
+    width: 100%;
+    max-width: 1300px;
+    margin-left: auto;
+    margin-right: auto;
     padding: 28px 32px;
     min-height: 100vh;
+    box-sizing: border-box;
+}
+
+/* main without class also gets padding */
+main:not([class]) {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 28px 32px;
 }
 
 /* ==================== TOPBAR ==================== */
@@ -478,19 +488,74 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
+    background: linear-gradient(135deg, #15803d 0%, #16a34a 50%, #22c55e 100%);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    box-shadow: 0 8px 24px rgba(22, 163, 74, 0.28);
+    position: relative;
+    overflow: hidden;
+}
+
+.page-header::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -5%;
+    width: 220px;
+    height: 220px;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.page-header::after {
+    content: '';
+    position: absolute;
+    bottom: -50%;
+    left: 30%;
+    width: 160px;
+    height: 160px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 50%;
+    pointer-events: none;
 }
 
 .page-header-left h1 {
     font-size: 1.4rem;
     font-weight: 700;
-    color: var(--text-main);
+    color: #ffffff;
     margin: 0 0 4px 0;
+}
+
+.page-header-left h1 i {
+    color: #ffffff !important;
 }
 
 .page-header-left p {
     margin: 0;
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.88);
     font-size: 0.875rem;
+}
+
+.page-header-left span {
+    color: rgba(255, 255, 255, 0.88) !important;
+}
+
+.page-header .btn-success,
+.page-header .btn-primary {
+    background: #ffffff !important;
+    color: #15803d !important;
+    border: none !important;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.page-header .btn-success:hover,
+.page-header .btn-primary:hover {
+    background: #f8fafc !important;
+    color: #16a34a !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
 }
 
 /* ==================== FILTER CARD ==================== */
@@ -669,12 +734,7 @@ body {
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 768px) {
     .owner-content {
-        margin-left: 0;
         padding: 16px;
-    }
-
-    .owner-sidebar {
-        display: none;
     }
 
     .page-header {

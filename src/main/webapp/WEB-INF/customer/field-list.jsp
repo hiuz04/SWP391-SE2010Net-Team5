@@ -43,11 +43,6 @@
                     </label>
                     <input type="text" class="form-control" id="complexName" placeholder="Nhập tên sân bóng..." oninput="scheduleLoadData()">
 
-                    <label class="form-label mt-3" for="province">Tỉnh/Thành phố</label>
-                    <select class="form-select" id="province" onchange="scheduleLoadData()">
-                        <option value="">-- Chọn Tỉnh/Thành phố --</option>
-                    </select>
-
                     <label class="form-label mt-3" for="ward">Phường/Xã</label>
                     <select class="form-select" id="ward" onchange="scheduleLoadData()">
                         <option value="">-- Chọn Phường/Xã --</option>
@@ -63,7 +58,7 @@
                     </select>
 
                     <div class="d-grid mt-3">
-                        <button class="btn btn-sf-primary" onclick="searchData()">Áp dụng</button>
+                        <button class="btn btn-sf-primary" onclick="clearAll()">Clear</button>
                     </div>
                 </div>
             </aside>

@@ -30,12 +30,9 @@
     <link href="<%= ctx %>/assets/css/owner/complex.css" rel="stylesheet">
     <title>Thêm / Sửa cụm sân | Sport Field Booking</title>
 </head>
-<body style="background:#f0f4f8;">
-<div class="owner-layout">
-    <aside class="owner-sidebar" id="owner-sidebar"></aside>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= displayName %>" data-active="Cơ sở"></div>
 
-    <main class="owner-content">
-        <div class="topbar" id="topbar"></div>
+<main class="owner-content">
 
         <div class="complex-form-page">
             <!-- Back button -->
@@ -113,31 +110,25 @@
                     </div>
 
                     <div class="row g-3">
-                        <div class="col-12">
-                            <label for="adrs" class="form-label">
-                                Địa chỉ chi tiết <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" class="form-control" id="adrs"
-                                   placeholder="Số nhà, tên đường..." required>
+                        <div class="row col-12">
+                            <div class="col-md-8">
+                                <label for="adrs" class="form-label">
+                                    Địa chỉ chi tiết <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="adrs"
+                                       placeholder="Số nhà, tên đường..." required>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="ward" class="form-label">
+                                    Phường/Xã <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="ward" required disabled>
+                                    <option value="">-- Chọn Phường/Xã --</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <div class="col-md-6">
-                            <label for="city" class="form-label">
-                                Tỉnh/Thành phố <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" id="city" required>
-                                <option value="">-- Chọn Tỉnh/Thành phố --</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="ward" class="form-label">
-                                Phường/Xã <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" id="ward" required disabled>
-                                <option value="">-- Chọn Phường/Xã --</option>
-                            </select>
-                        </div>
 
                         <div class="col-md-6">
                             <label for="lat" class="form-label">Vĩ độ (Latitude)</label>
@@ -204,7 +195,6 @@
             </div>
         </div>
     </main>
-</div>
 
 <script>
     window.APP_CTX = '<%= ctx %>';
@@ -212,15 +202,11 @@
     current_role = '<%= navRole %>';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<%= ctx %>/assets/js/owner/dashboard.js"></script>
+<script src="<%= ctx %>/assets/js/app.js"></script>
 <script src="<%= ctx %>/assets/js/owner/complex.js"></script>
 <script>
     dynamicLabel();
     loadForm();
-    renderTopbar({
-        title: "Thêm / Sửa cụm sân",
-        subtitle: "Điền thông tin để thêm mới hoặc cập nhật cụm sân."
-    });
 </script>
 </body>
 </html>

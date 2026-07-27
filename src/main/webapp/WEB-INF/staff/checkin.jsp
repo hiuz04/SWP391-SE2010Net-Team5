@@ -183,8 +183,47 @@
         totalAmount: <%= booking.get("totalAmount") %>
       };
       displayBookings([preSelectedBooking]);
+    <% } else { %>
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('pending') === 'true') {
+        loadPendingBookings();
+      }
     <% } %>
   });
+
+  async function loadPendingBookings() {
+    const resultsContainer = document.getElementById('results-container');
+    const loadingState = document.getElementById('loading-state');
+    const resultsTitle = document.getElementById('results-title');
+
+    resultsContainer.innerHTML = '';
+    loadingState.classList.remove('d-none');
+    
+    if (resultsTitle) {
+      resultsTitle.textContent = "Khách hàng chờ check-in trong ca";
+      resultsTitle.classList.remove('d-none');
+    }
+
+    try {
+      const res = await fetch(`<%= ctx %>/api/staff/checkin/search?pendingOnly=true`, {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      
+      const data = await res.json();
+      loadingState.classList.add('d-none');
+
+      if (data.error) {
+        resultsContainer.innerHTML = `<div class="alert alert-danger rounded-4">${data.error}</div>`;
+        return;
+      }
+
+      displayBookings(data);
+    } catch (err) {
+      loadingState.classList.add('d-none');
+      resultsContainer.innerHTML = `<div class="alert alert-danger rounded-4">Lỗi hệ thống: ${err.message}</div>`;
+    }
+  }
 
   function handleSearchSubmit(event) {
     event.preventDefault();

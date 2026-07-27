@@ -358,20 +358,32 @@ public class VoucherDAO {
         }
     }
 
-    public List<Voucher> getAllExchangeVouchers(String targetUser) {
-        StringBuilder sql = new StringBuilder("""
-            SELECT *
-            FROM vouchers
-            WHERE status = 'ACTIVE'
-              AND quantity > used
-              AND start_date <= GETDATE()
-              AND end_date >= GETDATE()
-            """);
+    public List<Voucher> getAllExchangeVouchers(String targetUser, boolean isVip) {
 
-        boolean hasFilter = targetUser != null && !targetUser.isBlank() && !"ALL_TYPE".equalsIgnoreCase(targetUser);
-        if (hasFilter) {
-            sql.append(" AND target_user = ? ");
+        StringBuilder sql = new StringBuilder("""
+        SELECT *
+        FROM vouchers
+        WHERE status = 'ACTIVE'
+          AND quantity > used
+          AND start_date <= GETDATE()
+          AND end_date >= GETDATE()
+        """);
+
+        // Chỉ VIP mới được xem voucher MEMBER
+        if (isVip) {
+            sql.append(" AND target_user IN ('ALL', 'MEMBER') ");
+        } else {
+            sql.append(" AND target_user = 'ALL' ");
         }
+
+        boolean hasFilter = targetUser != null
+                && !targetUser.isBlank()
+                && !"ALL_TYPE".equalsIgnoreCase(targetUser);
+
+        if (hasFilter) {
+            sql.append(" AND discount_type = ? ");
+        }
+
         sql.append(" ORDER BY exchange_points ASC");
 
         List<Voucher> list = new ArrayList<>();

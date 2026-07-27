@@ -265,30 +265,19 @@
                         if ("CONFIRMED".equals(bStatus)) {
                           cellClass = "status-booked-confirmed";
                           cellText = bCode + " - " + custName;
-                          cellOnclick = isUpcomingShift 
-                             ? "showToast('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.', 'warning')" 
-                             : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thao tác.', 'danger')" : "location.href='" + ctx + "/staff/checkin?id=" + bId + "'");
+                          cellOnclick = "showBookingDetails(" + bId + ");";
                         } else if ("CHECKED_IN".equals(bStatus)) {
                           cellClass = "status-booked-checkedin";
                           cellText = bCode + " - " + custName;
-                          cellOnclick = isUpcomingShift 
-                             ? "showToast('Ca trực chưa bắt đầu. Bạn chỉ có thể xem lịch, không thể thao tác.', 'warning')" 
-                             : (isEndedShift ? "showToast('Ca trực đã kết thúc. Bạn không thể thao tác.', 'danger')" : "location.href='" + ctx + "/staff/checkout?id=" + bId + "'");
-                          if (!checkoutDue) {
-                            cellOnclick = "";
-                          }
+                          cellOnclick = "showBookingDetails(" + bId + ");";
                         } else if ("PENDING_CHECKOUT_PAYMENT".equals(bStatus)) {
                           cellClass = "status-booked-pending-payment";
                           cellText = bCode + " - Cho thanh toan";
-                          if (hasInvoice) {
-                            cellOnclick = "location.href='" + ctx + "/staff/invoice?id=" + bId + "'";
-                          }
+                          cellOnclick = "showBookingDetails(" + bId + ");";
                         } else if ("COMPLETED".equals(bStatus)) {
                           cellClass = "status-booked-completed";
                           cellText = bCode + " - Xong";
-                          if (hasInvoice) {
-                            cellOnclick = "location.href='" + ctx + "/staff/invoice?id=" + bId + "'";
-                          }
+                          cellOnclick = "showBookingDetails(" + bId + ");";
                         }
                       }
                   %>
@@ -358,19 +347,42 @@
                   String actionButton = "";
                   
                   boolean isExpired = false;
-                  if ("CONFIRMED".equals(bStatus) && bEnd != null) {
-                    try {
-                      String isoEnd = bEnd.replace(" ", "T");
-                      if (isoEnd.contains(".")) {
-                        isoEnd = isoEnd.substring(0, isoEnd.indexOf("."));
-                      }
-                      java.time.LocalDateTime endDt = java.time.LocalDateTime.parse(isoEnd);
-                      isExpired = endDt.isBefore(java.time.LocalDateTime.now());
-                    } catch (Exception ignored) {}
+                  boolean isLateNoShow = false;
+                  if ("CONFIRMED".equals(bStatus)) {
+                    java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                    java.time.LocalDateTime endDt = null;
+                    java.time.LocalDateTime startDt = null;
+                    if (bEnd != null) {
+                      try {
+                        String isoEnd = bEnd.replace(" ", "T");
+                        if (isoEnd.contains(".")) {
+                          isoEnd = isoEnd.substring(0, isoEnd.indexOf("."));
+                        }
+                        endDt = java.time.LocalDateTime.parse(isoEnd);
+                        isExpired = now.isAfter(endDt);
+                      } catch (Exception ignored) {}
+                    }
+                    if (bStart != null) {
+                      try {
+                        String isoStart = bStart.replace(" ", "T");
+                        if (isoStart.contains(".")) {
+                          isoStart = isoStart.substring(0, isoStart.indexOf("."));
+                        }
+                        startDt = java.time.LocalDateTime.parse(isoStart);
+                        isLateNoShow = now.isAfter(startDt.plusMinutes(30)) && (endDt == null || !now.isAfter(endDt));
+                      } catch (Exception ignored) {}
+                    }
                   }
 
                   if ("CONFIRMED".equals(bStatus)) {
-                    if (isExpired) {
+                    if (isLateNoShow) {
+                      statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-exclamation-triangle me-1'></i>Muộn 30p</span>";
+                      actionButton = isUpcomingShift 
+                        ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Chưa đến giờ làm việc'><i class='bi bi-lock-fill me-1'></i>Chờ ca trực</button>"
+                        : (isEndedShift 
+                          ? "<button class='btn btn-sm btn-secondary px-3' disabled title='Ca trực đã kết thúc'><i class='bi bi-lock-fill me-1'></i>Hết ca trực</button>"
+                          : "<a href='" + ctx + "/staff/checkin?id=" + bId + "' class='btn btn-sm btn-sf-primary px-3'>Check-in</a>");
+                    } else if (isExpired) {
                       statusBadge = "<span class='badge bg-danger-subtle text-danger fw-bold'><i class='bi bi-exclamation-triangle me-1'></i>Quá giờ</span>";
                       actionButton = "<button class='btn btn-sm btn-secondary px-3' disabled><i class='bi bi-exclamation-circle me-1'></i>Quá giờ nhận</button>";
                     } else {
@@ -403,7 +415,7 @@
                     }
                   }
               %>
-                <tr>
+                <tr onclick="handleRowClick(event, <%= bId %>)" style="cursor:pointer;">
                   <td style="white-space: nowrap;"><strong class="text-dark"><%= formattedTime %></strong></td>
                   <td style="white-space: nowrap;"><strong class="text-success"><%= bCode %></strong></td>
                   <td style="white-space: nowrap;"><strong><%= fieldName %></strong></td>
@@ -457,11 +469,308 @@
   </div>
 </div>
 
+<!-- Booking Details Modal -->
+<div class="modal fade" id="bookingDetailModal" tabindex="-1" aria-labelledby="bookingDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 24px; overflow: hidden; background: #ffffff;">
+      <!-- Header -->
+      <div class="modal-header border-0 px-4 pt-4 pb-0 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle bg-success-subtle p-2 text-success d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background-color: #dcfce7;">
+            <i class="bi bi-calendar-check-fill fs-4" style="color: #16a34a;"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold text-dark fs-5 mb-0" id="bookingDetailModalLabel">Chi tiết lịch đặt sân</h5>
+            <span class="text-muted small" style="font-size: 0.8rem;">Mã đặt sân: <strong class="text-success" id="det-code">—</strong></span>
+          </div>
+        </div>
+        <button type="button" class="btn-close bg-light rounded-circle p-2" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body p-4">
+        <div class="row g-4">
+          <!-- Left Column: Customer & Match Details -->
+          <div class="col-md-7">
+            <!-- Customer Block -->
+            <div class="mb-4">
+              <h6 class="fw-bold text-muted uppercase small mb-3 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-person-fill me-2" style="color: #16a34a;"></i>THÔNG TIN KHÁCH HÀNG</h6>
+              <div class="p-3 bg-light rounded-4 border border-light-subtle" style="background-color: #f8fafc !important;">
+                <div class="mb-2">
+                  <span class="text-muted small d-block" style="font-size: 0.75rem;">Tên khách hàng</span>
+                  <span class="fw-bold text-dark fs-6" id="det-name">—</span>
+                </div>
+                <div>
+                  <span class="text-muted small d-block" style="font-size: 0.75rem;">Số điện thoại</span>
+                  <span class="fw-bold text-success fs-6" id="det-phone">—</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Match Details Block -->
+            <div>
+              <h6 class="fw-bold text-muted uppercase small mb-3 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-heptagon-fill me-2" style="color: #16a34a;"></i>THÔNG TIN TRẬN ĐẤU</h6>
+              <div class="p-3 bg-light rounded-4 border border-light-subtle" style="background-color: #f8fafc !important;">
+                <div class="row g-3">
+                  <div class="col-6">
+                    <span class="text-muted small d-block" style="font-size: 0.75rem;">Sân bóng</span>
+                    <span class="fw-bold text-dark" id="det-field">—</span>
+                  </div>
+                  <div class="col-6">
+                    <span class="text-muted small d-block" style="font-size: 0.75rem;">Trạng thái</span>
+                    <div id="det-status-badge">—</div>
+                  </div>
+                  <div class="col-12">
+                    <span class="text-muted small d-block" style="font-size: 0.75rem;">Khung giờ sử dụng</span>
+                    <span class="fw-bold text-dark fs-6"><i class="bi bi-clock me-2 text-muted"></i><span id="det-time">—</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Cost Details -->
+          <div class="col-md-5">
+            <h6 class="fw-bold text-muted uppercase small mb-3 tracking-wider" style="font-size: 0.75rem; letter-spacing: 0.05em;"><i class="bi bi-receipt-cutoff me-2" style="color: #16a34a;"></i>CHI TIẾT THANH TOÁN</h6>
+            <div class="p-4 rounded-4 shadow-sm border border-success-subtle d-flex flex-column justify-content-between" style="background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border-color: #bbf7d0 !important; border: 1px solid; min-height: 230px;">
+              <div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <span class="text-muted small" style="font-size: 0.8rem;">Giá gốc sân:</span>
+                  <span class="fw-bold text-dark" id="det-orig-price">—</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <span class="text-muted small">Đã đặt cọc trước:</span>
+                  <span class="fw-bold text-danger" id="det-deposit">—</span>
+                </div>
+                <hr class="my-3 border-secondary-subtle">
+              </div>
+              <div class="text-center py-2">
+                <span class="text-muted small d-block mb-1" style="font-size: 0.72rem; letter-spacing: 0.05em; font-weight: 700;">CẦN THANH TOÁN CÒN LẠI</span>
+                <span class="fw-bold text-success display-6" style="font-weight: 800; font-size: 1.8rem;" id="det-total-amount">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex justify-content-end gap-2" id="det-modal-footer">
+        <button type="button" class="btn btn-light px-4 py-2 rounded-3" data-bs-dismiss="modal" style="font-weight: 600;">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="footer" data-root="<%= ctx %>/"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script>
+  // ── Global Schedule / Timeline Booking Data ───────────────────────────────
+  const bookingsData = [
+    <% 
+      if (bookings != null && !bookings.isEmpty()) {
+        for (int i = 0; i < bookings.size(); i++) {
+          Map<String, Object> b = bookings.get(i);
+          long bId = ((Number) b.get("bookingId")).longValue();
+          String bCode = (String) b.get("bookingCode");
+          String bStart = (String) b.get("startTime"); 
+          String bEnd = (String) b.get("endTime");
+          String bStatus = (String) b.get("status");
+          String fieldName = (String) b.get("fieldName");
+          String customerName = (String) b.get("customerName");
+          String customerPhone = (String) b.get("customerPhone");
+          java.math.BigDecimal total = (java.math.BigDecimal) b.get("totalAmount");
+          java.math.BigDecimal deposit = (java.math.BigDecimal) b.get("depositAmount");
+          boolean hasInvoice = Boolean.TRUE.equals(b.get("hasInvoice"));
+          boolean checkoutDue = Boolean.TRUE.equals(b.get("checkoutDue"));
+    %>
+      {
+        bookingId: <%= bId %>,
+        bookingCode: "<%= bCode %>",
+        startTime: "<%= bStart %>",
+        endTime: "<%= bEnd %>",
+        status: "<%= bStatus %>",
+        fieldName: "<%= fieldName %>",
+        customerName: "<%= customerName %>",
+        customerPhone: "<%= customerPhone != null ? customerPhone : "" %>",
+        totalAmount: <%= total != null ? total : 0 %>,
+        depositAmount: <%= deposit != null ? deposit : 0 %>,
+        hasInvoice: <%= hasInvoice %>,
+        checkoutDue: <%= checkoutDue %>
+      }<%= (i < bookings.size() - 1) ? "," : "" %>
+    <% 
+        }
+      }
+    %>
+  ];
+
+  let bookingDetailModalInstance = null;
+  const isUpcomingShift = <%= isUpcomingShift %>;
+  const isEndedShift = <%= isEndedShift %>;
+
+  function handleRowClick(event, bookingId) {
+    if (event.target.closest('button') || event.target.closest('a')) {
+      return;
+    }
+    showBookingDetails(bookingId);
+  }
+
+  function fmt(amount) {
+    if (amount == null) return '—';
+    return Number(amount).toLocaleString('vi-VN') + ' ₫';
+  }
+
+  function timeOnly(dateTimeStr) {
+    if (!dateTimeStr) return '';
+    let t = dateTimeStr;
+    if (t.includes(' ')) t = t.split(' ')[1];
+    if (t.includes('.')) t = t.split('.')[0];
+    return t.substring(0, 5);
+  }
+
+  function isBookingExpired(endTimeStr) {
+    if (!endTimeStr) return false;
+    try {
+      const isoStr = endTimeStr.replace(' ', 'T').substring(0, 19);
+      const endDt = new Date(isoStr);
+      const now = new Date();
+      return endDt < now;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function isBookingLateNoShow(startTimeStr, endTimeStr) {
+    if (!startTimeStr || !endTimeStr) return false;
+    try {
+      const isoStart = startTimeStr.replace(' ', 'T').substring(0, 19);
+      const startDt = new Date(isoStart);
+      const thresholdDt = new Date(startDt.getTime() + 30 * 60 * 1000);
+      
+      const isoEnd = endTimeStr.replace(' ', 'T').substring(0, 19);
+      const endDt = new Date(isoEnd);
+      
+      const now = new Date();
+      return now > thresholdDt && now <= endDt;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function statusBadge(status, nowPlaying, isExpired, startTimeStr, endTimeStr) {
+    if (status === 'CHECKED_IN') {
+      return `<span class="badge badge-soft-info"><i class="pulse-playing me-1"></i>Đang chơi</span>`;
+    }
+    if (status === 'PENDING_CHECKOUT_PAYMENT') {
+      return `<span class="badge fw-bold" style="background:#fae8ff;color:#a21caf;"><i class="bi bi-credit-card me-1"></i>Chờ thanh toán</span>`;
+    }
+    if (status === 'COMPLETED') {
+      return `<span class="badge badge-soft-success"><i class="bi bi-check-circle me-1"></i>Đã xong</span>`;
+    }
+    if (status === 'CONFIRMED' && isBookingLateNoShow(startTimeStr, endTimeStr)) {
+      return `<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Muộn 30p</span>`;
+    }
+    if (isExpired) {
+      return `<span class="badge bg-danger-subtle text-danger fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Quá giờ</span>`;
+    }
+    return `<span class="badge badge-soft-warning"><i class="bi bi-hourglass-split me-1"></i>Chờ check-in</span>`;
+  }
+
+  function showBookingDetails(bookingId) {
+    const b = bookingsData.find(x => x.bookingId === bookingId);
+    if (!b) return;
+
+    const isExpired = isBookingExpired(b.endTime);
+
+    document.getElementById('det-code').textContent = b.bookingCode || '—';
+    document.getElementById('det-name').textContent = b.customerName || '—';
+    document.getElementById('det-phone').textContent = b.customerPhone || 'Không có SĐT';
+    document.getElementById('det-field').textContent = b.fieldName || '—';
+    document.getElementById('det-time').textContent = timeOnly(b.startTime) + " - " + timeOnly(b.endTime);
+    document.getElementById('det-status-badge').innerHTML = statusBadge(b.status, false, isExpired, b.startTime, b.endTime);
+
+    document.getElementById('det-orig-price').textContent = fmt(b.totalAmount);
+    document.getElementById('det-deposit').textContent = fmt(b.depositAmount);
+    const remaining = (b.totalAmount || 0) - (b.depositAmount || 0);
+    document.getElementById('det-total-amount').textContent = fmt(remaining >= 0 ? remaining : 0);
+
+    const footer = document.getElementById('det-modal-footer');
+    let btnHtml = '<button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>';
+
+    if (isUpcomingShift) {
+      if (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN') {
+        btnHtml += '<button class="btn btn-secondary px-3" disabled title="Chưa đến giờ làm việc"><i class="bi bi-lock-fill me-1"></i>Chờ ca trực</button>';
+      }
+    } else if (isEndedShift) {
+      if (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN') {
+        btnHtml += '<button class="btn btn-secondary px-3" disabled title="Ca trực đã kết thúc"><i class="bi bi-lock-fill me-1"></i>Hết ca trực</button>';
+      }
+    } else {
+      if (b.status === 'CONFIRMED') {
+        if (isBookingLateNoShow(b.startTime, b.endTime)) {
+          btnHtml += '<button type="button" class="btn btn-danger px-4" onclick="cancelNoshow(' + b.bookingId + ')"><i class="bi bi-x-circle me-1"></i>Hủy sân</button>';
+          btnHtml += '<a href="<%= ctx %>/staff/checkin?id=' + b.bookingId + '" class="btn btn-success px-4">Check-in</a>';
+        } else if (isExpired) {
+          btnHtml += '<button class="btn btn-secondary px-3" disabled><i class="bi bi-exclamation-circle me-1"></i>Quá giờ nhận</button>';
+        } else {
+          btnHtml += '<a href="<%= ctx %>/staff/checkin?id=' + b.bookingId + '" class="btn btn-success px-4">Check-in</a>';
+        }
+      } else if (b.status === 'CHECKED_IN') {
+        btnHtml += b.checkoutDue
+          ? ('<a href="<%= ctx %>/staff/checkout?id=' + b.bookingId + '" class="btn btn-success px-4">Checkout</a>')
+          : '<button class="btn btn-secondary px-3" disabled>Đang sử dụng</button>';
+      } else if ((b.status === 'PENDING_CHECKOUT_PAYMENT' || b.status === 'COMPLETED') && b.hasInvoice) {
+        btnHtml += '<a href="<%= ctx %>/staff/invoice?id=' + b.bookingId + '" class="btn btn-outline-secondary px-4"><i class="bi bi-file-earmark-text me-1"></i>Hóa đơn</a>';
+      }
+    }
+
+    footer.innerHTML = btnHtml;
+
+    if (bookingDetailModalInstance) {
+      bookingDetailModalInstance.show();
+    }
+  }
+
+  async function cancelNoshow(bookingId) {
+    showConfirm('Xác nhận hủy đặt sân này do khách hàng không đến nhận sân sau 30 phút?', async () => {
+      try {
+        const params = new URLSearchParams();
+        params.append('bookingId', bookingId);
+
+        const res = await fetch('<%= ctx %>/api/staff/checkin/noshow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params,
+          credentials: 'include'
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          let errMsg = 'Không rõ lỗi';
+          try {
+            const errJson = JSON.parse(errText);
+            errMsg = errJson.error || errMsg;
+          } catch(e) {}
+          throw new Error(errMsg);
+        }
+        
+        const data = await res.json();
+        if (data.success) {
+          if (bookingDetailModalInstance) {
+            bookingDetailModalInstance.hide();
+          }
+          showToastAfterReload('Đã hủy đặt sân thành công (Khách không đến)', 'success');
+          window.location.reload();
+        } else {
+          showToast('Lỗi: ' + (data.error || 'Không rõ nguyên nhân'), 'danger');
+        }
+      } catch (err) {
+        showToast('Lỗi khi hủy đặt sân: ' + err.message, 'danger');
+      }
+    });
+  }
+
   document.getElementById('date-selector')?.addEventListener('change', function() {
     window.location.href = '<%= ctx %>/staff/schedule?date=' + this.value;
   });
@@ -470,6 +779,9 @@
   document.addEventListener('DOMContentLoaded', function() {
     const modalEl = document.getElementById('fieldStatusModal');
     if (modalEl) statusModal = new bootstrap.Modal(modalEl);
+
+    const modalDetailEl = document.getElementById('bookingDetailModal');
+    if (modalDetailEl) bookingDetailModalInstance = new bootstrap.Modal(modalDetailEl);
     
     <%
       String errorParam = request.getParameter("error");
