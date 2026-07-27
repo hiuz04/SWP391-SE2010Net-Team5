@@ -73,7 +73,7 @@
   </style>
 </head>
 <body>
-<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= esc(displayName) %>" data-active="Lịch trong ngày"></div>
+<div id="navbar" data-root="<%= ctx %>/" data-role="<%= navRole %>" data-name="<%= esc(displayName) %>" data-active="Check-in/out"></div>
 
 <main class="py-5">
   <div class="container checkout-shell">

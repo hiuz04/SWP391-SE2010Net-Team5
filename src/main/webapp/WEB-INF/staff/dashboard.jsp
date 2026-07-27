@@ -419,11 +419,11 @@
             <div class="row g-3">
               <div class="col-6">
                 <a href="<%= ctx %>/staff/checkin" class="shortcut-btn w-100" id="sc-checkin">
-                  <div class="sc-icon" style="background:#dcfce7;color:#16a34a;"><i class="bi bi-person-check-fill"></i></div>Check-in
+                  <div class="sc-icon" style="background:#dcfce7;color:#16a34a;"><i class="bi bi-arrow-left-right"></i></div>Check-in/out
                 </a>
               </div>
               <div class="col-6">
-                <a href="<%= ctx %>/staff/schedule" class="shortcut-btn w-100" id="sc-checkout">
+                <a href="<%= ctx %>/staff/checkin" class="shortcut-btn w-100" id="sc-checkout">
                   <div class="sc-icon" style="background:#e0f2fe;color:#0284c7;"><i class="bi bi-receipt-cutoff"></i></div>Checkout
                 </a>
               </div>

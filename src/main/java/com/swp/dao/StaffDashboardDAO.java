@@ -274,12 +274,21 @@ public class StaffDashboardDAO {
                 SET status = 'CHECKED_IN', updated_at = GETDATE()
                 WHERE booking_id = ?
                   AND status = 'CONFIRMED'
+                  AND CAST(start_time AS DATE) = CAST(GETDATE() AS DATE)
+                  AND end_time > GETDATE()
                 """;
         String insertSql = "INSERT INTO checkins (booking_id, staff_id, checkin_time, note) VALUES (?, ?, GETDATE(), ?)";
+        String insertLogSql = """
+                INSERT INTO booking_status_logs (
+                    booking_id, old_status, new_status, changed_by, note, created_at
+                )
+                VALUES (?, 'CONFIRMED', 'CHECKED_IN', ?, ?, GETDATE())
+                """;
         try (Connection conn = DBContext.getConnection()) {
             conn.setAutoCommit(false);
             try (PreparedStatement ps1 = conn.prepareStatement(updateSql);
-                 PreparedStatement ps2 = conn.prepareStatement(insertSql)) {
+                 PreparedStatement ps2 = conn.prepareStatement(insertSql);
+                 PreparedStatement ps3 = conn.prepareStatement(insertLogSql)) {
                 // Business Rule BR-13: Chỉ booking CONFIRMED mới được chuyển sang CHECKED_IN.
                 ps1.setLong(1, bookingId);
                 int updated = ps1.executeUpdate();
@@ -292,6 +301,13 @@ public class StaffDashboardDAO {
                 ps2.setLong(2, staffId);
                 ps2.setString(3, note != null ? note : "");
                 ps2.executeUpdate();
+
+                ps3.setLong(1, bookingId);
+                ps3.setLong(2, staffId);
+                ps3.setString(3, note != null && !note.isBlank()
+                        ? note
+                        : "Staff check-in booking.");
+                ps3.executeUpdate();
                 conn.commit();
                 return true;
             } catch (SQLException e) {
@@ -316,26 +332,59 @@ public class StaffDashboardDAO {
     }
 
     public Map<String, Object> getBookingDetailForCheckin(long bookingId) {
+        return getBookingDetailForCheckin("b.booking_id = ?", ps -> ps.setLong(1, bookingId));
+    }
+
+    public Map<String, Object> getBookingDetailForCheckinByCode(String bookingCode) {
+        return getBookingDetailForCheckin("UPPER(b.booking_code) = UPPER(?)", ps -> ps.setString(1, bookingCode));
+    }
+
+    private Map<String, Object> getBookingDetailForCheckin(String whereClause, SqlBinder binder) {
         String sql = """
-                SELECT b.booking_id, b.booking_code, b.total_amount, b.deposit_amount,
+                SELECT b.booking_id, b.booking_code,
+                       b.original_price, b.discount_amount, b.total_amount, b.final_amount, b.deposit_amount,
                        b.status, b.complex_id,
                        u.full_name AS customer_name, u.phone AS customer_phone,
-                       b.start_time, b.end_time, f.field_name, fc.complex_name
+                       b.start_time, b.end_time, f.field_name, fc.complex_name,
+                       dp.status AS deposit_payment_status,
+                       dp.amount AS deposit_paid_amount,
+                       dp.paid_at AS deposit_paid_at,
+                       CASE WHEN EXISTS (
+                           SELECT 1
+                           FROM invoices i
+                           WHERE i.booking_id = b.booking_id
+                             AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
+                       ) THEN 1 ELSE 0 END AS has_invoice,
+                       CASE WHEN b.status = 'CHECKED_IN' THEN 1 ELSE 0 END AS checkout_due,
+                       CASE WHEN CAST(b.start_time AS DATE) = CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END AS booking_today,
+                       CASE WHEN b.end_time > GETDATE() THEN 1 ELSE 0 END AS not_expired
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields f ON b.field_id = f.field_id
                 JOIN football_complexes fc ON b.complex_id = fc.complex_id
-                WHERE b.booking_id = ?
-                """;
+                OUTER APPLY (
+                    SELECT TOP 1 p.status, p.amount, p.paid_at
+                    FROM payments p
+                    WHERE p.booking_id = b.booking_id
+                      AND p.payment_type = 'DEPOSIT'
+                    ORDER BY CASE WHEN p.status = 'SUCCESS' THEN 0 ELSE 1 END,
+                             p.paid_at DESC,
+                             p.payment_id DESC
+                ) dp
+                WHERE
+                """ + whereClause;
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, bookingId);
+            binder.bind(ps);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Map<String, Object> map = new LinkedHashMap<>();
                     map.put("bookingId", rs.getLong("booking_id"));
                     map.put("bookingCode", rs.getString("booking_code"));
+                    map.put("originalPrice", rs.getBigDecimal("original_price"));
+                    map.put("discountAmount", rs.getBigDecimal("discount_amount"));
                     map.put("totalAmount", rs.getBigDecimal("total_amount"));
+                    map.put("finalAmount", rs.getBigDecimal("final_amount"));
                     map.put("depositAmount", rs.getBigDecimal("deposit_amount"));
                     map.put("status", rs.getString("status"));
                     map.put("complexId", rs.getLong("complex_id"));
@@ -345,6 +394,13 @@ public class StaffDashboardDAO {
                     map.put("endTime", rs.getString("end_time"));
                     map.put("fieldName", rs.getString("field_name"));
                     map.put("complexName", rs.getString("complex_name"));
+                    map.put("paymentStatus", rs.getString("deposit_payment_status"));
+                    map.put("paymentPaidAmount", rs.getBigDecimal("deposit_paid_amount"));
+                    map.put("paymentPaidAt", rs.getString("deposit_paid_at"));
+                    map.put("hasInvoice", rs.getInt("has_invoice") == 1);
+                    map.put("checkoutDue", rs.getInt("checkout_due") == 1);
+                    map.put("bookingToday", rs.getInt("booking_today") == 1);
+                    map.put("notExpired", rs.getInt("not_expired") == 1);
                     return map;
                 }
             }
@@ -352,6 +408,11 @@ public class StaffDashboardDAO {
             throw new RuntimeException("Lỗi lấy thông tin check-in: " + e.getMessage(), e);
         }
         return Collections.emptyMap();
+    }
+
+    @FunctionalInterface
+    private interface SqlBinder {
+        void bind(PreparedStatement ps) throws SQLException;
     }
 
     /**
@@ -433,20 +494,40 @@ public class StaffDashboardDAO {
         String sql = """
                 SELECT b.booking_id, b.booking_code,
                        b.start_time, b.end_time,
-                       b.status, b.total_amount,
+                       b.status, b.total_amount, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
-                       fi.field_name
+                       fi.field_name,
+                       dp.status AS deposit_payment_status,
+                       CASE WHEN EXISTS (
+                           SELECT 1
+                           FROM invoices i
+                           WHERE i.booking_id = b.booking_id
+                             AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
+                       ) THEN 1 ELSE 0 END AS has_invoice,
+                       CASE WHEN b.status = 'CHECKED_IN' THEN 1 ELSE 0 END AS checkout_due,
+                       CASE WHEN CAST(b.start_time AS DATE) = CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END AS booking_today,
+                       CASE WHEN b.end_time > GETDATE() THEN 1 ELSE 0 END AS not_expired
                 FROM bookings b
                 JOIN users u  ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id   = fi.field_id
+                OUTER APPLY (
+                    SELECT TOP 1 p.status
+                    FROM payments p
+                    WHERE p.booking_id = b.booking_id
+                      AND p.payment_type = 'DEPOSIT'
+                    ORDER BY CASE WHEN p.status = 'SUCCESS' THEN 0 ELSE 1 END,
+                             p.paid_at DESC,
+                             p.payment_id DESC
+                ) dp
                 WHERE b.complex_id = ?
-                  AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'COMPLETED')
+                  AND b.status IN ('HOLD', 'CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT', 'COMPLETED', 'CANCELLED', 'EXPIRED')
                   AND (
                       b.booking_code LIKE ?
                       OR u.full_name LIKE ?
                       OR u.phone LIKE ?
                   )
-                ORDER BY b.start_time
+                ORDER BY CASE WHEN CAST(b.start_time AS DATE) = CAST(GETDATE() AS DATE) THEN 0 ELSE 1 END,
+                         b.start_time DESC
                 """;
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection conn = DBContext.getConnection();
@@ -465,9 +546,15 @@ public class StaffDashboardDAO {
                     row.put("endTime", rs.getString("end_time"));
                     row.put("status", rs.getString("status"));
                     row.put("totalAmount", rs.getBigDecimal("total_amount"));
+                    row.put("depositAmount", rs.getBigDecimal("deposit_amount"));
                     row.put("customerName", rs.getString("customer_name"));
                     row.put("customerPhone", rs.getString("customer_phone"));
                     row.put("fieldName", rs.getString("field_name"));
+                    row.put("paymentStatus", rs.getString("deposit_payment_status"));
+                    row.put("hasInvoice", rs.getInt("has_invoice") == 1);
+                    row.put("checkoutDue", rs.getInt("checkout_due") == 1);
+                    row.put("bookingToday", rs.getInt("booking_today") == 1);
+                    row.put("notExpired", rs.getInt("not_expired") == 1);
                     list.add(row);
                 }
             }
@@ -481,16 +568,35 @@ public class StaffDashboardDAO {
         String sql = """
                 SELECT b.booking_id, b.booking_code,
                        b.start_time, b.end_time,
-                       b.status, b.total_amount,
+                       b.status, b.total_amount, b.deposit_amount,
                        u.full_name AS customer_name, u.phone AS customer_phone,
-                       fi.field_name
+                       fi.field_name,
+                       dp.status AS deposit_payment_status,
+                       CASE WHEN EXISTS (
+                           SELECT 1
+                           FROM invoices i
+                           WHERE i.booking_id = b.booking_id
+                             AND i.status IN ('PENDING', 'PAID', 'ACTIVE')
+                       ) THEN 1 ELSE 0 END AS has_invoice,
+                       CASE WHEN b.status = 'CHECKED_IN' THEN 1 ELSE 0 END AS checkout_due,
+                       CASE WHEN CAST(b.start_time AS DATE) = CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END AS booking_today,
+                       CASE WHEN b.end_time > GETDATE() THEN 1 ELSE 0 END AS not_expired
                 FROM bookings b
                 JOIN users u  ON b.customer_id = u.user_id
                 JOIN fields fi ON b.field_id   = fi.field_id
+                OUTER APPLY (
+                    SELECT TOP 1 p.status
+                    FROM payments p
+                    WHERE p.booking_id = b.booking_id
+                      AND p.payment_type = 'DEPOSIT'
+                    ORDER BY CASE WHEN p.status = 'SUCCESS' THEN 0 ELSE 1 END,
+                             p.paid_at DESC,
+                             p.payment_id DESC
+                ) dp
                 WHERE b.complex_id = ?
-                  AND b.status = 'CONFIRMED'
+                  AND b.status IN ('CONFIRMED', 'CHECKED_IN')
                   AND CAST(b.start_time AS DATE) = CAST(GETDATE() AS DATE)
-                  AND b.end_time > GETDATE()
+                  AND (b.status <> 'CONFIRMED' OR b.end_time > GETDATE())
                 ORDER BY b.start_time
                 """;
         List<Map<String, Object>> list = new ArrayList<>();
@@ -506,9 +612,15 @@ public class StaffDashboardDAO {
                     row.put("endTime", rs.getString("end_time"));
                     row.put("status", rs.getString("status"));
                     row.put("totalAmount", rs.getBigDecimal("total_amount"));
+                    row.put("depositAmount", rs.getBigDecimal("deposit_amount"));
                     row.put("customerName", rs.getString("customer_name"));
                     row.put("customerPhone", rs.getString("customer_phone"));
                     row.put("fieldName", rs.getString("field_name"));
+                    row.put("paymentStatus", rs.getString("deposit_payment_status"));
+                    row.put("hasInvoice", rs.getInt("has_invoice") == 1);
+                    row.put("checkoutDue", rs.getInt("checkout_due") == 1);
+                    row.put("bookingToday", rs.getInt("booking_today") == 1);
+                    row.put("notExpired", rs.getInt("not_expired") == 1);
                     list.add(row);
                 }
             }
