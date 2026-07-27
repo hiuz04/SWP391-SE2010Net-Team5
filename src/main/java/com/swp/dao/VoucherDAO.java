@@ -1,7 +1,9 @@
 package com.swp.dao;
 
+import com.swp.model.User;
 import com.swp.model.Voucher;
 import com.swp.model.dto.UserVoucherDTO;
+import com.swp.model.dto.VoucherRedeemResult;
 import com.swp.model.dto.VoucherValidationResult;
 import com.swp.util.DBContext;
 
@@ -18,38 +20,34 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Quản lý dữ liệu voucher cho cả Owner và Customer: CRUD voucher, validate khi booking,
- * ghi nhận lượt sử dụng sau thanh toán và hỗ trợ đổi voucher bằng điểm thưởng.
+ * Quản lý dữ liệu voucher cho Owner, Voucher Center, booking và payment.
+ * DAO là nguồn chính cho validation/tính discount để frontend không thể gửi số tiền giảm giả.
  */
 public class VoucherDAO {
+
+    public enum UsageInsertResult {
+        INSERTED,
+        ALREADY_EXISTS,
+        CONFLICT
+    }
 
     private static final String TYPE_PERCENT = "PERCENT";
     private static final String TYPE_FIXED = "FIXED";
     private static final String STATUS_ACTIVE = "ACTIVE";
+    private static final String STATUS_DISABLED = "DISABLED";
+    private static final String USER_VOUCHER_AVAILABLE = "AVAILABLE";
+    private static final String USER_VOUCHER_RESERVED = "RESERVED";
+    private static final String USER_VOUCHER_USED = "USED";
+    private static final String DISTRIBUTION_PUBLIC_CODE = Voucher.DISTRIBUTION_PUBLIC_CODE;
+    private static final String DISTRIBUTION_REWARD_VOUCHER = Voucher.DISTRIBUTION_REWARD_VOUCHER;
+    private static final String TARGET_ALL = Voucher.TARGET_ALL;
+    private static final String TARGET_MEMBER = Voucher.TARGET_MEMBER;
 
     /**
-     * Lấy toàn bộ voucher cho màn hình quản lý của Owner.
-     * Danh sách giữ cả voucher tạm tắt/hết hạn để Owner có thể kiểm tra số lượng đã dùng.
-     * Business Rule BR-30/BR-38/BR-39: Manage Voucher hiển thị cả ACTIVE và DISABLED để Owner quản lý bằng trạng thái.
+     * Lấy toàn bộ voucher cho màn Owner, gồm cả voucher đang tắt/hết hạn để Owner theo dõi lịch sử.
      */
     public List<Voucher> getAllVouchers() throws SQLException {
-        String sql = """
-                SELECT id,
-                       code,
-                       name,
-                       discount_type,
-                       discount_value,
-                       min_order,
-                       quantity,
-                       used,
-                       start_date,
-                       end_date,
-                       status,
-                       target_user,
-                       exchange_points,
-                       created_at,
-                       updated_at
-                FROM vouchers
+        String sql = baseSelectSql() + """
                 ORDER BY created_at DESC,
                          id DESC
                 """;
@@ -65,6 +63,9 @@ public class VoucherDAO {
         return vouchers;
     }
 
+    /**
+     * Tìm voucher theo id để Owner edit hoặc các transaction booking/payment kiểm tra lại dữ liệu gốc.
+     */
     public Voucher findById(int id) throws SQLException {
         String sql = baseSelectSql() + " WHERE id = ?";
         try (Connection conn = DBContext.getConnection();
@@ -76,6 +77,9 @@ public class VoucherDAO {
         }
     }
 
+    /**
+     * Tìm voucher theo code đã trim/uppercase, dùng cho kiểm tra trùng code và PUBLIC_CODE.
+     */
     public Voucher findByCode(String code) throws SQLException {
         String normalizedCode = normalizeCode(code);
         if (normalizedCode == null || normalizedCode.isEmpty()) {
@@ -93,8 +97,7 @@ public class VoucherDAO {
     }
 
     /**
-     * Tạo voucher mới từ form Owner.
-     * Số lượt đã dùng luôn bắt đầu từ 0; servlet chịu trách nhiệm validate dữ liệu trước khi gọi DAO.
+     * Tạo voucher mới. used luôn bắt đầu bằng 0 và distribution_type quyết định ý nghĩa của used về sau.
      */
     public boolean createVoucher(Voucher voucher) throws SQLException {
         String sql = """
@@ -109,23 +112,24 @@ public class VoucherDAO {
                     start_date,
                     end_date,
                     status,
+                    distribution_type,
+                    target_user,
+                    exchange_points,
                     created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, GETDATE())
                 """;
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            // Business Rule BR-36: DAO vẫn ghi used = 0 cố định để Owner không thể tự đặt used khi tạo.
             setVoucherStatement(ps, voucher);
             return ps.executeUpdate() == 1;
         }
     }
 
     /**
-     * Cập nhật thông tin voucher mà không thay đổi cột used.
-     * Rule không cho quantity thấp hơn used được kiểm tra ở servlet trước khi update.
-     * Business Rule BR-37: Existing used count phải được giữ nguyên khi Owner chỉnh sửa voucher.
+     * Cập nhật voucher từ Owner nhưng không nhận used từ request.
+     * used chỉ thay đổi qua redeem/payment để dữ liệu không bị sửa tay.
      */
     public boolean updateVoucher(Voucher voucher) throws SQLException {
         String sql = """
@@ -139,6 +143,9 @@ public class VoucherDAO {
                     start_date = ?,
                     end_date = ?,
                     status = ?,
+                    distribution_type = ?,
+                    target_user = ?,
+                    exchange_points = ?,
                     updated_at = GETDATE()
                 WHERE id = ?
                 """;
@@ -146,14 +153,13 @@ public class VoucherDAO {
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             setVoucherStatement(ps, voucher);
-            ps.setInt(10, voucher.getId());
+            ps.setInt(13, voucher.getId());
             return ps.executeUpdate() == 1;
         }
     }
 
     /**
-     * Bật/tắt voucher theo thao tác của Owner.
-     * Chỉ đổi trạng thái, không chạm đến quantity/used để tránh ảnh hưởng lịch sử sử dụng.
+     * Bật/tắt voucher. DISABLED chặn đổi mới nhưng không thu hồi user_vouchers đã phát hành.
      */
     public boolean updateStatus(int id, String status) throws SQLException {
         String sql = """
@@ -165,7 +171,6 @@ public class VoucherDAO {
 
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            // Business Rule BR-38/BR-39: Disable voucher bằng status, không xóa dữ liệu hay thay đổi lịch sử dùng.
             ps.setString(1, normalizeStatus(status));
             ps.setInt(2, id);
             return ps.executeUpdate() == 1;
@@ -173,8 +178,31 @@ public class VoucherDAO {
     }
 
     /**
-     * Tăng số lượt đã dùng sau khi payment thành công.
-     * Điều kiện used < quantity giúp chặn việc xác nhận voucher khi số lượt đã hết.
+     * Kiểm tra voucher đã được phát hành/sử dụng chưa để Owner không sửa các trường làm giảm quyền lợi.
+     */
+    public boolean hasIssuedOrUsed(int voucherId) throws SQLException {
+        String sql = """
+                SELECT 1
+                WHERE EXISTS (
+                    SELECT 1 FROM user_vouchers WHERE voucher_id = ?
+                )
+                   OR EXISTS (
+                    SELECT 1 FROM voucher_usages WHERE voucher_id = ?
+                )
+                """;
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, voucherId);
+            ps.setInt(2, voucherId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    /**
+     * Tăng used cho PUBLIC_CODE sau payment success hoặc cho REWARD_VOUCHER sau redeem.
+     * Điều kiện used < quantity chặn vượt số lượng khi nhiều transaction chạy song song.
      */
     public boolean incrementUsed(int voucherId, Connection conn) throws SQLException {
         String sql = """
@@ -184,10 +212,12 @@ public class VoucherDAO {
                 WHERE id = ?
                   AND used < quantity
                 """;
-        // Business Rule BR-11: Chỉ payment success gọi hàm này, và SQL vẫn chặn tăng used vượt quantity.
         return updateUsedCounter(voucherId, conn, sql);
     }
 
+    /**
+     * Giảm used khi cần rollback nghiệp vụ phát hành; không dùng cho payment thất bại thông thường.
+     */
     public boolean decrementUsed(int voucherId, Connection conn) throws SQLException {
         String sql = """
                 UPDATE vouchers
@@ -200,90 +230,571 @@ public class VoucherDAO {
     }
 
     public VoucherValidationResult validateVoucher(String code, BigDecimal orderAmount) throws SQLException {
-        return validateVoucher(code, orderAmount, null);
+        return validatePublicVoucher(code, orderAmount, null);
+    }
+
+    public VoucherValidationResult validateVoucher(String code, BigDecimal orderAmount, Long customerId) throws SQLException {
+        User customer = null;
+        if (customerId != null && customerId > 0) {
+            customer = new User();
+            customer.setUserId(customerId);
+        }
+        return validatePublicVoucher(code, orderAmount, customer);
     }
 
     /**
-     * Validate voucher Customer nhập khi xác nhận booking.
-     * Method kiểm tra tồn tại, trạng thái, thời gian hiệu lực, min order, số lượt còn lại và lịch sử dùng của Customer.
+     * Validate mã công khai khi Customer nhập ở booking confirmation.
+     * PUBLIC_CODE không cần user_vouchers, nhưng vẫn kiểm tra target_user và lịch sử sử dụng.
      */
-    public VoucherValidationResult validateVoucher(String code, BigDecimal orderAmount, Long customerId) throws SQLException {
+    public VoucherValidationResult validatePublicVoucher(String code, BigDecimal orderAmount, User customer) throws SQLException {
         BigDecimal safeOrderAmount = money(orderAmount);
         Voucher voucher = findByCode(code);
-        // Business Rule BR-09: Voucher phải tồn tại trước khi xét các điều kiện áp dụng.
+
         if (voucher == null) {
-            return VoucherValidationResult.invalid("Mã giảm giá không tồn tại.");
+            return VoucherValidationResult.invalid("Mã voucher không tồn tại.");
         }
-
-        // Business Rule BR-09: Voucher chỉ được áp dụng khi đang ACTIVE.
+        if (!DISTRIBUTION_PUBLIC_CODE.equalsIgnoreCase(nullToDefault(voucher.getDistributionType(), DISTRIBUTION_PUBLIC_CODE))) {
+            return VoucherValidationResult.invalid("Mã voucher này không phải mã công khai.");
+        }
         if (!STATUS_ACTIVE.equalsIgnoreCase(voucher.getStatus())) {
-            return VoucherValidationResult.invalid("Mã giảm giá không còn hoạt động.");
+            return VoucherValidationResult.invalid("Voucher không còn hoạt động.");
         }
-
-        LocalDateTime now = LocalDateTime.now();
-        // Business Rule BR-09: Thời điểm hiện tại phải nằm trong khoảng start/end date của voucher.
-        if (voucher.getStartDate() == null || voucher.getStartDate().isAfter(now)) {
-            return VoucherValidationResult.invalid("Mã giảm giá chưa đến thời gian sử dụng.");
+        VoucherValidationResult commonResult = validateCommonVoucherRules(voucher, safeOrderAmount, false, isVipCurrentlyValid(customer));
+        if (!commonResult.isValid()) {
+            return commonResult;
         }
-        if (voucher.getEndDate() == null || voucher.getEndDate().isBefore(now)) {
-            return VoucherValidationResult.invalid("Mã giảm giá đã hết hạn.");
-        }
-        // Business Rule BR-09: Mỗi Customer chỉ được dùng một voucher cụ thể một lần.
-        if (customerId != null
-                && customerId > 0
-                && hasCustomerUsedVoucher(voucher.getId(), customerId)) {
+        if (customer != null
+                && customer.getUserId() != null
+                && hasCustomerUsedVoucher(voucher.getId(), customer.getUserId())) {
             return VoucherValidationResult.invalid("Bạn đã sử dụng mã giảm giá này.");
         }
-        // Business Rule BR-09: Voucher phải còn số lượng chưa sử dụng.
-        if (voucher.getUsed() >= voucher.getQuantity()) {
-            return VoucherValidationResult.invalid("Mã giảm giá đã hết lượt sử dụng.");
-        }
-
-        BigDecimal minOrder = money(voucher.getMinOrder());
-        // Business Rule BR-09: Giá trị đơn hàng phải đạt mức tối thiểu của voucher.
-        if (safeOrderAmount.compareTo(minOrder) < 0) {
-            return VoucherValidationResult.invalid("Đơn hàng chưa đạt giá trị tối thiểu để dùng mã giảm giá.");
-        }
-
-        BigDecimal discountValue = money(voucher.getDiscountValue());
-        if (discountValue.signum() <= 0) {
-            return VoucherValidationResult.invalid("Giá trị mã giảm giá không hợp lệ.");
-        }
-
-        // Business Rule BR-10: Tính số tiền giảm theo loại voucher, sau đó chặn mức giảm không vượt quá giá trị đơn hàng.
-        String type = normalizeType(voucher.getDiscountType());
-        BigDecimal discountAmount;
-        if (TYPE_PERCENT.equals(type)) {
-            if (discountValue.compareTo(BigDecimal.ONE) < 0
-                    || discountValue.compareTo(BigDecimal.valueOf(100)) > 0) {
-                return VoucherValidationResult.invalid("Giá trị mã giảm theo phần trăm không hợp lệ.");
-            }
-            discountAmount = safeOrderAmount
-                    .multiply(discountValue)
-                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        } else if (TYPE_FIXED.equals(type)) {
-            discountAmount = discountValue.setScale(2, RoundingMode.HALF_UP);
-        } else {
-            return VoucherValidationResult.invalid("Loại mã giảm giá không hợp lệ.");
-        }
-
-        // Business Rule BR-10: Discount không được làm final amount âm.
-        if (discountAmount.compareTo(safeOrderAmount) > 0) {
-            discountAmount = safeOrderAmount;
-        }
-
-        BigDecimal finalAmount = safeOrderAmount.subtract(discountAmount).setScale(2, RoundingMode.HALF_UP);
-        return VoucherValidationResult.valid(voucher, discountAmount, finalAmount);
+        return buildDiscountResult(voucher, null, safeOrderAmount);
     }
 
+    /**
+     * Validate voucher đổi điểm đã thuộc sở hữu Customer trước khi preview/tạo booking.
+     */
+    public VoucherValidationResult validateOwnedRewardVoucher(long userVoucherId, BigDecimal orderAmount, long customerId)
+            throws SQLException {
+        try (Connection conn = DBContext.getConnection()) {
+            return validateOwnedRewardVoucher(conn, userVoucherId, orderAmount, customerId, false);
+        }
+    }
+
+    /**
+     * Validate và khóa user_vouchers khi booking đang chuẩn bị reserve voucher.
+     * Khi forUpdate=true, UPDLOCK/HOLDLOCK chặn cùng voucher bị dùng cho hai booking HOLD song song.
+     */
+    public VoucherValidationResult validateOwnedRewardVoucher(
+            Connection conn,
+            long userVoucherId,
+            BigDecimal orderAmount,
+            long customerId,
+            boolean forUpdate
+    ) throws SQLException {
+        if (userVoucherId <= 0 || customerId <= 0) {
+            return VoucherValidationResult.invalid("Voucher không hợp lệ.");
+        }
+
+        String lockHint = forUpdate ? " WITH (UPDLOCK, HOLDLOCK) " : "";
+        String sql = """
+                SELECT uv.user_voucher_id,
+                       uv.user_id,
+                       uv.status AS user_voucher_status,
+                       uv.expired_at,
+                       v.id,
+                       v.code,
+                       v.name,
+                       v.discount_type,
+                       v.discount_value,
+                       v.min_order,
+                       v.quantity,
+                       v.used,
+                       v.start_date,
+                       v.end_date,
+                       v.status,
+                       v.distribution_type,
+                       v.target_user,
+                       v.exchange_points,
+                       v.created_at,
+                       v.updated_at
+                FROM user_vouchers uv
+                JOIN vouchers v ON uv.voucher_id = v.id
+                WHERE uv.user_voucher_id = ?
+                """.replace("user_vouchers uv", "user_vouchers uv" + lockHint);
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userVoucherId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return VoucherValidationResult.invalid("Voucher không tồn tại.");
+                }
+
+                if (rs.getLong("user_id") != customerId) {
+                    return VoucherValidationResult.invalid("Bạn không sở hữu voucher này.");
+                }
+                String userVoucherStatus = rs.getString("user_voucher_status");
+                if (!USER_VOUCHER_AVAILABLE.equalsIgnoreCase(userVoucherStatus)) {
+                    if (USER_VOUCHER_RESERVED.equalsIgnoreCase(userVoucherStatus)) {
+                        return VoucherValidationResult.invalid("Voucher đang được giữ cho booking khác.");
+                    }
+                    return VoucherValidationResult.invalid("Voucher đã được sử dụng.");
+                }
+                LocalDateTime expiredAt = toLocalDateTime(rs.getTimestamp("expired_at"));
+                if (expiredAt == null || expiredAt.isBefore(LocalDateTime.now())) {
+                    return VoucherValidationResult.invalid("Voucher đã hết hạn.");
+                }
+
+                Voucher voucher = mapVoucher(rs);
+                if (!DISTRIBUTION_REWARD_VOUCHER.equalsIgnoreCase(voucher.getDistributionType())) {
+                    return VoucherValidationResult.invalid("Voucher này không phải voucher đổi điểm.");
+                }
+
+                VoucherValidationResult commonResult = validateCommonVoucherRules(voucher, money(orderAmount), true, true);
+                if (!commonResult.isValid()) {
+                    return commonResult;
+                }
+
+                if (forUpdate && isUserVoucherHeldByActiveBooking(conn, userVoucherId)) {
+                    return VoucherValidationResult.invalid("Voucher đang được giữ cho booking khác.");
+                }
+
+                return buildDiscountResult(voucher, userVoucherId, money(orderAmount));
+            }
+        }
+    }
+
+    /**
+     * Danh sách voucher đổi điểm đang có thể hiển thị ở Voucher Center.
+     * Filter ALL/MEMBER áp dụng target_user, không bao giờ áp dụng discount_type.
+     */
+    public List<Voucher> getAllExchangeVouchers(String targetUser, boolean activeVip) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT id,
+                       code,
+                       name,
+                       discount_type,
+                       discount_value,
+                       min_order,
+                       quantity,
+                       used,
+                       start_date,
+                       end_date,
+                       status,
+                       distribution_type,
+                       target_user,
+                       exchange_points,
+                       created_at,
+                       updated_at
+                FROM vouchers
+                WHERE status = 'ACTIVE'
+                  AND distribution_type = 'REWARD_VOUCHER'
+                  AND exchange_points > 0
+                  AND quantity > used
+                  AND start_date <= GETDATE()
+                  AND end_date >= GETDATE()
+                """);
+
+        if (activeVip) {
+            sql.append(" AND target_user IN ('ALL', 'MEMBER') ");
+        } else {
+            sql.append(" AND target_user = 'ALL' ");
+        }
+
+        boolean hasTargetFilter = TARGET_ALL.equalsIgnoreCase(targetUser) || TARGET_MEMBER.equalsIgnoreCase(targetUser);
+        if (hasTargetFilter) {
+            sql.append(" AND target_user = ? ");
+        }
+        sql.append(" ORDER BY exchange_points ASC, end_date ASC, id ASC");
+
+        List<Voucher> list = new ArrayList<>();
+        try (Connection con = DBContext.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql.toString())) {
+
+            if (hasTargetFilter) {
+                ps.setString(1, normalizeTargetUser(targetUser));
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapVoucher(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi lấy danh sách voucher đổi", e);
+        }
+        return list;
+    }
+
+    /**
+     * Đổi voucher bằng điểm trong một transaction: khóa voucher, khóa user, trừ điểm, tạo user_vouchers và tăng used.
+     */
+    public VoucherRedeemResult redeemVoucher(long userId, long voucherId) {
+        String getVoucherSql = baseSelectSql().replace("FROM vouchers", "FROM vouchers WITH (UPDLOCK, HOLDLOCK)") + """
+                WHERE id = ?
+                """;
+        String getUserSql = """
+                SELECT u.user_id,
+                       u.available_reward_points,
+                       u.is_vip,
+                       u.vip_valid_until,
+                       r.role_name
+                FROM users u WITH (UPDLOCK, HOLDLOCK)
+                JOIN roles r ON u.role_id = r.role_id
+                WHERE u.user_id = ?
+                """;
+        String existingSql = """
+                SELECT 1
+                FROM user_vouchers WITH (UPDLOCK, HOLDLOCK)
+                WHERE user_id = ?
+                  AND voucher_id = ?
+                  AND status IN ('AVAILABLE', 'RESERVED')
+                  AND expired_at >= GETDATE()
+                """;
+        String updatePointSql = """
+                UPDATE users
+                SET available_reward_points = available_reward_points - ?
+                WHERE user_id = ?
+                  AND available_reward_points >= ?
+                """;
+        String insertUserVoucherSql = """
+                INSERT INTO user_vouchers
+                    (user_id, voucher_id, status, received_at, expired_at)
+                VALUES (?, ?, 'AVAILABLE', GETDATE(), ?)
+                """;
+
+        Connection conn = null;
+        boolean originalAutoCommit = true;
+
+        try {
+            conn = DBContext.getConnection();
+            originalAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+
+            Voucher voucher;
+            // Khóa voucher để hai khách hàng không cùng đổi lượt cuối cùng.
+            try (PreparedStatement ps = conn.prepareStatement(getVoucherSql)) {
+                ps.setLong(1, voucherId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        conn.rollback();
+                        return VoucherRedeemResult.failure("Voucher không tồn tại.");
+                    }
+                    voucher = mapVoucher(rs);
+                }
+            }
+
+            // Validation nghiệp vụ chạy trong transaction sau khi voucher đã bị khóa.
+            VoucherValidationResult common = validateRedeemableVoucher(voucher);
+            if (!common.isValid()) {
+                conn.rollback();
+                return VoucherRedeemResult.failure(common.getMessage());
+            }
+
+            int userPoint;
+            boolean activeVip;
+            String roleName;
+            // Khóa dòng user để phép trừ điểm không bị chạy hai lần song song.
+            try (PreparedStatement ps = conn.prepareStatement(getUserSql)) {
+                ps.setLong(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        conn.rollback();
+                        return VoucherRedeemResult.failure("Bạn chưa đăng nhập.");
+                    }
+                    userPoint = rs.getInt("available_reward_points");
+                    roleName = rs.getString("role_name");
+                    LocalDateTime vipValidUntil = toLocalDateTime(rs.getTimestamp("vip_valid_until"));
+                    activeVip = rs.getBoolean("is_vip")
+                            && vipValidUntil != null
+                            && vipValidUntil.isAfter(LocalDateTime.now());
+                }
+            }
+
+            if (!"CUSTOMER".equalsIgnoreCase(roleName)) {
+                conn.rollback();
+                return VoucherRedeemResult.failure("Chỉ khách hàng mới được đổi voucher.");
+            }
+            if (TARGET_MEMBER.equalsIgnoreCase(voucher.getTargetUser()) && !activeVip) {
+                conn.rollback();
+                return VoucherRedeemResult.failure("Voucher chỉ dành cho thành viên VIP còn hạn.");
+            }
+            if (userPoint < voucher.getExchangePoint()) {
+                conn.rollback();
+                return VoucherRedeemResult.failure("Bạn không đủ điểm để đổi voucher.");
+            }
+
+            // Chặn một Customer giữ nhiều bản AVAILABLE/RESERVED của cùng voucher khi business rule chỉ cho một lượt.
+            try (PreparedStatement ps = conn.prepareStatement(existingSql)) {
+                ps.setLong(1, userId);
+                ps.setLong(2, voucherId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        conn.rollback();
+                        return VoucherRedeemResult.failure("Bạn đã đổi voucher này.");
+                    }
+                }
+            }
+
+            // Trừ điểm bằng điều kiện SQL để exchange_points âm/thiếu điểm không thể làm tăng điểm.
+            try (PreparedStatement ps = conn.prepareStatement(updatePointSql)) {
+                ps.setInt(1, voucher.getExchangePoint());
+                ps.setLong(2, userId);
+                ps.setInt(3, voucher.getExchangePoint());
+                if (ps.executeUpdate() != 1) {
+                    conn.rollback();
+                    return VoucherRedeemResult.failure("Bạn không đủ điểm để đổi voucher.");
+                }
+            }
+
+            // used của REWARD_VOUCHER là số lượt đã phát hành, tăng đúng một lần tại redeem.
+            if (!incrementUsed(voucher.getId(), conn)) {
+                conn.rollback();
+                return VoucherRedeemResult.failure("Voucher đã hết số lượng.");
+            }
+
+            // Cấp voucher cho Customer với hạn bằng end_date của voucher gốc tại thời điểm đổi.
+            try (PreparedStatement ps = conn.prepareStatement(insertUserVoucherSql)) {
+                ps.setLong(1, userId);
+                ps.setLong(2, voucherId);
+                ps.setTimestamp(3, Timestamp.valueOf(voucher.getEndDate()));
+                ps.executeUpdate();
+            }
+
+            conn.commit();
+            return VoucherRedeemResult.success("Đổi voucher thành công.");
+        } catch (Exception e) {
+            if (conn != null) {
+                try {
+                    // Rollback toàn bộ để không có trạng thái đã trừ điểm nhưng chưa cấp voucher.
+                    conn.rollback();
+                } catch (SQLException ignored) {
+                }
+            }
+            return VoucherRedeemResult.failure("Đã có lỗi xảy ra, vui lòng thử lại sau.");
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(originalAutoCommit);
+                    conn.close();
+                } catch (SQLException ignored) {
+                }
+            }
+        }
+    }
+
+    /**
+     * Lấy danh sách voucher của Customer, gồm AVAILABLE/RESERVED/USED và EXPIRED tính động.
+     */
+    public List<UserVoucherDTO> getUserVouchers(long userId, String status) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT * FROM (
+                SELECT
+                    uv.user_voucher_id,
+                    uv.voucher_id,
+                    v.code AS voucher_code,
+                    v.name AS voucher_name,
+                    v.discount_type,
+                    v.discount_value,
+                    v.min_order,
+                    v.exchange_points,
+                    uv.received_at,
+                    uv.expired_at,
+                    uv.used_at,
+                    held.booking_id AS reserved_booking_id,
+                    held.booking_code AS reserved_booking_code,
+                    CASE
+                        WHEN uv.status = 'USED' THEN 'USED'
+                        WHEN uv.status <> 'USED' AND uv.expired_at < SYSDATETIME() THEN 'EXPIRED'
+                        ELSE uv.status
+                    END AS effective_status
+                FROM user_vouchers uv
+                JOIN vouchers v ON uv.voucher_id = v.id
+                OUTER APPLY (
+                    SELECT TOP 1 b.booking_id, b.booking_code
+                    FROM bookings b
+                    WHERE b.user_voucher_id = uv.user_voucher_id
+                      AND b.status IN ('HOLD', 'CONFIRMED', 'CHECKED_IN')
+                    ORDER BY b.created_at DESC, b.booking_id DESC
+                ) held
+                WHERE uv.user_id = ?
+                  AND v.distribution_type = 'REWARD_VOUCHER'
+            ) t
+            """);
+
+        boolean hasFilter = status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status);
+        if (hasFilter) {
+            sql.append(" WHERE effective_status = ? ");
+        }
+        sql.append(" ORDER BY expired_at ASC, user_voucher_id DESC");
+
+        List<UserVoucherDTO> result = new ArrayList<>();
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            ps.setLong(1, userId);
+            if (hasFilter) {
+                ps.setString(2, status.toUpperCase(Locale.ROOT));
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(mapUserVoucherDTO(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi lấy danh sách voucher của user", e);
+        }
+        return result;
+    }
+
+    /**
+     * Lấy voucher AVAILABLE để hiển thị trong booking confirmation.
+     * Voucher đã đổi vẫn được dùng nếu voucher gốc bị DISABLED sau khi phát hành.
+     */
+    public List<UserVoucherDTO> getAvailableUserVouchersForBooking(long userId, BigDecimal orderAmount) throws SQLException {
+        String sql = """
+                SELECT
+                    uv.user_voucher_id,
+                    uv.voucher_id,
+                    v.code AS voucher_code,
+                    v.name AS voucher_name,
+                    v.discount_type,
+                    v.discount_value,
+                    v.min_order,
+                    v.exchange_points,
+                    uv.received_at,
+                    uv.expired_at,
+                    uv.used_at,
+                    CAST(NULL AS BIGINT) AS reserved_booking_id,
+                    CAST(NULL AS NVARCHAR(50)) AS reserved_booking_code,
+                    'AVAILABLE' AS effective_status
+                FROM user_vouchers uv
+                JOIN vouchers v ON uv.voucher_id = v.id
+                WHERE uv.user_id = ?
+                  AND uv.status = 'AVAILABLE'
+                  AND uv.expired_at >= GETDATE()
+                  AND v.distribution_type = 'REWARD_VOUCHER'
+                  AND v.start_date <= GETDATE()
+                  AND v.end_date >= GETDATE()
+                  AND v.min_order <= ?
+                ORDER BY uv.expired_at ASC, v.discount_value DESC
+                """;
+
+        List<UserVoucherDTO> result = new ArrayList<>();
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            ps.setBigDecimal(2, money(orderAmount));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(mapUserVoucherDTO(rs));
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Chuyển user_vouchers AVAILABLE sang RESERVED khi booking HOLD được tạo.
+     */
+    public VoucherValidationResult reserveOwnedRewardVoucher(
+            Connection conn,
+            long userVoucherId,
+            long customerId,
+            BigDecimal orderAmount
+    ) throws SQLException {
+        VoucherValidationResult validation = validateOwnedRewardVoucher(conn, userVoucherId, orderAmount, customerId, true);
+        if (!validation.isValid()) {
+            return validation;
+        }
+
+        String updateSql = """
+                UPDATE user_vouchers
+                SET status = 'RESERVED'
+                WHERE user_voucher_id = ?
+                  AND user_id = ?
+                  AND status = 'AVAILABLE'
+                  AND expired_at >= GETDATE()
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+            ps.setLong(1, userVoucherId);
+            ps.setLong(2, customerId);
+            if (ps.executeUpdate() != 1) {
+                return VoucherValidationResult.invalid("Voucher đang được giữ cho booking khác.");
+            }
+        }
+        return validation;
+    }
+
+    /**
+     * Trả voucher RESERVED về AVAILABLE khi booking bị hủy hoặc HOLD hết hạn.
+     */
+    public boolean releaseReservedUserVoucher(Connection conn, long userVoucherId, long customerId) throws SQLException {
+        if (userVoucherId <= 0 || customerId <= 0) {
+            return false;
+        }
+        String sql = """
+                UPDATE user_vouchers
+                SET status = 'AVAILABLE'
+                WHERE user_voucher_id = ?
+                  AND user_id = ?
+                  AND status = 'RESERVED'
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userVoucherId);
+            ps.setLong(2, customerId);
+            return ps.executeUpdate() == 1;
+        }
+    }
+
+    /**
+     * Đánh dấu voucher đã đổi là USED khi payment success.
+     */
+    public boolean markUserVoucherUsed(Connection conn, long userVoucherId, long customerId) throws SQLException {
+        if (userVoucherId <= 0 || customerId <= 0) {
+            return false;
+        }
+        String sql = """
+                UPDATE user_vouchers
+                SET status = 'USED',
+                    used_at = COALESCE(used_at, GETDATE())
+                WHERE user_voucher_id = ?
+                  AND user_id = ?
+                  AND status IN ('RESERVED', 'AVAILABLE')
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userVoucherId);
+            ps.setLong(2, customerId);
+            if (ps.executeUpdate() == 1) {
+                return true;
+            }
+        }
+
+        String checkSql = """
+                SELECT 1
+                FROM user_vouchers
+                WHERE user_voucher_id = ?
+                  AND user_id = ?
+                  AND status = 'USED'
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+            ps.setLong(1, userVoucherId);
+            ps.setLong(2, customerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    /**
+     * Kiểm tra Customer đã dùng PUBLIC_CODE này chưa.
+     */
     public boolean hasCustomerUsedVoucher(int voucherId, long customerId) throws SQLException {
         return hasCustomerUsedVoucher(voucherId, customerId, null);
     }
 
-    /**
-     * Kiểm tra Customer đã dùng voucher hay chưa.
-     * Khi truyền connection từ payment transaction, việc kiểm tra dùng chung snapshot/lock với bước ghi nhận usage.
-     */
     public boolean hasCustomerUsedVoucher(int voucherId, long customerId, Connection conn) throws SQLException {
         if (voucherId <= 0 || customerId <= 0) {
             return false;
@@ -294,6 +805,7 @@ public class VoucherDAO {
                 FROM voucher_usages
                 WHERE voucher_id = ?
                   AND customer_id = ?
+                  AND user_voucher_id IS NULL
                 """;
 
         if (conn != null) {
@@ -317,315 +829,222 @@ public class VoucherDAO {
     }
 
     /**
-     * Ghi nhận một lần sử dụng voucher sau khi payment thành công.
-     * NOT EXISTS kèm UPDLOCK/HOLDLOCK đảm bảo cùng một Customer không thể ghi trùng voucher trong các callback song song.
+     * Ghi usage idempotent cho booking payment success.
+     * Kết quả INSERTED mới được phép tăng used cho PUBLIC_CODE; ALREADY_EXISTS không tăng lại.
      */
-    public boolean recordUsage(
+    public UsageInsertResult recordUsageIfAbsent(
             int voucherId,
+            Long userVoucherId,
             long customerId,
             long bookingId,
             long paymentId,
             Connection conn
     ) throws SQLException {
         if (voucherId <= 0 || customerId <= 0 || bookingId <= 0 || paymentId <= 0) {
-            return false;
+            return UsageInsertResult.CONFLICT;
         }
 
-        String sql = """
-                INSERT INTO voucher_usages (
-                    voucher_id,
-                    customer_id,
-                    booking_id,
-                    payment_id,
-                    used_at
-                )
-                SELECT ?, ?, ?, ?, GETDATE()
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM voucher_usages WITH (UPDLOCK, HOLDLOCK)
-                    WHERE voucher_id = ?
-                      AND customer_id = ?
-                )
-                """;
-
-        // Business Rule BR-11: Voucher usage chỉ được ghi từ transaction payment thành công.
-        if (conn != null) {
-            return insertUsage(conn, sql, voucherId, customerId, bookingId, paymentId);
-        }
-
-        try (Connection ownConn = DBContext.getConnection()) {
-            return insertUsage(ownConn, sql, voucherId, customerId, bookingId, paymentId);
-        }
-    }
-
-    public List<Voucher> getAllExchangeVouchers(String targetUser, boolean isVip) {
-
-        StringBuilder sql = new StringBuilder("""
-        SELECT *
-        FROM vouchers
-        WHERE status = 'ACTIVE'
-          AND quantity > used
-          AND start_date <= GETDATE()
-          AND end_date >= GETDATE()
-        """);
-
-        // Chỉ VIP mới được xem voucher MEMBER
-        if (isVip) {
-            sql.append(" AND target_user IN ('ALL', 'MEMBER') ");
+        String sql;
+        if (userVoucherId == null) {
+            sql = """
+                    INSERT INTO voucher_usages (
+                        voucher_id,
+                        user_voucher_id,
+                        customer_id,
+                        booking_id,
+                        payment_id,
+                        used_at
+                    )
+                    SELECT ?, NULL, ?, ?, ?, GETDATE()
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM voucher_usages WITH (UPDLOCK, HOLDLOCK)
+                        WHERE booking_id = ?
+                    )
+                      AND NOT EXISTS (
+                        SELECT 1 FROM voucher_usages WITH (UPDLOCK, HOLDLOCK)
+                        WHERE voucher_id = ?
+                          AND customer_id = ?
+                          AND user_voucher_id IS NULL
+                    )
+                    """;
         } else {
-            sql.append(" AND target_user = 'ALL' ");
+            sql = """
+                    INSERT INTO voucher_usages (
+                        voucher_id,
+                        user_voucher_id,
+                        customer_id,
+                        booking_id,
+                        payment_id,
+                        used_at
+                    )
+                    SELECT ?, ?, ?, ?, ?, GETDATE()
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM voucher_usages WITH (UPDLOCK, HOLDLOCK)
+                        WHERE booking_id = ?
+                    )
+                      AND NOT EXISTS (
+                        SELECT 1 FROM voucher_usages WITH (UPDLOCK, HOLDLOCK)
+                        WHERE user_voucher_id = ?
+                    )
+                    """;
         }
 
-        boolean hasFilter = targetUser != null
-                && !targetUser.isBlank()
-                && !"ALL_TYPE".equalsIgnoreCase(targetUser);
-
-        if (hasFilter) {
-            sql.append(" AND discount_type = ? ");
-        }
-
-        sql.append(" ORDER BY exchange_points ASC");
-
-        List<Voucher> list = new ArrayList<>();
-
-        try (Connection con = DBContext.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql.toString())) {
-
-            if (hasFilter) {
-                ps.setString(1, targetUser.toUpperCase());
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            int index = 1;
+            ps.setInt(index++, voucherId);
+            if (userVoucherId != null) {
+                ps.setLong(index++, userVoucherId);
             }
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    list.add(mapVoucher(rs));
-                }
+            ps.setLong(index++, customerId);
+            ps.setLong(index++, bookingId);
+            ps.setLong(index++, paymentId);
+            ps.setLong(index++, bookingId);
+            if (userVoucherId == null) {
+                ps.setInt(index++, voucherId);
+                ps.setLong(index, customerId);
+            } else {
+                ps.setLong(index, userVoucherId);
             }
-
-        } catch (SQLException e) {
-            throw new RuntimeException("Lỗi khi lấy danh sách voucher đổi", e);
+            if (ps.executeUpdate() == 1) {
+                return UsageInsertResult.INSERTED;
+            }
         }
 
-        return list;
+        return voucherUsageExistsForBooking(conn, bookingId)
+                ? UsageInsertResult.ALREADY_EXISTS
+                : UsageInsertResult.CONFLICT;
     }
 
-    public boolean redeemVoucher(long userId, long voucherId) {
-        String getVoucherSql = """
-                SELECT * FROM vouchers WITH (UPDLOCK, ROWLOCK)
-                WHERE id = ?
+    public int countAllStatusVoucher() {
+        String sql = """
+            SELECT COUNT(*)
+            FROM vouchers
+            WHERE status = 'ACTIVE'
+              AND quantity > used
+              AND start_date <= GETDATE()
+              AND end_date >= GETDATE()
             """;
-
-        String getUserSql = """
-                SELECT available_reward_points
-                FROM users WITH (UPDLOCK, ROWLOCK)
-                WHERE user_id = ?
-            """;
-
-        String updatePointSql = """
-                UPDATE users
-                SET available_reward_points = available_reward_points - ?
-                WHERE user_id = ? AND available_reward_points >= ?
-            """;
-
-        String updateVoucherSql = """
-                UPDATE vouchers
-                SET used = used + 1
-                WHERE id = ? AND used < quantity AND status = 'ACTIVE'
-            """;
-
-        String insertUserVoucherSql = """
-                INSERT INTO user_vouchers
-                (user_id, voucher_id, status, received_at, expired_at)
-                VALUES (?, ?, 'AVAILABLE', GETDATE(), ?)
-            """;
-
-        Connection conn = null;
-
-        try {
-            conn = DBContext.getConnection();
-            conn.setAutoCommit(false);
-
-            int exchangePoint;
-            Timestamp endDate;
-            String status;
-
-            // Lấy thông tin voucher (khóa dòng để tránh race condition)
-            try (PreparedStatement ps = conn.prepareStatement(getVoucherSql)) {
-                ps.setLong(1, voucherId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) {
-                        conn.rollback();
-                        return false;
-                    }
-                    exchangePoint = rs.getInt("exchange_points");
-                    endDate = rs.getTimestamp("end_date");
-                    status = rs.getString("status");
-                }
-            }
-
-            if (!"ACTIVE".equalsIgnoreCase(status)) {
-                conn.rollback();
-                return false;
-            }
-
-            int userPoint;
-
-            // Lấy điểm user (khóa dòng)
-            try (PreparedStatement ps = conn.prepareStatement(getUserSql)) {
-                ps.setLong(1, userId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) {
-                        conn.rollback();
-                        return false;
-                    }
-                    userPoint = rs.getInt("available_reward_points");
-                }
-            }
-
-            if (userPoint < exchangePoint) {
-                conn.rollback();
-                return false;
-            }
-
-            // Trừ điểm - điều kiện chặn double-check ngay trong SQL
-            try (PreparedStatement ps = conn.prepareStatement(updatePointSql)) {
-                ps.setInt(1, exchangePoint);
-                ps.setLong(2, userId);
-                ps.setInt(3, exchangePoint);
-                int rows = ps.executeUpdate();
-                if (rows == 0) {
-                    conn.rollback();
-                    return false;
-                }
-            }
-
-            // Tăng used - điều kiện chặn double-check ngay trong SQL
-            try (PreparedStatement ps = conn.prepareStatement(updateVoucherSql)) {
-                ps.setLong(1, voucherId);
-                int rows = ps.executeUpdate();
-                if (rows == 0) {
-                    conn.rollback();
-                    return false;
-                }
-            }
-
-            // Thêm vào kho voucher của user
-            try (PreparedStatement ps = conn.prepareStatement(insertUserVoucherSql)) {
-                ps.setLong(1, userId);
-                ps.setLong(2, voucherId);
-                ps.setTimestamp(3, endDate);
-                ps.executeUpdate();
-            }
-
-            conn.commit();
-            return true;
-
-        } catch (Exception e) {
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                } catch (SQLException ex) {
-                    ex.printStackTrace();
-                }
-            }
-            e.printStackTrace();
-            return false;
-
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException ex) {
-                    ex.printStackTrace();
-                }
-            }
-        }
-    }
-
-    public List<UserVoucherDTO> getUserVouchers(long userId, String status) {
-        StringBuilder sql = new StringBuilder("""
-            SELECT * FROM (
-                SELECT
-                    uv.user_voucher_id,
-                    uv.voucher_id,
-                    v.code AS voucher_code,
-                    v.name AS voucher_name,
-                    v.discount_type,
-                    v.discount_value,
-                    v.min_order,
-                    v.exchange_points,
-                    uv.received_at,
-                    uv.expired_at,
-                    uv.used_at,
-                    CASE
-                        WHEN uv.status = 'USED' THEN 'USED'
-                        WHEN uv.status = 'AVAILABLE' AND uv.expired_at < SYSDATETIME() THEN 'EXPIRED'
-                        ELSE uv.status
-                    END AS effective_status
-                FROM user_vouchers uv
-                JOIN vouchers v ON uv.voucher_id = v.id
-                WHERE uv.user_id = ?
-            ) t
-            """);
-
-        boolean hasFilter = status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status);
-        if (hasFilter) {
-            sql.append(" WHERE effective_status = ? ");
-        }
-        sql.append(" ORDER BY expired_at ASC");
-
-        List<UserVoucherDTO> result = new ArrayList<>();
 
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
 
-            ps.setLong(1, userId);
-            if (hasFilter) {
-                ps.setString(2, status.toUpperCase());
+            if (rs.next()) {
+                return rs.getInt(1);
             }
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    UserVoucherDTO dto = new UserVoucherDTO();
-                    dto.setUserVoucherId(rs.getLong("user_voucher_id"));
-                    dto.setVoucherId(rs.getLong("voucher_id"));
-                    dto.setVoucherCode(rs.getString("voucher_code"));
-                    dto.setVoucherName(rs.getString("voucher_name"));
-                    dto.setDiscountType(rs.getString("discount_type"));
-                    dto.setDiscountValue(rs.getBigDecimal("discount_value"));
-                    dto.setMinOrder(rs.getBigDecimal("min_order"));
-                    dto.setExchangePoints(rs.getInt("exchange_points"));
-                    dto.setReceivedAt(rs.getObject("received_at", LocalDateTime.class));
-                    dto.setExpiredAt(rs.getObject("expired_at", LocalDateTime.class));
-                    dto.setUsedAt(rs.getObject("used_at", LocalDateTime.class));
-                    dto.setEffectiveStatus(rs.getString("effective_status"));
-                    result.add(dto);
-                }
-            }
-
-        } catch (SQLException e) {
-            throw new RuntimeException("Lỗi khi lấy danh sách voucher của user", e);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        return result;
+        return 0;
     }
 
-    private boolean insertUsage(
-            Connection conn,
-            String sql,
-            int voucherId,
-            long customerId,
-            long bookingId,
-            long paymentId
-    ) throws SQLException {
+    /**
+     * Hàm tính discount chung cho PUBLIC_CODE và REWARD_VOUCHER.
+     */
+    public static BigDecimal calculateDiscountAmount(String discountType, BigDecimal discountValue, BigDecimal orderAmount) {
+        BigDecimal safeOrderAmount = toMoney(orderAmount);
+        BigDecimal safeDiscountValue = toMoney(discountValue);
+        if (safeDiscountValue.signum() <= 0) {
+            throw new IllegalArgumentException("Giá trị voucher không hợp lệ.");
+        }
+
+        BigDecimal discountAmount;
+        String type = discountType == null ? "" : discountType.trim().toUpperCase(Locale.ROOT);
+        // PERCENT tính theo phần trăm giá gốc và không được vượt quá 100.
+        if (TYPE_PERCENT.equals(type)) {
+            if (safeDiscountValue.compareTo(BigDecimal.valueOf(100)) > 0) {
+                throw new IllegalArgumentException("Voucher phần trăm không được vượt quá 100.");
+            }
+            discountAmount = safeOrderAmount
+                    .multiply(safeDiscountValue)
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        } else if (TYPE_FIXED.equals(type)) {
+            discountAmount = safeDiscountValue;
+        } else {
+            throw new IllegalArgumentException("Loại voucher không hợp lệ.");
+        }
+
+        // Discount không bao giờ làm tổng tiền âm.
+        return discountAmount.compareTo(safeOrderAmount) > 0 ? safeOrderAmount : discountAmount;
+    }
+
+    private VoucherValidationResult validateRedeemableVoucher(Voucher voucher) {
+        if (!DISTRIBUTION_REWARD_VOUCHER.equalsIgnoreCase(voucher.getDistributionType())) {
+            return VoucherValidationResult.invalid("Voucher này không dùng để đổi điểm.");
+        }
+        if (voucher.getExchangePoint() <= 0) {
+            return VoucherValidationResult.invalid("Điểm cần đổi không hợp lệ.");
+        }
+        return validateCommonVoucherRules(voucher, BigDecimal.ZERO, false, true);
+    }
+
+    private VoucherValidationResult validateCommonVoucherRules(
+            Voucher voucher,
+            BigDecimal orderAmount,
+            boolean ownedRewardVoucher,
+            boolean activeVip
+    ) {
+        if (voucher == null) {
+            return VoucherValidationResult.invalid("Voucher không tồn tại.");
+        }
+        if (!ownedRewardVoucher && !STATUS_ACTIVE.equalsIgnoreCase(voucher.getStatus())) {
+            return VoucherValidationResult.invalid("Voucher không còn hoạt động.");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (voucher.getStartDate() == null || voucher.getStartDate().isAfter(now)) {
+            return VoucherValidationResult.invalid("Voucher chưa đến thời gian sử dụng.");
+        }
+        if (voucher.getEndDate() == null || voucher.getEndDate().isBefore(now)) {
+            return VoucherValidationResult.invalid("Voucher đã hết hạn.");
+        }
+        if (!ownedRewardVoucher && voucher.getUsed() >= voucher.getQuantity()) {
+            return VoucherValidationResult.invalid("Voucher đã hết lượt.");
+        }
+        if (TARGET_MEMBER.equalsIgnoreCase(voucher.getTargetUser()) && !activeVip) {
+            return VoucherValidationResult.invalid("Voucher chỉ dành cho thành viên VIP.");
+        }
+        BigDecimal minOrder = money(voucher.getMinOrder());
+        if (orderAmount != null && orderAmount.compareTo(BigDecimal.ZERO) > 0 && money(orderAmount).compareTo(minOrder) < 0) {
+            return VoucherValidationResult.invalid("Giá trị đơn hàng chưa đạt mức tối thiểu.");
+        }
+        return VoucherValidationResult.valid(voucher, BigDecimal.ZERO, money(orderAmount));
+    }
+
+    private VoucherValidationResult buildDiscountResult(Voucher voucher, Long userVoucherId, BigDecimal orderAmount) {
+        try {
+            BigDecimal discountAmount = calculateDiscountAmount(voucher.getDiscountType(), voucher.getDiscountValue(), orderAmount);
+            BigDecimal finalAmount = money(orderAmount).subtract(discountAmount).setScale(2, RoundingMode.HALF_UP);
+            if (userVoucherId == null) {
+                return VoucherValidationResult.valid(voucher, discountAmount, finalAmount);
+            }
+            return VoucherValidationResult.validOwned(voucher, userVoucherId, discountAmount, finalAmount);
+        } catch (IllegalArgumentException e) {
+            return VoucherValidationResult.invalid(e.getMessage());
+        }
+    }
+
+    private boolean isUserVoucherHeldByActiveBooking(Connection conn, long userVoucherId) throws SQLException {
+        String sql = """
+                SELECT 1
+                FROM bookings WITH (UPDLOCK, HOLDLOCK)
+                WHERE user_voucher_id = ?
+                  AND status IN ('HOLD', 'CONFIRMED', 'CHECKED_IN')
+                """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, voucherId);
-            ps.setLong(2, customerId);
-            ps.setLong(3, bookingId);
-            ps.setLong(4, paymentId);
-            ps.setInt(5, voucherId);
-            ps.setLong(6, customerId);
-            return ps.executeUpdate() == 1;
+            ps.setLong(1, userVoucherId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private boolean voucherUsageExistsForBooking(Connection conn, long bookingId) throws SQLException {
+        String sql = "SELECT 1 FROM voucher_usages WHERE booking_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
         }
     }
 
@@ -642,6 +1061,7 @@ public class VoucherDAO {
                        start_date,
                        end_date,
                        status,
+                       distribution_type,
                        target_user,
                        exchange_points,
                        created_at,
@@ -652,9 +1072,9 @@ public class VoucherDAO {
 
     private void setVoucherStatement(PreparedStatement ps, Voucher voucher)
             throws SQLException {
-        // Business Rule BR-31: Code được trim và uppercase trước khi ghi DB.
+        // Code được chuẩn hóa uppercase để unique index không có bản ghi trùng khác hoa/thường.
         ps.setString(1, normalizeCode(voucher.getCode()));
-        ps.setString(2, voucher.getName());
+        ps.setString(2, trim(voucher.getName()));
         ps.setString(3, normalizeType(voucher.getDiscountType()));
         ps.setBigDecimal(4, money(voucher.getDiscountValue()));
         ps.setBigDecimal(5, money(voucher.getMinOrder()));
@@ -662,6 +1082,10 @@ public class VoucherDAO {
         ps.setTimestamp(7, Timestamp.valueOf(voucher.getStartDate()));
         ps.setTimestamp(8, Timestamp.valueOf(voucher.getEndDate()));
         ps.setString(9, normalizeStatus(voucher.getStatus()));
+        String distributionType = normalizeDistributionType(voucher.getDistributionType());
+        ps.setString(10, distributionType);
+        ps.setString(11, normalizeTargetUser(voucher.getTargetUser()));
+        ps.setInt(12, DISTRIBUTION_PUBLIC_CODE.equals(distributionType) ? 0 : voucher.getExchangePoint());
     }
 
     private boolean updateUsedCounter(int voucherId, Connection conn, String sql) throws SQLException {
@@ -696,11 +1120,50 @@ public class VoucherDAO {
         voucher.setStartDate(toLocalDateTime(rs.getTimestamp("start_date")));
         voucher.setEndDate(toLocalDateTime(rs.getTimestamp("end_date")));
         voucher.setStatus(rs.getString("status"));
-        voucher.setTargetUser(rs.getString("target_user"));
+        voucher.setDistributionType(nullToDefault(rs.getString("distribution_type"), DISTRIBUTION_PUBLIC_CODE));
+        voucher.setTargetUser(nullToDefault(rs.getString("target_user"), TARGET_ALL));
         voucher.setExchangePoint(rs.getInt("exchange_points"));
         voucher.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
         voucher.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
         return voucher;
+    }
+
+    private UserVoucherDTO mapUserVoucherDTO(ResultSet rs) throws SQLException {
+        UserVoucherDTO dto = new UserVoucherDTO();
+        dto.setUserVoucherId(rs.getLong("user_voucher_id"));
+        dto.setVoucherId(rs.getLong("voucher_id"));
+        dto.setVoucherCode(rs.getString("voucher_code"));
+        dto.setVoucherName(rs.getString("voucher_name"));
+        dto.setDiscountType(rs.getString("discount_type"));
+        dto.setDiscountValue(rs.getBigDecimal("discount_value"));
+        dto.setMinOrder(rs.getBigDecimal("min_order"));
+        dto.setExchangePoints(rs.getInt("exchange_points"));
+        dto.setReceivedAt(toLocalDateTime(rs.getTimestamp("received_at")));
+        dto.setExpiredAt(toLocalDateTime(rs.getTimestamp("expired_at")));
+        dto.setUsedAt(toLocalDateTime(rs.getTimestamp("used_at")));
+        dto.setEffectiveStatus(rs.getString("effective_status"));
+        long reservedBookingId = rs.getLong("reserved_booking_id");
+        dto.setReservedBookingId(rs.wasNull() ? null : reservedBookingId);
+        dto.setReservedBookingCode(rs.getString("reserved_booking_code"));
+        return dto;
+    }
+
+    private boolean isVipCurrentlyValid(User user) {
+        if (user == null || user.getUserId() == null) {
+            return false;
+        }
+        if (user.getVipValidUntil() != null) {
+            return user.isVip() && user.getVipValidUntil().isAfter(LocalDateTime.now());
+        }
+        try {
+            return new UserDAO().getUserById(user.getUserId())
+                    .map(latest -> latest.isVip()
+                            && latest.getVipValidUntil() != null
+                            && latest.getVipValidUntil().isAfter(LocalDateTime.now()))
+                    .orElse(false);
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
@@ -708,6 +1171,10 @@ public class VoucherDAO {
     }
 
     private BigDecimal money(BigDecimal value) {
+        return toMoney(value);
+    }
+
+    private static BigDecimal toMoney(BigDecimal value) {
         return value == null
                 ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
                 : value.setScale(2, RoundingMode.HALF_UP);
@@ -722,6 +1189,25 @@ public class VoucherDAO {
     }
 
     private String normalizeStatus(String status) {
-        return status == null ? null : status.trim().toUpperCase(Locale.ROOT);
+        String value = status == null ? STATUS_ACTIVE : status.trim().toUpperCase(Locale.ROOT);
+        return STATUS_DISABLED.equals(value) ? STATUS_DISABLED : STATUS_ACTIVE;
+    }
+
+    private String normalizeDistributionType(String value) {
+        String normalized = value == null ? DISTRIBUTION_PUBLIC_CODE : value.trim().toUpperCase(Locale.ROOT);
+        return DISTRIBUTION_REWARD_VOUCHER.equals(normalized) ? DISTRIBUTION_REWARD_VOUCHER : DISTRIBUTION_PUBLIC_CODE;
+    }
+
+    private String normalizeTargetUser(String value) {
+        String normalized = value == null ? TARGET_ALL : value.trim().toUpperCase(Locale.ROOT);
+        return TARGET_MEMBER.equals(normalized) ? TARGET_MEMBER : TARGET_ALL;
+    }
+
+    private String nullToDefault(String value, String defaultValue) {
+        return value == null || value.isBlank() ? defaultValue : value;
+    }
+
+    private String trim(String value) {
+        return value == null ? null : value.trim();
     }
 }

@@ -59,6 +59,12 @@
     </li>
 
     <li class="nav-item">
+        <button class="nav-link" data-status="RESERVED">
+            Đang giữ
+        </button>
+    </li>
+
+    <li class="nav-item">
         <button class="nav-link" data-status="EXPIRED">
             Hết hạn
         </button>

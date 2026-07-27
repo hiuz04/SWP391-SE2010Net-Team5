@@ -7,6 +7,7 @@ let allVouchers = [];
 
 const statusLabel = {
     AVAILABLE: {text: "Có thể sử dụng", badge: "bg-success"},
+    RESERVED: {text: "Đang được giữ", badge: "bg-warning text-dark"},
     USED: {text: "Đã sử dụng", badge: "bg-secondary"},
     EXPIRED: {text: "Hết hạn", badge: "bg-danger"}
 };
@@ -165,6 +166,9 @@ function renderMyVoucher(vouchers) {
     listEl.innerHTML = vouchers.map(v => {
         const s = statusLabel[v.effectiveStatus] || {text: v.effectiveStatus, badge: "bg-light text-dark"};
         const dimClass = v.effectiveStatus !== "AVAILABLE" ? "opacity-50" : "";
+        const reservedText = v.effectiveStatus === "RESERVED" && v.reservedBookingCode
+            ? `<p class="small text-warning mb-0">Đang giữ cho booking: ${escapeHtml(v.reservedBookingCode)}</p>`
+            : "";
 
         return `
             <div class="col-md-4">
@@ -177,6 +181,7 @@ function renderMyVoucher(vouchers) {
                         <p class="card-text small mb-1"><strong>${escapeHtml(buildDescription(v))}</strong></p>
                         <p class="card-text text-muted small">Mã: ${escapeHtml(v.voucherCode)}</p>
                         <p class="small text-muted mb-0">HSD: ${formatDate(v.expiredAt)}</p>
+                        ${reservedText}
                         ${v.usedAt ? `<p class="small text-muted mb-0">Đã dùng lúc: ${formatDate(v.usedAt)}</p>` : ""}
                     </div>
                 </div>
@@ -244,7 +249,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
             fetch(`${ctx}/vouchers`, {
                 method: "POST",
-                headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
                 body: params.toString()
             })
                 .then(res => res.json())

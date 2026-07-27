@@ -33,6 +33,10 @@ public class VoucherManagementServlet extends HttpServlet {
     private static final String STATUS_DISABLED = "DISABLED";
     private static final String TYPE_PERCENT = "PERCENT";
     private static final String TYPE_FIXED = "FIXED";
+    private static final String DISTRIBUTION_PUBLIC_CODE = Voucher.DISTRIBUTION_PUBLIC_CODE;
+    private static final String DISTRIBUTION_REWARD_VOUCHER = Voucher.DISTRIBUTION_REWARD_VOUCHER;
+    private static final String TARGET_ALL = Voucher.TARGET_ALL;
+    private static final String TARGET_MEMBER = Voucher.TARGET_MEMBER;
 
     private VoucherDAO voucherDAO;
 
@@ -51,7 +55,11 @@ public class VoucherManagementServlet extends HttpServlet {
         String action = trim(request.getParameter("action"));
         try {
             if ("create".equals(action)) {
-                showForm(request, response, new Voucher(), "create");
+                Voucher emptyVoucher = new Voucher();
+                emptyVoucher.setDistributionType(DISTRIBUTION_PUBLIC_CODE);
+                emptyVoucher.setTargetUser(TARGET_ALL);
+                emptyVoucher.setExchangePoint(0);
+                showForm(request, response, emptyVoucher, "create");
             } else if ("edit".equals(action)) {
                 int id = parsePositiveInt(request.getParameter("id"), "Mã giảm giá không hợp lệ.");
                 Voucher voucher = voucherDAO.findById(id);
@@ -103,6 +111,8 @@ public class VoucherManagementServlet extends HttpServlet {
                 voucher.setUsed(existingVoucher.getUsed());
                 // Business Rule BR-37: Quantity mới không được thấp hơn số lượt đã dùng hiện tại.
                 validateEditableQuantity(voucher, existingVoucher.getUsed());
+                // Voucher đã phát hành không được sửa các trường làm giảm quyền lợi Customer đã nhận.
+                validateIssuedVoucherSafeEdit(existingVoucher, voucher);
                 // Business Rule BR-31: Code voucher vẫn phải duy nhất, trừ chính bản ghi đang edit.
                 ensureUniqueCode(voucher.getCode(), voucher.getId());
                 voucherDAO.updateVoucher(voucher);
@@ -181,6 +191,11 @@ public class VoucherManagementServlet extends HttpServlet {
         voucher.setStartDate(parseDateTime(request.getParameter("startDate"), "Ngày bắt đầu không hợp lệ."));
         voucher.setEndDate(parseDateTime(request.getParameter("endDate"), "Ngày kết thúc không hợp lệ."));
         voucher.setStatus(normalize(request.getParameter("status")));
+        voucher.setDistributionType(normalize(defaultIfBlank(request.getParameter("distributionType"), DISTRIBUTION_PUBLIC_CODE)));
+        voucher.setTargetUser(normalize(defaultIfBlank(request.getParameter("targetUser"), TARGET_ALL)));
+        int exchangePoints = parseNonNegativeInt(defaultIfBlank(request.getParameter("exchangePoints"), "0"),
+                "Điểm cần đổi không hợp lệ.");
+        voucher.setExchangePoint(DISTRIBUTION_PUBLIC_CODE.equals(voucher.getDistributionType()) ? 0 : exchangePoints);
 
         validateVoucher(voucher);
         return voucher;
@@ -205,6 +220,9 @@ public class VoucherManagementServlet extends HttpServlet {
         voucher.setStartDate(safeDateTime(request.getParameter("startDate")));
         voucher.setEndDate(safeDateTime(request.getParameter("endDate")));
         voucher.setStatus(trim(request.getParameter("status")));
+        voucher.setDistributionType(defaultIfBlank(request.getParameter("distributionType"), DISTRIBUTION_PUBLIC_CODE));
+        voucher.setTargetUser(defaultIfBlank(request.getParameter("targetUser"), TARGET_ALL));
+        voucher.setExchangePoint(safeInt(request.getParameter("exchangePoints")));
         return voucher;
     }
 
@@ -238,6 +256,29 @@ public class VoucherManagementServlet extends HttpServlet {
         if (!STATUS_ACTIVE.equals(voucher.getStatus()) && !STATUS_DISABLED.equals(voucher.getStatus())) {
             throw new IllegalArgumentException("Trạng thái chỉ được là đang hoạt động hoặc tạm tắt.");
         }
+        // Voucher chỉ có hai loại phát hành để tách mã công khai và voucher đổi điểm.
+        if (!DISTRIBUTION_PUBLIC_CODE.equals(voucher.getDistributionType())
+                && !DISTRIBUTION_REWARD_VOUCHER.equals(voucher.getDistributionType())) {
+            throw new IllegalArgumentException("Loại phát hành không hợp lệ.");
+        }
+        // Target user chỉ dùng ALL/MEMBER, không dùng discount_type để lọc khách hàng.
+        if (!TARGET_ALL.equals(voucher.getTargetUser()) && !TARGET_MEMBER.equals(voucher.getTargetUser())) {
+            throw new IllegalArgumentException("Đối tượng áp dụng không hợp lệ.");
+        }
+        if (DISTRIBUTION_REWARD_VOUCHER.equals(voucher.getDistributionType())
+                && voucher.getExchangePoint() <= 0) {
+            throw new IllegalArgumentException("Voucher đổi điểm phải có điểm cần đổi lớn hơn 0.");
+        }
+        if (DISTRIBUTION_PUBLIC_CODE.equals(voucher.getDistributionType())
+                && voucher.getExchangePoint() != 0) {
+            voucher.setExchangePoint(0);
+        }
+        if (voucher.getCode().length() > 50) {
+            throw new IllegalArgumentException("Mã voucher không được vượt quá 50 ký tự.");
+        }
+        if (voucher.getName().length() > 255) {
+            throw new IllegalArgumentException("Tên voucher không được vượt quá 255 ký tự.");
+        }
     }
 
     /**
@@ -247,6 +288,33 @@ public class VoucherManagementServlet extends HttpServlet {
         // Business Rule BR-37: Owner không được giảm quantity thấp hơn used hiện tại.
         if (voucher.getQuantity() < currentUsed) {
             throw new IllegalArgumentException("Số lượng mã giảm giá không được nhỏ hơn số lượt đã dùng hiện tại.");
+        }
+    }
+
+    /**
+     * Voucher đã có user_vouchers/voucher_usages thì chỉ cho sửa an toàn để không làm mất quyền lợi đã cấp.
+     */
+    private void validateIssuedVoucherSafeEdit(Voucher existingVoucher, Voucher newVoucher) throws SQLException {
+        if (!voucherDAO.hasIssuedOrUsed(existingVoucher.getId())) {
+            return;
+        }
+        if (!existingVoucher.getCode().equalsIgnoreCase(newVoucher.getCode())) {
+            throw new IllegalArgumentException("Voucher đã phát hành không được đổi mã.");
+        }
+        if (!existingVoucher.getDistributionType().equalsIgnoreCase(newVoucher.getDistributionType())) {
+            throw new IllegalArgumentException("Voucher đã phát hành không được đổi loại phát hành.");
+        }
+        if (!existingVoucher.getTargetUser().equalsIgnoreCase(newVoucher.getTargetUser())) {
+            throw new IllegalArgumentException("Voucher đã phát hành không được đổi đối tượng áp dụng.");
+        }
+        if (newVoucher.getDiscountValue().compareTo(existingVoucher.getDiscountValue()) < 0) {
+            throw new IllegalArgumentException("Voucher đã phát hành không được giảm giá trị ưu đãi.");
+        }
+        if (newVoucher.getMinOrder().compareTo(existingVoucher.getMinOrder()) > 0) {
+            throw new IllegalArgumentException("Voucher đã phát hành không được tăng đơn tối thiểu.");
+        }
+        if (newVoucher.getEndDate().isBefore(existingVoucher.getEndDate())) {
+            throw new IllegalArgumentException("Voucher đã phát hành không được rút ngắn ngày hết hạn.");
         }
     }
 
