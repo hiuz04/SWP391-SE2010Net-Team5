@@ -13,6 +13,7 @@ import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 
@@ -68,25 +69,42 @@ public class StaffDashboardServlet extends HttpServlet {
             String endStr   = (String) shift.get("endTime");
             LocalTime start = parseTime(startStr);
             LocalTime end   = parseTime(endStr);
-            LocalTime now   = LocalTime.now();
+
+            Object shiftDateObj = shift.get("shiftDate");
+            LocalDate sDate = LocalDate.now();
+            if (shiftDateObj != null) {
+                try {
+                    sDate = LocalDate.parse(shiftDateObj.toString().trim());
+                } catch (Exception ignored) {}
+            }
+
+            LocalDateTime shiftStartDT = LocalDateTime.of(sDate, start);
+            LocalDateTime shiftEndDT;
+            if (end.isBefore(start)) {
+                shiftEndDT = LocalDateTime.of(sDate.plusDays(1), end);
+            } else {
+                shiftEndDT = LocalDateTime.of(sDate, end);
+            }
+            LocalDateTime nowDT = LocalDateTime.now();
 
             double progressPct = 0.0;
             String remainStr   = "—";
             String shiftStatus = "ONGOING";
-            if (now.isBefore(start)) {
+
+            if (nowDT.isBefore(shiftStartDT)) {
                 progressPct = 0.0;
-                remainStr   = formatDuration(start, end);   // full duration remaining
+                remainStr   = formatDurationBetween(nowDT, shiftStartDT);
                 shiftStatus = "UPCOMING";
-            } else if (now.isAfter(end)) {
+            } else if (!nowDT.isBefore(shiftEndDT)) {
                 progressPct = 100.0;
                 remainStr   = "Đã kết thúc";
                 shiftStatus = "COMPLETED";
             } else {
-                long totalSec   = toSeconds(start, end);
-                long elapsedSec = toSeconds(start, now);
-                progressPct     = totalSec == 0 ? 0 : (elapsedSec * 100.0 / totalSec);
-                remainStr       = formatDuration(now, end);
-                shiftStatus = "ONGOING";
+                long totalSec   = java.time.Duration.between(shiftStartDT, shiftEndDT).getSeconds();
+                long elapsedSec = java.time.Duration.between(shiftStartDT, nowDT).getSeconds();
+                progressPct     = totalSec <= 0 ? 0 : (elapsedSec * 100.0 / totalSec);
+                remainStr       = formatDurationBetween(nowDT, shiftEndDT);
+                shiftStatus     = "ONGOING";
             }
             shift.put("progressPct", Math.round(progressPct * 10) / 10.0);
             shift.put("remaining",   remainStr);
@@ -95,20 +113,22 @@ public class StaffDashboardServlet extends HttpServlet {
             long complexId = (Long) shift.get("complexId");
             String dateStr  = LocalDate.now().toString();
 
-            // ── 3. Cash KPI ──────────────────────────────────────────────────
+            // ── 3. Cash & Total Revenue KPI ──────────────────────────────────
             Map<String, Object> cash = dao.getCashKpi(staffId, dateStr, startStr, endStr);
+            Map<String, Object> totalRevenueKpi = dao.getTotalRevenueKpi(complexId, dateStr, startStr, endStr);
 
-            // Compute average transaction
+            // Compute average transaction for cash
             BigDecimal totalCash = toBigDecimal(cash.get("totalCash"));
             int txCount          = (Integer) cash.get("txCount");
             BigDecimal avgTx     = (txCount > 0)
                     ? totalCash.divide(BigDecimal.valueOf(txCount), 0, RoundingMode.HALF_UP)
                     : BigDecimal.ZERO;
             cash.put("avgTransaction", avgTx);
+            cash.put("transactions", dao.getCashTransactions(staffId, dateStr, startStr, endStr));
+            totalRevenueKpi.put("transactions", dao.getAllTransactions(complexId, dateStr, startStr, endStr));
 
-            // Estimate revenue target (e.g. 2 × shift average per booking slot — adjust freely)
-            // Using a simple static daily target for now; replace with DB config if desired.
-            BigDecimal target = BigDecimal.valueOf(14_000_000L);
+            // Estimate revenue target (cấu hình mục tiêu doanh thu tiền mặt ca trực - 1.400.000đ)
+            BigDecimal target = BigDecimal.valueOf(1_400_000L);
             double cashPct = (target.compareTo(BigDecimal.ZERO) > 0)
                     ? totalCash.divide(target, 4, RoundingMode.HALF_UP).doubleValue() * 100
                     : 0;
@@ -128,10 +148,11 @@ public class StaffDashboardServlet extends HttpServlet {
             List<Map<String, Object>> bookings = dao.getTodayBookings(complexId);
 
             // Attach "currentlyPlaying" flag based on server time
+            LocalTime nowTime = nowDT.toLocalTime();
             for (Map<String, Object> b : bookings) {
                 LocalTime bStart = parseTime((String) b.get("startTime"));
                 LocalTime bEnd   = parseTime((String) b.get("endTime"));
-                b.put("nowPlaying", !now.isBefore(bStart) && now.isBefore(bEnd));
+                b.put("nowPlaying", !nowTime.isBefore(bStart) && nowTime.isBefore(bEnd));
             }
 
             // ── 8. Recent activity ───────────────────────────────────────────
@@ -139,15 +160,16 @@ public class StaffDashboardServlet extends HttpServlet {
 
             // ── 9. Assemble response ─────────────────────────────────────────
             Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("hasShift",       true);
-            payload.put("staffName",      user.getFullName());
-            payload.put("shift",          shift);
-            payload.put("cashKpi",        cash);
-            payload.put("bookingKpi",     bookingKpi);
-            payload.put("pendingCheckin", pending);
-            payload.put("avgRating",      avgRating);
-            payload.put("bookings",       bookings);
-            payload.put("recentActivity", activity);
+            payload.put("hasShift",        true);
+            payload.put("staffName",       user.getFullName());
+            payload.put("shift",           shift);
+            payload.put("cashKpi",         cash);
+            payload.put("totalRevenueKpi", totalRevenueKpi);
+            payload.put("bookingKpi",      bookingKpi);
+            payload.put("pendingCheckin",  pending);
+            payload.put("avgRating",       avgRating);
+            payload.put("bookings",        bookings);
+            payload.put("recentActivity",  activity);
 
             write(resp, toJson(payload));
 
@@ -248,8 +270,8 @@ public class StaffDashboardServlet extends HttpServlet {
         return to.toSecondOfDay() - from.toSecondOfDay();
     }
 
-    private static String formatDuration(LocalTime from, LocalTime to) {
-        long secs = toSeconds(from, to);
+    private static String formatDurationBetween(LocalDateTime from, LocalDateTime to) {
+        long secs = java.time.Duration.between(from, to).getSeconds();
         if (secs <= 0) return "0 phút";
         long h = secs / 3600;
         long m = (secs % 3600) / 60;
