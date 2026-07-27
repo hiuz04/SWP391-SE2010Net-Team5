@@ -1,5 +1,6 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="com.swp.model.User" %>
+<%@ page import="java.time.LocalDateTime" %>
 <%
     User sessionUser = (User) session.getAttribute("user");
     String navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
@@ -7,7 +8,10 @@
         navRole = "guest";
     }
     String displayName = sessionUser != null ? sessionUser.getFullName() : "";
-    boolean isVip = sessionUser != null && sessionUser.isVip();
+    boolean isVip = sessionUser != null
+            && sessionUser.isVip()
+            && sessionUser.getVipValidUntil() != null
+            && sessionUser.getVipValidUntil().isAfter(LocalDateTime.now());
     String ctx = request.getContextPath();
 %>
 <!DOCTYPE html>

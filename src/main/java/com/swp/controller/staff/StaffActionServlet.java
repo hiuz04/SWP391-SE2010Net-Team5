@@ -74,14 +74,16 @@ public class StaffActionServlet extends HttpServlet {
             java.time.LocalTime end = parseTime(endStr);
             java.time.LocalTime now = java.time.LocalTime.now();
             
-            if (now.isBefore(start)) {
-                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                write(resp, "{\"error\":\"Ca trực của bạn chưa bắt đầu (Ca làm việc: " + startStr.substring(0,5) + " - " + endStr.substring(0,5) + "). Bạn không thể thực hiện thao tác này.\"}");
-                return;
+            boolean inShift = false;
+            if (start.isBefore(end) || start.equals(end)) {
+                inShift = !now.isBefore(start) && !now.isAfter(end);
+            } else {
+                inShift = !now.isBefore(start) || !now.isAfter(end);
             }
-            if (now.isAfter(end)) {
+
+            if (!inShift) {
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                write(resp, "{\"error\":\"Ca trực của bạn đã kết thúc. Bạn không thể thực hiện thao tác này.\"}");
+                write(resp, "{\"error\":\"Bạn không nằm trong thời gian của ca trực (Ca làm việc: " + startStr.substring(0,5) + " - " + endStr.substring(0,5) + "). Bạn không thể thực hiện thao tác này.\"}");
                 return;
             }
         }
@@ -387,14 +389,16 @@ public class StaffActionServlet extends HttpServlet {
         java.time.LocalTime end = parseTime(endStr);
         java.time.LocalTime now = java.time.LocalTime.now();
 
-        if (now.isBefore(start)) {
-            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            write(resp, "{\"error\":\"Ca trực của bạn chưa bắt đầu. Bạn không thể thực hiện thao tác này.\"}");
-            return false;
+        boolean inShift = false;
+        if (start.isBefore(end) || start.equals(end)) {
+            inShift = !now.isBefore(start) && !now.isAfter(end);
+        } else {
+            inShift = !now.isBefore(start) || !now.isAfter(end);
         }
-        if (now.isAfter(end)) {
+
+        if (!inShift) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            write(resp, "{\"error\":\"Ca trực của bạn đã kết thúc. Bạn không thể thực hiện thao tác này.\"}");
+            write(resp, "{\"error\":\"Bạn không nằm trong thời gian của ca trực (Ca làm việc: " + startStr.substring(0,5) + " - " + endStr.substring(0,5) + "). Bạn không thể thực hiện thao tác này.\"}");
             return false;
         }
         return true;
@@ -452,6 +456,29 @@ public class StaffActionServlet extends HttpServlet {
 
         if (!Boolean.TRUE.equals(booking.get("notExpired"))) {
             return "Lịch đặt đã quá giờ nhận sân.";
+        }
+
+        Object startObj = booking.get("startTime");
+        if (startObj != null) {
+            java.time.LocalDateTime startDt;
+            if (startObj instanceof java.sql.Timestamp) {
+                startDt = ((java.sql.Timestamp) startObj).toLocalDateTime();
+            } else if (startObj instanceof java.time.LocalDateTime) {
+                startDt = (java.time.LocalDateTime) startObj;
+            } else {
+                try {
+                    String str = startObj.toString();
+                    if (str.contains(".")) str = str.substring(0, str.indexOf("."));
+                    startDt = java.time.LocalDateTime.parse(str.replace(" ", "T"));
+                } catch (Exception e) {
+                    startDt = null;
+                }
+            }
+            if (startDt != null) {
+                if (java.time.LocalDateTime.now().plusHours(1).isBefore(startDt)) {
+                    return "Bạn chỉ được check-in trước giờ đá tối đa 1 tiếng.";
+                }
+            }
         }
 
         return null;

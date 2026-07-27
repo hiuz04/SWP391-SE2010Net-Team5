@@ -35,6 +35,8 @@
     String error = (String) request.getAttribute("error");
     String discountType = voucher.getDiscountType() == null ? "PERCENT" : voucher.getDiscountType();
     String status = voucher.getStatus() == null ? "ACTIVE" : voucher.getStatus();
+    String distributionType = voucher.getDistributionType() == null ? "PUBLIC_CODE" : voucher.getDistributionType();
+    String targetUser = voucher.getTargetUser() == null ? "ALL" : voucher.getTargetUser();
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -81,6 +83,25 @@
                             <%-- Business Rule BR-32: UI giới hạn tên voucher tối đa 255 ký tự. --%>
                             <input class="form-control" id="name" name="name" maxlength="255"
                                    value="<%= esc(voucher.getName()) %>" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="distributionType">Loại phát hành</label>
+                            <select class="form-select" id="distributionType" name="distributionType">
+                                <option value="PUBLIC_CODE" <%= "PUBLIC_CODE".equalsIgnoreCase(distributionType) ? "selected" : "" %>>Mã công khai</option>
+                                <option value="REWARD_VOUCHER" <%= "REWARD_VOUCHER".equalsIgnoreCase(distributionType) ? "selected" : "" %>>Voucher đổi điểm</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="targetUser">Đối tượng áp dụng</label>
+                            <select class="form-select" id="targetUser" name="targetUser">
+                                <option value="ALL" <%= "ALL".equalsIgnoreCase(targetUser) ? "selected" : "" %>>Tất cả khách hàng</option>
+                                <option value="MEMBER" <%= "MEMBER".equalsIgnoreCase(targetUser) ? "selected" : "" %>>Thành viên VIP</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4" id="exchangePointGroup">
+                            <label class="form-label fw-semibold" for="exchangePoints">Điểm cần đổi</label>
+                            <input class="form-control" id="exchangePoints" name="exchangePoints" type="number"
+                                   min="0" value="<%= Math.max(voucher.getExchangePoint(), 0) %>">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold" for="discountType">Loại giảm giá</label>
@@ -150,5 +171,26 @@
 <div id="footer" data-root="<%= ctx %>/"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
+<script>
+    (function () {
+        const distributionType = document.getElementById("distributionType");
+        const exchangeGroup = document.getElementById("exchangePointGroup");
+        const exchangeInput = document.getElementById("exchangePoints");
+
+        function syncExchangePoint() {
+            const reward = distributionType && distributionType.value === "REWARD_VOUCHER";
+            exchangeGroup.classList.toggle("d-none", !reward);
+            exchangeInput.disabled = !reward;
+            if (!reward) {
+                exchangeInput.value = "0";
+            }
+        }
+
+        if (distributionType && exchangeGroup && exchangeInput) {
+            distributionType.addEventListener("change", syncExchangePoint);
+            syncExchangePoint();
+        }
+    })();
+</script>
 </body>
 </html>

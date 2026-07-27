@@ -20,6 +20,7 @@ public class Booking implements Serializable {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private Integer voucherId;
+    private Long userVoucherId;
     private BigDecimal originalPrice;
     private BigDecimal discountAmount;
     private BigDecimal totalAmount;
@@ -128,6 +129,14 @@ public class Booking implements Serializable {
 
     public void setVoucherId(Integer voucherId) {
         this.voucherId = voucherId;
+    }
+
+    public Long getUserVoucherId() {
+        return userVoucherId;
+    }
+
+    public void setUserVoucherId(Long userVoucherId) {
+        this.userVoucherId = userVoucherId;
     }
 
     public BigDecimal getOriginalPrice() {

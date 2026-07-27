@@ -6,10 +6,19 @@ import java.time.LocalDateTime;
 
 /**
  * Entity voucher lưu cấu hình giảm giá, thời gian hiệu lực, số lượng phát hành,
- * số lượt đã dùng và trạng thái bật/tắt do Owner quản lý.
+ * loại phát hành và trạng thái bật/tắt do Owner quản lý.
+ *
+ * Cột used được giữ để tương thích dữ liệu cũ:
+ * - PUBLIC_CODE: số lượt đã dùng thành công sau payment.
+ * - REWARD_VOUCHER: số lượt đã được khách hàng đổi/claim.
  */
 public class Voucher implements Serializable {
     private static final long serialVersionUID = 1L;
+
+    public static final String DISTRIBUTION_PUBLIC_CODE = "PUBLIC_CODE";
+    public static final String DISTRIBUTION_REWARD_VOUCHER = "REWARD_VOUCHER";
+    public static final String TARGET_ALL = "ALL";
+    public static final String TARGET_MEMBER = "MEMBER";
 
     private int id;
     private String code;
@@ -22,6 +31,7 @@ public class Voucher implements Serializable {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private String status;
+    private String distributionType;
     private int exchangePoint;
     private String targetUser;
     private LocalDateTime createdAt;
@@ -118,6 +128,14 @@ public class Voucher implements Serializable {
         this.status = status;
     }
 
+    public String getDistributionType() {
+        return distributionType;
+    }
+
+    public void setDistributionType(String distributionType) {
+        this.distributionType = distributionType;
+    }
+
     public int getExchangePoint() {
         return exchangePoint;
     }
@@ -148,5 +166,13 @@ public class Voucher implements Serializable {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public boolean isPublicCode() {
+        return DISTRIBUTION_PUBLIC_CODE.equalsIgnoreCase(distributionType);
+    }
+
+    public boolean isRewardVoucher() {
+        return DISTRIBUTION_REWARD_VOUCHER.equalsIgnoreCase(distributionType);
     }
 }

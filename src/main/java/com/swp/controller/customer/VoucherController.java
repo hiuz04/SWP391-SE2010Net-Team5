@@ -3,6 +3,7 @@ package com.swp.controller.customer;
 import com.google.gson.JsonObject;
 import com.swp.dao.UserDAO;
 import com.swp.model.User;
+import com.swp.model.dto.VoucherRedeemResult;
 import com.swp.service.VoucherUserService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -29,6 +30,10 @@ public class VoucherController extends HttpServlet {
         User currentUser = requireLogin(req, resp);
         // Nếu chưa đăng nhập thì requireLogin đã chuyển hướng sang trang login.
         if (currentUser == null) {
+            return;
+        }
+        if (!"CUSTOMER".equalsIgnoreCase(currentUser.getRoleName())) {
+            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập kho voucher.");
             return;
         }
 
@@ -61,6 +66,10 @@ public class VoucherController extends HttpServlet {
         User currentUser = requireLogin(req, resp);
         // Nếu chưa đăng nhập thì requireLogin đã chuyển hướng sang trang login.
         if (currentUser == null) {
+            return;
+        }
+        if (!"CUSTOMER".equalsIgnoreCase(currentUser.getRoleName())) {
+            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền đổi voucher.");
             return;
         }
 
@@ -115,19 +124,19 @@ public class VoucherController extends HttpServlet {
         }
 
         try {
-            boolean success = voucherService.redeemVoucher(currentUser, voucherId);
+            VoucherRedeemResult result = voucherService.redeemVoucher(currentUser, voucherId);
 
-            if (success) {
+            if (result.isSuccess()) {
                 int updatedPoints = userDao.getAvailableRewardPoints(currentUser.getUserId());
                 currentUser.setRewardPoints(updatedPoints);
                 request.getSession().setAttribute("user", currentUser);
 
                 json.addProperty("success", true);
                 json.addProperty("newPoints", updatedPoints);
-                json.addProperty("message", "Đổi voucher thành công.");
+                json.addProperty("message", result.getMessage());
             } else {
                 json.addProperty("success", false);
-                json.addProperty("message", "Không thể đổi voucher.");
+                json.addProperty("message", result.getMessage());
             }
 
         } catch (Exception e) {

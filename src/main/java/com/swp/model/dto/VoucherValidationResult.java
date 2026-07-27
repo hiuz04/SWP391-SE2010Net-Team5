@@ -13,6 +13,7 @@ public class VoucherValidationResult {
     private Voucher voucher;
     private BigDecimal discountAmount;
     private BigDecimal finalAmount;
+    private Long userVoucherId;
 
     public VoucherValidationResult() {
     }
@@ -37,6 +38,18 @@ public class VoucherValidationResult {
         result.setVoucher(voucher);
         result.setDiscountAmount(discountAmount);
         result.setFinalAmount(finalAmount);
+        return result;
+    }
+
+    public static VoucherValidationResult validOwned(
+            Voucher voucher,
+            Long userVoucherId,
+            BigDecimal discountAmount,
+            BigDecimal finalAmount
+    ) {
+        VoucherValidationResult result = valid(voucher, discountAmount, finalAmount);
+        result.setUserVoucherId(userVoucherId);
+        result.setMessage("Voucher của bạn hợp lệ.");
         return result;
     }
 
@@ -78,5 +91,13 @@ public class VoucherValidationResult {
 
     public void setFinalAmount(BigDecimal finalAmount) {
         this.finalAmount = finalAmount;
+    }
+
+    public Long getUserVoucherId() {
+        return userVoucherId;
+    }
+
+    public void setUserVoucherId(Long userVoucherId) {
+        this.userVoucherId = userVoucherId;
     }
 }
