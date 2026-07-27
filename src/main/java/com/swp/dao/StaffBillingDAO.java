@@ -165,8 +165,7 @@ public class StaffBillingDAO {
 
                     if (amounts.remainingAmount().signum() == 0) {
                         markInvoicePaid(conn, existingInvoice.invoiceId(), amounts, BigDecimal.ZERO);
-                        completeBookingAfterCheckout(conn, booking, actorId,
-                                "Checkout completed with zero amount due.");
+                        completeBookingAfterCheckout(conn, booking);
                         conn.commit();
                         return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode(),
                                 "Booking da duoc thanh toan du, khong can tao them yeu cau.");
@@ -175,8 +174,7 @@ public class StaffBillingDAO {
                     String method = requireCheckoutMethod(checkoutPaymentMethod, amounts.remainingAmount());
                     if (METHOD_CASH.equals(method)) {
                         recordCashCheckoutPayment(conn, booking, existingInvoice.invoiceId(), amounts, actorId);
-                        completeBookingAfterCheckout(conn, booking, actorId,
-                                "Checkout completed by cash payment.");
+                        completeBookingAfterCheckout(conn, booking);
                         conn.commit();
                         return new CheckoutResult(existingInvoice.invoiceId(), bookingId, existingInvoice.invoiceCode(),
                                 "Đã ghi nhận thanh toán tiền mặt " + moneyPlain(amounts.remainingAmount()) + ". Checkout thành công.");
@@ -185,7 +183,7 @@ public class StaffBillingDAO {
                     updatePendingInvoiceAmounts(conn, existingInvoice.invoiceId(), amounts);
                     PaymentRequestSummary requestSummary = createOrUpdatePendingCheckoutPaymentRequest(conn, booking, existingInvoice.invoiceId(),
                             amounts.remainingAmount());
-                    ensurePendingCheckoutStatus(conn, booking, actorId);
+                    ensurePendingCheckoutStatus(conn, booking);
                     if (!requestSummary.existing()) {
                         insertCheckoutPaymentNotification(conn, booking, existingInvoice.invoiceId(), amounts.remainingAmount());
                     }
@@ -220,8 +218,7 @@ public class StaffBillingDAO {
                             amounts.overtimeMinutes(),
                             amounts.overtimeFee()
                     );
-                    completeBookingAfterCheckout(conn, booking, actorId,
-                            "Checkout completed with zero amount due.");
+                    completeBookingAfterCheckout(conn, booking);
                     conn.commit();
                     return new CheckoutResult(invoiceId, bookingId, invoiceCode,
                             "Booking không còn số tiền phải thanh toán. Đã hoàn tất checkout.");
@@ -242,8 +239,7 @@ public class StaffBillingDAO {
                             amounts.overtimeFee()
                     );
                     recordCashCheckoutPayment(conn, booking, invoiceId, amounts, actorId);
-                    completeBookingAfterCheckout(conn, booking, actorId,
-                            "Checkout completed by cash payment.");
+                    completeBookingAfterCheckout(conn, booking);
                     conn.commit();
                     return new CheckoutResult(invoiceId, bookingId, invoiceCode,
                             "Đã ghi nhận thanh toán tiền mặt " + moneyPlain(amounts.remainingAmount())
@@ -265,8 +261,6 @@ public class StaffBillingDAO {
                 );
                 createOrUpdatePendingCheckoutPaymentRequest(conn, booking, invoiceId, amounts.remainingAmount());
                 updateBookingStatus(conn, bookingId, STATUS_CHECKED_IN, STATUS_PENDING_CHECKOUT_PAYMENT);
-                insertBookingStatusLog(conn, booking.bookingId(), STATUS_CHECKED_IN, STATUS_PENDING_CHECKOUT_PAYMENT,
-                        actorId, "Checkout payment request created.");
                 insertCheckoutPaymentNotification(conn, booking, invoiceId, amounts.remainingAmount());
 
                 conn.commit();
@@ -320,10 +314,8 @@ public class StaffBillingDAO {
                     }
                 }
 
-                // Business Rule BR-14: Hủy no-show giải phóng sân và ghi log CANCELLED.
+                // Business Rule BR-14: Hủy no-show giải phóng sân.
                 releaseField(conn, booking.fieldId());
-                insertBookingStatusLog(conn, booking.bookingId(), STATUS_CONFIRMED, STATUS_CANCELLED,
-                        actorId, "NO_SHOW_LATE_30_MINUTES");
                 insertNotification(conn,
                         booking.customerId(),
                         "Booking đã bị hủy do đến muộn",
@@ -703,9 +695,7 @@ public class StaffBillingDAO {
 
     private void completeBookingAfterCheckout(
             Connection conn,
-            BookingLock booking,
-            long actorId,
-            String note
+            BookingLock booking
     ) throws SQLException {
         String updateBooking = """
                 UPDATE bookings
@@ -722,17 +712,14 @@ public class StaffBillingDAO {
             }
         }
         releaseField(conn, booking.fieldId());
-        insertBookingStatusLog(conn, booking.bookingId(), booking.status(), STATUS_COMPLETED, actorId, note);
     }
 
-    private void ensurePendingCheckoutStatus(Connection conn, BookingLock booking, long actorId)
+    private void ensurePendingCheckoutStatus(Connection conn, BookingLock booking)
             throws SQLException {
         if (STATUS_PENDING_CHECKOUT_PAYMENT.equals(booking.status())) {
             return;
         }
         updateBookingStatus(conn, booking.bookingId(), STATUS_CHECKED_IN, STATUS_PENDING_CHECKOUT_PAYMENT);
-        insertBookingStatusLog(conn, booking.bookingId(), STATUS_CHECKED_IN, STATUS_PENDING_CHECKOUT_PAYMENT,
-                actorId, "Checkout payment request created.");
     }
 
     private void recordCashCheckoutPayment(
@@ -1030,34 +1017,6 @@ public class StaffBillingDAO {
             ps.setString(3, message);
             ps.setString(4, type);
             ps.setLong(5, referenceId);
-            ps.executeUpdate();
-        }
-    }
-
-    private void insertBookingStatusLog(
-            Connection conn,
-            long bookingId,
-            String oldStatus,
-            String newStatus,
-            Long changedBy,
-            String note
-    ) throws SQLException {
-        String sql = """
-                INSERT INTO booking_status_logs (
-                    booking_id, old_status, new_status, changed_by, note, created_at
-                )
-                VALUES (?, ?, ?, ?, ?, GETDATE())
-                """;
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, bookingId);
-            ps.setString(2, oldStatus);
-            ps.setString(3, newStatus);
-            if (changedBy == null) {
-                ps.setNull(4, Types.BIGINT);
-            } else {
-                ps.setLong(4, changedBy);
-            }
-            ps.setString(5, note);
             ps.executeUpdate();
         }
     }
