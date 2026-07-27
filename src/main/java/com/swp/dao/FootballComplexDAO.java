@@ -34,8 +34,8 @@ public class FootballComplexDAO {
             ps.setString(1, fc.getComplexName());
             ps.setString(2, fc.getDescription());
             ps.setString(3, fc.getAddress());
-            ps.setString(4, fc.getWard());
-            ps.setString(5, "TP Hà Nội");
+            ps.setString(4, "Hòa Lạc");
+            ps.setString(5, "Hà Nội");
 
             if(fc.getLatitude() != null) {
                 ps.setBigDecimal(6, fc.getLatitude());
@@ -93,8 +93,8 @@ public class FootballComplexDAO {
             ps.setString(1, fc.getComplexName());
             ps.setString(2, fc.getDescription());
             ps.setString(3, fc.getAddress());
-            ps.setString(4, fc.getWard());
-            ps.setString(5, "TP Hà Nội");
+            ps.setString(4, "Hòa Lạc");
+            ps.setString(5, "Hà Nội");
 
             if(fc.getLatitude() != null) {
                 ps.setBigDecimal(6, fc.getLatitude());
@@ -573,5 +573,47 @@ public class FootballComplexDAO {
         }
 
         return list;
+    }
+
+    public boolean existByName(String complexName) {
+        String sql = """
+            SELECT 1
+            FROM football_complexes
+            WHERE complex_name = ?
+        """;
+
+        try (Connection con = DBContext.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, complexName);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public boolean existsByNameExceptId(String complexName, long complexId) {
+        String sql = """
+            SELECT 1
+            FROM football_complexes
+            WHERE LOWER(TRIM(complex_name)) = LOWER(TRIM(?))
+              AND complex_id <> ?
+        """;
+
+        try (Connection con = DBContext.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, complexName);
+            ps.setLong(2, complexId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -128,4 +128,12 @@ public class FootballComplexService {
     public List<FootballComplex> searchComplex(String keyword, String status) {
         return complexDao.searchComplex(keyword, status);
     }
+
+    public  boolean existByName(String complexName) {
+        return complexDao.existByName(complexName);
+    }
+
+    public boolean existsByNameExceptId(String complexName, long complexId) {
+        return complexDao.existsByNameExceptId(complexName, complexId);
+    }
 }

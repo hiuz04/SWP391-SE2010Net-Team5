@@ -24,38 +24,6 @@ let deletedImg = [];
 const imgInput = document.getElementById("images");
 const preview = document.getElementById("preview");
 
-let provincesList = [];
-
-async function loadHanoiWards() {
-    const wardSelect = document.getElementById("ward");
-    if (!wardSelect) return;
-
-    wardSelect.disabled = true;
-    wardSelect.innerHTML = '<option value="">Đang tải Phường/Xã...</option>';
-
-    try {
-        const res = await fetch("https://provinces.open-api.vn/api/v2/p/01?depth=2");
-        if (!res.ok) throw new Error("Lỗi kết nối API");
-
-        const data = await res.json();
-
-        wardSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
-
-        data.wards.forEach(ward => {
-            const opt = document.createElement("option");
-            opt.value = ward.name;
-            opt.textContent = ward.name;
-            wardSelect.appendChild(opt);
-        });
-
-        wardSelect.disabled = false;
-    } catch (err) {
-        console.error(err);
-        wardSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
-        wardSelect.disabled = false;
-    }
-}
-
 // Lấy data của complex để edit
 async function loadComplexData() {
     const params = new URLSearchParams(window.location.search);
@@ -68,26 +36,6 @@ async function loadComplexData() {
                 document.getElementById("complexName").value = data.complex.complexName;
                 document.getElementById("desc").value = data.complex.description;
                 document.getElementById("adrs").value = data.complex.address;
-
-                const wardSelect = document.getElementById("ward");
-
-                await loadHanoiWards();
-
-                if (data.complex.ward && wardSelect) {
-                    const matchedWard = Array.from(wardSelect.options)
-                        .find(opt => opt.value === data.complex.ward);
-
-                    if (matchedWard) {
-                        wardSelect.value = data.complex.ward;
-                    } else {
-                        const opt = document.createElement("option");
-                        opt.value = data.complex.ward;
-                        opt.textContent = data.complex.ward;
-                        opt.selected = true;
-                        wardSelect.appendChild(opt);
-                    }
-                }
-
                 document.getElementById("hotln").value = data.complex.hotline;
                 document.getElementById("opTime").value = data.complex.openingTime?.slice(0, 5);
                 document.getElementById("clsTime").value = data.complex.closingTime?.slice(0, 5);
@@ -106,9 +54,6 @@ async function loadComplexData() {
 }
 
 async function loadForm() {
-
-    await loadHanoiWards();
-
     await loadComplexData();
 
     renderPreview();
@@ -282,7 +227,6 @@ function submitForm() {
         complexName: document.getElementById("complexName").value,
         description: document.getElementById("desc").value,
         address: document.getElementById("adrs").value,
-        ward: document.getElementById("ward").value,
         latitude: document.getElementById("lat").value,
         longitude: document.getElementById("long").value,
         hotline: document.getElementById("hotln").value,
@@ -295,7 +239,7 @@ function submitForm() {
 
     if (!data.complexName) errors.push("Vui lòng nhập Tên cơ sở!");
     if (!data.address) errors.push("Vui lòng nhập Địa chỉ!");
-    if (!data.ward) errors.push("Vui lòng chọn Phường/Xã!");
+    if (!data.hotline) errors.push("Vui lòng nhập số Hotline!");
     if (!data.openingTime) errors.push("Vui lòng đặt thời gian Mở cửa!");
     if (!data.closingTime) errors.push("Vui lòng đặt thời gian Đóng cửa!");
     if(data.openingTime > data.closingTime) errors.push("Vui lòng đặt thời gian Mở cửa lớn hơn thời gian Đóng cửa!")
@@ -338,9 +282,10 @@ function submitForm() {
         method: "POST",
         body: formData
     })
-        .then(res => {
+        .then(async res => {
             if (!res.ok) {
-                throw new Error("Server error");
+                const error = await res.json();
+                throw new Error(error.message);
             }
             return res.text();
         })
@@ -349,7 +294,10 @@ function submitForm() {
         })
         .catch(err => {
             console.error(err);
-            alert("Không thêm/sửa được, kiểm tra server!");
+            alert(err.message);
+        })
+        .finally(() => {
+            document.getElementById("submitBtn").disabled = false;
         });
     document.getElementById("submitBtn").disabled = false;
 }
@@ -379,8 +327,8 @@ function navigateComplexFormWithID(id) {
 // Xóa Complex
 function deleteComplex(id) {
     const confirmed = window.confirm("Xóa dữ liệu sẽ làm mất toàn bộ thông tin liên quan đến cơ sở " +
-        "và toàn bộ sân bóng thuộc quyền sỡ hữu của cơ sở. Dữ liệu bị xóa " +
-        "sẽ không thể khôi phục. Bạn có muốn tiếp tục?");
+                                            "và toàn bộ sân bóng thuộc quyền sỡ hữu của cơ sở. Dữ liệu bị xóa " +
+                                            "sẽ không thể khôi phục. Bạn có muốn tiếp tục?");
 
     if (!confirmed) return;
 

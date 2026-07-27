@@ -61,8 +61,19 @@ public class ComplexController extends HttpServlet {
         String complexName = req.getParameter("complexName");
         String description = req.getParameter("description");
         String address = req.getParameter("address");
-        String ward = req.getParameter("ward");
-        String city = req.getParameter("city");
+
+        // Kiểm tra trùng tên
+        if (complexService.existByName(complexName)) {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            resp.setContentType("application/json;charset=UTF-8");
+            resp.getWriter().write("""
+            {
+                "success": false,
+                "message": "Tên cụm sân đã tồn tại! Vui lòng nhập tên khác!"
+            }
+        """);
+            return;
+        }
 
         String latStr = req.getParameter("latitude");
         String lngStr = req.getParameter("longitude");
@@ -93,8 +104,6 @@ public class ComplexController extends HttpServlet {
         fc.setComplexName(complexName);
         fc.setDescription(description);
         fc.setAddress(address);
-        fc.setWard(ward);
-        fc.setCity(city);
         fc.setLatitude(latitude);
         fc.setLongitude(longitude);
         fc.setHotline(hotline);
@@ -107,68 +116,92 @@ public class ComplexController extends HttpServlet {
     }
 
     private void edit(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String id = req.getParameter("complexId");
-
-        if (id == null || id.trim().isEmpty()) {
-            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Thiếu mã tổ hợp sân (complexId).");
-            return;
-        }
-        long complexId;
         try {
-            complexId = Long.parseLong(id.trim());
-        } catch (NumberFormatException e) {
-            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Mã tổ hợp sân không hợp lệ.");
-            return;
+            String id = req.getParameter("complexId");
+
+            if (id == null || id.trim().isEmpty()) {
+                throw new IllegalArgumentException("Thiếu mã cụm sân.");
+            }
+
+            long complexId = Long.parseLong(id.trim());
+
+            String complexName = req.getParameter("complexName");
+
+            // Kiểm tra trùng tên (bỏ qua chính bản ghi đang sửa)
+            if (complexService.existsByNameExceptId(complexName, complexId)) {
+                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                resp.setContentType("application/json;charset=UTF-8");
+                resp.getWriter().write("""
+                    {
+                        "success": false,
+                        "message": "Tên cụm sân đã tồn tại! Vui lòng nhập tên khác!"
+                    }
+                """);
+
+                return;
+            }
+
+            String description = req.getParameter("description");
+            String address = req.getParameter("address");
+
+            String latStr = req.getParameter("latitude");
+            String lngStr = req.getParameter("longitude");
+
+            BigDecimal latitude = (latStr == null || latStr.trim().isEmpty())
+                    ? null
+                    : new BigDecimal(latStr);
+
+            BigDecimal longitude = (lngStr == null || lngStr.trim().isEmpty())
+                    ? null
+                    : new BigDecimal(lngStr);
+
+            String hotline = req.getParameter("hotline");
+            String openStr = req.getParameter("openingTime");
+            String closeStr = req.getParameter("closingTime");
+
+            LocalTime openingTime = (openStr == null || openStr.trim().isEmpty())
+                    ? null
+                    : LocalTime.parse(openStr);
+
+            LocalTime closingTime = (closeStr == null || closeStr.trim().isEmpty())
+                    ? null
+                    : LocalTime.parse(closeStr);
+
+            String generalRules = req.getParameter("generalRules");
+
+            FootballComplex fc = new FootballComplex();
+            fc.setComplexId(complexId);
+            fc.setComplexName(complexName);
+            fc.setDescription(description);
+            fc.setAddress(address);
+            fc.setLatitude(latitude);
+            fc.setLongitude(longitude);
+            fc.setHotline(hotline);
+            fc.setOpeningTime(openingTime);
+            fc.setClosingTime(closingTime);
+            fc.setGeneralRules(generalRules);
+
+            complexService.updateFootballComplex(fc);
+            updateImage(req, resp);
+            addImage(req, resp, complexId);
+
+            resp.setStatus(HttpServletResponse.SC_OK);
+            resp.getWriter().write("SUCCESS");
+
+        } catch (Exception e) {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            resp.setContentType("application/json;charset=UTF-8");
+            resp.getWriter().write("""
+        {
+            "success": false,
+            "message": "%s"
         }
-
-        String complexName = req.getParameter("complexName");
-        String description = req.getParameter("description");
-        String address = req.getParameter("address");
-        String ward = req.getParameter("ward");
-        String city = req.getParameter("city");
-
-        String latStr = req.getParameter("latitude");
-        String lngStr = req.getParameter("longitude");
-
-        BigDecimal latitude = (latStr == null || latStr.trim().isEmpty())
-                ? null
-                : new BigDecimal(latStr);
-
-        BigDecimal longitude = (lngStr == null || lngStr.trim().isEmpty())
-                ? null
-                : new BigDecimal(lngStr);
-
-        String hotline = req.getParameter("hotline");
-        String openStr = req.getParameter("openingTime");
-        String closeStr = req.getParameter("closingTime");
-
-        LocalTime openingTime = (openStr == null || openStr.trim().isEmpty())
-                ? null
-                : LocalTime.parse(openStr);
-
-        LocalTime closingTime = (closeStr == null || closeStr.trim().isEmpty())
-                ? null
-                : LocalTime.parse(closeStr);
-
-        String generalRules = req.getParameter("generalRules");
-
-        FootballComplex fc = new FootballComplex();
-        fc.setComplexId(complexId);
-        fc.setComplexName(complexName);
-        fc.setDescription(description);
-        fc.setAddress(address);
-        fc.setWard(ward);
-        fc.setCity(city);
-        fc.setLatitude(latitude);
-        fc.setLongitude(longitude);
-        fc.setHotline(hotline);
-        fc.setOpeningTime(openingTime);
-        fc.setClosingTime(closingTime);
-        fc.setGeneralRules(generalRules);
-
-        complexService.updateFootballComplex(fc);
-        updateImage(req, resp);
-        addImage(req, resp, complexId);
+        """.formatted(
+                    e.getMessage() != null
+                            ? e.getMessage()
+                            : "Không thể cập nhật cụm sân."
+            ));
+        }
     }
 
     private void delete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
