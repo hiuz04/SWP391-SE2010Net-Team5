@@ -73,20 +73,14 @@ function searchData() {
     const params = new URLSearchParams();
 
     const complexNameEl = document.getElementById("complexName");
-    const provinceEl = document.getElementById("province");
-    const wardEl = document.getElementById("ward");
     const typeEl = document.getElementById("fieldType");
     const sortOrderEl = document.getElementById("sortOrder");
 
     const complexName = complexNameEl ? complexNameEl.value.trim() : "";
-    const province = provinceEl ? provinceEl.value : "";
-    const ward = wardEl ? wardEl.value : "";
     const fieldTypeId = typeEl ? typeEl.value : "";
     const sortOrder = sortOrderEl ? sortOrderEl.value : "";
 
     if (complexName) params.append("complexName", complexName);
-    if (province) params.append("province", province);
-    if (ward) params.append("ward", ward);
     if (fieldTypeId) params.append("fieldTypeId", fieldTypeId);
     if (sortOrder) params.append("sortOrder", sortOrder);
 
@@ -101,14 +95,20 @@ async function initPage() {
     // Đọc query parameter
     const urlParams = new URLSearchParams(window.location.search);
     const urlType = urlParams.get("type");
+    const urlComplexName = urlParams.get("complexName");
 
-    const typeEl = document.getElementById("type");
+    const typeEl = document.getElementById("fieldType");
+    const complexNameEl = document.getElementById("complexName");
 
     let hasParams = false;
 
-    // Chọn loại sân
     if (urlType && typeEl) {
         typeEl.value = urlType;
+        hasParams = true;
+    }
+    
+    if (urlComplexName && complexNameEl) {
+        complexNameEl.value = urlComplexName;
         hasParams = true;
     }
 
@@ -134,7 +134,7 @@ function scheduleLoadData() {
 }
 
 function clearAll() {
-    document.querySelectorAll("#complexName, #address, #fieldType")
+    document.querySelectorAll("#complexName, #fieldType")
         .forEach(el => {
             if (el.tagName === "INPUT") {
                 el.value = "";

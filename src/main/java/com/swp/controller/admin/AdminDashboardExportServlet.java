@@ -13,6 +13,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.text.NumberFormat;
+import java.util.Locale;
 
 @WebServlet("/admin/dashboard/export")
 public class AdminDashboardExportServlet extends HttpServlet {
@@ -38,8 +40,10 @@ public class AdminDashboardExportServlet extends HttpServlet {
         response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
 
         Map<String, Object> kpis = dashboardDAO.getDashboardKPIs();
-        List<Map<String, Object>> revChart = dashboardDAO.getRevenueLast7Days();
+        List<Map<String, Object>> revChart = dashboardDAO.getRevenueLast30Days();
         List<Map<String, Object>> typeChart = dashboardDAO.getBookingsByFieldType();
+
+        NumberFormat currencyFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
 
         try (PrintWriter writer = new PrintWriter(response.getOutputStream())) {
             writer.println("BÁO CÁO TỔNG QUAN HỆ THỐNG");
@@ -47,17 +51,17 @@ public class AdminDashboardExportServlet extends HttpServlet {
             writer.println();
 
             writer.println("1. CHỈ SỐ KPI");
-            writer.println("Doanh thu hôm nay,Doanh thu 7 ngày qua,Lượt đặt sân hôm nay,Khách hàng mới (7 ngày),Lượt đặt sân chờ xử lý");
+            writer.println("Doanh thu hôm nay,Doanh thu 30 ngày qua,Lượt đặt sân hôm nay,Khách hàng mới (Hôm nay),Lượt đặt sân chờ xử lý");
             writer.println(
                     (kpis.get("todayRevenue") != null ? kpis.get("todayRevenue").toString() : "0") + "," +
-                    (kpis.get("last7DaysRevenue") != null ? kpis.get("last7DaysRevenue").toString() : "0") + "," +
+                    (kpis.get("last30DaysRevenue") != null ? kpis.get("last30DaysRevenue").toString() : "0") + "," +
                     (kpis.get("todayBookings") != null ? kpis.get("todayBookings").toString() : "0") + "," +
                     (kpis.get("newCustomers") != null ? kpis.get("newCustomers").toString() : "0") + "," +
                     (kpis.get("pendingBookings") != null ? kpis.get("pendingBookings").toString() : "0")
             );
             writer.println();
 
-            writer.println("2. DOANH THU 7 NGÀY QUA");
+            writer.println("2. DOANH THU 30 NGÀY QUA");
             writer.println("Ngày,Doanh thu (VNĐ)");
             for (Map<String, Object> row : revChart) {
                 String dateStr = (String) row.get("date");
@@ -71,7 +75,7 @@ public class AdminDashboardExportServlet extends HttpServlet {
             }
             writer.println();
 
-            writer.println("3. TỈ LỆ ĐẶT SÂN THEO LOẠI (7 NGÀY QUA)");
+            writer.println("3. TỈ LỆ ĐẶT SÂN THEO LOẠI (30 NGÀY QUA)");
             writer.println("Loại sân,Số lượt đặt");
             for (Map<String, Object> row : typeChart) {
                 writer.println(row.get("typeName") + "," + row.get("count"));

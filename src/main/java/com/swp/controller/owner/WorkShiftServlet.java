@@ -53,7 +53,7 @@ public class WorkShiftServlet extends HttpServlet {
         }
 
         User user = (User) session.getAttribute("user");
-        if (!"OWNER".equals(user.getRoleName())) {
+        if (!"OWNER".equalsIgnoreCase(user.getRoleName())) {
             resp.sendRedirect(req.getContextPath() + "/index.jsp");
             return;
         }
@@ -173,7 +173,7 @@ public class WorkShiftServlet extends HttpServlet {
         }
 
         User user = (User) session.getAttribute("user");
-        if (!"OWNER".equals(user.getRoleName())) {
+        if (!"OWNER".equalsIgnoreCase(user.getRoleName())) {
             resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
             writeError(resp, "Không có quyền truy cập");
             return;

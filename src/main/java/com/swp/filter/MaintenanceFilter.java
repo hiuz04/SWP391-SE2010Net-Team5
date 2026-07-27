@@ -62,7 +62,7 @@ public class MaintenanceFilter implements Filter {
             
             if (session != null && session.getAttribute("user") != null) {
                 User user = (User) session.getAttribute("user");
-                if ("ADMIN".equals(user.getRoleName())) {
+                if ("ADMIN".equalsIgnoreCase(user.getRoleName()) || "OWNER".equalsIgnoreCase(user.getRoleName())) {
                     isAdmin = true;
                 }
             }

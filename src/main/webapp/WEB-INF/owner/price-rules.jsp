@@ -118,10 +118,30 @@
                    <br><span class="badge bg-secondary"><%= pr.getRuleType() %></span>
                 </td>
                 <td>
-                    <% if (pr.getFieldId() != null) { %>
-                        <span class="badge bg-info text-dark">Sân ID: <%= pr.getFieldId() %></span>
-                    <% } else if (pr.getFieldTypeId() != null) { %>
-                        <span class="badge bg-primary">Loại sân: <%= pr.getFieldTypeId() %></span>
+                    <% if (pr.getFieldId() != null) { 
+                           String fieldName = "ID: " + pr.getFieldId();
+                           if (fields != null) {
+                               for (Field f : fields) {
+                                   if (f.getFieldId().equals(pr.getFieldId())) {
+                                       fieldName = f.getFieldName();
+                                       break;
+                                   }
+                               }
+                           }
+                    %>
+                        <span class="badge bg-info text-dark">Sân: <%= fieldName %></span>
+                    <% } else if (pr.getFieldTypeId() != null) { 
+                           String typeName = "ID: " + pr.getFieldTypeId();
+                           if (fieldTypes != null) {
+                               for (FieldType ft : fieldTypes) {
+                                   if (ft.getFieldTypeId().equals(pr.getFieldTypeId())) {
+                                       typeName = ft.getTypeName() + " (Sân " + ft.getNumberOfPlayers() + ")";
+                                       break;
+                                   }
+                               }
+                           }
+                    %>
+                        <span class="badge bg-primary">Loại sân: <%= typeName %></span>
                     <% } else { %>
                         <span class="badge bg-success">Tất cả sân</span>
                     <% } %>
@@ -215,7 +235,7 @@
                   <option value="">-- Tất cả sân --</option>
                   <% if (fields != null) {
                        for (Field f : fields) { %>
-                           <option value="<%= f.getFieldId() %>"><%= f.getFieldName() %></option>
+                           <option value="<%= f.getFieldId() %>" data-type-id="<%= f.getFieldTypeId() %>"><%= f.getFieldName() %></option>
                   <% } } %>
               </select>
             </div>
@@ -271,6 +291,7 @@
       </div>
     </div>
   </div>
+</div>
 
 <!-- Modal Xác nhận xóa -->
 <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
@@ -394,8 +415,11 @@
         // Reset select về option đầu tiên
         document.getElementById('startTime').value = '';
         document.getElementById('endTime').value   = '';
+        document.getElementById('fieldTypeId').dispatchEvent(new Event('change')); // Trigger change to reset field dropdown
         resetValidation();
-        var myModal = new bootstrap.Modal(document.getElementById('priceRuleModal'));
+        
+        var modalEl = document.getElementById('priceRuleModal');
+        var myModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         myModal.show();
     }
 
@@ -406,6 +430,7 @@
         document.getElementById('ruleName').value    = ruleName;
         document.getElementById('ruleType').value    = ruleType;
         document.getElementById('fieldTypeId').value = fieldTypeId;
+        document.getElementById('fieldTypeId').dispatchEvent(new Event('change')); // Filter fields before setting fieldId
         document.getElementById('fieldId').value     = fieldId;
         document.getElementById('dayOfWeek').value   = dayOfWeek;
         document.getElementById('specificDate').value = specificDate;
@@ -420,15 +445,42 @@
         document.getElementById('price').value    = price;
         document.getElementById('priority').value = priority;
 
-        var myModal = new bootstrap.Modal(document.getElementById('priceRuleModal'));
+        var modalEl = document.getElementById('priceRuleModal');
+        var myModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         myModal.show();
     }
 
     function confirmDelete(id) {
         document.getElementById('deletePriceRuleId').value = id;
-        var myModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        var modalEl = document.getElementById('deleteConfirmModal');
+        var myModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         myModal.show();
     }
+
+    // ---- Filter fields based on selected field type ----
+    document.getElementById('fieldTypeId').addEventListener('change', function() {
+        var selectedTypeId = this.value;
+        var fieldSelect = document.getElementById('fieldId');
+        var options = fieldSelect.querySelectorAll('option:not([value=""])');
+        
+        var currentSelectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+        var shouldReset = false;
+
+        options.forEach(function(opt) {
+            if (!selectedTypeId || opt.getAttribute('data-type-id') === selectedTypeId) {
+                opt.style.display = ''; // Show
+            } else {
+                opt.style.display = 'none'; // Hide
+                if (opt.selected) {
+                    shouldReset = true;
+                }
+            }
+        });
+
+        if (shouldReset) {
+            fieldSelect.value = '';
+        }
+    });
 </script>
 </body>
 </html>
