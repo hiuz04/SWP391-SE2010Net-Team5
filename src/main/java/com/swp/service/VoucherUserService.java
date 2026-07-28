@@ -30,6 +30,7 @@ public class VoucherUserService {
 
         List<VoucherExchangeDTO> result = new ArrayList<>();
 
+        // Map entity Voucher sang DTO vừa đủ cho trang Voucher Center.
         for (Voucher v : vouchers) {
             VoucherExchangeDTO dto = new VoucherExchangeDTO();
             dto.setId(v.getId());
@@ -55,6 +56,7 @@ public class VoucherUserService {
      * Đổi voucher bằng điểm; DAO tự đọc giá/điểm/quyền từ DB thay vì tin frontend.
      */
     public VoucherRedeemResult redeemVoucher(User user, long voucherId) {
+        // Chỉ Customer hợp lệ mới được gọi DAO đổi voucher.
         if (user == null || user.getUserId() == null || !"CUSTOMER".equalsIgnoreCase(user.getRoleName())) {
             return VoucherRedeemResult.failure("Chỉ khách hàng mới được đổi voucher.");
         }
@@ -66,6 +68,7 @@ public class VoucherUserService {
     }
 
     private boolean isVipCurrentlyValid(User user) {
+        // Không có user id thì không thể xác minh VIP từ DB.
         if (user == null || user.getUserId() == null) {
             return false;
         }

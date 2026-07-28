@@ -3,6 +3,7 @@
 <%
     User sessionUser = (User) session.getAttribute("user");
     String navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
+    // Fallback role để navbar không bị null khi session thiếu navRole.
     if (navRole == null) {
         navRole = "guest";
     }
@@ -39,6 +40,7 @@
 </div>
 
 <!-- Filter -->
+<%-- Filter theo effective_status do API tính từ user_vouchers và expired_at. --%>
 <ul class="nav nav-pills mb-4" id="voucherFilter">
     <li class="nav-item">
         <button class="nav-link active" data-status="ALL">
@@ -86,6 +88,7 @@
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script src="<%= ctx %>/assets/js/customer/voucher.js"></script>
 <script>
+    // Mặc định load tất cả voucher của Customer.
     loadMyVoucher("ALL");
 </script>
 </body>
