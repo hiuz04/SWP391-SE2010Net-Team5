@@ -53,10 +53,14 @@ public class PaymentController extends HttpServlet {
 
     private java.math.BigDecimal getVipPrice() {
         Optional<SystemSetting> vipSetting = systemSettingDAO.getSettingByKey("VIP_SUBSCRIPTION_PRICE_MONTHLY");
+        // Dùng giá VIP trong system setting nếu admin đã cấu hình.
         if (vipSetting.isPresent() && vipSetting.get().getSettingValue() != null) {
+            // Parse setting dạng text/số để lấy phần numeric làm amount thanh toán.
             try {
                 return new java.math.BigDecimal(vipSetting.get().getSettingValue().replaceAll("[^0-9]", ""));
-            } catch(Exception e) {}
+            } catch(Exception e) {
+                // Setting sai format thì bỏ qua và dùng giá VIP mặc định bên dưới.
+            }
         }
         return new java.math.BigDecimal("199000");
     }
@@ -69,11 +73,14 @@ public class PaymentController extends HttpServlet {
 
         String servletPath = request.getServletPath();
 
+        // Bọc toàn bộ GET payment để gom lỗi theo đúng loại request: web page hoặc VNPay IPN JSON.
         try {
+            // VNPay Return là callback qua trình duyệt, cần xử lý trước action thông thường.
             if ("/payment/vnpay-return".equals(servletPath)) {
                 handleVNPayReturn(request, response);
                 return;
             }
+            // VNPay IPN là callback server-to-server nên trả JSON theo chuẩn gateway.
             if ("/payment/vnpay-ipn".equals(servletPath)) {
                 handleVNPayIpn(request, response);
                 return;
@@ -87,18 +94,21 @@ public class PaymentController extends HttpServlet {
                 default -> response.sendError(HttpServletResponse.SC_NOT_FOUND);
             }
         } catch (IllegalArgumentException e) {
+            // Lỗi validate ở IPN phải được format thành RspCode VNPay thay vì trang lỗi HTML.
             if (isVNPayIpn(request)) {
                 handleVNPayIpnError(response, e);
             } else {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
             }
         } catch (SQLException e) {
+            // Lỗi DB của IPN vẫn phải trả JSON để VNPay hiểu kết quả xử lý.
             if (isVNPayIpn(request)) {
                 handleVNPayIpnError(response, e);
             } else {
                 handleDatabaseError(response, e);
             }
         } catch (RuntimeException e) {
+            // Runtime exception được log tập trung và không làm lộ stacktrace ra Customer.
             if (isVNPayIpn(request)) {
                 handleVNPayIpnError(response, e);
             } else {
@@ -114,11 +124,13 @@ public class PaymentController extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
 
         String action = trim(request.getParameter("action"));
+        // POST payment chỉ nhận action=pay để tránh submit nhầm endpoint.
         if (!"pay".equals(action)) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
 
+        // Gom lỗi submit để redirect về màn chọn phương thức hoặc trả lỗi hệ thống phù hợp.
         try {
             processPayment(request, response);
         } catch (IllegalArgumentException e) {
@@ -143,10 +155,12 @@ public class PaymentController extends HttpServlet {
         }
 
         String type = trim(request.getParameter("type"));
+        // Nếu là checkout thì chuyển sang flow thanh toán hóa đơn còn lại.
         if (PAYMENT_TYPE_CHECKOUT.equalsIgnoreCase(type)) {
             showCheckoutPaymentMethod(request, response, currentUser);
             return;
         }
+        // Nếu là membership thì không cần booking, chỉ hiển thị amount gói VIP.
         if (PAYMENT_TYPE_MEMBERSHIP.equalsIgnoreCase(type)) {
             showMembershipPaymentMethod(request, response, currentUser);
             return;
@@ -220,10 +234,12 @@ public class PaymentController extends HttpServlet {
         }
 
         String paymentType = trim(request.getParameter("paymentType"));
+        // Submit checkout được xử lý riêng vì amount và trạng thái lấy từ invoice.
         if (PAYMENT_TYPE_CHECKOUT.equalsIgnoreCase(paymentType)) {
             processCheckoutPayment(request, response, currentUser);
             return;
         }
+        // Submit membership được xử lý riêng vì không gắn với booking sân.
         if (PAYMENT_TYPE_MEMBERSHIP.equalsIgnoreCase(paymentType)) {
             processMembershipPayment(request, response, currentUser);
             return;
@@ -246,6 +262,7 @@ public class PaymentController extends HttpServlet {
         boolean useVNPay = !explicitSimulated
                 && (MODE_VNPAY.equalsIgnoreCase(paymentMode) || selectedVNPayMethod);
 
+        // Người dùng bấm nút VNPay thì method được chọn cũng phải là VNPay.
         if (MODE_VNPAY.equalsIgnoreCase(paymentMode) && !selectedVNPayMethod) {
             throw new IllegalArgumentException("Vui long chon phuong thuc VNPay Sandbox.");
         }
@@ -283,6 +300,7 @@ public class PaymentController extends HttpServlet {
         boolean useVNPay = !explicitSimulated
                 && (MODE_VNPAY.equalsIgnoreCase(paymentMode) || selectedVNPayMethod);
 
+        // Không cho gửi VNPay bằng một payment method online khác để tránh transaction sai gateway.
         if (MODE_VNPAY.equalsIgnoreCase(paymentMode) && !selectedVNPayMethod) {
             throw new IllegalArgumentException("Vui long chon phuong thuc VNPay Sandbox.");
         }
@@ -319,6 +337,7 @@ public class PaymentController extends HttpServlet {
         boolean useVNPay = !explicitSimulated
                 && (MODE_VNPAY.equalsIgnoreCase(paymentMode) || selectedVNPayMethod);
 
+        // Membership VNPay cũng phải dùng đúng method VNPay để callback đối chiếu gateway rõ ràng.
         if (MODE_VNPAY.equalsIgnoreCase(paymentMode) && !selectedVNPayMethod) {
             throw new IllegalArgumentException("Vui long chon phuong thuc VNPay Sandbox.");
         }
@@ -342,6 +361,7 @@ public class PaymentController extends HttpServlet {
             long customerId,
             int paymentMethodId
     ) throws IOException, SQLException {
+        // Kiểm tra cấu hình VNPay trước khi tạo redirect URL cho Customer.
         try {
             VNPayConfig.validateRequired();
         } catch (IllegalStateException e) {
@@ -383,9 +403,11 @@ public class PaymentController extends HttpServlet {
                 + "\",\"transactionRef\":\"" + transactionRef + "\"}";
         String signature = "SIM-" + transactionRef;
 
+        // Demo thất bại chỉ cập nhật payment FAILED, không hoàn tất invoice/booking.
         if (simulateFailure) {
             paymentDAO.markPaymentFailed(transactionRef, rawPayload, signature);
         } else {
+            // Demo thành công đi cùng đường success callback để giữ logic checkout nhất quán.
             String gatewayTransactionId = "SIM"
                     + DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS").format(LocalDateTime.now());
             // Business Rule BR-21: Checkout payment thành công sẽ cập nhật payment/invoice/booking trong DAO.
@@ -409,6 +431,7 @@ public class PaymentController extends HttpServlet {
             long customerId,
             int paymentMethodId
     ) throws IOException, SQLException {
+        // Membership VNPay cần đủ cấu hình gateway trước khi tạo payment URL.
         try {
             VNPayConfig.validateRequired();
         } catch (IllegalStateException e) {
@@ -445,9 +468,11 @@ public class PaymentController extends HttpServlet {
                 + "\",\"transactionRef\":\"" + transactionRef + "\"}";
         String signature = "SIM-" + transactionRef;
 
+        // Demo membership thất bại giữ payment ở FAILED để người dùng có thể thử lại.
         if (simulateFailure) {
             paymentDAO.markPaymentFailed(transactionRef, rawPayload, signature);
         } else {
+            // Demo membership thành công dùng chung hàm success để gia hạn VIP trong DAO.
             String gatewayTransactionId = "SIM"
                     + java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS").format(java.time.LocalDateTime.now());
             // Payment membership thành công dùng chung callback success nhưng không gắn booking sân.
@@ -472,6 +497,7 @@ public class PaymentController extends HttpServlet {
             long customerId,
             int paymentMethodId
     ) throws IOException, SQLException {
+        // Cấu hình thiếu thì dừng sớm, không tạo payment PENDING bị kẹt ở DB.
         try {
             VNPayConfig.validateRequired();
         } catch (IllegalStateException e) {
@@ -513,9 +539,11 @@ public class PaymentController extends HttpServlet {
                 + "\",\"transactionRef\":\"" + transactionRef + "\"}";
         String signature = "SIM-" + transactionRef;
 
+        // Demo thất bại đánh dấu FAILED giống callback gateway trả lỗi.
         if (simulateFailure) {
             paymentDAO.markPaymentFailed(transactionRef, rawPayload, signature);
         } else {
+            // Demo thành công xác nhận booking; nếu DAO không xác nhận được thì chuyển payment sang FAILED.
             String gatewayTransactionId = "SIM"
                     + DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS").format(LocalDateTime.now());
             // Business Rule BR-08: Thanh toán đặt cọc thành công cho booking HOLD sẽ xác nhận booking trong DAO.
@@ -525,6 +553,7 @@ public class PaymentController extends HttpServlet {
                     rawPayload,
                     signature
             );
+            // Khi booking hết hạn/trạng thái sai, payment mô phỏng không được để SUCCESS.
             if (!success) {
                 paymentDAO.markPaymentFailed(
                         transactionRef,
@@ -545,6 +574,7 @@ public class PaymentController extends HttpServlet {
             throws IOException, ServletException, SQLException {
         Map<String, String> params = VNPayUtil.extractParams(request);
         String transactionRef = trim(params.get("vnp_TxnRef"));
+        // Không có transactionRef thì hệ thống không thể map callback về payment nào.
         if (transactionRef == null || transactionRef.isBlank()) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Thieu ma giao dich VNPay.");
             return;
@@ -554,6 +584,7 @@ public class PaymentController extends HttpServlet {
         String signature = trim(params.get("vnp_SecureHash"));
         // Business Rule BR-22: Không tin bất kỳ tham số callback nào cho tới khi chữ ký VNPay khớp với hashSecret.
         VNPayUtil.SignatureDebug signatureDebug = VNPayUtil.verifySignatureDebug(params);
+        // Chữ ký sai vẫn được lưu callback để audit, nhưng không cập nhật payment.
         if (!signatureDebug.valid()) {
             logVNPaySignatureFailure("RETURN", transactionRef, signatureDebug, params);
             paymentDAO.savePaymentCallbackByTransactionRef(
@@ -572,6 +603,7 @@ public class PaymentController extends HttpServlet {
         String transactionStatus = trim(params.get("vnp_TransactionStatus"));
 
         // Business Rule BR-23: DAO xử lý idempotent nên Return/IPN lặp không tạo thêm thay đổi trạng thái.
+        // VNPay trả 00/00 mới xem là thanh toán thành công.
         if (isVNPaySuccess(responseCode, transactionStatus)) {
             paymentDAO.markPaymentSuccessAndConfirmBooking(
                     transactionRef,
@@ -581,6 +613,7 @@ public class PaymentController extends HttpServlet {
                     GATEWAY_VNPAY
             );
         } else {
+            // Mọi mã khác 00/00 đều được ghi nhận là payment failed.
             paymentDAO.markPaymentFailed(
                     transactionRef,
                     rawPayload,
@@ -607,6 +640,7 @@ public class PaymentController extends HttpServlet {
 
         // Business Rule BR-22: IPN server-to-server cũng bắt buộc kiểm tra chữ ký/hash trước khi đọc amount.
         VNPayUtil.SignatureDebug signatureDebug = VNPayUtil.verifySignatureDebug(params);
+        // Signature không hợp lệ thì chỉ lưu audit nếu có transactionRef.
         if (!signatureDebug.valid()) {
             logVNPaySignatureFailure("IPN", transactionRef, signatureDebug, params);
             if (transactionRef != null && !transactionRef.isBlank()) {
@@ -622,12 +656,14 @@ public class PaymentController extends HttpServlet {
             return;
         }
 
+        // VNPay IPN thiếu transactionRef thì coi như không tìm thấy order.
         if (transactionRef == null || transactionRef.isBlank()) {
             writeVNPayIpnResponse(response, "01", "Order not found");
             return;
         }
 
         GatewayPaymentView payment = paymentDAO.findPaymentByTransactionRef(transactionRef);
+        // Không tìm thấy payment PENDING/SUCCESS/FAILED tương ứng trong DB.
         if (payment == null) {
             writeVNPayIpnResponse(response, "01", "Order not found");
             return;
@@ -636,6 +672,7 @@ public class PaymentController extends HttpServlet {
         // Business Rule BR-22: Số tiền VNPay gửi về phải khớp amount trong DB, không dựa vào dữ liệu từ trình duyệt.
         String requestAmount = trim(params.get("vnp_Amount"));
         String expectedAmount = VNPayUtil.toVNPayAmount(payment.amount());
+        // Amount lệch thì lưu callback nhưng không xác nhận giao dịch.
         if (!expectedAmount.equals(requestAmount)) {
             paymentDAO.savePaymentCallbackByTransactionRef(
                     transactionRef,
@@ -654,6 +691,7 @@ public class PaymentController extends HttpServlet {
 
         // Business Rule BR-23: DAO xử lý idempotent, callback lặp không làm đổi lại booking/invoice đã xử lý.
         PaymentUpdateResult result;
+        // IPN success đi vào nhánh hoàn tất payment; các trạng thái còn lại đánh dấu thất bại.
         if (isVNPaySuccess(responseCode, transactionStatus)) {
             result = paymentDAO.markPaymentSuccessAndConfirmBooking(
                     transactionRef,
@@ -663,6 +701,7 @@ public class PaymentController extends HttpServlet {
                     GATEWAY_VNPAY
             );
         } else {
+            // Gateway trả lỗi hoặc giao dịch bị hủy thì cập nhật payment failed theo transactionRef.
             result = paymentDAO.markPaymentFailed(
                     transactionRef,
                     rawPayload,
@@ -686,6 +725,7 @@ public class PaymentController extends HttpServlet {
     private void showPaymentResult(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException, SQLException {
         User currentUser = requireLogin(request, response);
+        // Không có session thì requireLogin đã redirect, dừng render result.
         if (currentUser == null) {
             return;
         }
@@ -693,6 +733,7 @@ public class PaymentController extends HttpServlet {
         String transactionRef = requireText(request.getParameter("transactionRef"),
                 "Ma giao dich khong hop le.");
         PaymentView payment = paymentDAO.getPaymentResult(transactionRef, currentUser.getUserId());
+        // Result page chỉ hiển thị giao dịch thuộc Customer hiện tại.
         if (payment == null) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "Khong tim thay giao dich.");
             return;
@@ -708,6 +749,7 @@ public class PaymentController extends HttpServlet {
             String transactionRef
     ) throws IOException, ServletException, SQLException {
         PaymentView payment = paymentDAO.getPaymentResultByTransactionRef(transactionRef);
+        // Return URL có thể mở trực tiếp sau callback, nên lookup theo transactionRef.
         if (payment == null) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "Khong tim thay giao dich.");
             return;
@@ -723,6 +765,7 @@ public class PaymentController extends HttpServlet {
     private void showPaymentHistory(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException, SQLException {
         User currentUser = requireLogin(request, response);
+        // History chỉ dành cho Customer đã đăng nhập.
         if (currentUser == null) {
             return;
         }
@@ -733,6 +776,7 @@ public class PaymentController extends HttpServlet {
 
     private User requireLogin(HttpServletRequest request, HttpServletResponse response) throws IOException {
         HttpSession session = request.getSession(false);
+        // Không có user trong session thì chuyển về login trước khi cho thanh toán.
         if (session == null || !(session.getAttribute("user") instanceof User user)) {
             response.sendRedirect(request.getContextPath() + "/login");
             return null;
@@ -741,6 +785,7 @@ public class PaymentController extends HttpServlet {
     }
 
     private void validateOnlinePaymentMethod(PaymentMethod selectedMethod) {
+        // Method phải tồn tại và ACTIVE để tránh submit id cũ/ẩn từ client.
         if (selectedMethod == null || !"ACTIVE".equalsIgnoreCase(selectedMethod.getStatus())) {
             throw new IllegalArgumentException("Phuong thuc thanh toan khong hop le.");
         }
@@ -756,8 +801,10 @@ public class PaymentController extends HttpServlet {
             String message
     ) throws IOException {
         String paymentType = trim(request.getParameter("paymentType"));
+        // Nếu lỗi ở checkout, redirect về đúng invoice để Customer sửa chọn method.
         if (PAYMENT_TYPE_CHECKOUT.equalsIgnoreCase(paymentType)) {
             String rawInvoiceId = trim(request.getParameter("invoiceId"));
+            // invoiceId không hợp lệ thì không dựng URL redirect từ input lỗi.
             if (rawInvoiceId == null || !rawInvoiceId.matches("\\d+")) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, message);
                 return;
@@ -767,6 +814,7 @@ public class PaymentController extends HttpServlet {
                     + "&error=" + URLEncoder.encode(message, StandardCharsets.UTF_8));
             return;
         }
+        // Membership không cần id nên redirect về màn chọn gói.
         if (PAYMENT_TYPE_MEMBERSHIP.equalsIgnoreCase(paymentType)) {
             response.sendRedirect(request.getContextPath()
                     + "/payment?action=method&type=membership"
@@ -775,6 +823,7 @@ public class PaymentController extends HttpServlet {
         }
 
         String rawBookingId = trim(request.getParameter("bookingId"));
+        // Deposit cần bookingId hợp lệ để quay lại đúng booking đang thanh toán.
         if (rawBookingId == null || !rawBookingId.matches("\\d+")) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, message);
             return;
@@ -866,6 +915,7 @@ public class PaymentController extends HttpServlet {
 
     private long parsePositiveLong(String rawValue, String message) {
         String value = requireText(rawValue, message);
+        // Parse id dạng long và chặn số âm/0 ngay tại controller.
         try {
             long parsed = Long.parseLong(value);
             if (parsed <= 0) {
@@ -879,6 +929,7 @@ public class PaymentController extends HttpServlet {
 
     private int parsePositiveInt(String rawValue, String message) {
         String value = requireText(rawValue, message);
+        // Parse id dạng int cho paymentMethodId và chặn giá trị không dương.
         try {
             int parsed = Integer.parseInt(value);
             if (parsed <= 0) {
@@ -892,6 +943,7 @@ public class PaymentController extends HttpServlet {
 
     private String requireText(String rawValue, String message) {
         String value = trim(rawValue);
+        // Các tham số bắt buộc không được null hoặc chuỗi rỗng sau trim.
         if (value == null || value.isEmpty()) {
             throw new IllegalArgumentException(message);
         }
@@ -908,6 +960,7 @@ public class PaymentController extends HttpServlet {
     }
 
     private String escapeJson(String value) {
+        // Null được encode thành chuỗi rỗng để response JSON VNPay luôn hợp lệ.
         if (value == null) {
             return "";
         }
@@ -915,6 +968,7 @@ public class PaymentController extends HttpServlet {
     }
 
     private String maskSecureHash(String url) {
+        // Không log chữ ký thật của VNPay ra servlet log.
         if (url == null) {
             return "";
         }

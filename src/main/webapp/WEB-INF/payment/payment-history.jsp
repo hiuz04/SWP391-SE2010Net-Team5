@@ -11,6 +11,7 @@
 
 <%!
     private String esc(String value) {
+        // Null hiển thị rỗng để bảng lịch sử không bị lỗi render.
         if (value == null) return "";
         return value.replace("&", "&amp;").replace("<", "&lt;")
                 .replace(">", "&gt;").replace("\"", "&quot;")
@@ -18,16 +19,19 @@
     }
 
     private String money(BigDecimal value) {
+        // Amount null được format là 0 VND.
         if (value == null) value = BigDecimal.ZERO;
         return NumberFormat.getCurrencyInstance(new Locale("vi", "VN")).format(value);
     }
 
     private String dateTime(LocalDateTime value) {
+        // Không có timestamp thì để trống ô thời gian.
         if (value == null) return "";
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
     private String statusLabel(String status) {
+        // Map status DB sang nhãn tiếng Việt trên UI.
         if ("SUCCESS".equals(status)) return "Th&#224;nh c&#244;ng";
         if ("FAILED".equals(status)) return "Th&#7845;t b&#7841;i";
         if ("PENDING".equals(status)) return "Ch&#7901; x&#7917; l&#253;";
@@ -35,6 +39,7 @@
     }
 
     private String statusClass(String status) {
+        // Chọn màu badge theo trạng thái payment.
         if ("SUCCESS".equals(status)) return "badge-soft-success";
         if ("FAILED".equals(status)) return "badge-soft-danger";
         return "badge-soft-warning";
@@ -44,6 +49,7 @@
 <%
     String ctx = request.getContextPath();
     List<PaymentView> payments = (List<PaymentView>) request.getAttribute("payments");
+    // Controller không truyền list thì fallback rỗng để render empty state.
     if (payments == null) payments = new ArrayList<>();
     User currentUser = (User) session.getAttribute("user");
     String currentName = currentUser != null && currentUser.getFullName() != null
@@ -74,6 +80,7 @@
             <a class="btn btn-outline-success" href="<%= ctx %>/booking?action=history">L&#7883;ch s&#7917; &#273;&#7863;t s&#226;n</a>
         </div>
 
+        <%-- Empty state khi Customer chưa có giao dịch nào. --%>
         <% if (payments.isEmpty()) { %>
         <div class="card soft-card p-5 text-center">
             <i class="bi bi-receipt display-4 text-muted"></i>
@@ -98,6 +105,7 @@
                     </tr>
                     </thead>
                     <tbody>
+                    <%-- Duyệt từng payment để render một dòng lịch sử. --%>
                     <% for (PaymentView payment : payments) { %>
                     <tr>
                         <td><strong><%= esc(payment.getTransactionRef()) %></strong></td>
