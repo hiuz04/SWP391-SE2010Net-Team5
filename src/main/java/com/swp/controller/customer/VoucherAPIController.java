@@ -39,10 +39,12 @@ public class VoucherAPIController extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String page = req.getParameter("to");
 
+        // to=center trả dữ liệu kho voucher đổi điểm.
         if("center".equals(page)) {
             getVoucherExchange(req,resp);
         }
 
+        // to=owned trả dữ liệu voucher đã thuộc về Customer.
         if("owned".equals(page)) {
             getMyVoucher(req,resp);
         }
@@ -61,6 +63,7 @@ public class VoucherAPIController extends HttpServlet {
 
         User user = (User) req.getSession().getAttribute("user");
 
+        // API cần session user để lọc voucher theo điểm/VIP của Customer.
         if (user == null) {
             resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             resp.getWriter().write("{\"success\":false,\"message\":\"Bạn chưa đăng nhập.\"}");
@@ -78,10 +81,12 @@ public class VoucherAPIController extends HttpServlet {
         req.getSession().setAttribute("user", user);
 
         String type = req.getParameter("type");
+        // Không truyền type thì lấy toàn bộ voucher mà Customer được phép thấy.
         if (type == null || type.isBlank()) {
             type = "ALL_TYPE";
         }
 
+        // Service lọc voucher theo type và trạng thái VIP hiện tại.
         try {
             List<VoucherExchangeDTO> vouchers = voucherService.getExchangeVouchers(
                     type,
@@ -96,6 +101,7 @@ public class VoucherAPIController extends HttpServlet {
             resp.getWriter().write(json.toString());
 
         } catch (Exception e) {
+            // Lỗi server trả JSON chung để frontend hiển thị empty/error state.
             e.printStackTrace();
 
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -139,10 +145,12 @@ public class VoucherAPIController extends HttpServlet {
         req.getSession().setAttribute("user", user);
 
         String status = req.getParameter("status");
+        // Không truyền status thì trả tất cả trạng thái voucher cá nhân.
         if (status == null || status.isBlank()) {
             status = "ALL";
         }
 
+        // Service đọc danh sách voucher theo userId và filter status.
         try {
             List<UserVoucherDTO> vouchers = voucherService.getUserVouchers(user.getUserId(), status);
 
@@ -154,6 +162,7 @@ public class VoucherAPIController extends HttpServlet {
             resp.getWriter().write(json.toString());
 
         } catch (Exception e) {
+            // Lỗi DB/service được gom thành response JSON thống nhất.
             e.printStackTrace();
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             resp.getWriter().write("{\"success\":false,\"message\":\"Đã có lỗi xảy ra.\"}");

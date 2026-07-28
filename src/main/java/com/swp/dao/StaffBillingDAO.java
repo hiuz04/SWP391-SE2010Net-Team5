@@ -47,6 +47,7 @@ public class StaffBillingDAO {
      * Method tính số tiền còn lại ở server để Staff/Owner xem trước trước khi gửi hóa đơn cho Customer.
      */
     public CheckoutView getCheckoutView(long bookingId) throws SQLException {
+        // SQL: Lấy dữ liệu booking/sân/Customer để preview checkout và tính số tiền còn lại.
         String sql = """
                 SELECT b.booking_id, b.booking_code, b.customer_id, b.complex_id, b.field_id,
                        b.status, b.start_time, b.end_time, b.total_amount, b.deposit_amount,
@@ -300,6 +301,7 @@ public class StaffBillingDAO {
                     throw new SecurityException("Ban khong co ca lam viec dang hoat dong tai co so nay.");
                 }
 
+                // SQL: Hủy booking CONFIRMED thành CANCELLED khi khách no-show quá 30 phút.
                 String update = """
                         UPDATE bookings
                         SET status = 'CANCELLED',
@@ -338,6 +340,7 @@ public class StaffBillingDAO {
      * SQL chung để hiển thị invoice, bao gồm thông tin booking, sân, Customer, Staff và payment checkout mới nhất.
      */
     private String invoiceViewSql(String predicate) {
+        // SQL: Query view invoice dùng chung cho Staff/Owner và Customer mở invoice checkout.
         return """
                 SELECT TOP 1
                        i.invoice_id, i.invoice_code, i.customer_id, i.status AS invoice_status, i.issued_at,
@@ -393,6 +396,7 @@ public class StaffBillingDAO {
      * Khóa booking trong transaction checkout để không có hai Staff/Owner tạo invoice cùng lúc.
      */
     private BookingLock lockBooking(Connection conn, long bookingId) throws SQLException {
+        // SQL: Khóa booking bằng UPDLOCK/HOLDLOCK trước khi checkout hoặc hủy no-show.
         String sql = """
                 SELECT booking_id, booking_code, customer_id, complex_id, field_id,
                        status, start_time, end_time, total_amount, deposit_amount
@@ -426,6 +430,7 @@ public class StaffBillingDAO {
      */
     private InvoiceSummary findLatestCheckoutInvoice(Connection conn, long bookingId, boolean forUpdate) throws SQLException {
         String lock = forUpdate ? " WITH (UPDLOCK, HOLDLOCK)" : "";
+        // SQL: Lấy invoice checkout mới nhất, có thể kèm lock khi đang xử lý transaction.
         String sql = """
                 SELECT TOP 1 invoice_id, invoice_code, status, total_amount
                 FROM invoices%s
@@ -488,6 +493,7 @@ public class StaffBillingDAO {
         if (bookingId == null) {
             return BigDecimal.ZERO;
         }
+        // SQL: Tính tổng payment SUCCESS của booking để xác định số tiền còn phải trả khi checkout.
         String sql = """
                 SELECT COALESCE(SUM(amount), 0) AS paid_amount
                 FROM payments WITH (UPDLOCK, HOLDLOCK)
@@ -530,6 +536,7 @@ public class StaffBillingDAO {
     }
 
     private BigDecimal getOvertimeFeePerMinute(Connection conn) {
+        // SQL: Đọc cấu hình phí quá giờ theo phút cho flow checkout.
         String sql = """
                 SELECT setting_value
                 FROM system_settings
@@ -551,6 +558,7 @@ public class StaffBillingDAO {
 
     private void updateBookingStatus(Connection conn, long bookingId, String oldStatus, String newStatus)
             throws SQLException {
+        // SQL: Chuyển trạng thái booking checkout khi trạng thái hiện tại khớp oldStatus.
         String sql = """
                 UPDATE bookings
                 SET status = ?,
@@ -570,6 +578,7 @@ public class StaffBillingDAO {
     }
 
     private void releaseField(Connection conn, long fieldId) throws SQLException {
+        // SQL: Trả sân về AVAILABLE sau checkout/no-show nếu sân không maintenance/disabled.
         String sql = """
                 UPDATE fields
                 SET status = 'AVAILABLE',
@@ -599,6 +608,7 @@ public class StaffBillingDAO {
             long overtimeMinutes,
             BigDecimal overtimeFee
     ) throws SQLException {
+        // SQL: Tạo invoice checkout và trả invoice_id bằng OUTPUT INSERTED.
         String sql = """
                 INSERT INTO invoices (
                     invoice_code,
@@ -643,6 +653,7 @@ public class StaffBillingDAO {
 
     private void updatePendingInvoiceAmounts(Connection conn, long invoiceId, CheckoutAmounts amounts)
             throws SQLException {
+        // SQL: Cập nhật lại số tiền invoice PENDING khi Staff gửi lại yêu cầu checkout.
         String sql = """
                 UPDATE invoices
                 SET subtotal = ?,
@@ -671,6 +682,7 @@ public class StaffBillingDAO {
             CheckoutAmounts amounts,
             BigDecimal paidAmount
     ) throws SQLException {
+        // SQL: Đánh dấu invoice checkout PAID và lưu amount/overtime cuối cùng.
         String sql = """
                 UPDATE invoices
                 SET status = 'PAID',
@@ -699,6 +711,7 @@ public class StaffBillingDAO {
             Connection conn,
             BookingLock booking
     ) throws SQLException {
+        // SQL: Hoàn tất booking sau checkout, chỉ khi booking còn đúng trạng thái đang xử lý.
         String updateBooking = """
                 UPDATE bookings
                 SET status = 'COMPLETED',
@@ -742,6 +755,7 @@ public class StaffBillingDAO {
         int cashMethodId = getOrCreatePaymentMethod(conn, METHOD_CASH, "Tiền mặt");
         String transactionRef = generateTransactionRef();
         String gatewayRef = "CASH-" + staffId + "-" + transactionRef;
+        // SQL: Ghi nhận payment CHECKOUT SUCCESS cho giao dịch tiền mặt tại quầy.
         String insertPayment = """
                 INSERT INTO payments (
                     booking_id,
@@ -782,6 +796,7 @@ public class StaffBillingDAO {
     }
 
     private boolean hasSuccessfulCheckoutPayment(Connection conn, long bookingId) throws SQLException {
+        // SQL: Kiểm tra booking đã có checkout payment SUCCESS chưa để chống ghi trùng.
         String sql = """
                 SELECT TOP 1 1
                 FROM payments WITH (UPDLOCK, HOLDLOCK)
@@ -799,6 +814,7 @@ public class StaffBillingDAO {
 
     private void failPendingCheckoutPayments(Connection conn, long bookingId, String paidTransactionRef)
             throws SQLException {
+        // SQL: Đánh dấu các checkout payment PENDING khác là FAILED sau khi một giao dịch đã thanh toán.
         String sql = """
                 UPDATE payments
                 SET status = 'FAILED'
@@ -828,6 +844,7 @@ public class StaffBillingDAO {
         }
 
         int onlineMethodId = getDefaultOnlinePaymentMethodId(conn);
+        // SQL: Tìm checkout payment PENDING hiện có để cập nhật amount/method thay vì tạo trùng.
         String selectExisting = """
                 SELECT TOP 1 payment_id, status
                 FROM payments WITH (UPDLOCK, HOLDLOCK)
@@ -849,6 +866,7 @@ public class StaffBillingDAO {
             }
         }
 
+        // SQL: Insert payment CHECKOUT PENDING cho yêu cầu Customer thanh toán online.
         String insertPayment = """
                 INSERT INTO payments (
                     booking_id,
@@ -886,6 +904,7 @@ public class StaffBillingDAO {
             int paymentMethodId,
             BigDecimal amount
     ) throws SQLException {
+        // SQL: Cập nhật amount/method của payment checkout PENDING đang chờ Customer.
         String sql = """
                 UPDATE payments
                 SET amount = ?,
@@ -904,6 +923,7 @@ public class StaffBillingDAO {
     }
 
     private PaymentRequestSummary findPendingCheckoutPayment(Connection conn, long bookingId) throws SQLException {
+        // SQL: Lấy checkout payment PENDING mới nhất của booking để preview trạng thái request.
         String sql = """
                 SELECT TOP 1 payment_id, status
                 FROM payments
@@ -924,6 +944,7 @@ public class StaffBillingDAO {
     }
 
     private int getDefaultOnlinePaymentMethodId(Connection conn) throws SQLException {
+        // SQL: Chọn payment method online mặc định, ưu tiên VNPay rồi SIMULATED.
         String sql = """
                 SELECT TOP 1 payment_method_id
                 FROM payment_methods
@@ -950,6 +971,7 @@ public class StaffBillingDAO {
         if (existing != null) {
             return existing;
         }
+        // SQL: Tạo payment method CASH/online fallback nếu chưa có cấu hình.
         String sql = """
                 INSERT INTO payment_methods (method_code, method_name, status)
                 OUTPUT INSERTED.payment_method_id
@@ -972,6 +994,7 @@ public class StaffBillingDAO {
     }
 
     private Integer findPaymentMethodIdByCode(Connection conn, String methodCode) throws SQLException {
+        // SQL: Lookup payment method theo code với lock để tránh tạo trùng khi fallback insert.
         String sql = """
                 SELECT TOP 1 payment_method_id
                 FROM payment_methods WITH (UPDLOCK, HOLDLOCK)
@@ -1008,6 +1031,7 @@ public class StaffBillingDAO {
             String type,
             long referenceId
     ) throws SQLException {
+        // SQL: Insert notification checkout/payment cho Customer hoặc Staff.
         String sql = """
                 INSERT INTO notifications (
                     user_id, title, message, notification_type, reference_id, is_read, created_at
@@ -1025,6 +1049,7 @@ public class StaffBillingDAO {
     }
 
     private boolean hasActiveShiftForComplex(Connection conn, long staffId, long complexId) throws SQLException {
+        // SQL: Kiểm tra Staff có ca trực đang hoạt động tại complex ở thời điểm hiện tại.
         String sql = """
                 SELECT TOP 1 1
                 FROM work_shifts ws
@@ -1059,6 +1084,7 @@ public class StaffBillingDAO {
     }
 
     private boolean hasAssignedShiftForComplexToday(Connection conn, long staffId, long complexId) throws SQLException {
+        // SQL: Kiểm tra Staff có phân ca trong ngày tại complex để được xem invoice.
         String sql = """
                 SELECT TOP 1 1
                 FROM work_shifts ws

@@ -47,6 +47,7 @@ public class BookingDAO {
     private static final int DEFAULT_CANCEL_BEFORE_HOURS = 24;
 
     public Long getComplexIdByFieldId(Long fieldId) throws SQLException {
+        // SQL: Lấy complex_id của field để các bước booking biết sân thuộc cụm nào.
         String sql = """
                 SELECT complex_id
                 FROM fields
@@ -69,6 +70,7 @@ public class BookingDAO {
     }
 
     private FieldPricingContext getFieldPricingContext(Long fieldId) throws SQLException {
+        // SQL: Lấy complex_id và field_type_id để chọn price rule phù hợp cho sân.
         String sql = """
                 SELECT complex_id,
                        field_type_id
@@ -96,6 +98,7 @@ public class BookingDAO {
     }
 
     public List<Field> getFieldsByComplex(Long complexId) throws SQLException {
+        // SQL: Liệt kê sân trong một complex để dựng lịch đặt sân.
         String sql = """
                 SELECT field_id,
                        complex_id,
@@ -146,6 +149,7 @@ public class BookingDAO {
         // Business Rule BR-05: Trước khi hiển thị lịch, dọn các booking HOLD đã quá hạn để giải phóng slot.
         cancelExpiredHolds();
 
+        // SQL: Lấy booking overlap với ngày đang xem để khóa các slot đã có người đặt.
         String sql = """
                 SELECT booking_id,
                        booking_code,
@@ -204,6 +208,7 @@ public class BookingDAO {
     public List<FieldMaintenanceSchedule> getMaintenanceByComplexAndDate(Long complexId, LocalDate date)
             throws SQLException {
 
+        // SQL: Lấy lịch bảo trì overlap ngày đang xem để đánh dấu slot không thể đặt.
         String sql = """
                 SELECT m.maintenance_id,
                        m.field_id,
@@ -257,6 +262,7 @@ public class BookingDAO {
      * Query chỉ trả về sân AVAILABLE để không preview một sân đã bị khóa.
      */
     public BookingView getBookingPreviewInfoByFieldId(Long fieldId, Long customerId) throws SQLException {
+        // SQL: Lấy thông tin sân và Customer cho màn preview trước khi tạo booking HOLD.
         String sql = """
                 SELECT NULL AS booking_id,
                        NULL AS booking_code,
@@ -423,6 +429,7 @@ public class BookingDAO {
             LocalDateTime endTime
     ) throws SQLException {
 
+        // SQL: Lấy các price rule ACTIVE có thể áp vào sân và khung giờ booking.
         String sql = """
                 SELECT pr.price_rule_id,
                        pr.start_time,
@@ -501,6 +508,7 @@ public class BookingDAO {
      * Việc kiểm tra khả dụng được lặp lại trong transaction để tránh hai request đặt cùng slot.
      */
     public long createBookingHold(Booking booking) throws SQLException {
+        // SQL: Insert booking HOLD và trả booking_id để Customer chuyển sang thanh toán.
         String insertBooking = """
                 INSERT INTO bookings (
                     booking_code,
@@ -605,6 +613,7 @@ public class BookingDAO {
     public BookingView getBookingDetailByIdAndCustomerId(Long bookingId, Long customerId) throws SQLException {
         cancelExpiredHolds(customerId);
 
+        // SQL: Lấy chi tiết booking theo ownership Customer bằng query view dùng chung.
         String sql = baseBookingViewSql() + """
                 WHERE b.booking_id = ?
                   AND b.customer_id = ?
@@ -630,6 +639,7 @@ public class BookingDAO {
             throws SQLException {
         cancelExpiredHolds(customerId);
 
+        // SQL: Lấy toàn bộ booking con trong recurring group thuộc đúng Customer.
         String sql = baseBookingViewSql() + """
                 WHERE b.recurring_group_id = ?
                   AND b.customer_id = ?
@@ -659,6 +669,7 @@ public class BookingDAO {
      * Lấy booking_code theo booking_id và customer_id để sinh QR động mà không phụ thuộc cột qr_code.
      */
     public String getBookingCodeByIdAndCustomerId(Long bookingId, Long customerId) throws SQLException {
+        // SQL: Lấy booking_code theo booking_id/customer_id để bảo vệ quyền sở hữu.
         String sql = """
                 SELECT booking_code
                 FROM bookings
@@ -692,6 +703,7 @@ public class BookingDAO {
             String repeatType,
             LocalDate repeatUntil
     ) throws SQLException {
+        // SQL: Tạo group booking định kỳ để gom các booking con cùng lịch lặp.
         String insertRecurringGroup = """
                 INSERT INTO booking_recurring_groups (
                     customer_id,
@@ -703,6 +715,7 @@ public class BookingDAO {
                 VALUES (?, ?, ?, GETDATE())
                 """;
 
+        // SQL: Insert từng booking con ở trạng thái HOLD trong recurring group.
         String insertBooking = """
                 INSERT INTO bookings (
                     booking_code,
@@ -825,6 +838,7 @@ public class BookingDAO {
     }
 
     public int getCancelBeforeHours() {
+        // SQL: Đọc cấu hình số giờ tối thiểu trước giờ bắt đầu được phép hủy booking.
         String sql = """
                 SELECT setting_value
                 FROM system_settings
@@ -852,6 +866,7 @@ public class BookingDAO {
      * Method kiểm tra ownership, trạng thái hiện tại và mốc giờ hủy trước khi đổi sang CANCELLED.
      */
     public void cancelBooking(Long bookingId, Long customerId, String reason) throws SQLException {
+        // SQL: Khóa booking của Customer để kiểm tra trạng thái/hạn hủy trước khi update.
         String selectBooking = """
                 SELECT status,
                        start_time,
@@ -861,6 +876,7 @@ public class BookingDAO {
                   AND customer_id = ?
                 """;
 
+        // SQL: Cập nhật booking sang CANCELLED và lưu lý do/thời điểm hủy.
         String updateBooking = """
                 UPDATE bookings
                 SET status = ?,
@@ -952,6 +968,7 @@ public class BookingDAO {
     public List<BookingView> getBookingHistoryByCustomerId(Long customerId) throws SQLException {
         cancelExpiredHolds(customerId);
 
+        // SQL: Lấy lịch sử booking, với recurring chỉ lấy booking đại diện trong group.
         String sql = baseBookingViewSql() + """
                 WHERE b.customer_id = ?
                   AND (
@@ -986,6 +1003,7 @@ public class BookingDAO {
     public int getBookingCountByCustomerId(Long customerId) throws SQLException {
         cancelExpiredHolds(customerId);
 
+        // SQL: Đếm booking còn ý nghĩa thống kê của Customer.
         String sql = """
                 SELECT COUNT(*)
                 FROM bookings
@@ -1009,6 +1027,7 @@ public class BookingDAO {
     }
 
     public int getBookingCountWithComplexId(long id) {
+        // SQL: Đếm tổng booking theo complex để kiểm tra dữ liệu phụ thuộc.
         String sql = """
                 SELECT COUNT(*) AS total
                 FROM bookings
@@ -1030,6 +1049,7 @@ public class BookingDAO {
     }
 
     public int getBookingCountWithFieldId(long id) {
+        // SQL: Đếm tổng booking theo field để kiểm tra dữ liệu phụ thuộc.
         String sql = """
                 SELECT COUNT(*) AS total
                 FROM bookings
@@ -1051,6 +1071,7 @@ public class BookingDAO {
     }
 
     public Booking getBookingById(Long bookingId) {
+        // SQL: Lấy entity Booking thô theo id cho các luồng nội bộ cần dữ liệu gốc.
         String sql = """
                 SELECT booking_id,
                        booking_code,
@@ -1168,6 +1189,7 @@ public class BookingDAO {
         // Business Rule BR-05: Dọn HOLD hết hạn trước khi kiểm tra availability để slot quá hạn được mở lại.
         cancelExpiredHolds(conn, null);
 
+        // SQL: Kiểm tra atomic trạng thái sân, bảo trì và booking trùng bằng lock trong transaction.
         String sql = """
                 SELECT
                     CASE WHEN EXISTS (
@@ -1233,6 +1255,7 @@ public class BookingDAO {
      * OUTER APPLY gom tiền nhóm recurring và lấy payment mới nhất để view có thể hiển thị đúng trạng thái thanh toán.
      */
     private String baseBookingViewSql() {
+        // SQL: Query view booking dùng chung cho detail, history và admin list.
         return """
                 SELECT b.booking_id,
                        b.booking_code,
@@ -1401,6 +1424,7 @@ public class BookingDAO {
     }
 
     public java.util.List<BookingView> getAdminBookingsPaginated(String search, String filter, int offset, int limit) throws SQLException {
+        // SQL: Dựng query danh sách booking admin với search/filter và phân trang.
         StringBuilder sql = new StringBuilder(baseBookingViewSql() + " WHERE b.status NOT IN ('EXPIRED') ");
 
         if (search != null && !search.trim().isEmpty()) {
@@ -1443,6 +1467,7 @@ public class BookingDAO {
     }
 
     public int countAdminBookings(String search, String filter) throws SQLException {
+        // SQL: Dựng query đếm booking admin dùng cùng filter/search với danh sách phân trang.
         StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM bookings b JOIN users u ON b.customer_id = u.user_id WHERE b.status NOT IN ('EXPIRED') ");
 
         if (search != null && !search.trim().isEmpty()) {
@@ -1483,7 +1508,9 @@ public class BookingDAO {
      * Cập nhật trạng thái HOLD quá hạn để giải phóng slot.
      */
     private int cancelExpiredHolds(Connection conn, Long customerId) throws SQLException {
+        // SQL: Fragment tùy chọn để chỉ dọn HOLD hết hạn của một Customer khi cần.
         String customerFilter = customerId == null ? "" : "                  AND b.customer_id = ?\n";
+        // SQL: Lấy các voucher đang bị booking HOLD hết hạn giữ để trả lại sau khi cancel.
         String selectReservedSql = """
                 SELECT b.user_voucher_id,
                        b.customer_id
@@ -1500,6 +1527,7 @@ public class BookingDAO {
                         AND p.status = 'SUCCESS'
                   )
                 """;
+        // SQL: Cập nhật các booking HOLD quá hạn và chưa có payment SUCCESS sang CANCELLED.
         String sql = """
                 -- Business Rule BR-05: Booking HOLD quá hạn và chưa có payment SUCCESS bị hủy để giải phóng slot.
                 UPDATE b
@@ -1643,6 +1671,7 @@ public class BookingDAO {
     }
 
     public BookingView getAdminBookingDetailById(Long bookingId) throws SQLException {
+        // SQL: Lấy chi tiết booking cho admin bằng query view dùng chung.
         String sql = baseBookingViewSql() + " WHERE b.booking_id = ? ";
 
         try (Connection conn = DBContext.getConnection();

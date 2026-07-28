@@ -53,7 +53,9 @@ public class VoucherManagementServlet extends HttpServlet {
             throws ServletException, IOException {
 
         String action = trim(request.getParameter("action"));
+        // GET action quyết định render form tạo, form sửa hoặc danh sách voucher.
         try {
+            // Form create dùng voucher rỗng với default PUBLIC_CODE/ALL.
             if ("create".equals(action)) {
                 Voucher emptyVoucher = new Voucher();
                 emptyVoucher.setDistributionType(DISTRIBUTION_PUBLIC_CODE);
@@ -61,6 +63,7 @@ public class VoucherManagementServlet extends HttpServlet {
                 emptyVoucher.setExchangePoint(0);
                 showForm(request, response, emptyVoucher, "create");
             } else if ("edit".equals(action)) {
+                // Form edit bắt buộc có id hợp lệ và voucher tồn tại.
                 int id = parsePositiveInt(request.getParameter("id"), "Mã giảm giá không hợp lệ.");
                 Voucher voucher = voucherDAO.findById(id);
                 if (voucher == null) {
@@ -69,13 +72,16 @@ public class VoucherManagementServlet extends HttpServlet {
                 }
                 showForm(request, response, voucher, "edit");
             } else {
+                // Không có action thì hiển thị danh sách toàn bộ voucher cho Owner.
                 List<Voucher> vouchers = voucherDAO.getAllVouchers();
                 request.setAttribute("vouchers", vouchers);
                 request.getRequestDispatcher(LIST_VIEW).forward(request, response);
             }
         } catch (SQLException e) {
+            // Lỗi DB được nâng thành ServletException để container xử lý/log.
             throw new ServletException("Không thể xử lý mã giảm giá.", e);
         } catch (IllegalArgumentException e) {
+            // Lỗi input trên query string trả BAD_REQUEST.
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         }
     }
@@ -91,7 +97,9 @@ public class VoucherManagementServlet extends HttpServlet {
 
         HttpSession session = request.getSession();
         String action = trim(request.getParameter("action"));
+        // POST action quyết định tạo mới, cập nhật hoặc bật/tắt voucher.
         try {
+            // Create parse form, reset used và kiểm unique code trước khi insert.
             if ("create".equals(action)) {
                 Voucher voucher = parseVoucher(request, false);
                 // Business Rule BR-36: Voucher mới luôn khởi tạo used = 0, không lấy used từ request.
@@ -102,6 +110,7 @@ public class VoucherManagementServlet extends HttpServlet {
                 session.setAttribute("successMessage", "Tạo mã giảm giá thành công.");
                 response.sendRedirect(request.getContextPath() + MANAGEMENT_PATH);
             } else if ("edit".equals(action)) {
+                // Edit cần id hợp lệ và bản ghi hiện có để giữ used/current constraints.
                 Voucher voucher = parseVoucher(request, true);
                 Voucher existingVoucher = voucherDAO.findById(voucher.getId());
                 if (existingVoucher == null) {
@@ -119,6 +128,7 @@ public class VoucherManagementServlet extends HttpServlet {
                 session.setAttribute("successMessage", "Cập nhật mã giảm giá thành công.");
                 response.sendRedirect(request.getContextPath() + MANAGEMENT_PATH);
             } else if ("toggle-status".equals(action)) {
+                // Toggle chỉ đổi ACTIVE/DISABLED, không sửa các trường ưu đãi.
                 int id = parsePositiveInt(request.getParameter("id"), "Mã giảm giá không hợp lệ.");
                 Voucher voucher = voucherDAO.findById(id);
                 if (voucher == null) {
@@ -132,16 +142,20 @@ public class VoucherManagementServlet extends HttpServlet {
                 session.setAttribute("successMessage", "Đã cập nhật trạng thái mã giảm giá.");
                 response.sendRedirect(request.getContextPath() + MANAGEMENT_PATH);
             } else {
+                // Action lạ quay về danh sách để tránh submit vào trạng thái không xác định.
                 response.sendRedirect(request.getContextPath() + MANAGEMENT_PATH);
             }
         } catch (IllegalArgumentException e) {
+            // Toggle lỗi thì dùng flash message và quay về list, không render form.
             if ("toggle-status".equals(action)) {
                 session.setAttribute("errorMessage", e.getMessage());
                 response.sendRedirect(request.getContextPath() + MANAGEMENT_PATH);
                 return;
             }
+            // Create/edit lỗi validate thì dựng lại voucher từ request để giữ dữ liệu người dùng nhập.
             Voucher voucher = safeParseVoucherForReturn(request);
             if ("edit".equals(action)) {
+                // Với edit, cần restore used thật từ DB vì form không được tin used client gửi lên.
                 try {
                     restoreExistingUsage(voucher);
                 } catch (SQLException sqlException) {
@@ -151,6 +165,7 @@ public class VoucherManagementServlet extends HttpServlet {
             request.setAttribute("error", e.getMessage());
             showForm(request, response, voucher, "edit".equals(action) ? "edit" : "create");
         } catch (SQLException e) {
+            // Lỗi DB khi lưu voucher được chuyển thành lỗi servlet.
             throw new ServletException("Không thể lưu mã giảm giá.", e);
         }
     }
@@ -172,6 +187,7 @@ public class VoucherManagementServlet extends HttpServlet {
      */
     private Voucher parseVoucher(HttpServletRequest request, boolean requireId) {
         Voucher voucher = new Voucher();
+        // Khi edit, form phải gửi id voucher đang sửa.
         if (requireId) {
             voucher.setId(parsePositiveInt(request.getParameter("id"), "Mã giảm giá không hợp lệ."));
         }
@@ -195,6 +211,7 @@ public class VoucherManagementServlet extends HttpServlet {
         voucher.setTargetUser(normalize(defaultIfBlank(request.getParameter("targetUser"), TARGET_ALL)));
         int exchangePoints = parseNonNegativeInt(defaultIfBlank(request.getParameter("exchangePoints"), "0"),
                 "Điểm cần đổi không hợp lệ.");
+        // PUBLIC_CODE không cần điểm đổi; REWARD_VOUCHER dùng exchangePoints từ form.
         voucher.setExchangePoint(DISTRIBUTION_PUBLIC_CODE.equals(voucher.getDistributionType()) ? 0 : exchangePoints);
 
         validateVoucher(voucher);
@@ -203,12 +220,14 @@ public class VoucherManagementServlet extends HttpServlet {
 
     private Voucher safeParseVoucherForReturn(HttpServletRequest request) {
         Voucher voucher = new Voucher();
+        // Best-effort parse để render lại form khi validate fail, không ném lỗi thêm.
         try {
             String id = trim(request.getParameter("id"));
             if (id != null && !id.isEmpty()) {
                 voucher.setId(Integer.parseInt(id));
             }
         } catch (NumberFormatException ignored) {
+            // id lỗi thì để mặc định 0, form sẽ render theo mode caller truyền.
         }
         voucher.setCode(trim(request.getParameter("code")));
         voucher.setName(trim(request.getParameter("name")));
@@ -265,14 +284,17 @@ public class VoucherManagementServlet extends HttpServlet {
         if (!TARGET_ALL.equals(voucher.getTargetUser()) && !TARGET_MEMBER.equals(voucher.getTargetUser())) {
             throw new IllegalArgumentException("Đối tượng áp dụng không hợp lệ.");
         }
+        // Voucher đổi điểm phải có số điểm cần đổi dương.
         if (DISTRIBUTION_REWARD_VOUCHER.equals(voucher.getDistributionType())
                 && voucher.getExchangePoint() <= 0) {
             throw new IllegalArgumentException("Voucher đổi điểm phải có điểm cần đổi lớn hơn 0.");
         }
+        // Mã công khai không dùng exchangePoint nên reset về 0.
         if (DISTRIBUTION_PUBLIC_CODE.equals(voucher.getDistributionType())
                 && voucher.getExchangePoint() != 0) {
             voucher.setExchangePoint(0);
         }
+        // Code/name giới hạn độ dài để khớp schema DB và form UI.
         if (voucher.getCode().length() > 50) {
             throw new IllegalArgumentException("Mã voucher không được vượt quá 50 ký tự.");
         }
@@ -295,35 +317,44 @@ public class VoucherManagementServlet extends HttpServlet {
      * Voucher đã có user_vouchers/voucher_usages thì chỉ cho sửa an toàn để không làm mất quyền lợi đã cấp.
      */
     private void validateIssuedVoucherSafeEdit(Voucher existingVoucher, Voucher newVoucher) throws SQLException {
+        // Voucher chưa phát hành/chưa dùng thì Owner được sửa đầy đủ theo validate chung.
         if (!voucherDAO.hasIssuedOrUsed(existingVoucher.getId())) {
             return;
         }
+        // Voucher đã phát hành không được đổi code vì Customer có thể đã thấy/lưu mã.
         if (!existingVoucher.getCode().equalsIgnoreCase(newVoucher.getCode())) {
             throw new IllegalArgumentException("Voucher đã phát hành không được đổi mã.");
         }
+        // Không đổi PUBLIC_CODE <-> REWARD_VOUCHER sau khi đã phát hành.
         if (!existingVoucher.getDistributionType().equalsIgnoreCase(newVoucher.getDistributionType())) {
             throw new IllegalArgumentException("Voucher đã phát hành không được đổi loại phát hành.");
         }
+        // Không đổi đối tượng áp dụng vì có thể làm mất quyền dùng của Customer đã nhận.
         if (!existingVoucher.getTargetUser().equalsIgnoreCase(newVoucher.getTargetUser())) {
             throw new IllegalArgumentException("Voucher đã phát hành không được đổi đối tượng áp dụng.");
         }
+        // Không giảm giá trị ưu đãi của voucher đã cấp.
         if (newVoucher.getDiscountValue().compareTo(existingVoucher.getDiscountValue()) < 0) {
             throw new IllegalArgumentException("Voucher đã phát hành không được giảm giá trị ưu đãi.");
         }
+        // Không tăng min order vì Customer đã nhận voucher theo điều kiện cũ.
         if (newVoucher.getMinOrder().compareTo(existingVoucher.getMinOrder()) > 0) {
             throw new IllegalArgumentException("Voucher đã phát hành không được tăng đơn tối thiểu.");
         }
+        // Không rút ngắn hạn dùng của voucher đã phát hành.
         if (newVoucher.getEndDate().isBefore(existingVoucher.getEndDate())) {
             throw new IllegalArgumentException("Voucher đã phát hành không được rút ngắn ngày hết hạn.");
         }
     }
 
     private void restoreExistingUsage(Voucher voucher) throws SQLException {
+        // Không có id thì không có bản ghi DB để restore used.
         if (voucher.getId() <= 0) {
             return;
         }
 
         Voucher existingVoucher = voucherDAO.findById(voucher.getId());
+        // Nếu voucher còn tồn tại thì lấy used thật từ DB.
         if (existingVoucher != null) {
             voucher.setUsed(existingVoucher.getUsed());
         }
@@ -342,6 +373,7 @@ public class VoucherManagementServlet extends HttpServlet {
 
     private int parsePositiveInt(String rawValue, String message) {
         int value = parseNonNegativeInt(rawValue, message);
+        // Positive int dùng cho id/quantity nên không nhận 0.
         if (value <= 0) {
             throw new IllegalArgumentException(message);
         }
@@ -350,6 +382,7 @@ public class VoucherManagementServlet extends HttpServlet {
 
     private int parseNonNegativeInt(String rawValue, String message) {
         String value = requireText(rawValue, message);
+        // Parse số nguyên không âm cho exchangePoints và các field numeric.
         try {
             int parsed = Integer.parseInt(value);
             if (parsed < 0) {
@@ -357,12 +390,14 @@ public class VoucherManagementServlet extends HttpServlet {
             }
             return parsed;
         } catch (NumberFormatException e) {
+            // Chuỗi không phải số được chuyển thành lỗi validate có message thân thiện.
             throw new IllegalArgumentException(message, e);
         }
     }
 
     private BigDecimal parseMoney(String rawValue, String message) {
         String value = requireText(rawValue, message);
+        // Parse tiền/percent từ form; validate range nằm ở validateVoucher.
         try {
             return new BigDecimal(value);
         } catch (NumberFormatException e) {
@@ -372,6 +407,7 @@ public class VoucherManagementServlet extends HttpServlet {
 
     private LocalDateTime parseDateTime(String rawValue, String message) {
         String value = requireText(rawValue, message);
+        // datetime-local gửi ISO local datetime, LocalDateTime.parse xử lý trực tiếp.
         try {
             return LocalDateTime.parse(value);
         } catch (Exception e) {
@@ -381,6 +417,7 @@ public class VoucherManagementServlet extends HttpServlet {
 
     private String requireText(String rawValue, String message) {
         String value = trim(rawValue);
+        // Field bắt buộc không được null/rỗng sau trim.
         if (value == null || value.isEmpty()) {
             throw new IllegalArgumentException(message);
         }
@@ -402,28 +439,34 @@ public class VoucherManagementServlet extends HttpServlet {
     }
 
     private BigDecimal safeMoney(String rawValue) {
+        // Parse tiền best-effort để giữ form khi validate fail.
         try {
             String value = trim(rawValue);
             return value == null || value.isEmpty() ? BigDecimal.ZERO : new BigDecimal(value);
         } catch (NumberFormatException e) {
+            // Nếu user nhập sai định dạng thì hiển thị 0 thay vì ném lỗi lần hai.
             return BigDecimal.ZERO;
         }
     }
 
     private int safeInt(String rawValue) {
+        // Parse int best-effort cho form return.
         try {
             String value = trim(rawValue);
             return value == null || value.isEmpty() ? 0 : Integer.parseInt(value);
         } catch (NumberFormatException e) {
+            // Input sai định dạng được trả về 0 để form vẫn render.
             return 0;
         }
     }
 
     private LocalDateTime safeDateTime(String rawValue) {
+        // Parse datetime best-effort cho form return.
         try {
             String value = trim(rawValue);
             return value == null || value.isEmpty() ? null : LocalDateTime.parse(value);
         } catch (Exception e) {
+            // Ngày sai format thì để trống trong form.
             return null;
         }
     }

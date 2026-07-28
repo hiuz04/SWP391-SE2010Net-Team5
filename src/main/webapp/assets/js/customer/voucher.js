@@ -19,6 +19,7 @@ function escapeHtml(str) {
 }
 
 function formatDate(isoStr) {
+    // API trả LocalDateTime dạng ISO, thiếu ngày thì hiển thị rỗng.
     if (!isoStr) return "";
     // isoStr dạng "2026-12-31T00:00:00" (LocalDateTime.toString())
     const [datePart] = isoStr.split("T");
@@ -34,14 +35,17 @@ function loadVoucherStock(type = "ALL_TYPE") {
     fetch(`${ctx}/vouchers-api?to=center&type=${encodeURIComponent(type)}`)
         .then(res => res.json())
         .then(data => {
+            // API trả success=false khi Customer chưa đủ quyền hoặc server validate fail.
             if (!data.success) {
                 voucherList.innerHTML = `<div class="col-12 text-center text-danger py-5">${data.message || "Không thể tải dữ liệu."}</div>`;
                 return;
             }
 
+            // Điểm thưởng được cập nhật từ DB mỗi lần load kho voucher.
             if (typeof data.point !== "undefined") {
                 currentPoint = data.point;
                 const pointEl = document.getElementById("available-point");
+                // Trang không có pointEl thì bỏ qua, dùng chung JS cho nhiều view.
                 if (pointEl) pointEl.textContent = Number(data.point).toLocaleString("vi-VN");
             }
             allVouchers = data.data;
@@ -49,6 +53,7 @@ function loadVoucherStock(type = "ALL_TYPE") {
             renderVoucherStock(allVouchers);
         })
         .catch(err => {
+            // Lỗi network/server render error state thay vì để danh sách trống.
             console.error(err);
             voucherList.innerHTML = `<div class="col-12 text-center text-danger py-5">Đã có lỗi xảy ra.</div>`;
         });
@@ -57,6 +62,7 @@ function loadVoucherStock(type = "ALL_TYPE") {
 function renderVoucherStock(vouchers) {
     const voucherList = document.getElementById("voucher-list");
 
+    // Không có voucher phù hợp filter/search thì hiển thị empty state.
     if (!vouchers || vouchers.length === 0) {
         voucherList.innerHTML = `<div class="col-12 text-center text-muted py-5">Không tìm thấy voucher nào.</div>`;
         return;
@@ -77,6 +83,7 @@ function renderVoucherStock(vouchers) {
 
         const remain = voucher.quantity - voucher.used;
         const endDate = formatDate(voucher.endDate);
+        // Không đủ điểm thì disable nút đổi ngay trên client; server vẫn kiểm lại.
         const disabled = voucher.exchangePoints > currentPoint;
 
         return `
@@ -121,14 +128,17 @@ function loadMyVoucher(status = "ALL") {
 
     fetch(`${ctx}/vouchers-api?to=owned&status=${encodeURIComponent(status)}`)
         .then(res => {
+            // API owned trả lỗi HTTP khi session hết hạn hoặc lỗi server.
             if (!res.ok) throw new Error("Network error " + res.status);
             return res.json();
         })
         .then(data => {
+            // success=false hiển thị message từ backend.
             if (!data.success) {
                 listEl.innerHTML = `<div class="col-12 text-center text-danger py-5">${escapeHtml(data.message || "Không thể tải dữ liệu.")}</div>`;
                 return;
             }
+            // Cập nhật điểm thưởng trên trang Voucher của tôi.
             if (typeof data.point !== "undefined") {
                 currentPoint = data.point;
                 const pointDisplay = document.getElementById("userPointDisplay");
@@ -139,6 +149,7 @@ function loadMyVoucher(status = "ALL") {
             renderMyVoucher(data.data);
         })
         .catch(err => {
+            // Lỗi fetch được hiển thị bằng message chung cho Customer.
             console.error(err);
             listEl.innerHTML = `<div class="col-12 text-center text-danger py-5">Đã có lỗi xảy ra, vui lòng thử lại.</div>`;
         });
@@ -158,6 +169,7 @@ function renderMyVoucher(vouchers) {
 
     countEl.textContent = vouchers.length;
 
+    // Không có voucher ở filter hiện tại thì hiển thị empty state.
     if (!vouchers || vouchers.length === 0) {
         listEl.innerHTML = `<div class="col-12 text-center text-muted py-5">Không có voucher nào trong mục này.</div>`;
         return;
@@ -166,6 +178,7 @@ function renderMyVoucher(vouchers) {
     listEl.innerHTML = vouchers.map(v => {
         const s = statusLabel[v.effectiveStatus] || {text: v.effectiveStatus, badge: "bg-light text-dark"};
         const dimClass = v.effectiveStatus !== "AVAILABLE" ? "opacity-50" : "";
+        // Voucher RESERVED hiển thị booking đang giữ để Customer hiểu vì sao chưa dùng được.
         const reservedText = v.effectiveStatus === "RESERVED" && v.reservedBookingCode
             ? `<p class="small text-warning mb-0">Đang giữ cho booking: ${escapeHtml(v.reservedBookingCode)}</p>`
             : "";
@@ -192,9 +205,11 @@ function renderMyVoucher(vouchers) {
 
 document.addEventListener("DOMContentLoaded", function () {
     const voucherFilterEl = document.getElementById("voucherFilter");
+    // Bộ lọc trang Voucher của tôi theo effective_status.
     if (voucherFilterEl) {
         voucherFilterEl.addEventListener("click", function (e) {
             const btn = e.target.closest("button[data-status]");
+            // Click ngoài button filter thì bỏ qua.
             if (!btn) return;
 
             this.querySelectorAll(".nav-link").forEach(el => el.classList.remove("active"));
@@ -205,9 +220,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const voucherTypeFilterEl = document.getElementById("voucherTypeFilter");
+    // Bộ lọc kho voucher theo ALL/MEMBER cho Customer VIP.
     if (voucherTypeFilterEl) {
         voucherTypeFilterEl.addEventListener("click", function (e) {
             const btn = e.target.closest("button[data-type]");
+            // Click ngoài button type filter thì bỏ qua.
             if (!btn) return;
 
             this.querySelectorAll(".filter-btn").forEach(el => {
@@ -223,6 +240,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     document.addEventListener("click", function (e) {
+        // Chỉ xử lý khi Customer bấm nút đổi voucher.
         if (!e.target.classList.contains("exchange-btn")) return;
         const btn = e.target;
         const voucherId = btn.dataset.id;
@@ -236,6 +254,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     const confirmBtn = document.getElementById("confirmExchangeBtn");
+    // Modal xác nhận chỉ tồn tại ở trang Voucher Center.
     if (confirmBtn) {
         confirmBtn.addEventListener("click", function () {
             const voucherId = this.dataset.id; // lấy từ dataset đã set ở bước (1)
@@ -256,30 +275,36 @@ document.addEventListener("DOMContentLoaded", function () {
             })
                 .then(res => res.json())
                 .then(data => {
+                    // Thành công reload để cập nhật điểm và số lượng còn lại.
                     if (data.success) {
                         alert(data.message || "Đổi voucher thành công.");
                         location.reload();
                     } else {
+                        // Thất bại nghiệp vụ hiển thị message từ backend.
                         alert(data.message || "Không thể đổi voucher.");
                     }
                 })
                 .catch(err => {
+                    // Lỗi network/server trả alert chung.
                     console.error(err);
                     alert("Đã có lỗi xảy ra, vui lòng thử lại sau.");
                 })
                 .finally(() => {
+                    // Luôn bật lại nút sau khi request kết thúc.
                     btn.disabled = false;
                 });
         });
     }
 
     const searchInputEl = document.getElementById("voucherSearchInput");
+    // Search chỉ tồn tại ở trang Voucher Center.
     if (searchInputEl) {
         let debounceTimer;
         searchInputEl.addEventListener("input", function () {
             clearTimeout(debounceTimer);
             const keyword = this.value.trim().toLowerCase();
 
+            // Debounce để không render lại danh sách sau mỗi phím quá dày.
             debounceTimer = setTimeout(() => {
                 const filtered = allVouchers.filter(v =>
                     v.name.toLowerCase().includes(keyword) ||

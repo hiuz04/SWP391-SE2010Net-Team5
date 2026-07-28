@@ -47,15 +47,18 @@ public class VoucherDAO {
      * Lấy toàn bộ voucher cho màn Owner, gồm cả voucher đang tắt/hết hạn để Owner theo dõi lịch sử.
      */
     public List<Voucher> getAllVouchers() throws SQLException {
+        // SQL: Lấy toàn bộ voucher cho Owner, sắp xếp voucher mới nhất trước.
         String sql = baseSelectSql() + """
                 ORDER BY created_at DESC,
                          id DESC
                 """;
 
         List<Voucher> vouchers = new ArrayList<>();
+        // Duyệt toàn bộ voucher để Owner xem được cả lịch sử mã đang tắt/hết hạn.
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
+            // Mỗi row được map sang entity Voucher cho JSP list.
             while (rs.next()) {
                 vouchers.add(mapVoucher(rs));
             }
@@ -67,11 +70,14 @@ public class VoucherDAO {
      * Tìm voucher theo id để Owner edit hoặc các transaction booking/payment kiểm tra lại dữ liệu gốc.
      */
     public Voucher findById(int id) throws SQLException {
+        // SQL: Lấy voucher theo id bằng base select dùng chung.
         String sql = baseSelectSql() + " WHERE id = ?";
+        // Lookup theo id dùng cả cho form edit và transaction validate.
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
+                // Không tìm thấy thì trả null để caller quyết định 404/invalid.
                 return rs.next() ? mapVoucher(rs) : null;
             }
         }
@@ -82,15 +88,19 @@ public class VoucherDAO {
      */
     public Voucher findByCode(String code) throws SQLException {
         String normalizedCode = normalizeCode(code);
+        // Code rỗng/null không cần query DB.
         if (normalizedCode == null || normalizedCode.isEmpty()) {
             return null;
         }
 
+        // SQL: Lấy voucher theo code đã normalize để validate trùng/apply PUBLIC_CODE.
         String sql = baseSelectSql() + " WHERE code = ?";
+        // Code đã normalize uppercase để khớp cách Owner lưu voucher.
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, normalizedCode);
             try (ResultSet rs = ps.executeQuery()) {
+                // Code unique nên tối đa một voucher được trả về.
                 return rs.next() ? mapVoucher(rs) : null;
             }
         }
@@ -100,6 +110,7 @@ public class VoucherDAO {
      * Tạo voucher mới. used luôn bắt đầu bằng 0 và distribution_type quyết định ý nghĩa của used về sau.
      */
     public boolean createVoucher(Voucher voucher) throws SQLException {
+        // SQL: Insert voucher mới, cố định used = 0 để lượt dùng chỉ tăng qua nghiệp vụ.
         String sql = """
                 INSERT INTO vouchers (
                     code,
@@ -120,6 +131,7 @@ public class VoucherDAO {
                 VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, GETDATE())
                 """;
 
+        // Insert voucher mới, used được cố định 0 trong SQL.
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             setVoucherStatement(ps, voucher);
@@ -132,6 +144,7 @@ public class VoucherDAO {
      * used chỉ thay đổi qua redeem/payment để dữ liệu không bị sửa tay.
      */
     public boolean updateVoucher(Voucher voucher) throws SQLException {
+        // SQL: Cập nhật cấu hình voucher nhưng không cập nhật used.
         String sql = """
                 UPDATE vouchers
                 SET code = ?,
@@ -150,6 +163,7 @@ public class VoucherDAO {
                 WHERE id = ?
                 """;
 
+        // Update cấu hình voucher nhưng không update used.
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             setVoucherStatement(ps, voucher);
@@ -162,6 +176,7 @@ public class VoucherDAO {
      * Bật/tắt voucher. DISABLED chặn đổi mới nhưng không thu hồi user_vouchers đã phát hành.
      */
     public boolean updateStatus(int id, String status) throws SQLException {
+        // SQL: Đổi trạng thái voucher ACTIVE/DISABLED mà không xóa dữ liệu lịch sử.
         String sql = """
                 UPDATE vouchers
                 SET status = ?,
@@ -169,6 +184,7 @@ public class VoucherDAO {
                 WHERE id = ?
                 """;
 
+        // Chỉ đổi status ACTIVE/DISABLED, không xóa voucher khỏi DB.
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, normalizeStatus(status));
@@ -181,6 +197,7 @@ public class VoucherDAO {
      * Kiểm tra voucher đã được phát hành/sử dụng chưa để Owner không sửa các trường làm giảm quyền lợi.
      */
     public boolean hasIssuedOrUsed(int voucherId) throws SQLException {
+        // SQL: Kiểm tra voucher đã có user_vouchers hoặc voucher_usages hay chưa.
         String sql = """
                 SELECT 1
                 WHERE EXISTS (
@@ -190,6 +207,7 @@ public class VoucherDAO {
                     SELECT 1 FROM voucher_usages WHERE voucher_id = ?
                 )
                 """;
+        // Nếu có user_vouchers hoặc voucher_usages thì voucher đã phát hành/sử dụng.
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, voucherId);
@@ -205,6 +223,7 @@ public class VoucherDAO {
      * Điều kiện used < quantity chặn vượt số lượng khi nhiều transaction chạy song song.
      */
     public boolean incrementUsed(int voucherId, Connection conn) throws SQLException {
+        // SQL: Tăng used có điều kiện used < quantity để tránh vượt số lượng voucher.
         String sql = """
                 UPDATE vouchers
                 SET used = used + 1,
@@ -219,6 +238,7 @@ public class VoucherDAO {
      * Giảm used khi cần rollback nghiệp vụ phát hành; không dùng cho payment thất bại thông thường.
      */
     public boolean decrementUsed(int voucherId, Connection conn) throws SQLException {
+        // SQL: Giảm used có điều kiện used > 0 để rollback lượt phát hành an toàn.
         String sql = """
                 UPDATE vouchers
                 SET used = used - 1,
@@ -235,6 +255,7 @@ public class VoucherDAO {
 
     public VoucherValidationResult validateVoucher(String code, BigDecimal orderAmount, Long customerId) throws SQLException {
         User customer = null;
+        // Có customerId thì dựng User tối thiểu để kiểm tra lịch sử dùng voucher.
         if (customerId != null && customerId > 0) {
             customer = new User();
             customer.setUserId(customerId);
@@ -250,19 +271,24 @@ public class VoucherDAO {
         BigDecimal safeOrderAmount = money(orderAmount);
         Voucher voucher = findByCode(code);
 
+        // Không có code tương ứng trong DB thì báo invalid ngay.
         if (voucher == null) {
             return VoucherValidationResult.invalid("Mã voucher không tồn tại.");
         }
+        // PUBLIC_CODE là mã nhập trực tiếp, khác với voucher đổi điểm trong user_vouchers.
         if (!DISTRIBUTION_PUBLIC_CODE.equalsIgnoreCase(nullToDefault(voucher.getDistributionType(), DISTRIBUTION_PUBLIC_CODE))) {
             return VoucherValidationResult.invalid("Mã voucher này không phải mã công khai.");
         }
+        // Voucher bị Owner tắt thì không được áp mới ở booking.
         if (!STATUS_ACTIVE.equalsIgnoreCase(voucher.getStatus())) {
             return VoucherValidationResult.invalid("Voucher không còn hoạt động.");
         }
         VoucherValidationResult commonResult = validateCommonVoucherRules(voucher, safeOrderAmount, false, isVipCurrentlyValid(customer));
+        // Các rule chung gồm hạn dùng, số lượng, target VIP và min order.
         if (!commonResult.isValid()) {
             return commonResult;
         }
+        // PUBLIC_CODE chỉ cho mỗi Customer dùng một lần sau payment success.
         if (customer != null
                 && customer.getUserId() != null
                 && hasCustomerUsedVoucher(voucher.getId(), customer.getUserId())) {
@@ -292,11 +318,13 @@ public class VoucherDAO {
             long customerId,
             boolean forUpdate
     ) throws SQLException {
+        // Id không dương thì không thể là user_voucher hợp lệ.
         if (userVoucherId <= 0 || customerId <= 0) {
             return VoucherValidationResult.invalid("Voucher không hợp lệ.");
         }
 
         String lockHint = forUpdate ? " WITH (UPDLOCK, HOLDLOCK) " : "";
+        // SQL: Lấy user_voucher kèm voucher gốc để validate quyền sở hữu và điều kiện áp dụng.
         String sql = """
                 SELECT uv.user_voucher_id,
                        uv.user_id,
@@ -326,35 +354,43 @@ public class VoucherDAO {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, userVoucherId);
             try (ResultSet rs = ps.executeQuery()) {
+                // Không có user_voucher tương ứng thì Customer không thể dùng.
                 if (!rs.next()) {
                     return VoucherValidationResult.invalid("Voucher không tồn tại.");
                 }
 
+                // Voucher đổi điểm phải thuộc đúng Customer đang tạo booking.
                 if (rs.getLong("user_id") != customerId) {
                     return VoucherValidationResult.invalid("Bạn không sở hữu voucher này.");
                 }
                 String userVoucherStatus = rs.getString("user_voucher_status");
+                // Chỉ AVAILABLE mới được dùng để preview/reserve.
                 if (!USER_VOUCHER_AVAILABLE.equalsIgnoreCase(userVoucherStatus)) {
+                    // RESERVED cho biết voucher đang bị một booking HOLD khác giữ.
                     if (USER_VOUCHER_RESERVED.equalsIgnoreCase(userVoucherStatus)) {
                         return VoucherValidationResult.invalid("Voucher đang được giữ cho booking khác.");
                     }
                     return VoucherValidationResult.invalid("Voucher đã được sử dụng.");
                 }
                 LocalDateTime expiredAt = toLocalDateTime(rs.getTimestamp("expired_at"));
+                // user_voucher hết hạn theo thời điểm Customer đã đổi voucher.
                 if (expiredAt == null || expiredAt.isBefore(LocalDateTime.now())) {
                     return VoucherValidationResult.invalid("Voucher đã hết hạn.");
                 }
 
                 Voucher voucher = mapVoucher(rs);
+                // user_voucher chỉ hợp lệ với loại phát hành REWARD_VOUCHER.
                 if (!DISTRIBUTION_REWARD_VOUCHER.equalsIgnoreCase(voucher.getDistributionType())) {
                     return VoucherValidationResult.invalid("Voucher này không phải voucher đổi điểm.");
                 }
 
                 VoucherValidationResult commonResult = validateCommonVoucherRules(voucher, money(orderAmount), true, true);
+                // Kiểm tra min order/thời hạn voucher gốc trước khi tính discount.
                 if (!commonResult.isValid()) {
                     return commonResult;
                 }
 
+                // Khi reserve trong transaction, kiểm tra thêm có booking active nào đang giữ voucher này không.
                 if (forUpdate && isUserVoucherHeldByActiveBooking(conn, userVoucherId)) {
                     return VoucherValidationResult.invalid("Voucher đang được giữ cho booking khác.");
                 }
@@ -369,6 +405,7 @@ public class VoucherDAO {
      * Filter ALL/MEMBER áp dụng target_user, không bao giờ áp dụng discount_type.
      */
     public List<Voucher> getAllExchangeVouchers(String targetUser, boolean activeVip) {
+        // SQL: Dựng danh sách voucher đổi điểm còn hạn, còn lượt và đúng target user.
         StringBuilder sql = new StringBuilder("""
                 SELECT id,
                        code,
@@ -395,32 +432,39 @@ public class VoucherDAO {
                   AND end_date >= GETDATE()
                 """);
 
+        // VIP còn hạn được thấy cả voucher ALL và MEMBER.
         if (activeVip) {
             sql.append(" AND target_user IN ('ALL', 'MEMBER') ");
         } else {
+            // Customer thường chỉ thấy voucher target ALL.
             sql.append(" AND target_user = 'ALL' ");
         }
 
         boolean hasTargetFilter = TARGET_ALL.equalsIgnoreCase(targetUser) || TARGET_MEMBER.equalsIgnoreCase(targetUser);
+        // Filter tab ALL/MEMBER chỉ áp dụng khi tham số nằm trong whitelist.
         if (hasTargetFilter) {
             sql.append(" AND target_user = ? ");
         }
         sql.append(" ORDER BY exchange_points ASC, end_date ASC, id ASC");
 
         List<Voucher> list = new ArrayList<>();
+        // Query voucher còn hạn, còn số lượng và đủ điều kiện đổi điểm.
         try (Connection con = DBContext.getConnection();
              PreparedStatement ps = con.prepareStatement(sql.toString())) {
 
+            // Bind target_user khi user chọn tab cụ thể.
             if (hasTargetFilter) {
                 ps.setString(1, normalizeTargetUser(targetUser));
             }
 
             try (ResultSet rs = ps.executeQuery()) {
+                // Map từng voucher để service chuyển thành DTO cho frontend.
                 while (rs.next()) {
                     list.add(mapVoucher(rs));
                 }
             }
         } catch (SQLException e) {
+            // Service đang dùng RuntimeException cho API trả lỗi JSON chung.
             throw new RuntimeException("Lỗi khi lấy danh sách voucher đổi", e);
         }
         return list;
@@ -430,9 +474,11 @@ public class VoucherDAO {
      * Đổi voucher bằng điểm trong một transaction: khóa voucher, khóa user, trừ điểm, tạo user_vouchers và tăng used.
      */
     public VoucherRedeemResult redeemVoucher(long userId, long voucherId) {
+        // SQL: Khóa voucher đổi điểm để kiểm tra lượt còn lại trước khi redeem.
         String getVoucherSql = baseSelectSql().replace("FROM vouchers", "FROM vouchers WITH (UPDLOCK, HOLDLOCK)") + """
                 WHERE id = ?
                 """;
+        // SQL: Khóa user để trừ điểm reward an toàn trong transaction redeem.
         String getUserSql = """
                 SELECT u.user_id,
                        u.available_reward_points,
@@ -443,6 +489,7 @@ public class VoucherDAO {
                 JOIN roles r ON u.role_id = r.role_id
                 WHERE u.user_id = ?
                 """;
+        // SQL: Chặn Customer đổi trùng voucher khi còn bản AVAILABLE/RESERVED chưa hết hạn.
         String existingSql = """
                 SELECT 1
                 FROM user_vouchers WITH (UPDLOCK, HOLDLOCK)
@@ -451,12 +498,14 @@ public class VoucherDAO {
                   AND status IN ('AVAILABLE', 'RESERVED')
                   AND expired_at >= GETDATE()
                 """;
+        // SQL: Trừ điểm reward bằng điều kiện available_reward_points >= exchange_points.
         String updatePointSql = """
                 UPDATE users
                 SET available_reward_points = available_reward_points - ?
                 WHERE user_id = ?
                   AND available_reward_points >= ?
                 """;
+        // SQL: Cấp user_voucher AVAILABLE cho Customer sau khi redeem thành công.
         String insertUserVoucherSql = """
                 INSERT INTO user_vouchers
                     (user_id, voucher_id, status, received_at, expired_at)
@@ -466,6 +515,7 @@ public class VoucherDAO {
         Connection conn = null;
         boolean originalAutoCommit = true;
 
+        // Toàn bộ redeem nằm trong một transaction để không có trạng thái trừ điểm nhưng chưa cấp voucher.
         try {
             conn = DBContext.getConnection();
             originalAutoCommit = conn.getAutoCommit();
@@ -486,6 +536,7 @@ public class VoucherDAO {
 
             // Validation nghiệp vụ chạy trong transaction sau khi voucher đã bị khóa.
             VoucherValidationResult common = validateRedeemableVoucher(voucher);
+            // Voucher không còn đủ điều kiện đổi thì rollback và trả message nghiệp vụ.
             if (!common.isValid()) {
                 conn.rollback();
                 return VoucherRedeemResult.failure(common.getMessage());
@@ -511,14 +562,17 @@ public class VoucherDAO {
                 }
             }
 
+            // Chỉ role CUSTOMER được đổi voucher bằng điểm.
             if (!"CUSTOMER".equalsIgnoreCase(roleName)) {
                 conn.rollback();
                 return VoucherRedeemResult.failure("Chỉ khách hàng mới được đổi voucher.");
             }
+            // Voucher MEMBER chỉ cho Customer VIP còn hạn.
             if (TARGET_MEMBER.equalsIgnoreCase(voucher.getTargetUser()) && !activeVip) {
                 conn.rollback();
                 return VoucherRedeemResult.failure("Voucher chỉ dành cho thành viên VIP còn hạn.");
             }
+            // Điểm hiện tại phải đủ theo exchange_points của voucher trong DB.
             if (userPoint < voucher.getExchangePoint()) {
                 conn.rollback();
                 return VoucherRedeemResult.failure("Bạn không đủ điểm để đổi voucher.");
@@ -548,6 +602,7 @@ public class VoucherDAO {
             }
 
             // used của REWARD_VOUCHER là số lượt đã phát hành, tăng đúng một lần tại redeem.
+            // Nếu used đã chạm quantity do transaction khác đổi trước thì rollback.
             if (!incrementUsed(voucher.getId(), conn)) {
                 conn.rollback();
                 return VoucherRedeemResult.failure("Voucher đã hết số lượng.");
@@ -564,6 +619,7 @@ public class VoucherDAO {
             conn.commit();
             return VoucherRedeemResult.success("Đổi voucher thành công.");
         } catch (Exception e) {
+            // Bất kỳ lỗi nào trong redeem đều rollback trước khi trả failure chung.
             if (conn != null) {
                 try {
                     // Rollback toàn bộ để không có trạng thái đã trừ điểm nhưng chưa cấp voucher.
@@ -573,6 +629,7 @@ public class VoucherDAO {
             }
             return VoucherRedeemResult.failure("Đã có lỗi xảy ra, vui lòng thử lại sau.");
         } finally {
+            // Khôi phục autocommit và đóng connection dù redeem thành công hay thất bại.
             if (conn != null) {
                 try {
                     conn.setAutoCommit(originalAutoCommit);
@@ -587,6 +644,7 @@ public class VoucherDAO {
      * Lấy danh sách voucher của Customer, gồm AVAILABLE/RESERVED/USED và EXPIRED tính động.
      */
     public List<UserVoucherDTO> getUserVouchers(long userId, String status) {
+        // SQL: Dựng danh sách user_vouchers và tính effective_status động cho trang Voucher của tôi.
         StringBuilder sql = new StringBuilder("""
             SELECT * FROM (
                 SELECT
@@ -623,26 +681,31 @@ public class VoucherDAO {
             """);
 
         boolean hasFilter = status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status);
+        // Filter status chỉ thêm WHERE khi Customer chọn tab cụ thể.
         if (hasFilter) {
             sql.append(" WHERE effective_status = ? ");
         }
         sql.append(" ORDER BY expired_at ASC, user_voucher_id DESC");
 
         List<UserVoucherDTO> result = new ArrayList<>();
+        // Lấy voucher cá nhân và tính effective_status động trong SQL.
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql.toString())) {
 
             ps.setLong(1, userId);
+            // Bind status filter nếu khác ALL.
             if (hasFilter) {
                 ps.setString(2, status.toUpperCase(Locale.ROOT));
             }
 
             try (ResultSet rs = ps.executeQuery()) {
+                // Map từng user_voucher sang DTO cho trang Voucher của tôi.
                 while (rs.next()) {
                     result.add(mapUserVoucherDTO(rs));
                 }
             }
         } catch (SQLException e) {
+            // API layer sẽ bắt RuntimeException và trả JSON lỗi chung.
             throw new RuntimeException("Lỗi khi lấy danh sách voucher của user", e);
         }
         return result;
@@ -653,6 +716,7 @@ public class VoucherDAO {
      * Voucher đã đổi vẫn được dùng nếu voucher gốc bị DISABLED sau khi phát hành.
      */
     public List<UserVoucherDTO> getAvailableUserVouchersForBooking(long userId, BigDecimal orderAmount) throws SQLException {
+        // SQL: Lấy voucher đổi điểm AVAILABLE, còn hạn và đủ min_order để áp vào booking.
         String sql = """
                 SELECT
                     uv.user_voucher_id,
@@ -682,11 +746,13 @@ public class VoucherDAO {
                 """;
 
         List<UserVoucherDTO> result = new ArrayList<>();
+        // Chỉ lấy voucher AVAILABLE, còn hạn và đạt min_order để dùng trong booking.
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, userId);
             ps.setBigDecimal(2, money(orderAmount));
             try (ResultSet rs = ps.executeQuery()) {
+                // Sắp xếp voucher sắp hết hạn trước để Customer dễ dùng.
                 while (rs.next()) {
                     result.add(mapUserVoucherDTO(rs));
                 }
@@ -705,10 +771,12 @@ public class VoucherDAO {
             BigDecimal orderAmount
     ) throws SQLException {
         VoucherValidationResult validation = validateOwnedRewardVoucher(conn, userVoucherId, orderAmount, customerId, true);
+        // Validate fail thì không update trạng thái user_vouchers.
         if (!validation.isValid()) {
             return validation;
         }
 
+        // SQL: Reserve user_voucher bằng cách chuyển AVAILABLE sang RESERVED trong transaction tạo HOLD.
         String updateSql = """
                 UPDATE user_vouchers
                 SET status = 'RESERVED'
@@ -718,9 +786,11 @@ public class VoucherDAO {
                   AND expired_at >= GETDATE()
                 """;
 
+        // Update AVAILABLE -> RESERVED; điều kiện status giúp chống double reserve.
         try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
             ps.setLong(1, userVoucherId);
             ps.setLong(2, customerId);
+            // Không update được đúng một row nghĩa là voucher đã bị giữ/đổi trạng thái.
             if (ps.executeUpdate() != 1) {
                 return VoucherValidationResult.invalid("Voucher đang được giữ cho booking khác.");
             }
@@ -732,9 +802,11 @@ public class VoucherDAO {
      * Trả voucher RESERVED về AVAILABLE khi booking bị hủy hoặc HOLD hết hạn.
      */
     public boolean releaseReservedUserVoucher(Connection conn, long userVoucherId, long customerId) throws SQLException {
+        // Id không hợp lệ thì không cần gọi DB.
         if (userVoucherId <= 0 || customerId <= 0) {
             return false;
         }
+        // SQL: Trả user_voucher RESERVED về AVAILABLE khi booking HOLD bị hủy/hết hạn.
         String sql = """
                 UPDATE user_vouchers
                 SET status = 'AVAILABLE'
@@ -742,6 +814,7 @@ public class VoucherDAO {
                   AND user_id = ?
                   AND status = 'RESERVED'
                 """;
+        // Chỉ trả voucher đang RESERVED, không đụng voucher USED/AVAILABLE.
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, userVoucherId);
             ps.setLong(2, customerId);
@@ -753,9 +826,11 @@ public class VoucherDAO {
      * Đánh dấu voucher đã đổi là USED khi payment success.
      */
     public boolean markUserVoucherUsed(Connection conn, long userVoucherId, long customerId) throws SQLException {
+        // Id không hợp lệ thì không được update user_vouchers.
         if (userVoucherId <= 0 || customerId <= 0) {
             return false;
         }
+        // SQL: Chuyển user_voucher RESERVED/AVAILABLE sang USED khi payment success.
         String sql = """
                 UPDATE user_vouchers
                 SET status = 'USED',
@@ -764,14 +839,17 @@ public class VoucherDAO {
                   AND user_id = ?
                   AND status IN ('RESERVED', 'AVAILABLE')
                 """;
+        // Payment success chuyển voucher RESERVED/AVAILABLE sang USED.
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, userVoucherId);
             ps.setLong(2, customerId);
+            // Update thành công thì voucher đã được ghi nhận dùng.
             if (ps.executeUpdate() == 1) {
                 return true;
             }
         }
 
+        // SQL: Kiểm tra idempotent nếu callback trước đó đã mark user_voucher USED.
         String checkSql = """
                 SELECT 1
                 FROM user_vouchers
@@ -779,6 +857,7 @@ public class VoucherDAO {
                   AND user_id = ?
                   AND status = 'USED'
                 """;
+        // Idempotent: nếu callback trước đó đã mark USED thì vẫn xem là thành công.
         try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
             ps.setLong(1, userVoucherId);
             ps.setLong(2, customerId);
@@ -796,10 +875,12 @@ public class VoucherDAO {
     }
 
     public boolean hasCustomerUsedVoucher(int voucherId, long customerId, Connection conn) throws SQLException {
+        // Id không hợp lệ thì mặc định chưa dùng để caller tự validate input chính.
         if (voucherId <= 0 || customerId <= 0) {
             return false;
         }
 
+        // SQL: Kiểm tra Customer đã dùng PUBLIC_CODE này trong voucher_usages hay chưa.
         String sql = """
                 SELECT 1
                 FROM voucher_usages
@@ -808,6 +889,7 @@ public class VoucherDAO {
                   AND user_voucher_id IS NULL
                 """;
 
+        // Nếu caller đang có transaction thì dùng chung connection để giữ lock/nhất quán.
         if (conn != null) {
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, voucherId);
@@ -818,6 +900,7 @@ public class VoucherDAO {
             }
         }
 
+        // Không có transaction ngoài thì tự mở connection read-only.
         try (Connection ownConn = DBContext.getConnection();
              PreparedStatement ps = ownConn.prepareStatement(sql)) {
             ps.setInt(1, voucherId);
@@ -840,12 +923,16 @@ public class VoucherDAO {
             long paymentId,
             Connection conn
     ) throws SQLException {
+        // Input không hợp lệ được xem là conflict để không ghi usage sai.
         if (voucherId <= 0 || customerId <= 0 || bookingId <= 0 || paymentId <= 0) {
             return UsageInsertResult.CONFLICT;
         }
 
+        // SQL: Query insert usage được chọn theo PUBLIC_CODE hoặc REWARD_VOUCHER.
         String sql;
+        // PUBLIC_CODE dùng user_voucher_id NULL và chặn dùng lại theo customer/voucher.
         if (userVoucherId == null) {
+            // SQL: Insert usage cho PUBLIC_CODE nếu booking chưa có usage và Customer chưa dùng mã này.
             sql = """
                     INSERT INTO voucher_usages (
                         voucher_id,
@@ -868,6 +955,8 @@ public class VoucherDAO {
                     )
                     """;
         } else {
+            // REWARD_VOUCHER chặn dùng lại theo user_voucher_id duy nhất.
+            // SQL: Insert usage cho REWARD_VOUCHER nếu booking/user_voucher chưa được ghi nhận.
             sql = """
                     INSERT INTO voucher_usages (
                         voucher_id,
@@ -889,9 +978,11 @@ public class VoucherDAO {
                     """;
         }
 
+        // Bind theo thứ tự khác nhau cho PUBLIC_CODE và REWARD_VOUCHER.
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             int index = 1;
             ps.setInt(index++, voucherId);
+            // REWARD_VOUCHER có thêm userVoucherId trong INSERT.
             if (userVoucherId != null) {
                 ps.setLong(index++, userVoucherId);
             }
@@ -899,23 +990,27 @@ public class VoucherDAO {
             ps.setLong(index++, bookingId);
             ps.setLong(index++, paymentId);
             ps.setLong(index++, bookingId);
+            // Public code kiểm tra trùng theo voucher/customer; reward voucher kiểm theo userVoucherId.
             if (userVoucherId == null) {
                 ps.setInt(index++, voucherId);
                 ps.setLong(index, customerId);
             } else {
                 ps.setLong(index, userVoucherId);
             }
+            // INSERT thành công thì caller mới được tăng used cho PUBLIC_CODE.
             if (ps.executeUpdate() == 1) {
                 return UsageInsertResult.INSERTED;
             }
         }
 
+        // Nếu booking đã có usage thì đây là callback lặp; ngược lại là conflict nghiệp vụ.
         return voucherUsageExistsForBooking(conn, bookingId)
                 ? UsageInsertResult.ALREADY_EXISTS
                 : UsageInsertResult.CONFLICT;
     }
 
     public int countAllStatusVoucher() {
+        // SQL: Đếm voucher ACTIVE còn lượt và còn hạn cho dashboard.
         String sql = """
             SELECT COUNT(*)
             FROM vouchers
@@ -929,10 +1024,12 @@ public class VoucherDAO {
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
+            // Dashboard chỉ cần một giá trị đếm.
             if (rs.next()) {
                 return rs.getInt(1);
             }
         } catch (Exception e) {
+            // Lỗi dashboard không làm hỏng page, trả 0 sau khi log.
             e.printStackTrace();
         }
         return 0;
@@ -944,6 +1041,7 @@ public class VoucherDAO {
     public static BigDecimal calculateDiscountAmount(String discountType, BigDecimal discountValue, BigDecimal orderAmount) {
         BigDecimal safeOrderAmount = toMoney(orderAmount);
         BigDecimal safeDiscountValue = toMoney(discountValue);
+        // Discount value phải dương cho cả PERCENT và FIXED.
         if (safeDiscountValue.signum() <= 0) {
             throw new IllegalArgumentException("Giá trị voucher không hợp lệ.");
         }
@@ -952,6 +1050,7 @@ public class VoucherDAO {
         String type = discountType == null ? "" : discountType.trim().toUpperCase(Locale.ROOT);
         // PERCENT tính theo phần trăm giá gốc và không được vượt quá 100.
         if (TYPE_PERCENT.equals(type)) {
+            // Percent không được vượt 100 để discount không vượt giá trị đơn.
             if (safeDiscountValue.compareTo(BigDecimal.valueOf(100)) > 0) {
                 throw new IllegalArgumentException("Voucher phần trăm không được vượt quá 100.");
             }
@@ -961,6 +1060,7 @@ public class VoucherDAO {
         } else if (TYPE_FIXED.equals(type)) {
             discountAmount = safeDiscountValue;
         } else {
+            // Discount type lạ bị chặn để không tính sai số tiền.
             throw new IllegalArgumentException("Loại voucher không hợp lệ.");
         }
 
@@ -969,9 +1069,11 @@ public class VoucherDAO {
     }
 
     private VoucherValidationResult validateRedeemableVoucher(Voucher voucher) {
+        // Chỉ REWARD_VOUCHER mới được đổi bằng điểm trong Voucher Center.
         if (!DISTRIBUTION_REWARD_VOUCHER.equalsIgnoreCase(voucher.getDistributionType())) {
             return VoucherValidationResult.invalid("Voucher này không dùng để đổi điểm.");
         }
+        // Voucher đổi điểm phải có exchange_points dương.
         if (voucher.getExchangePoint() <= 0) {
             return VoucherValidationResult.invalid("Điểm cần đổi không hợp lệ.");
         }
@@ -984,26 +1086,33 @@ public class VoucherDAO {
             boolean ownedRewardVoucher,
             boolean activeVip
     ) {
+        // Voucher null nghĩa là lookup/validate trước đó không tìm thấy dữ liệu.
         if (voucher == null) {
             return VoucherValidationResult.invalid("Voucher không tồn tại.");
         }
+        // PUBLIC_CODE/redeem mới phải ACTIVE; voucher đã sở hữu vẫn có thể dùng nếu Owner tắt sau khi phát hành.
         if (!ownedRewardVoucher && !STATUS_ACTIVE.equalsIgnoreCase(voucher.getStatus())) {
             return VoucherValidationResult.invalid("Voucher không còn hoạt động.");
         }
         LocalDateTime now = LocalDateTime.now();
+        // Chưa tới start_date thì chưa cho áp/đổi voucher.
         if (voucher.getStartDate() == null || voucher.getStartDate().isAfter(now)) {
             return VoucherValidationResult.invalid("Voucher chưa đến thời gian sử dụng.");
         }
+        // Quá end_date thì voucher hết hạn.
         if (voucher.getEndDate() == null || voucher.getEndDate().isBefore(now)) {
             return VoucherValidationResult.invalid("Voucher đã hết hạn.");
         }
+        // Voucher chưa sở hữu phải còn lượt; owned reward voucher đã trừ lượt lúc redeem.
         if (!ownedRewardVoucher && voucher.getUsed() >= voucher.getQuantity()) {
             return VoucherValidationResult.invalid("Voucher đã hết lượt.");
         }
+        // Voucher MEMBER chỉ hợp lệ với Customer VIP còn hạn.
         if (TARGET_MEMBER.equalsIgnoreCase(voucher.getTargetUser()) && !activeVip) {
             return VoucherValidationResult.invalid("Voucher chỉ dành cho thành viên VIP.");
         }
         BigDecimal minOrder = money(voucher.getMinOrder());
+        // Chỉ kiểm min_order khi có orderAmount thực sự cần áp voucher.
         if (orderAmount != null && orderAmount.compareTo(BigDecimal.ZERO) > 0 && money(orderAmount).compareTo(minOrder) < 0) {
             return VoucherValidationResult.invalid("Giá trị đơn hàng chưa đạt mức tối thiểu.");
         }
@@ -1011,25 +1120,30 @@ public class VoucherDAO {
     }
 
     private VoucherValidationResult buildDiscountResult(Voucher voucher, Long userVoucherId, BigDecimal orderAmount) {
+        // Tính discount bằng helper chung để PUBLIC_CODE và REWARD_VOUCHER thống nhất.
         try {
             BigDecimal discountAmount = calculateDiscountAmount(voucher.getDiscountType(), voucher.getDiscountValue(), orderAmount);
             BigDecimal finalAmount = money(orderAmount).subtract(discountAmount).setScale(2, RoundingMode.HALF_UP);
+            // userVoucherId null nghĩa là mã công khai.
             if (userVoucherId == null) {
                 return VoucherValidationResult.valid(voucher, discountAmount, finalAmount);
             }
             return VoucherValidationResult.validOwned(voucher, userVoucherId, discountAmount, finalAmount);
         } catch (IllegalArgumentException e) {
+            // Discount type/value sai được trả thành validation invalid cho UI.
             return VoucherValidationResult.invalid(e.getMessage());
         }
     }
 
     private boolean isUserVoucherHeldByActiveBooking(Connection conn, long userVoucherId) throws SQLException {
+        // SQL: Kiểm tra user_voucher đang bị booking active giữ bằng lock để chống reserve trùng.
         String sql = """
                 SELECT 1
                 FROM bookings WITH (UPDLOCK, HOLDLOCK)
                 WHERE user_voucher_id = ?
                   AND status IN ('HOLD', 'CONFIRMED', 'CHECKED_IN')
                 """;
+        // Lock các booking active đang dùng voucher để tránh reserve trùng.
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, userVoucherId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -1039,7 +1153,9 @@ public class VoucherDAO {
     }
 
     private boolean voucherUsageExistsForBooking(Connection conn, long bookingId) throws SQLException {
+        // SQL: Kiểm tra booking đã có voucher_usage để phân biệt callback lặp với conflict.
         String sql = "SELECT 1 FROM voucher_usages WHERE booking_id = ?";
+        // Dùng để phân biệt callback lặp với conflict khi insert usage không thành công.
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, bookingId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -1049,6 +1165,7 @@ public class VoucherDAO {
     }
 
     private String baseSelectSql() {
+        // SQL: Select voucher dùng chung cho list, lookup, validate và redeem.
         return """
                 SELECT id,
                        code,
@@ -1089,10 +1206,12 @@ public class VoucherDAO {
     }
 
     private boolean updateUsedCounter(int voucherId, Connection conn, String sql) throws SQLException {
+        // Voucher id không hợp lệ thì không update counter.
         if (voucherId <= 0) {
             return false;
         }
 
+        // Nếu caller đã có transaction thì dùng chung connection để counter commit cùng nghiệp vụ.
         if (conn != null) {
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, voucherId);
@@ -1100,6 +1219,7 @@ public class VoucherDAO {
             }
         }
 
+        // Không có transaction ngoài thì tự mở connection cho thao tác counter độc lập.
         try (Connection ownConn = DBContext.getConnection();
              PreparedStatement ps = ownConn.prepareStatement(sql)) {
             ps.setInt(1, voucherId);
@@ -1149,12 +1269,15 @@ public class VoucherDAO {
     }
 
     private boolean isVipCurrentlyValid(User user) {
+        // Không có user id thì xem như không phải VIP.
         if (user == null || user.getUserId() == null) {
             return false;
         }
+        // Nếu object đã có hạn VIP thì dùng trực tiếp để tránh query thừa.
         if (user.getVipValidUntil() != null) {
             return user.isVip() && user.getVipValidUntil().isAfter(LocalDateTime.now());
         }
+        // Fallback đọc DB khi session User thiếu vip_valid_until.
         try {
             return new UserDAO().getUserById(user.getUserId())
                     .map(latest -> latest.isVip()
@@ -1162,6 +1285,7 @@ public class VoucherDAO {
                             && latest.getVipValidUntil().isAfter(LocalDateTime.now()))
                     .orElse(false);
         } catch (RuntimeException e) {
+            // Không xác minh được VIP thì fallback false để không cấp quyền voucher MEMBER sai.
             return false;
         }
     }
@@ -1190,20 +1314,24 @@ public class VoucherDAO {
 
     private String normalizeStatus(String status) {
         String value = status == null ? STATUS_ACTIVE : status.trim().toUpperCase(Locale.ROOT);
+        // Status lạ được đưa về ACTIVE để tránh lưu giá trị ngoài domain.
         return STATUS_DISABLED.equals(value) ? STATUS_DISABLED : STATUS_ACTIVE;
     }
 
     private String normalizeDistributionType(String value) {
         String normalized = value == null ? DISTRIBUTION_PUBLIC_CODE : value.trim().toUpperCase(Locale.ROOT);
+        // Chỉ cho hai loại phát hành; giá trị lạ fallback PUBLIC_CODE.
         return DISTRIBUTION_REWARD_VOUCHER.equals(normalized) ? DISTRIBUTION_REWARD_VOUCHER : DISTRIBUTION_PUBLIC_CODE;
     }
 
     private String normalizeTargetUser(String value) {
         String normalized = value == null ? TARGET_ALL : value.trim().toUpperCase(Locale.ROOT);
+        // Target lạ fallback ALL để không vô tình khóa voucher khỏi mọi Customer.
         return TARGET_MEMBER.equals(normalized) ? TARGET_MEMBER : TARGET_ALL;
     }
 
     private String nullToDefault(String value, String defaultValue) {
+        // Dữ liệu cũ có thể null/blank nên cần default domain value.
         return value == null || value.isBlank() ? defaultValue : value;
     }
 
