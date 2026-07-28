@@ -73,13 +73,16 @@ public final class VNPayUtil {
     public static SignatureDebug verifySignatureDebug(Map<String, String> requestParams) {
         // Business Rule BR-22: Callback thiếu SecureHash bị xem là không hợp lệ trước khi cập nhật payment.
         String receivedHash = requestParams.get("vnp_SecureHash");
+        // Không có chữ ký thì dừng ngay, không tự tính HMAC trên payload thiếu an toàn.
         if (receivedHash == null || receivedHash.isBlank()) {
             return new SignatureDebug(false, "", "", "");
         }
 
         Map<String, String> signedParams = new TreeMap<>();
+        // Duyệt toàn bộ parameter callback để lọc đúng bộ dữ liệu được VNPay ký.
         for (Map.Entry<String, String> entry : requestParams.entrySet()) {
             String key = entry.getKey();
+            // Bỏ qua key null hoặc không thuộc namespace vnp_.
             if (key == null || !key.startsWith("vnp_")) {
                 continue;
             }
@@ -88,6 +91,7 @@ public final class VNPayUtil {
                 continue;
             }
             String value = entry.getValue();
+            // Chỉ đưa tham số có giá trị vào chuỗi ký, khớp cách tạo query VNPay.
             if (value != null && !value.isBlank()) {
                 signedParams.put(key, value);
             }
@@ -100,25 +104,30 @@ public final class VNPayUtil {
     }
 
     public static String hmacSHA512(String secret, String data) {
+        // Tạo HMAC SHA512 bằng secret của merchant để ký request/verify callback.
         try {
             Mac hmac = Mac.getInstance("HmacSHA512");
             SecretKeySpec secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
             hmac.init(secretKey);
             byte[] bytes = hmac.doFinal(data.getBytes(StandardCharsets.UTF_8));
             StringBuilder hash = new StringBuilder(bytes.length * 2);
+            // Convert từng byte sang hex lowercase theo format VNPay yêu cầu.
             for (byte b : bytes) {
                 hash.append(String.format("%02x", b & 0xff));
             }
             return hash.toString();
         } catch (Exception e) {
+            // Bất kỳ lỗi crypto/config nào đều được nâng thành lỗi cấu hình runtime.
             throw new IllegalStateException("Khong the tao chu ky VNPay.", e);
         }
     }
 
     public static Map<String, String> extractParams(HttpServletRequest request) {
         Map<String, String> params = new TreeMap<>();
+        // Servlet trả Map<String, String[]> nên cần lấy giá trị đầu tiên của từng parameter.
         for (Map.Entry<String, String[]> entry : request.getParameterMap().entrySet()) {
             String[] values = entry.getValue();
+            // Bỏ qua parameter không có value để payload audit/signature ổn định.
             if (values != null && values.length > 0 && values[0] != null) {
                 params.put(entry.getKey(), values[0]);
             }
@@ -134,6 +143,7 @@ public final class VNPayUtil {
      * Chuyển amount VND sang định dạng VNPay: số nguyên bằng amount * 100.
      */
     public static String toVNPayAmount(BigDecimal amount) {
+        // VNPay không nhận amount null hoặc không dương.
         if (amount == null || amount.signum() <= 0) {
             throw new IllegalArgumentException("So tien thanh toan khong hop le.");
         }
@@ -147,6 +157,7 @@ public final class VNPayUtil {
      */
     public static String getClientIp(HttpServletRequest request) {
         String forwardedFor = request.getHeader("X-Forwarded-For");
+        // Khi đi qua proxy/ngrok, IP thật thường nằm ở phần đầu X-Forwarded-For.
         if (forwardedFor != null && !forwardedFor.isBlank()) {
             int commaIndex = forwardedFor.indexOf(',');
             return normalizeClientIp(commaIndex >= 0 ? forwardedFor.substring(0, commaIndex) : forwardedFor);
@@ -163,10 +174,13 @@ public final class VNPayUtil {
      */
     private static String buildQueryString(Map<String, String> params) {
         StringBuilder query = new StringBuilder();
+        // Duyệt theo TreeMap đã sort để query string có thứ tự ổn định.
         for (Map.Entry<String, String> entry : params.entrySet()) {
+            // VNPay không ký/gửi các tham số rỗng.
             if (entry.getValue() == null || entry.getValue().isBlank()) {
                 continue;
             }
+            // Thêm dấu & giữa các cặp key=value.
             if (!query.isEmpty()) {
                 query.append('&');
             }
@@ -182,10 +196,13 @@ public final class VNPayUtil {
      */
     private static String buildHashData(Map<String, String> params) {
         StringBuilder hashData = new StringBuilder();
+        // Hash data dùng cùng thứ tự và encoding với query string gửi sang VNPay.
         for (Map.Entry<String, String> entry : params.entrySet()) {
+            // Tham số null/rỗng bị loại khỏi dữ liệu ký.
             if (entry.getValue() == null || entry.getValue().isBlank()) {
                 continue;
             }
+            // Nối các cặp key=value bằng & theo chuẩn VNPay.
             if (!hashData.isEmpty()) {
                 hashData.append('&');
             }
@@ -197,13 +214,16 @@ public final class VNPayUtil {
     }
 
     private static String normalizeClientIp(String ipAddress) {
+        // VNPay yêu cầu IP, nếu servlet không có thì fallback loopback IPv4.
         if (ipAddress == null || ipAddress.isBlank()) {
             return "127.0.0.1";
         }
         String normalized = ipAddress.trim();
+        // Một số container trả remoteAddr dạng "/127.0.0.1", cần bỏ dấu slash đầu.
         if (normalized.startsWith("/")) {
             normalized = normalized.substring(1);
         }
+        // Chuẩn hóa localhost/IPv6 loopback về IPv4 để VNPay sandbox dễ nhận.
         if ("0:0:0:0:0:0:0:1".equals(normalized)
                 || "::1".equals(normalized)
                 || "localhost".equalsIgnoreCase(normalized)) {

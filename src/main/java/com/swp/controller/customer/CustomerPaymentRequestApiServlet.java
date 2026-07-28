@@ -38,12 +38,14 @@ public class CustomerPaymentRequestApiServlet extends HttpServlet {
             throws ServletException, IOException {
         response.setContentType("application/json;charset=UTF-8");
         User user = getSessionUser(request);
+        // API polling chỉ trả dữ liệu cho Customer đã đăng nhập.
         if (user == null) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("{\"error\":\"Unauthorized\"}");
             return;
         }
 
+        // Đọc danh sách payment request và serialize JSON cho popup checkout.
         try {
             List<CheckoutPaymentRequestView> requests =
                     paymentDAO.getPendingCheckoutPaymentRequests(user.getUserId());
@@ -51,6 +53,7 @@ public class CustomerPaymentRequestApiServlet extends HttpServlet {
             payload.put("requests", requests);
             response.getWriter().write(gson.toJson(payload));
         } catch (SQLException e) {
+            // Lỗi DB được log và API trả JSON lỗi chung.
             getServletContext().log("Cannot load pending checkout payment requests", e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             response.getWriter().write("{\"error\":\"Internal Server Error\"}");
