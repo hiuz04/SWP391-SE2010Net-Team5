@@ -53,6 +53,7 @@ public class PaymentDAO {
      * Query giới hạn theo customer_id, trạng thái HOLD, thời gian giữ chỗ và chưa có payment SUCCESS.
      */
     public BookingView getBookingForPayment(long bookingId, long customerId) throws SQLException {
+        // SQL: Lấy booking HOLD còn hạn và chưa SUCCESS để Customer thanh toán đặt cọc.
         String sql = """
                 SELECT b.booking_id,
                        b.booking_code,
@@ -165,6 +166,7 @@ public class PaymentDAO {
     }
 
     public List<PaymentMethod> getActivePaymentMethods() throws SQLException {
+        // SQL: Lấy toàn bộ payment method ACTIVE cho các luồng nội bộ.
         String sql = """
                 SELECT payment_method_id, method_code, method_name, status
                 FROM payment_methods
@@ -187,6 +189,7 @@ public class PaymentDAO {
     }
 
     public List<PaymentMethod> getActiveOnlinePaymentMethods() throws SQLException {
+        // SQL: Lấy payment method online cho Customer, loại CASH khỏi form thanh toán.
         String sql = """
                 SELECT payment_method_id, method_code, method_name, status
                 FROM payment_methods
@@ -215,6 +218,7 @@ public class PaymentDAO {
     }
 
     public PaymentMethod getPaymentMethodById(int paymentMethodId) throws SQLException {
+        // SQL: Lookup payment method để validate trước khi tạo payment.
         String sql = """
                 SELECT payment_method_id, method_code, method_name, status
                 FROM payment_methods
@@ -238,6 +242,7 @@ public class PaymentDAO {
      */
     public Payment createPendingDepositPayment(long bookingId, long customerId, int paymentMethodId)
             throws SQLException {
+        // SQL: Khóa booking/group HOLD để tính amount đặt cọc và kiểm tra trạng thái.
         String selectBooking = """
                 SELECT CASE
                            WHEN COALESCE(rg.repeat_type, 'NONE') = 'MONTHLY'
@@ -294,12 +299,14 @@ public class PaymentDAO {
                 WHERE b.booking_id = ?
                   AND b.customer_id = ?
                 """;
+        // SQL: Kiểm tra payment method ACTIVE trước khi tạo payment đặt cọc.
         String selectMethod = """
                 SELECT payment_method_id, method_code
                 FROM payment_methods
                 WHERE payment_method_id = ?
                   AND status = 'ACTIVE'
                 """;
+        // SQL: Tìm payment DEPOSIT PENDING cùng booking/group để reuse transactionRef.
         String selectExistingDepositPayment = """
                 SELECT TOP 1 p.payment_id,
                        p.booking_id,
@@ -330,6 +337,7 @@ public class PaymentDAO {
                   )
                 ORDER BY p.created_at DESC, p.payment_id DESC
                 """;
+        // SQL: Insert payment DEPOSIT PENDING và trả row vừa tạo cho controller.
         String insertPayment = """
                 INSERT INTO payments (
                     booking_id,
@@ -468,6 +476,7 @@ public class PaymentDAO {
      * Điều kiện customer_id bảo vệ ownership trước khi hiển thị số tiền còn lại.
      */
     public InvoiceView getCheckoutInvoiceForPayment(long invoiceId, long customerId) throws SQLException {
+        // SQL: Lấy invoice checkout thuộc Customer để hiển thị số tiền còn lại.
         String sql = """
                 SELECT TOP 1
                        i.invoice_id, i.invoice_code, i.customer_id, i.status AS invoice_status, i.issued_at,
@@ -518,6 +527,7 @@ public class PaymentDAO {
      */
     public Payment createPendingCheckoutPayment(long invoiceId, long customerId, int paymentMethodId)
             throws SQLException {
+        // SQL: Khóa invoice và booking checkout để tạo payment phần còn lại an toàn.
         String selectInvoice = """
                 SELECT i.invoice_id,
                        i.booking_id,
@@ -530,12 +540,14 @@ public class PaymentDAO {
                 WHERE i.invoice_id = ?
                   AND i.customer_id = ?
                 """;
+        // SQL: Kiểm tra payment method ACTIVE và không phải CASH cho flow Customer online.
         String selectMethod = """
                 SELECT payment_method_id, method_code
                 FROM payment_methods
                 WHERE payment_method_id = ?
                   AND status = 'ACTIVE'
                 """;
+        // SQL: Tìm checkout payment PENDING/SUCCESS để reuse hoặc chặn tạo mới.
         String selectExistingPayment = """
                 SELECT TOP 1 p.payment_id,
                        p.booking_id,
@@ -555,6 +567,7 @@ public class PaymentDAO {
                   AND p.status IN ('PENDING', 'SUCCESS')
                 ORDER BY p.created_at DESC, p.payment_id DESC
                 """;
+        // SQL: Insert payment CHECKOUT PENDING cho hóa đơn checkout.
         String insertPayment = """
                 INSERT INTO payments (
                     booking_id,
@@ -691,6 +704,7 @@ public class PaymentDAO {
         if (paymentId == null) {
             throw new SQLException("Khong tim thay payment checkout dang cho.");
         }
+        // SQL: Cập nhật method/amount cho payment checkout PENDING khi Customer chọn lại phương thức.
         String sql = """
                 UPDATE payments
                 SET payment_method_id = ?,
@@ -715,12 +729,14 @@ public class PaymentDAO {
      * Nếu Customer đã có payment membership PENDING thì tái sử dụng để không sinh nhiều transaction đang chờ.
      */
     public Payment createPendingMembershipPayment(long customerId, int paymentMethodId, BigDecimal amount) throws SQLException {
+        // SQL: Kiểm tra payment method ACTIVE và không phải CASH cho flow membership online.
         String selectMethod = """
                 SELECT payment_method_id, method_code
                 FROM payment_methods
                 WHERE payment_method_id = ?
                   AND status = 'ACTIVE'
                 """;
+        // SQL: Tìm payment membership PENDING/SUCCESS gần nhất để reuse hoặc quyết định tạo mới.
         String selectExistingPayment = """
                 SELECT TOP 1 p.payment_id,
                        p.booking_id,
@@ -739,6 +755,7 @@ public class PaymentDAO {
                   AND p.status IN ('PENDING', 'SUCCESS')
                 ORDER BY p.created_at DESC, p.payment_id DESC
                 """;
+        // SQL: Insert payment MEMBERSHIP PENDING không gắn booking.
         String insertPayment = """
                 INSERT INTO payments (
                     booking_id,
@@ -849,6 +866,7 @@ public class PaymentDAO {
             String signature,
             String gatewayCode
     ) throws SQLException {
+        // SQL: Cập nhật payment membership từ PENDING sang SUCCESS khi gateway xác nhận.
         String updatePayment = """
                 UPDATE payments
                 SET status = 'SUCCESS',
@@ -886,6 +904,7 @@ public class PaymentDAO {
             insertNotification(conn, payment.customerId(), "Đăng ký thành công", "Bạn đã đăng ký thành công Gói Hội Viên VIP và nhận 30 ngày sử dụng đặc quyền.", "SYSTEM", null);
 
             // Notify admins, owners, staff
+            // SQL: Lấy danh sách admin/owner/staff active để gửi notification hội viên mới.
             String notifySql = """
                     SELECT u.user_id 
                     FROM users u 
@@ -917,6 +936,7 @@ public class PaymentDAO {
             return null;
         }
 
+        // SQL: Lookup payment theo transactionRef để Return/IPN đối chiếu amount và trạng thái.
         String sql = """
                 SELECT p.payment_id,
                        p.booking_id,
@@ -1019,6 +1039,7 @@ public class PaymentDAO {
             String signature,
             String gatewayCode
     ) throws SQLException {
+        // SQL: Khóa payment, booking và invoice liên quan để xử lý callback success idempotent.
         String selectPayment = """
                 SELECT p.payment_id,
                        p.booking_id,
@@ -1064,6 +1085,7 @@ public class PaymentDAO {
                 ) scope
                 WHERE p.transaction_ref = ?
                 """;
+        // SQL: Xác nhận booking HOLD thành CONFIRMED sau payment đặt cọc thành công.
         String updateBooking = """
                 UPDATE bookings
                 SET status = 'CONFIRMED', updated_at = GETDATE()
@@ -1071,6 +1093,7 @@ public class PaymentDAO {
                   AND status = 'HOLD'
                   AND hold_expires_at > GETDATE()
                 """;
+        // SQL: Cập nhật payment từ PENDING sang SUCCESS và lưu mã giao dịch gateway.
         String updatePayment = """
                 UPDATE payments
                 SET status = 'SUCCESS',
@@ -1231,6 +1254,7 @@ public class PaymentDAO {
             return PaymentUpdateResult.INVALID_STATE;
         }
 
+        // SQL: Cập nhật payment checkout từ PENDING sang SUCCESS.
         String updatePayment = """
                 UPDATE payments
                 SET status = 'SUCCESS',
@@ -1239,6 +1263,7 @@ public class PaymentDAO {
                 WHERE payment_id = ?
                   AND status = 'PENDING'
                 """;
+        // SQL: Cập nhật invoice checkout thành PAID với số tiền đã thanh toán.
         String updateInvoice = """
                 UPDATE invoices
                 SET status = 'PAID',
@@ -1248,6 +1273,7 @@ public class PaymentDAO {
                 WHERE invoice_id = ?
                   AND status = 'PENDING'
                 """;
+        // SQL: Hoàn tất booking sau khi checkout payment thành công.
         String updateBooking = """
                 UPDATE bookings
                 SET status = 'COMPLETED',
@@ -1255,6 +1281,7 @@ public class PaymentDAO {
                 WHERE booking_id = ?
                   AND status IN ('PENDING_CHECKOUT_PAYMENT', 'CHECKED_IN')
                 """;
+        // SQL: Trả sân về AVAILABLE sau checkout nếu sân không maintenance/disabled.
         String releaseField = """
                 UPDATE fields
                 SET status = 'AVAILABLE',
@@ -1335,6 +1362,7 @@ public class PaymentDAO {
             String signature,
             String gatewayCode
     ) throws SQLException {
+        // SQL: Khóa payment theo transactionRef để xử lý callback failed idempotent.
         String selectPayment = """
                 SELECT p.payment_id,
                        p.booking_id,
@@ -1354,6 +1382,7 @@ public class PaymentDAO {
                 LEFT JOIN bookings b ON p.booking_id = b.booking_id
                 WHERE p.transaction_ref = ?
                 """;
+        // SQL: Cập nhật payment PENDING sang FAILED khi gateway báo thất bại.
         String updatePayment = """
                 UPDATE payments
                 SET status = 'FAILED'
@@ -1419,6 +1448,7 @@ public class PaymentDAO {
     }
 
     public PaymentView getPaymentResult(String transactionRef, long customerId) throws SQLException {
+        // SQL: Lấy kết quả payment theo transactionRef và customerId để bảo vệ ownership.
         String sql = paymentViewSql() + """
                 WHERE p.transaction_ref = ?
                   AND p.customer_id = ?
@@ -1437,6 +1467,7 @@ public class PaymentDAO {
     }
 
     public PaymentView getPaymentResultByTransactionRef(String transactionRef) throws SQLException {
+        // SQL: Lấy kết quả payment theo transactionRef cho trang Return sau gateway redirect.
         String sql = paymentViewSql() + """
                 WHERE p.transaction_ref = ?
                 """;
@@ -1453,6 +1484,7 @@ public class PaymentDAO {
     }
 
     public List<PaymentView> getPaymentHistory(long customerId) throws SQLException {
+        // SQL: Lấy lịch sử payment của Customer theo thứ tự mới nhất.
         String sql = paymentViewSql() + """
                 WHERE p.customer_id = ?
                 ORDER BY p.created_at DESC, p.paid_at DESC, p.payment_id DESC
@@ -1475,6 +1507,7 @@ public class PaymentDAO {
     }
 
     public List<CheckoutPaymentRequestView> getPendingCheckoutPaymentRequests(long customerId) throws SQLException {
+        // SQL: Lấy các yêu cầu thanh toán checkout đang PENDING của Customer.
         String sql = """
                 SELECT p.payment_id,
                        ci.invoice_id,
@@ -1548,6 +1581,7 @@ public class PaymentDAO {
     }
 
     private String paymentViewSql() {
+        // SQL: Query view payment dùng chung cho result, return và history.
         return """
                 SELECT p.payment_id,
                        p.booking_id,
@@ -1717,9 +1751,11 @@ public class PaymentDAO {
      * Booking đơn chỉ có một id, booking recurring lấy toàn bộ id trong cùng group của Customer.
      */
     private List<Long> getScopedBookingIds(Connection conn, PaymentLock payment) throws SQLException {
+        // SQL: Sẽ được gán theo booking đơn hoặc recurring group để lấy scope cần xác nhận.
         String sql;
         // Booking đơn chỉ cần query đúng booking_id của payment.
         if (payment.recurringGroupId() == null) {
+            // SQL: Lấy booking đơn còn HOLD và còn hạn để xác nhận sau payment đặt cọc.
             sql = """
                     SELECT booking_id
                     FROM bookings WITH (UPDLOCK, HOLDLOCK)
@@ -1731,6 +1767,7 @@ public class PaymentDAO {
                     """;
         } else {
             // Booking định kỳ xác nhận toàn bộ booking trong cùng recurring group.
+            // SQL: Lấy toàn bộ booking trong recurring group còn HOLD và còn hạn để xác nhận.
             sql = """
                     SELECT booking_id
                     FROM bookings WITH (UPDLOCK, HOLDLOCK)
@@ -1825,6 +1862,7 @@ public class PaymentDAO {
     }
 
     private VoucherBookingApplication getVoucherApplicationForBooking(Connection conn, Long bookingId) throws SQLException {
+        // SQL: Lấy voucher đang gắn với booking để ghi nhận usage sau payment success.
         String sql = """
                 SELECT b.booking_id,
                        b.voucher_id,
@@ -1859,6 +1897,7 @@ public class PaymentDAO {
     }
 
     private Long findPaymentIdByTransactionRef(Connection conn, String transactionRef) throws SQLException {
+        // SQL: Lookup payment_id theo transactionRef để lưu callback audit.
         String sql = """
                 SELECT payment_id
                 FROM payments
@@ -1891,6 +1930,7 @@ public class PaymentDAO {
             boolean valid,
             String gatewayCode
     ) throws SQLException {
+        // SQL: Lưu raw callback gateway để audit/debug kể cả khi signature không hợp lệ.
         String sql = """
                 INSERT INTO payment_callbacks (
                     payment_id, gateway_code, raw_payload, signature, valid, received_at
@@ -1916,6 +1956,7 @@ public class PaymentDAO {
             String type,
             Long referenceId
     ) throws SQLException {
+        // SQL: Insert notification cho Customer/Staff liên quan tới payment event.
         String sql = """
                 INSERT INTO notifications (
                     user_id, title, message, notification_type, reference_id, is_read, created_at

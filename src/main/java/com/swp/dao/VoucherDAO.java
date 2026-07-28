@@ -47,6 +47,7 @@ public class VoucherDAO {
      * Lấy toàn bộ voucher cho màn Owner, gồm cả voucher đang tắt/hết hạn để Owner theo dõi lịch sử.
      */
     public List<Voucher> getAllVouchers() throws SQLException {
+        // SQL: Lấy toàn bộ voucher cho Owner, sắp xếp voucher mới nhất trước.
         String sql = baseSelectSql() + """
                 ORDER BY created_at DESC,
                          id DESC
@@ -69,6 +70,7 @@ public class VoucherDAO {
      * Tìm voucher theo id để Owner edit hoặc các transaction booking/payment kiểm tra lại dữ liệu gốc.
      */
     public Voucher findById(int id) throws SQLException {
+        // SQL: Lấy voucher theo id bằng base select dùng chung.
         String sql = baseSelectSql() + " WHERE id = ?";
         // Lookup theo id dùng cả cho form edit và transaction validate.
         try (Connection conn = DBContext.getConnection();
@@ -91,6 +93,7 @@ public class VoucherDAO {
             return null;
         }
 
+        // SQL: Lấy voucher theo code đã normalize để validate trùng/apply PUBLIC_CODE.
         String sql = baseSelectSql() + " WHERE code = ?";
         // Code đã normalize uppercase để khớp cách Owner lưu voucher.
         try (Connection conn = DBContext.getConnection();
@@ -107,6 +110,7 @@ public class VoucherDAO {
      * Tạo voucher mới. used luôn bắt đầu bằng 0 và distribution_type quyết định ý nghĩa của used về sau.
      */
     public boolean createVoucher(Voucher voucher) throws SQLException {
+        // SQL: Insert voucher mới, cố định used = 0 để lượt dùng chỉ tăng qua nghiệp vụ.
         String sql = """
                 INSERT INTO vouchers (
                     code,
@@ -140,6 +144,7 @@ public class VoucherDAO {
      * used chỉ thay đổi qua redeem/payment để dữ liệu không bị sửa tay.
      */
     public boolean updateVoucher(Voucher voucher) throws SQLException {
+        // SQL: Cập nhật cấu hình voucher nhưng không cập nhật used.
         String sql = """
                 UPDATE vouchers
                 SET code = ?,
@@ -171,6 +176,7 @@ public class VoucherDAO {
      * Bật/tắt voucher. DISABLED chặn đổi mới nhưng không thu hồi user_vouchers đã phát hành.
      */
     public boolean updateStatus(int id, String status) throws SQLException {
+        // SQL: Đổi trạng thái voucher ACTIVE/DISABLED mà không xóa dữ liệu lịch sử.
         String sql = """
                 UPDATE vouchers
                 SET status = ?,
@@ -191,6 +197,7 @@ public class VoucherDAO {
      * Kiểm tra voucher đã được phát hành/sử dụng chưa để Owner không sửa các trường làm giảm quyền lợi.
      */
     public boolean hasIssuedOrUsed(int voucherId) throws SQLException {
+        // SQL: Kiểm tra voucher đã có user_vouchers hoặc voucher_usages hay chưa.
         String sql = """
                 SELECT 1
                 WHERE EXISTS (
@@ -216,6 +223,7 @@ public class VoucherDAO {
      * Điều kiện used < quantity chặn vượt số lượng khi nhiều transaction chạy song song.
      */
     public boolean incrementUsed(int voucherId, Connection conn) throws SQLException {
+        // SQL: Tăng used có điều kiện used < quantity để tránh vượt số lượng voucher.
         String sql = """
                 UPDATE vouchers
                 SET used = used + 1,
@@ -230,6 +238,7 @@ public class VoucherDAO {
      * Giảm used khi cần rollback nghiệp vụ phát hành; không dùng cho payment thất bại thông thường.
      */
     public boolean decrementUsed(int voucherId, Connection conn) throws SQLException {
+        // SQL: Giảm used có điều kiện used > 0 để rollback lượt phát hành an toàn.
         String sql = """
                 UPDATE vouchers
                 SET used = used - 1,
@@ -315,6 +324,7 @@ public class VoucherDAO {
         }
 
         String lockHint = forUpdate ? " WITH (UPDLOCK, HOLDLOCK) " : "";
+        // SQL: Lấy user_voucher kèm voucher gốc để validate quyền sở hữu và điều kiện áp dụng.
         String sql = """
                 SELECT uv.user_voucher_id,
                        uv.user_id,
@@ -395,6 +405,7 @@ public class VoucherDAO {
      * Filter ALL/MEMBER áp dụng target_user, không bao giờ áp dụng discount_type.
      */
     public List<Voucher> getAllExchangeVouchers(String targetUser, boolean activeVip) {
+        // SQL: Dựng danh sách voucher đổi điểm còn hạn, còn lượt và đúng target user.
         StringBuilder sql = new StringBuilder("""
                 SELECT id,
                        code,
@@ -463,9 +474,11 @@ public class VoucherDAO {
      * Đổi voucher bằng điểm trong một transaction: khóa voucher, khóa user, trừ điểm, tạo user_vouchers và tăng used.
      */
     public VoucherRedeemResult redeemVoucher(long userId, long voucherId) {
+        // SQL: Khóa voucher đổi điểm để kiểm tra lượt còn lại trước khi redeem.
         String getVoucherSql = baseSelectSql().replace("FROM vouchers", "FROM vouchers WITH (UPDLOCK, HOLDLOCK)") + """
                 WHERE id = ?
                 """;
+        // SQL: Khóa user để trừ điểm reward an toàn trong transaction redeem.
         String getUserSql = """
                 SELECT u.user_id,
                        u.available_reward_points,
@@ -476,6 +489,7 @@ public class VoucherDAO {
                 JOIN roles r ON u.role_id = r.role_id
                 WHERE u.user_id = ?
                 """;
+        // SQL: Chặn Customer đổi trùng voucher khi còn bản AVAILABLE/RESERVED chưa hết hạn.
         String existingSql = """
                 SELECT 1
                 FROM user_vouchers WITH (UPDLOCK, HOLDLOCK)
@@ -484,12 +498,14 @@ public class VoucherDAO {
                   AND status IN ('AVAILABLE', 'RESERVED')
                   AND expired_at >= GETDATE()
                 """;
+        // SQL: Trừ điểm reward bằng điều kiện available_reward_points >= exchange_points.
         String updatePointSql = """
                 UPDATE users
                 SET available_reward_points = available_reward_points - ?
                 WHERE user_id = ?
                   AND available_reward_points >= ?
                 """;
+        // SQL: Cấp user_voucher AVAILABLE cho Customer sau khi redeem thành công.
         String insertUserVoucherSql = """
                 INSERT INTO user_vouchers
                     (user_id, voucher_id, status, received_at, expired_at)
@@ -628,6 +644,7 @@ public class VoucherDAO {
      * Lấy danh sách voucher của Customer, gồm AVAILABLE/RESERVED/USED và EXPIRED tính động.
      */
     public List<UserVoucherDTO> getUserVouchers(long userId, String status) {
+        // SQL: Dựng danh sách user_vouchers và tính effective_status động cho trang Voucher của tôi.
         StringBuilder sql = new StringBuilder("""
             SELECT * FROM (
                 SELECT
@@ -699,6 +716,7 @@ public class VoucherDAO {
      * Voucher đã đổi vẫn được dùng nếu voucher gốc bị DISABLED sau khi phát hành.
      */
     public List<UserVoucherDTO> getAvailableUserVouchersForBooking(long userId, BigDecimal orderAmount) throws SQLException {
+        // SQL: Lấy voucher đổi điểm AVAILABLE, còn hạn và đủ min_order để áp vào booking.
         String sql = """
                 SELECT
                     uv.user_voucher_id,
@@ -758,6 +776,7 @@ public class VoucherDAO {
             return validation;
         }
 
+        // SQL: Reserve user_voucher bằng cách chuyển AVAILABLE sang RESERVED trong transaction tạo HOLD.
         String updateSql = """
                 UPDATE user_vouchers
                 SET status = 'RESERVED'
@@ -787,6 +806,7 @@ public class VoucherDAO {
         if (userVoucherId <= 0 || customerId <= 0) {
             return false;
         }
+        // SQL: Trả user_voucher RESERVED về AVAILABLE khi booking HOLD bị hủy/hết hạn.
         String sql = """
                 UPDATE user_vouchers
                 SET status = 'AVAILABLE'
@@ -810,6 +830,7 @@ public class VoucherDAO {
         if (userVoucherId <= 0 || customerId <= 0) {
             return false;
         }
+        // SQL: Chuyển user_voucher RESERVED/AVAILABLE sang USED khi payment success.
         String sql = """
                 UPDATE user_vouchers
                 SET status = 'USED',
@@ -828,6 +849,7 @@ public class VoucherDAO {
             }
         }
 
+        // SQL: Kiểm tra idempotent nếu callback trước đó đã mark user_voucher USED.
         String checkSql = """
                 SELECT 1
                 FROM user_vouchers
@@ -858,6 +880,7 @@ public class VoucherDAO {
             return false;
         }
 
+        // SQL: Kiểm tra Customer đã dùng PUBLIC_CODE này trong voucher_usages hay chưa.
         String sql = """
                 SELECT 1
                 FROM voucher_usages
@@ -905,9 +928,11 @@ public class VoucherDAO {
             return UsageInsertResult.CONFLICT;
         }
 
+        // SQL: Query insert usage được chọn theo PUBLIC_CODE hoặc REWARD_VOUCHER.
         String sql;
         // PUBLIC_CODE dùng user_voucher_id NULL và chặn dùng lại theo customer/voucher.
         if (userVoucherId == null) {
+            // SQL: Insert usage cho PUBLIC_CODE nếu booking chưa có usage và Customer chưa dùng mã này.
             sql = """
                     INSERT INTO voucher_usages (
                         voucher_id,
@@ -931,6 +956,7 @@ public class VoucherDAO {
                     """;
         } else {
             // REWARD_VOUCHER chặn dùng lại theo user_voucher_id duy nhất.
+            // SQL: Insert usage cho REWARD_VOUCHER nếu booking/user_voucher chưa được ghi nhận.
             sql = """
                     INSERT INTO voucher_usages (
                         voucher_id,
@@ -984,6 +1010,7 @@ public class VoucherDAO {
     }
 
     public int countAllStatusVoucher() {
+        // SQL: Đếm voucher ACTIVE còn lượt và còn hạn cho dashboard.
         String sql = """
             SELECT COUNT(*)
             FROM vouchers
@@ -1109,6 +1136,7 @@ public class VoucherDAO {
     }
 
     private boolean isUserVoucherHeldByActiveBooking(Connection conn, long userVoucherId) throws SQLException {
+        // SQL: Kiểm tra user_voucher đang bị booking active giữ bằng lock để chống reserve trùng.
         String sql = """
                 SELECT 1
                 FROM bookings WITH (UPDLOCK, HOLDLOCK)
@@ -1125,6 +1153,7 @@ public class VoucherDAO {
     }
 
     private boolean voucherUsageExistsForBooking(Connection conn, long bookingId) throws SQLException {
+        // SQL: Kiểm tra booking đã có voucher_usage để phân biệt callback lặp với conflict.
         String sql = "SELECT 1 FROM voucher_usages WHERE booking_id = ?";
         // Dùng để phân biệt callback lặp với conflict khi insert usage không thành công.
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1136,6 +1165,7 @@ public class VoucherDAO {
     }
 
     private String baseSelectSql() {
+        // SQL: Select voucher dùng chung cho list, lookup, validate và redeem.
         return """
                 SELECT id,
                        code,
