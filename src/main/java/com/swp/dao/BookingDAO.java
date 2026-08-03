@@ -1409,9 +1409,9 @@ public class BookingDAO {
 
         if (filter != null && !filter.trim().isEmpty()) {
             if ("revenue_today".equalsIgnoreCase(filter.trim())) {
-                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND CAST(i.issued_at AS DATE) = CAST(GETDATE() AS DATE)) ");
+                sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT', 'COMPLETED') ");
             } else if ("revenue_30days".equalsIgnoreCase(filter.trim())) {
-                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -30, GETDATE())) ");
+                sql.append(" AND CAST(b.created_at AS DATE) >= CAST(DATEADD(day, -29, GETDATE()) AS DATE) AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT', 'COMPLETED') ");
             } else if ("bookings_today".equalsIgnoreCase(filter.trim())) {
                 sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
             }
@@ -1451,9 +1451,9 @@ public class BookingDAO {
 
         if (filter != null && !filter.trim().isEmpty()) {
             if ("revenue_today".equalsIgnoreCase(filter.trim())) {
-                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND CAST(i.issued_at AS DATE) = CAST(GETDATE() AS DATE)) ");
+                sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT', 'COMPLETED') ");
             } else if ("revenue_30days".equalsIgnoreCase(filter.trim())) {
-                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -30, GETDATE())) ");
+                sql.append(" AND CAST(b.created_at AS DATE) >= CAST(DATEADD(day, -29, GETDATE()) AS DATE) AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT', 'COMPLETED') ");
             } else if ("bookings_today".equalsIgnoreCase(filter.trim())) {
                 sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
             }

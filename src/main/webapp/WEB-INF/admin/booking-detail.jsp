@@ -165,7 +165,13 @@
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Đã thanh toán:</span>
-                        <span class="fw-bold text-success"><%= currencyFormat.format(b.getPaidAmount() != null ? b.getPaidAmount() : 0) %>₫</span>
+                        <% 
+                            java.math.BigDecimal paidToDisplay = (b.getPaidAmount() != null) ? b.getPaidAmount() : java.math.BigDecimal.ZERO;
+                            if ("COMPLETED".equals(b.getStatus())) {
+                                paidToDisplay = (b.getFinalAmount() != null) ? b.getFinalAmount() : java.math.BigDecimal.ZERO;
+                            }
+                        %>
+                        <span class="fw-bold text-success"><%= currencyFormat.format(paidToDisplay) %>₫</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="text-muted">Trạng thái TT:</span>

@@ -20,7 +20,7 @@ public class AdminDashboardDAO {
         kpis.put("pendingUsers", 0);
 
         // 1. Doanh thu hôm nay
-        String revSql = "SELECT ISNULL(SUM(total_amount), 0) FROM invoices WHERE status = 'PAID' AND CAST(issued_at AS DATE) = CAST(GETDATE() AS DATE)";
+        String revSql = "SELECT ISNULL(SUM(CASE WHEN status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT') THEN deposit_amount WHEN status = 'COMPLETED' THEN total_amount ELSE 0 END), 0) FROM bookings WHERE CAST(created_at AS DATE) = CAST(GETDATE() AS DATE)";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(revSql);
              ResultSet rs = ps.executeQuery()) {
@@ -56,7 +56,7 @@ public class AdminDashboardDAO {
         }
 
         // 4. Doanh thu 30 ngày qua
-        String sevDayRevSql = "SELECT SUM(total_amount) FROM invoices WHERE status = 'PAID' AND issued_at >= DATEADD(day, -30, GETDATE())";
+        String sevDayRevSql = "SELECT ISNULL(SUM(CASE WHEN status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT') THEN deposit_amount WHEN status = 'COMPLETED' THEN total_amount ELSE 0 END), 0) FROM bookings WHERE CAST(created_at AS DATE) >= CAST(DATEADD(day, -29, GETDATE()) AS DATE)";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sevDayRevSql);
              ResultSet rs = ps.executeQuery()) {
@@ -103,9 +103,13 @@ public class AdminDashboardDAO {
                     FROM master..spt_values
                     WHERE type = 'P' AND number BETWEEN 0 AND 29
                 )
-                SELECT l.d as date, ISNULL(SUM(i.total_amount), 0) as total
+                SELECT l.d as date, ISNULL(SUM(CASE 
+                    WHEN b.status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT') THEN b.deposit_amount 
+                    WHEN b.status = 'COMPLETED' THEN b.total_amount 
+                    ELSE 0 
+                END), 0) as total
                 FROM Last30Days l
-                LEFT JOIN invoices i ON CAST(i.issued_at AS DATE) = l.d AND i.status = 'PAID'
+                LEFT JOIN bookings b ON CAST(b.created_at AS DATE) = l.d
                 GROUP BY l.d
                 ORDER BY l.d ASC
                 """;
@@ -154,11 +158,17 @@ public class AdminDashboardDAO {
         List<Map<String, Object>> list = new ArrayList<>();
         String sql = """
                 SELECT TOP 5 b.booking_id, u.full_name as customer_name, u.phone as customer_phone,
-                       f.field_name, fc.complex_name, b.start_time, b.end_time, b.total_amount, b.status
+                       f.field_name, fc.complex_name, b.start_time, b.end_time, 
+                       (CASE 
+                           WHEN b.status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT') THEN b.deposit_amount 
+                           WHEN b.status = 'COMPLETED' THEN b.total_amount 
+                           ELSE 0 
+                       END) as total_amount, b.status
                 FROM bookings b
                 JOIN users u ON b.customer_id = u.user_id
                 JOIN fields f ON b.field_id = f.field_id
                 JOIN football_complexes fc ON f.complex_id = fc.complex_id
+                WHERE b.status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT', 'COMPLETED')
                 ORDER BY b.created_at DESC
                 """;
         try (Connection conn = DBContext.getConnection();

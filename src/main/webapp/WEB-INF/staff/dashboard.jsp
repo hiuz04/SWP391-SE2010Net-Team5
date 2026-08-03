@@ -1510,7 +1510,11 @@ async function cancelNoshow(bookingId) {
       
       const data = await res.json();
       if (data.success) {
-        if (typeof checkinModalInstance !== 'undefined' && checkinModalInstance) checkinModalInstance.hide();
+        const modalEl = document.getElementById('checkinConfirmModal');
+        if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          const modalInstance = bootstrap.Modal.getInstance(modalEl);
+          if (modalInstance) modalInstance.hide();
+        }
         if (typeof bookingDetailModalInstance !== 'undefined' && bookingDetailModalInstance) bookingDetailModalInstance.hide();
         showToastAfterReload('Đã hủy đặt sân thành công (Khách không đến)', 'success');
         window.location.reload();
@@ -1617,7 +1621,11 @@ async function submitCheckinForm(e) {
 
     const data = await res.json().catch(() => ({}));
     if (res.ok && (data.success || !data.error)) {
-      if (checkinModalInstance) checkinModalInstance.hide();
+      const modalEl = document.getElementById('checkinConfirmModal');
+      if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+      }
       if (typeof showToastAfterReload === 'function') {
         showToastAfterReload('Đã check-in thành công!', 'success');
       }
