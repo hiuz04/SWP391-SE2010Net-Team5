@@ -1,13 +1,19 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="com.swp.model.User" %>
+<%@ page import="java.time.LocalDateTime" %>
 <%
     User sessionUser = (User) session.getAttribute("user");
     String navRole = sessionUser == null ? "guest" : (String) session.getAttribute("navRole");
+    // Fallback navRole để navbar vẫn render nếu session thiếu role hiển thị.
     if (navRole == null) {
         navRole = "guest";
     }
     String displayName = sessionUser != null ? sessionUser.getFullName() : "";
-    boolean isVip = sessionUser != null && sessionUser.isVip();
+    // VIP chỉ tính khi còn hạn, không chỉ dựa vào cờ isVip.
+    boolean isVip = sessionUser != null
+            && sessionUser.isVip()
+            && sessionUser.getVipValidUntil() != null
+            && sessionUser.getVipValidUntil().isAfter(LocalDateTime.now());
     String ctx = request.getContextPath();
 %>
 <!DOCTYPE html>
@@ -72,6 +78,7 @@
         </div>
     </div>
 
+    <%-- Chỉ Customer VIP còn hạn mới thấy filter voucher hội viên. --%>
     <% if (isVip) { %>
     <div class="mb-4" id="voucherTypeFilter">
         <button class="btn btn-success filter-btn me-2 active" data-type="ALL_TYPE">
@@ -95,6 +102,7 @@
 <div id="footer" data-root="../../"></div>
 
 <!-- CONFIRM MODAL -->
+<%-- Modal xác nhận trước khi POST đổi voucher bằng điểm. --%>
 <div class="modal fade" id="exchangeModal">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -154,6 +162,7 @@
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script src="<%= ctx %>/assets/js/customer/voucher.js"></script>
 <script>
+    // Mặc định load toàn bộ voucher Customer được phép thấy.
     loadVoucherStock("ALL_TYPE");
 </script>
 </body>

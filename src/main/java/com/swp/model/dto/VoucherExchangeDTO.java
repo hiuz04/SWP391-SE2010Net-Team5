@@ -16,6 +16,7 @@ public class VoucherExchangeDTO {
     private int exchangePoints;
     private LocalDateTime endDate;
     private String targetUser;
+    private String distributionType;
 
     public VoucherExchangeDTO() {
     }
@@ -120,5 +121,13 @@ public class VoucherExchangeDTO {
 
     public void setTargetUser(String targetUser) {
         this.targetUser = targetUser;
+    }
+
+    public String getDistributionType() {
+        return distributionType;
+    }
+
+    public void setDistributionType(String distributionType) {
+        this.distributionType = distributionType;
     }
 }

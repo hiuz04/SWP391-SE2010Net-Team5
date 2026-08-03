@@ -63,7 +63,7 @@
                         <option value="ADVANCED">Khá / Giỏi (Advanced)</option>
                     </select>
 
-                    <label class="form-label mt-3" for="complex">Địa điểm (Cơ sở)</label>
+                    <label class="form-label mt-3" for="complex">Địa điểm (Cụm sân)</label>
                     <select class="form-select" id="complex" onchange="searchPosts()">
                         <option value="">Tất cả địa điểm</option>
                     </select>
@@ -140,7 +140,7 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="newComplex" class="form-label">Địa điểm (Cơ sở)</label>
+                        <label for="newComplex" class="form-label">Địa điểm (Cụm sân)</label>
                         <select class="form-select" id="newComplex" name="complexId">
                             <option value="">Chọn địa điểm mong muốn</option>
                         </select>
@@ -221,7 +221,8 @@
     window.CURRENT_USER_ID = <%= isLoggedIn ? sessionUser.getUserId() : "null" %>;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<%= ctx %>/assets/js/customer/matchmaking.js"></script>
+<script>window.APP_CTX = '<%= ctx %>';</script>
+<script src="<%= ctx %>/assets/js/customer/matchmaking.js?v=<%= System.currentTimeMillis() %>"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 </body>
 </html>

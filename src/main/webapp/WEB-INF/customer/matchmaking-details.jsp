@@ -204,42 +204,7 @@
                     </div>
                 </div>
                 
-                <script>
-                    async function submitResponse(event) {
-                        event.preventDefault();
-                        const form = document.getElementById("respondForm");
-                        const formData = new FormData(form);
-                        
-                        const urlEncoded = new URLSearchParams();
-                        for (const pair of formData.entries()) {
-                            urlEncoded.append(pair[0], pair[1]);
-                        }
-                        
-                        try {
-                            const response = await fetch(window.APP_CTX + '/api/matchmaking', {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/x-www-form-urlencoded"
-                                },
-                                body: urlEncoded.toString()
-                            });
-                            
-                            const result = await response.json();
-                            if (!response.ok) throw new Error(result.error || "Gửi phản hồi thất bại");
-                            
-                            showToast("Gửi phản hồi thành công! Người đăng tin sẽ nhận được lời nhắn của bạn.", "success");
-                            
-                            // Đóng modal
-                            const modalEl = document.getElementById("respondModal");
-                            const modal = bootstrap.Modal.getInstance(modalEl);
-                            if (modal) modal.hide();
-                            
-                            form.reset();
-                        } catch (error) {
-                            showToast("Lỗi: " + error.message, "danger");
-                        }
-                    }
-                </script>
+                
             <% } %>
 
             <% if (isMyPost) { %>
@@ -294,7 +259,7 @@
                                         </div>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="editFacility" class="form-label">Địa điểm (Cơ sở)</label>
+                                        <label for="editFacility" class="form-label">Địa điểm (Cụm sân)</label>
                                         <select class="form-select" id="editFacility" name="complexId" data-selected="<%= postDTO.getPost().getComplexId() != null ? postDTO.getPost().getComplexId() : "" %>">
                                             <option value="">Chọn địa điểm mong muốn</option>
                                         </select>
@@ -319,151 +284,10 @@
                     </div>
                 </div>
 
-                <script>
-                    async function loadEditFacilities() {
-                        try {
-                            const response = await fetch(window.APP_CTX + '/api/complexes');
-                            if (response.ok) {
-                                const data = await response.json();
-                                const select = document.getElementById("editFacility");
-                                if (select) {
-                                    const selectedVal = select.getAttribute("data-selected");
-                                    let html = '<option value="">Chọn địa điểm mong muốn</option>';
-                                    data.forEach(item => {
-                                        const fac = item.complex;
-                                        const isSelected = fac.complexId == selectedVal ? 'selected' : '';
-                                        html += '<option value="' + fac.complexId + '" ' + isSelected + '>' + fac.complexName + ' (' + fac.city + ')</option>';
-                                    });
-                                    select.innerHTML = html;
-                                }
-                            }
-                        } catch (e) {
-                            console.error("Lỗi khi load danh sách sân:", e);
-                        }
-                    }
-
-                    async function submitUpdatePost(event) {
-                        event.preventDefault();
-                        const form = document.getElementById("editPostForm");
-                        
-                        // Validate expected time
-                        const expectedTimeInput = document.getElementById("editExpectedTime");
-                        if (expectedTimeInput && expectedTimeInput.value) {
-                            const selectedTime = new Date(expectedTimeInput.value);
-                            const currentTime = new Date();
-                            if (selectedTime < currentTime) {
-                                showToast("Thời gian dự kiến không được chọn trước ngày và giờ hiện tại.", "danger");
-                                return;
-                            }
-                        }
-                        
-                        // Validate phone number
-                        const contactPhoneInput = document.getElementById("editContactPhone");
-                        if (contactPhoneInput) {
-                            const phone = contactPhoneInput.value.trim();
-                            const phonePattern = /^0\d{9}$/;
-                            if (!phonePattern.test(phone)) {
-                                showToast("Số điện thoại không đúng định dạng (phải bao gồm 10 chữ số và bắt đầu bằng số 0).", "danger");
-                                return;
-                            }
-                        }
-                        
-                        const formData = new FormData(form);
-                        const urlEncoded = new URLSearchParams();
-                        for (const pair of formData.entries()) {
-                            urlEncoded.append(pair[0], pair[1]);
-                        }
-                        
-                        try {
-                            const response = await fetch(window.APP_CTX + '/api/matchmaking', {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/x-www-form-urlencoded"
-                                },
-                                body: urlEncoded.toString()
-                            });
-                            
-                            const result = await response.json();
-                            if (!response.ok) throw new Error(result.error || "Cập nhật bài đăng thất bại");
-                            
-                            showToastAfterReload("Chỉnh sửa bài đăng tìm đối/đồng đội thành công!", "success");
-                            window.location.reload();
-                        } catch (error) {
-                            showToast("Lỗi: " + error.message, "danger");
-                        }
-                    }
-
-                    document.addEventListener("DOMContentLoaded", async () => {
-                        await loadEditFacilities();
-                        
-                        const expectedTimeInput = document.getElementById("editExpectedTime");
-                        if (expectedTimeInput) {
-                            const updateMinDateTime = () => {
-                                const now = new Date();
-                                const year = now.getFullYear();
-                                const month = String(now.getMonth() + 1).padStart(2, '0');
-                                const day = String(now.getDate()).padStart(2, '0');
-                                const hours = String(now.getHours()).padStart(2, '0');
-                                const minutes = String(now.getMinutes()).padStart(2, '0');
-                                expectedTimeInput.min = year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
-                            };
-                            updateMinDateTime();
-                            
-                            const editPostModal = document.getElementById("editPostModal");
-                            if (editPostModal) {
-                                editPostModal.addEventListener("show.bs.modal", updateMinDateTime);
-                            }
-                        }
-                    });
-                </script>
+                
             <% } %>
 
-            <script>
-                window.APP_CTX = '<%= ctx %>';
-                <% if (isMyPost) { %>
-                async function closeMatchmakingPost(postId) {
-                    showConfirm("Bạn có chắc muốn đóng bài đăng này không? Khi đóng tin, những người dùng khác sẽ không thể gửi phản hồi nữa.", async () => {
-                        try {
-                            const response = await fetch(window.APP_CTX + '/api/matchmaking?action=close_post&postId=' + postId, {
-                                method: "POST"
-                            });
-                            const result = await response.json();
-                            if (!response.ok) throw new Error(result.error || "Không đóng được bài viết");
-                            showToastAfterReload("Đã đóng bài viết thành công!", "success");
-                            window.location.reload();
-                        } catch (error) {
-                            showToast("Lỗi: " + error.message, "danger");
-                        }
-                    });
-                }
-
-                async function deleteMatchmakingPost(postId) {
-                    showConfirm("Bạn có chắc muốn xóa bài đăng này không? Hành động này sẽ xóa vĩnh viễn tin tuyển đối cùng toàn bộ các phản hồi nhận được.", async () => {
-                        try {
-                            const formData = new URLSearchParams();
-                            formData.append("action", "delete_post");
-                            formData.append("postId", postId);
-
-                            const response = await fetch(window.APP_CTX + '/api/matchmaking', {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/x-www-form-urlencoded"
-                                },
-                                body: formData.toString()
-                            });
-
-                            const result = await response.json();
-                            if (!response.ok) throw new Error(result.error || "Không xóa được bài viết");
-
-                            showToastAfterReload("Đã xóa bài viết thành công!", "success");
-                            window.location.href = window.APP_CTX + '/matchmaking';
-                        } catch (error) {
-                            showToast("Lỗi: " + error.message, "danger");
-                        }
-                    });
-                }
-                <% } %>
-            </script>
+            
         <% } %>
     </div>
 </main>
@@ -471,6 +295,8 @@
 <div id="footer" data-root="<%= ctx %>/"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>window.APP_CTX = '<%= ctx %>';</script>
+<script src="<%= ctx %>/assets/js/customer/matchmaking.js?v=<%= System.currentTimeMillis() %>"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
 </body>
 </html>

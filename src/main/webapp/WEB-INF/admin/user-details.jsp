@@ -173,7 +173,7 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>Mã đặt sân</th>
-                                        <th>Sân / Cơ sở</th>
+                                        <th>Sân /Cụm sân</th>
                                         <th>Thời gian đá</th>
                                         <th>Tổng tiền</th>
                                         <th>Trạng thái</th>

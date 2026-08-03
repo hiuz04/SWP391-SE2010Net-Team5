@@ -223,6 +223,7 @@ main:not([class]) {
     transition: var(--transition);
     position: relative;
     overflow: hidden;
+    min-height: 215px;
 }
 
 .dashboard-card::before {

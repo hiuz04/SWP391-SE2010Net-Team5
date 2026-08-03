@@ -6,6 +6,7 @@
 <%@ page import="java.time.format.DateTimeFormatter" %>
 <%!
     private String esc(String value) {
+        // Null hiển thị rỗng để form không lỗi khi tạo mới.
         if (value == null) return "";
         return value.replace("&", "&amp;").replace("<", "&lt;")
                 .replace(">", "&gt;").replace("\"", "&quot;")
@@ -13,10 +14,12 @@
     }
 
     private String decimalValue(BigDecimal value) {
+        // Dùng cho input number để không hiện scientific notation hoặc số 0 thừa.
         return value == null ? "" : value.stripTrailingZeros().toPlainString();
     }
 
     private String dateTimeValue(LocalDateTime value) {
+        // datetime-local cần format yyyy-MM-ddTHH:mm.
         if (value == null) return "";
         return value.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
     }
@@ -28,13 +31,17 @@
             ? currentUser.getFullName()
             : "Owner";
     Voucher voucher = (Voucher) request.getAttribute("voucher");
+    // Khi tạo mới hoặc parse lỗi, fallback object rỗng để form render an toàn.
     if (voucher == null) voucher = new Voucher();
     String mode = (String) request.getAttribute("mode");
+    // Nếu controller không truyền mode thì suy ra từ id voucher.
     if (mode == null || mode.isBlank()) mode = voucher.getId() > 0 ? "edit" : "create";
     boolean edit = "edit".equals(mode);
     String error = (String) request.getAttribute("error");
     String discountType = voucher.getDiscountType() == null ? "PERCENT" : voucher.getDiscountType();
     String status = voucher.getStatus() == null ? "ACTIVE" : voucher.getStatus();
+    String distributionType = voucher.getDistributionType() == null ? "PUBLIC_CODE" : voucher.getDistributionType();
+    String targetUser = voucher.getTargetUser() == null ? "ALL" : voucher.getTargetUser();
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -60,11 +67,13 @@
         <div class="card soft-card border-0 shadow-sm">
             <div class="card-body p-4">
                 <h1 class="section-title mb-3"><%= edit ? "Sửa mã giảm giá" : "Tạo mã giảm giá" %></h1>
+                <%-- Lỗi validate từ servlet được render ngay trên form. --%>
                 <% if (error != null && !error.isBlank()) { %>
                 <div class="alert alert-danger"><%= esc(error) %></div>
                 <% } %>
 
                 <form method="post" action="<%= ctx %>/owner/vouchers?action=<%= edit ? "edit" : "create" %>">
+                    <%-- Edit cần id ẩn để servlet biết voucher nào được cập nhật. --%>
                     <% if (edit) { %>
                     <input type="hidden" name="id" value="<%= voucher.getId() %>">
                     <% } %>
@@ -81,6 +90,25 @@
                             <%-- Business Rule BR-32: UI giới hạn tên voucher tối đa 255 ký tự. --%>
                             <input class="form-control" id="name" name="name" maxlength="255"
                                    value="<%= esc(voucher.getName()) %>" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="distributionType">Loại phát hành</label>
+                            <select class="form-select" id="distributionType" name="distributionType">
+                                <option value="PUBLIC_CODE" <%= "PUBLIC_CODE".equalsIgnoreCase(distributionType) ? "selected" : "" %>>Mã công khai</option>
+                                <option value="REWARD_VOUCHER" <%= "REWARD_VOUCHER".equalsIgnoreCase(distributionType) ? "selected" : "" %>>Voucher đổi điểm</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="targetUser">Đối tượng áp dụng</label>
+                            <select class="form-select" id="targetUser" name="targetUser">
+                                <option value="ALL" <%= "ALL".equalsIgnoreCase(targetUser) ? "selected" : "" %>>Tất cả khách hàng</option>
+                                <option value="MEMBER" <%= "MEMBER".equalsIgnoreCase(targetUser) ? "selected" : "" %>>Thành viên VIP</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4" id="exchangePointGroup">
+                            <label class="form-label fw-semibold" for="exchangePoints">Điểm cần đổi</label>
+                            <input class="form-control" id="exchangePoints" name="exchangePoints" type="number"
+                                   min="0" value="<%= Math.max(voucher.getExchangePoint(), 0) %>">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold" for="discountType">Loại giảm giá</label>
@@ -107,6 +135,7 @@
                             <input class="form-control" id="quantity" name="quantity" type="number"
                                    min="1" value="<%= voucher.getQuantity() > 0 ? voucher.getQuantity() : 1 %>" required>
                         </div>
+                        <%-- Chỉ edit mới hiển thị used hiện tại, và input này readonly. --%>
                         <% if (edit) { %>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold" for="usedDisplay">Lượt đã dùng</label>
@@ -150,5 +179,29 @@
 <div id="footer" data-root="<%= ctx %>/"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<%= ctx %>/assets/js/app.js"></script>
+<script>
+    (function () {
+        const distributionType = document.getElementById("distributionType");
+        const exchangeGroup = document.getElementById("exchangePointGroup");
+        const exchangeInput = document.getElementById("exchangePoints");
+
+        function syncExchangePoint() {
+            // Chỉ REWARD_VOUCHER mới cần nhập điểm đổi.
+            const reward = distributionType && distributionType.value === "REWARD_VOUCHER";
+            exchangeGroup.classList.toggle("d-none", !reward);
+            exchangeInput.disabled = !reward;
+            // PUBLIC_CODE luôn gửi exchangePoints = 0.
+            if (!reward) {
+                exchangeInput.value = "0";
+            }
+        }
+
+        // Form có đủ control thì bật behavior ẩn/hiện điểm đổi.
+        if (distributionType && exchangeGroup && exchangeInput) {
+            distributionType.addEventListener("change", syncExchangePoint);
+            syncExchangePoint();
+        }
+    })();
+</script>
 </body>
 </html>

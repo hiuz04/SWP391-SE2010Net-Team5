@@ -10,6 +10,7 @@
 
 <%!
     private String esc(String value) {
+        // Null hiển thị rỗng để tránh lỗi khi payment thiếu field phụ.
         if (value == null) return "";
         return value.replace("&", "&amp;").replace("<", "&lt;")
                 .replace(">", "&gt;").replace("\"", "&quot;")
@@ -17,11 +18,13 @@
     }
 
     private String money(BigDecimal value) {
+        // Amount null được format thành 0 VND.
         if (value == null) value = BigDecimal.ZERO;
         return NumberFormat.getCurrencyInstance(new Locale("vi", "VN")).format(value);
     }
 
     private String dateTime(LocalDateTime value) {
+        // Không có timestamp thì không render thời gian.
         if (value == null) return "";
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
@@ -30,6 +33,7 @@
 <%
     String ctx = request.getContextPath();
     PaymentView payment = (PaymentView) request.getAttribute("payment");
+    // Trang result cần payment từ controller; thiếu thì trả 404.
     if (payment == null) {
         response.sendError(HttpServletResponse.SC_NOT_FOUND, "Khong tim thay giao dich.");
         return;
@@ -63,6 +67,7 @@
             <div class="col-lg-8">
                 <div class="card soft-card p-4 p-md-5">
                     <div class="text-center">
+                        <%-- Chọn trạng thái hiển thị theo status của payment. --%>
                         <% if (success) { %>
                         <i class="bi bi-check-circle-fill text-success display-1"></i>
                         <h1 class="fw-bold mt-3">Thanh to&#225;n th&#224;nh c&#244;ng</h1>
@@ -80,6 +85,7 @@
                     <div class="border rounded p-3 p-md-4 mt-4">
                         <div class="row g-3">
                             <div class="col-md-6"><span class="text-muted d-block small">M&#227; giao d&#7883;ch</span><strong><%= esc(payment.getTransactionRef()) %></strong></div>
+                            <%-- Membership không gắn booking sân nên hiển thị chi tiết gói thay cho booking. --%>
                             <% if (membershipPayment) { %>
                             <div class="col-md-6"><span class="text-muted d-block small">Chi ti&#7871;t</span><strong>G&#243;i H&#7897;i Vi&#234;n VIP (30 ng&#224;y)</strong></div>
                             <% } else { %>
@@ -95,7 +101,9 @@
                     </div>
 
                     <div class="d-flex flex-wrap gap-2 justify-content-center mt-4">
+                        <%-- Chỉ hiện nút thử lại khi model xác định payment còn retry được. --%>
                         <% if (payment.isRetryAllowed()) { %>
+                        <%-- Retry checkout cần quay về invoice, membership về gói VIP, deposit về booking. --%>
                         <% if (checkoutPayment && payment.getInvoiceId() != null) { %>
                         <a class="btn btn-danger" href="<%= ctx %>/payment?action=method&type=checkout&invoiceId=<%= payment.getInvoiceId() %>">Th&#7917; thanh to&#225;n l&#7841;i</a>
                         <% } else if (membershipPayment) { %>
@@ -104,6 +112,7 @@
                         <a class="btn btn-danger" href="<%= ctx %>/payment?action=method&bookingId=<%= payment.getBookingId() %>">Th&#7917; thanh to&#225;n l&#7841;i</a>
                         <% } %>
                         <% } %>
+                        <%-- Nút điều hướng chính phụ thuộc loại payment đã xử lý. --%>
                         <% if (checkoutPayment && payment.getInvoiceId() != null) { %>
                         <a class="btn btn-sf-primary" href="<%= ctx %>/customer/checkout-invoice?id=<%= payment.getInvoiceId() %>">Xem h&#243;a &#273;&#417;n</a>
                         <% } else if (membershipPayment) { %>

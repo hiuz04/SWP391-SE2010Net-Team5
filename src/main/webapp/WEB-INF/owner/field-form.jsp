@@ -1,7 +1,7 @@
 <!--
 * Module: Field Management
 * File: field-form.jsp
-* Description: Trang nhập liệu để thêm mới hoặc cập nhật thông tin cơ sở.
+* Description: Trang nhập liệu để thêm mới hoặc cập nhật thông tin cụm sân.
 *
 * Author: Duong Hai Anh
 * Version: 1.0

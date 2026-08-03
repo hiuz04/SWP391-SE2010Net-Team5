@@ -28,7 +28,7 @@ public class AdminDashboardServlet extends HttpServlet {
             throws ServletException, IOException {
 
         Map<String, Object> kpis = dashboardDAO.getDashboardKPIs();
-        List<Map<String, Object>> revChart = dashboardDAO.getRevenueLast7Days();
+        List<Map<String, Object>> revChart = dashboardDAO.getRevenueLast30Days();
         List<Map<String, Object>> typeChart = dashboardDAO.getBookingsByFieldType();
         List<Map<String, Object>> recentBookings = dashboardDAO.getRecentBookings();
 

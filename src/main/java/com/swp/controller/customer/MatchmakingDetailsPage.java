@@ -22,6 +22,10 @@ public class MatchmakingDetailsPage extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
+        resp.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        resp.setHeader("Pragma", "no-cache");
+        resp.setDateHeader("Expires", 0);
+
         String idStr = req.getParameter("id");
         if (idStr == null || idStr.trim().isEmpty()) {
             resp.sendRedirect(req.getContextPath() + "/matchmaking");

@@ -14,6 +14,7 @@
 
 <%!
     private String esc(Object value) {
+        // Null hiển thị thành chuỗi rỗng để tránh lỗi JSP khi render.
         if (value == null) return "";
         return value.toString().replace("&", "&amp;").replace("<", "&lt;")
                 .replace(">", "&gt;").replace("\"", "&quot;")
@@ -21,21 +22,25 @@
     }
 
     private String money(BigDecimal value) {
+        // Amount null được xem là 0 để format tiền không bị lỗi.
         if (value == null) value = BigDecimal.ZERO;
         return NumberFormat.getCurrencyInstance(new Locale("vi", "VN")).format(value);
     }
 
     private String dateTime(LocalDateTime value) {
+        // Không có thời gian thì không render text.
         if (value == null) return "";
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
     private String timeOnly(LocalDateTime value) {
+        // Dùng cho khoảng giờ, bỏ trống nếu dữ liệu null.
         if (value == null) return "";
         return value.format(DateTimeFormatter.ofPattern("HH:mm"));
     }
 
     private String dayOfWeek(LocalDateTime value) {
+        // Không có ngày thì không xác định được thứ.
         if (value == null) return "";
         switch (value.getDayOfWeek().getValue()) {
             case 1: return "Thứ 2";
@@ -53,7 +58,9 @@
     }
 
     private String bookingTimeLabel(BookingView booking) {
+        // Không có booking thì không render nhãn thời gian.
         if (booking == null) return "";
+        // Booking tháng hiển thị thứ + khung giờ lặp lại.
         if (isMonthlyBooking(booking)) {
             return dayOfWeek(booking.getStartTime()) + ", "
                     + timeOnly(booking.getStartTime()) + " - " + timeOnly(booking.getEndTime());
@@ -70,16 +77,19 @@
     BookingView booking = (BookingView) request.getAttribute("booking");
     InvoiceView invoice = (InvoiceView) request.getAttribute("invoice");
 
+    // Deposit phải có booking; checkout/membership có dữ liệu riêng.
     if (!checkoutContext && !membershipContext && booking == null) {
         response.sendError(HttpServletResponse.SC_NOT_FOUND, "Khong tim thay booking.");
         return;
     }
+    // Checkout bắt buộc có invoice để hiển thị số tiền còn lại.
     if (checkoutContext && invoice == null) {
         response.sendError(HttpServletResponse.SC_NOT_FOUND, "Khong tim thay hoa don.");
         return;
     }
 
     List<PaymentMethod> paymentMethods = (List<PaymentMethod>) request.getAttribute("paymentMethods");
+    // Controller có thể không set list khi lỗi; fallback list rỗng để JSP vẫn render được.
     if (paymentMethods == null) paymentMethods = new ArrayList<>();
     User currentUser = (User) session.getAttribute("user");
     String currentName = currentUser != null && currentUser.getFullName() != null
@@ -95,11 +105,13 @@
     boolean monthly = !checkoutContext && !membershipContext && isMonthlyBooking(booking);
     
     BigDecimal amountToPay = (BigDecimal) request.getAttribute("amountToPay");
+    // Nếu controller không truyền amount riêng thì dùng invoice/booking làm source.
     if (amountToPay == null) {
         amountToPay = checkoutContext ? invoice.getTotalAmount() : booking.getDepositAmount();
     }
 
     Integer vnpayMethodId = null;
+    // Tìm method VNPay để nút VNPay tự chọn đúng radio khi submit.
     for (PaymentMethod method : paymentMethods) {
         if ("VNPAY".equalsIgnoreCase(method.getMethodCode())) {
             vnpayMethodId = method.getPaymentMethodId();
@@ -124,6 +136,7 @@
 <main class="py-5">
     <div class="container">
         <div class="mb-3">
+            <%-- Nút quay lại phụ thuộc vào ngữ cảnh payment hiện tại. --%>
             <% if (checkoutContext) { %>
             <a class="btn btn-outline-secondary" href="<%= ctx %>/customer/checkout-invoice?id=<%= invoice.getInvoiceId() %>">
                 <i class="bi bi-arrow-left"></i> Quay lại hóa đơn
@@ -139,14 +152,17 @@
             <% } %>
         </div>
 
+        <%-- Hiển thị lỗi validate từ controller nếu submit payment không hợp lệ. --%>
         <% if (error != null && !error.isBlank()) { %>
         <div class="alert alert-danger"><%= esc(error) %></div>
         <% } %>
+        <%-- Deposit hết hạn giữ chỗ thì không cho tạo giao dịch mới. --%>
         <% if (!checkoutContext && !membershipContext && !holdValid) { %>
         <div class="alert alert-warning">
             Booking không còn trong thời gian giữ chỗ. Không thể tạo giao dịch mới.
         </div>
         <% } %>
+        <%-- Invoice checkout không còn PENDING thì chỉ hiển thị cảnh báo. --%>
         <% if (checkoutContext && !canPay) { %>
         <div class="alert alert-info">
             Hóa đơn này không còn ở trạng thái chờ thanh toán.
@@ -160,6 +176,7 @@
                         <%= checkoutContext ? "Thanh toán hóa đơn trả sân" : (membershipContext ? "Thanh toán Gói Hội Viên VIP" : "Chọn phương thức thanh toán") %>
                     </h1>
                     <p class="text-muted">
+                        <%-- Dòng mô tả thay đổi theo deposit/checkout/membership. --%>
                         <% if (checkoutContext) { %>
                         Hóa đơn <strong>#<%= esc(invoice.getInvoiceCode()) %></strong> cho booking <strong><%= esc(invoice.getBookingCode()) %></strong>
                         <% } else if (membershipContext) { %>
@@ -169,6 +186,7 @@
                         <% } %>
                     </p>
 
+                    <%-- Membership không có thông tin sân, các flow còn lại hiển thị booking/invoice. --%>
                     <% if (!membershipContext) { %>
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
@@ -178,6 +196,7 @@
                         <div class="col-md-6">
                             <div class="text-muted small">Sân</div>
                             <div class="fw-semibold">
+                                <%-- Checkout lấy tên sân từ invoice; deposit lấy từ booking view. --%>
                                 <% if (checkoutContext) { %>
                                 <%= esc(invoice.getFieldName()) %>
                                 <% } else { %>
@@ -196,16 +215,19 @@
                         <div class="col-md-6">
                             <div class="text-muted small"><%= checkoutContext ? "Trạng thái hóa đơn" : "Loại booking" %></div>
                             <div class="fw-semibold">
+                                <%-- Checkout hiển thị trạng thái invoice, deposit hiển thị loại booking. --%>
                                 <% if (checkoutContext) { %>
                                 <span class="badge bg-warning-subtle text-warning text-dark"><%= esc(invoice.getInvoiceStatus()) %></span>
                                 <% } else { %>
                                 <%= monthly ? "Thuê theo tháng" : "Thuê đơn lẻ" %>
+                                <%-- Booking tháng hiển thị thêm số buổi recurring nếu có. --%>
                                 <% if (monthly && booking.getRecurringCount() != null) { %>
                                 <span class="text-muted">(<%= booking.getRecurringCount() %> buổi)</span>
                                 <% } %>
                                 <% } %>
                             </div>
                         </div>
+                        <%-- Deposit hiển thị hạn giữ chỗ; checkout hiển thị phụ thu quá giờ. --%>
                         <% if (!checkoutContext) { %>
                         <div class="col-md-6">
                             <div class="text-muted small">Giữ chỗ đến</div>
@@ -223,6 +245,7 @@
                         <% } %>
                     </div>
                     <% } else { %>
+                    <%-- Membership chỉ cần mô tả gói VIP, không có sân/booking. --%>
                     <div class="row g-3 mb-4">
                         <div class="col-md-12">
                             <div class="text-muted small">Chi tiết gói</div>
@@ -231,11 +254,13 @@
                     </div>
                     <% } %>
 
+                    <%-- Không có method ACTIVE thì không render form thanh toán. --%>
                     <% if (paymentMethods.isEmpty()) { %>
                     <div class="alert alert-info mb-0">Hiện không có phương thức thanh toán đang hoạt động.</div>
                     <% } else { %>
                     <form method="post" action="<%= ctx %>/payment">
                         <input type="hidden" name="action" value="pay">
+                        <%-- Hidden input xác định flow backend cần xử lý. --%>
                         <% if (checkoutContext) { %>
                         <input type="hidden" name="paymentType" value="CHECKOUT">
                         <input type="hidden" name="invoiceId" value="<%= invoice.getInvoiceId() %>">
@@ -248,8 +273,10 @@
                         <h5 class="mb-3">Phương thức</h5>
                         <div class="vstack gap-2">
                             <% int visibleMethodIndex = 0;
+                               // Duyệt method online và bỏ CASH khỏi form Customer.
                                for (int i = 0; i < paymentMethods.size(); i++) {
                                 PaymentMethod method = paymentMethods.get(i);
+                                // CASH chỉ do Staff ghi nhận tại quầy checkout.
                                 if ("CASH".equalsIgnoreCase(method.getMethodCode())) {
                                     continue;
                                 }
@@ -292,6 +319,7 @@
             <aside class="col-lg-4">
                 <div class="card soft-card p-4 sidebar-card">
                     <h5>Tóm tắt thanh toán</h5>
+                    <%-- Checkout summary tách tiền sân, phụ thu và tiền cọc đã trả. --%>
                     <% if (checkoutContext) { %>
                     <div class="d-flex justify-content-between mt-3">
                         <span>Tổng tiền sân</span>
@@ -311,6 +339,7 @@
                         <strong class="text-success"><%= money(amountToPay) %></strong>
                     </div>
                     <% } else if (membershipContext) { %>
+                    <%-- Membership chỉ có giá gói VIP cần thanh toán. --%>
                     <div class="d-flex justify-content-between mt-3">
                         <span>Giá trị gói</span>
                         <strong><%= money(amountToPay) %></strong>
@@ -321,6 +350,7 @@
                         <strong class="text-success"><%= money(amountToPay) %></strong>
                     </div>
                     <% } else { %>
+                    <%-- Deposit summary hiển thị tổng tiền và khoản cần cọc/toàn bộ cho booking tháng. --%>
                     <div class="d-flex justify-content-between mt-3">
                         <span>Tổng tiền</span>
                         <strong><%= money(booking.getTotalAmount()) %></strong>
@@ -331,7 +361,7 @@
                         <strong class="text-success"><%= money(amountToPay) %></strong>
                     </div>
                     <% } %>
-                    <p class="text-muted small mt-3 mb-0">Số tiền được lấy trực tiếp từ cơ sở dữ liệu.</p>
+                    <p class="text-muted small mt-3 mb-0">Số tiền được lấy trực tiếp từ cụm sân dữ liệu.</p>
                 </div>
             </aside>
         </div>
@@ -343,11 +373,13 @@
 <script src="<%= ctx %>/assets/js/app.js"></script>
 <script>
     const vnpayButton = document.getElementById('vnpayButton');
+    // Chỉ gắn handler khi nút VNPay tồn tại trên màn hình.
     if (vnpayButton) {
         vnpayButton.addEventListener('click', () => {
             // Khi bấm VNPay, ép chọn đúng payment method VNPAY để controller tạo gateway transaction.
             const methodId = vnpayButton.dataset.vnpayMethodId;
             const radio = document.querySelector('input[name="paymentMethodId"][value="' + methodId + '"]');
+            // Nếu tìm thấy radio VNPay thì chọn trước khi form submit.
             if (radio) {
                 radio.checked = true;
             }

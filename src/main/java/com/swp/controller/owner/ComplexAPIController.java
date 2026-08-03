@@ -1,13 +1,13 @@
 /**
  * Module: Complex Management
  * File: ComplexAPIController.java
- * Description: Lấy toàn bộ thông tin cơ sở để hiển thị dữ liệu lên front-end.
+ * Description: Lấy toàn bộ thông tin cụm sân để hiển thị dữ liệu lên front-end.
  *
  * Author: Dương Hải Anh
  * Version: 1.1
  * Created date: 01/06/2026
  * Updated date: 04/06/2026
- * Update Notes: Cập nhật hiển thị thêm số lượng sân của từng cơ sở.
+ * Update Notes: Cập nhật hiển thị thêm số lượng sân của từng cụm sân.
  */
 package com.swp.controller.owner;
 

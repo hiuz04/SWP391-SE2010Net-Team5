@@ -17,6 +17,8 @@ public class UserVoucherDTO {
     private LocalDateTime expiredAt;
     private LocalDateTime usedAt;
     private String effectiveStatus;
+    private Long reservedBookingId;
+    private String reservedBookingCode;
 
     public UserVoucherDTO() {
     }
@@ -130,5 +132,21 @@ public class UserVoucherDTO {
 
     public void setEffectiveStatus(String effectiveStatus) {
         this.effectiveStatus = effectiveStatus;
+    }
+
+    public Long getReservedBookingId() {
+        return reservedBookingId;
+    }
+
+    public void setReservedBookingId(Long reservedBookingId) {
+        this.reservedBookingId = reservedBookingId;
+    }
+
+    public String getReservedBookingCode() {
+        return reservedBookingCode;
+    }
+
+    public void setReservedBookingCode(String reservedBookingCode) {
+        this.reservedBookingCode = reservedBookingCode;
     }
 }

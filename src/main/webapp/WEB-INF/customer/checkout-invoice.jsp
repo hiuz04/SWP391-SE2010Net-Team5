@@ -91,7 +91,7 @@
 
         <div class="row g-4 mb-4">
           <div class="col-md-6">
-            <div class="text-muted small fw-bold mb-1">CƠ SỞ</div>
+            <div class="text-muted small fw-bold mb-1">CỤM SÂN</div>
             <div class="fw-bold"><%= esc(invoice.getComplexName()) %></div>
             <div class="text-muted small"><%= esc(invoice.getComplexAddress()) %></div>
           </div>

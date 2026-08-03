@@ -53,12 +53,12 @@ public class FootballComplexService {
         int bookingCount = bookingDao.getBookingCountWithComplexId(id);
         if(bookingCount > 0)
         {
-            throw new IllegalStateException("Không thể xóa cơ sở vì vẫn còn booking liên quan.");
+            throw new IllegalStateException("Không thể xóa cụm sân vì vẫn còn booking liên quan.");
         }
         // Thêm handle yêu cầu xóa field trước
         int fieldCount = fieldDao.getFieldCountWithComplexId(id);
         if((fieldCount > 0)) {
-            throw new IllegalStateException("Yêu cầu chủ sân xóa toàn bộ các sân có liên quan tới cơ sở trước khi thử lại.");
+            throw new IllegalStateException("Yêu cầu chủ sân xóa toàn bộ các sân có liên quan tới cụm sân trước khi thử lại.");
         }
 
         deleteAllImageRelatedToFootballComplexOnCloudinary(id);
@@ -127,5 +127,13 @@ public class FootballComplexService {
 
     public List<FootballComplex> searchComplex(String keyword, String status) {
         return complexDao.searchComplex(keyword, status);
+    }
+
+    public  boolean existByName(String complexName) {
+        return complexDao.existByName(complexName);
+    }
+
+    public boolean existsByNameExceptId(String complexName, long complexId) {
+        return complexDao.existsByNameExceptId(complexName, complexId);
     }
 }

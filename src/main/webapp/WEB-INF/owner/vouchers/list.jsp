@@ -9,6 +9,7 @@
 <%@ page import="java.util.Locale" %>
 <%!
     private String esc(String value) {
+        // Null hiển thị rỗng để tránh lỗi render list.
         if (value == null) return "";
         return value.replace("&", "&amp;").replace("<", "&lt;")
                 .replace(">", "&gt;").replace("\"", "&quot;")
@@ -16,30 +17,47 @@
     }
 
     private String money(BigDecimal value) {
+        // Voucher min/discount null được format thành 0 VND.
         if (value == null) value = BigDecimal.ZERO;
         return NumberFormat.getCurrencyInstance(new Locale("vi", "VN")).format(value);
     }
 
     private String dateTime(LocalDateTime value) {
+        // Không có ngày thì để trống cột ngày.
         if (value == null) return "";
         return value.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
     private String statusBadge(String status) {
+        // ACTIVE dùng màu xanh, các trạng thái khác dùng màu trung tính.
         if ("ACTIVE".equalsIgnoreCase(status)) return "bg-success";
         return "bg-secondary";
     }
 
     private String discountTypeText(String discountType) {
+        // Map discount_type DB sang text dễ đọc cho Owner.
         if ("PERCENT".equalsIgnoreCase(discountType)) return "Theo phần trăm";
         if ("FIXED".equalsIgnoreCase(discountType)) return "Số tiền cố định";
         return esc(discountType);
     }
 
     private String statusText(String status) {
+        // Map status DB sang text UI.
         if ("ACTIVE".equalsIgnoreCase(status)) return "Đang hoạt động";
         if ("DISABLED".equalsIgnoreCase(status)) return "Tạm tắt";
         return esc(status);
+    }
+
+    private String distributionText(String distributionType) {
+        // Phân biệt mã công khai và voucher đổi điểm.
+        if ("REWARD_VOUCHER".equalsIgnoreCase(distributionType)) return "Đổi điểm";
+        return "Mã công khai";
+    }
+
+    private String targetText(String targetUser) {
+        // MEMBER nghĩa là voucher chỉ dành cho Customer VIP.
+        if ("MEMBER".equalsIgnoreCase(targetUser)) return "VIP";
+        return "Tất cả";
     }
 %>
 <%
@@ -49,11 +67,13 @@
             ? currentUser.getFullName()
             : "Owner";
     String navRole = (String) request.getAttribute("navRole");
+    // Fallback navRole từ session để navbar render đúng sau redirect.
     if (navRole == null) navRole = currentUser == null ? "guest" : (String) session.getAttribute("navRole");
     if (navRole == null) navRole = "guest";
     List<Voucher> vouchers = (List<Voucher>) request.getAttribute("vouchers");
     String successMessage = (String) session.getAttribute("successMessage");
     String errorMessage = (String) session.getAttribute("errorMessage");
+    // Flash message chỉ hiển thị một lần rồi xóa khỏi session.
     if (successMessage != null) session.removeAttribute("successMessage");
     if (errorMessage != null) session.removeAttribute("errorMessage");
 %>
@@ -82,12 +102,14 @@
         </a>
     </div>
 
+    <%-- Thông báo thao tác tạo/sửa/bật/tắt thành công. --%>
     <% if (successMessage != null) { %>
     <div class="alert alert-success alert-dismissible fade show" role="alert">
         <%= esc(successMessage) %>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
     </div>
     <% } %>
+    <%-- Thông báo lỗi từ thao tác toggle-status. --%>
     <% if (errorMessage != null) { %>
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
         <%= esc(errorMessage) %>
@@ -101,8 +123,11 @@
                         <thead class="table-light">
                         <tr>
                             <th class="ps-4">Mã</th>
-                            <th>Tên mã giảm giá</th>
-                            <th>Loại giảm</th>
+                             <th>Tên mã giảm giá</th>
+                             <th>Phát hành</th>
+                             <th>Đối tượng</th>
+                             <th>Điểm đổi</th>
+                             <th>Loại giảm</th>
                             <th>Giá trị giảm</th>
                             <th>Đơn tối thiểu</th>
                             <th>Số lượng</th>
@@ -114,14 +139,18 @@
                         </tr>
                         </thead>
                         <tbody>
+                        <%-- Render từng voucher trong danh sách Owner quản lý. --%>
                         <% if (vouchers != null && !vouchers.isEmpty()) {
                             for (Voucher voucher : vouchers) {
                                 boolean active = "ACTIVE".equalsIgnoreCase(voucher.getStatus());
                         %>
                         <tr>
-                            <td class="ps-4 fw-bold"><%= esc(voucher.getCode()) %></td>
-                            <td><%= esc(voucher.getName()) %></td>
-                            <td><span class="badge bg-info"><%= discountTypeText(voucher.getDiscountType()) %></span></td>
+                             <td class="ps-4 fw-bold"><%= esc(voucher.getCode()) %></td>
+                             <td><%= esc(voucher.getName()) %></td>
+                             <td><span class="badge bg-primary-subtle text-primary border"><%= distributionText(voucher.getDistributionType()) %></span></td>
+                             <td><%= targetText(voucher.getTargetUser()) %></td>
+                             <td><%= "REWARD_VOUCHER".equalsIgnoreCase(voucher.getDistributionType()) ? voucher.getExchangePoint() : 0 %></td>
+                             <td><span class="badge bg-info"><%= discountTypeText(voucher.getDiscountType()) %></span></td>
                             <td><%= "PERCENT".equalsIgnoreCase(voucher.getDiscountType())
                                     ? esc(voucher.getDiscountValue() + "%")
                                     : money(voucher.getDiscountValue()) %></td>
@@ -136,10 +165,10 @@
                                 <a class="btn btn-sm btn-outline-primary" href="<%= ctx %>/owner/vouchers?action=edit&id=<%= voucher.getId() %>">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <form method="post" action="<%= ctx %>/owner/vouchers" class="d-inline">
-                                    <input type="hidden" name="action" value="toggle-status">
-                                    <input type="hidden" name="id" value="<%= voucher.getId() %>">
-                                    <button type="submit" class="btn btn-sm <%= active ? "btn-outline-secondary" : "btn-outline-success" %>">
+                                 <form method="post" action="<%= ctx %>/owner/vouchers" class="d-inline">
+                                     <input type="hidden" name="action" value="toggle-status">
+                                     <input type="hidden" name="id" value="<%= voucher.getId() %>">
+                                     <button type="submit" class="btn btn-sm <%= active ? "btn-outline-secondary" : "btn-outline-success" %>">
                                         <%= active ? "Tắt" : "Bật" %>
                                     </button>
                                 </form>
@@ -147,8 +176,9 @@
                         </tr>
                         <%  }
                         } else { %>
+                        <%-- Empty state khi hệ thống chưa có voucher nào. --%>
                         <tr>
-                            <td colspan="11" class="text-center text-muted py-4">Chưa có mã giảm giá nào.</td>
+                            <td colspan="14" class="text-center text-muted py-4">Chưa có mã giảm giá nào.</td>
                         </tr>
                         <% } %>
                         </tbody>

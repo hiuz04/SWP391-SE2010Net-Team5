@@ -65,8 +65,8 @@
                     <div class="col-md-4">
                         <select name="filter" class="form-select">
                             <option value="">Tất cả</option>
-                            <option value="revenue_today" <%= "revenue_today".equals(filterVal) ? "selected" : "" %>>Doanh thu hôm nay (Paid Invoices)</option>
-                            <option value="revenue_7days" <%= "revenue_7days".equals(filterVal) ? "selected" : "" %>>Doanh thu 7 ngày qua</option>
+                            <option value="revenue_today" <%= "revenue_today".equals(filterVal) ? "selected" : "" %>>Doanh thu hôm nay</option>
+                            <option value="revenue_30days" <%= "revenue_30days".equals(filterVal) ? "selected" : "" %>>Doanh thu 30 ngày qua</option>
                             <option value="bookings_today" <%= "bookings_today".equals(filterVal) ? "selected" : "" %>>Lượt đặt sân hôm nay</option>
                         </select>
                     </div>

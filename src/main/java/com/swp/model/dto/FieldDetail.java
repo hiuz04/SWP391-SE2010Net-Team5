@@ -1,16 +1,15 @@
 package com.swp.model.dto;
 
-import com.swp.model.Feedback;
-import com.swp.model.Field;
-import com.swp.model.FieldType;
-import com.swp.model.PriceRule;
+import com.swp.model.*;
 
+import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.List;
 
 public class FieldDetail {
 
     private long complexId;
+    private List<FootballComplexImage> complexImages;
     private String complexName;
     private String complexAddress;
     private List<FieldType> fieldTypeList;
@@ -26,8 +25,9 @@ public class FieldDetail {
     public FieldDetail() {
     }
 
-    public FieldDetail(long complexId, String complexName, String complexAddress, List<FieldType> fieldTypeList, List<Field> fields, String description, LocalTime openingTime, LocalTime closingTime, String hotline, List<FeedbackDTO> feedbacks) {
+    public FieldDetail(long complexId, List<FootballComplexImage> complexImages, String complexName, String complexAddress, List<FieldType> fieldTypeList, List<Field> fields, String description, LocalTime openingTime, LocalTime closingTime, String hotline, List<FeedbackDTO> feedbacks, List<PriceRule> priceRules, BigDecimal currentPrice) {
         this.complexId = complexId;
+        this.complexImages = complexImages;
         this.complexName = complexName;
         this.complexAddress = complexAddress;
         this.fieldTypeList = fieldTypeList;
@@ -37,6 +37,16 @@ public class FieldDetail {
         this.closingTime = closingTime;
         this.hotline = hotline;
         this.feedbacks = feedbacks;
+        this.priceRules = priceRules;
+        this.currentPrice = currentPrice;
+    }
+
+    public List<FootballComplexImage> getComplexImages() {
+        return complexImages;
+    }
+
+    public void setComplexImages(List<FootballComplexImage> complexImages) {
+        this.complexImages = complexImages;
     }
 
     public List<PriceRule> getPriceRules() {

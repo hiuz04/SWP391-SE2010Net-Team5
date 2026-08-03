@@ -32,20 +32,24 @@ public class CustomerCheckoutInvoiceServlet extends HttpServlet {
         resp.setCharacterEncoding("UTF-8");
 
         User user = getSessionUser(req);
+        // Customer phải đăng nhập mới được mở hóa đơn checkout.
         if (user == null) {
             resp.sendRedirect(req.getContextPath() + "/login");
             return;
         }
 
         Long invoiceId = parsePositiveLong(req.getParameter("id"));
+        // id không hợp lệ thì dừng trước khi query DB.
         if (invoiceId == null) {
             resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "invoiceId khong hop le.");
             return;
         }
 
+        // Query invoice và bắt lỗi DB để không lộ chi tiết lỗi ra trình duyệt.
         try {
             InvoiceView invoice = billingDAO.getInvoiceByInvoiceId(invoiceId);
             // Customer chỉ được xem hóa đơn của chính mình và invoice checkout còn ý nghĩa thanh toán/đối soát.
+            // Nếu invoice không thuộc Customer hiện tại hoặc trạng thái không phù hợp thì trả 404.
             if (invoice == null
                     || invoice.getCustomerId() == null
                     || !invoice.getCustomerId().equals(user.getUserId())
@@ -57,6 +61,7 @@ public class CustomerCheckoutInvoiceServlet extends HttpServlet {
             req.setAttribute("invoice", invoice);
             req.getRequestDispatcher("/WEB-INF/customer/checkout-invoice.jsp").forward(req, resp);
         } catch (SQLException e) {
+            // Lỗi tải hóa đơn được log server-side và trả message chung cho Customer.
             getServletContext().log("Cannot load checkout invoice", e);
             resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Khong the tai hoa don.");
         }
@@ -68,13 +73,16 @@ public class CustomerCheckoutInvoiceServlet extends HttpServlet {
     }
 
     private Long parsePositiveLong(String raw) {
+        // Thiếu id thì xem như request không hợp lệ.
         if (raw == null || raw.isBlank()) {
             return null;
         }
+        // Parse id và chỉ nhận số dương.
         try {
             long value = Long.parseLong(raw.trim());
             return value > 0 ? value : null;
         } catch (NumberFormatException e) {
+            // Chuỗi không phải số sẽ trả null để caller trả BAD_REQUEST.
             return null;
         }
     }

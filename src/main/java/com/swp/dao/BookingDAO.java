@@ -6,6 +6,7 @@ import com.swp.model.FieldMaintenanceSchedule;
 import com.swp.model.dto.BookingView;
 import com.swp.model.dto.RecurringBookingCreationResult;
 import com.swp.model.dto.SkippedBookingSlot;
+import com.swp.model.dto.VoucherValidationResult;
 import com.swp.util.DBContext;
 
 import java.math.BigDecimal;
@@ -34,6 +35,8 @@ import java.util.List;
  */
 public class BookingDAO {
 
+    private final VoucherDAO voucherDAO = new VoucherDAO();
+
     private static final String STATUS_CANCELLED = "CANCELLED";
     private static final String REASON_SLOT_BOOKED = "Khung giờ đã được đặt";
     private static final String REASON_FIELD_MAINTENANCE = "Sân đang bảo trì";
@@ -44,6 +47,7 @@ public class BookingDAO {
     private static final int DEFAULT_CANCEL_BEFORE_HOURS = 24;
 
     public Long getComplexIdByFieldId(Long fieldId) throws SQLException {
+        // SQL: Lấy complex_id của field để các bước booking biết sân thuộc cụm nào.
         String sql = """
                 SELECT complex_id
                 FROM fields
@@ -66,6 +70,7 @@ public class BookingDAO {
     }
 
     private FieldPricingContext getFieldPricingContext(Long fieldId) throws SQLException {
+        // SQL: Lấy complex_id và field_type_id để chọn price rule phù hợp cho sân.
         String sql = """
                 SELECT complex_id,
                        field_type_id
@@ -93,6 +98,7 @@ public class BookingDAO {
     }
 
     public List<Field> getFieldsByComplex(Long complexId) throws SQLException {
+        // SQL: Liệt kê sân trong một complex để dựng lịch đặt sân.
         String sql = """
                 SELECT field_id,
                        complex_id,
@@ -143,6 +149,7 @@ public class BookingDAO {
         // Business Rule BR-05: Trước khi hiển thị lịch, dọn các booking HOLD đã quá hạn để giải phóng slot.
         cancelExpiredHolds();
 
+        // SQL: Lấy booking overlap với ngày đang xem để khóa các slot đã có người đặt.
         String sql = """
                 SELECT booking_id,
                        booking_code,
@@ -153,6 +160,7 @@ public class BookingDAO {
                        start_time,
                        end_time,
                        voucher_id,
+                       user_voucher_id,
                        original_price,
                        discount_amount,
                        total_amount,
@@ -200,6 +208,7 @@ public class BookingDAO {
     public List<FieldMaintenanceSchedule> getMaintenanceByComplexAndDate(Long complexId, LocalDate date)
             throws SQLException {
 
+        // SQL: Lấy lịch bảo trì overlap ngày đang xem để đánh dấu slot không thể đặt.
         String sql = """
                 SELECT m.maintenance_id,
                        m.field_id,
@@ -253,6 +262,7 @@ public class BookingDAO {
      * Query chỉ trả về sân AVAILABLE để không preview một sân đã bị khóa.
      */
     public BookingView getBookingPreviewInfoByFieldId(Long fieldId, Long customerId) throws SQLException {
+        // SQL: Lấy thông tin sân và Customer cho màn preview trước khi tạo booking HOLD.
         String sql = """
                 SELECT NULL AS booking_id,
                        NULL AS booking_code,
@@ -274,6 +284,7 @@ public class BookingDAO {
                        NULL AS start_time,
                        NULL AS end_time,
                        NULL AS voucher_id,
+                       NULL AS user_voucher_id,
                        NULL AS voucher_code,
                        NULL AS original_price,
                        NULL AS discount_amount,
@@ -418,6 +429,7 @@ public class BookingDAO {
             LocalDateTime endTime
     ) throws SQLException {
 
+        // SQL: Lấy các price rule ACTIVE có thể áp vào sân và khung giờ booking.
         String sql = """
                 SELECT pr.price_rule_id,
                        pr.start_time,
@@ -492,10 +504,11 @@ public class BookingDAO {
     }
 
     /**
-     * Tạo một booking HOLD và log trạng thái trong cùng transaction.
+     * Tạo một booking HOLD trong cùng transaction.
      * Việc kiểm tra khả dụng được lặp lại trong transaction để tránh hai request đặt cùng slot.
      */
-    public long createBookingHold(Booking booking, Long changedBy, String note) throws SQLException {
+    public long createBookingHold(Booking booking) throws SQLException {
+        // SQL: Insert booking HOLD và trả booking_id để Customer chuyển sang thanh toán.
         String insertBooking = """
                 INSERT INTO bookings (
                     booking_code,
@@ -505,6 +518,7 @@ public class BookingDAO {
                     start_time,
                     end_time,
                     voucher_id,
+                    user_voucher_id,
                     original_price,
                     discount_amount,
                     total_amount,
@@ -516,25 +530,13 @@ public class BookingDAO {
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
-                """;
-
-        String insertLog = """
-                INSERT INTO booking_status_logs (
-                    booking_id,
-                    old_status,
-                    new_status,
-                    changed_by,
-                    note,
-                    created_at
-                )
-                VALUES (?, NULL, 'HOLD', ?, ?, GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
                 """;
 
         Connection conn = null;
         boolean originalAutoCommit = true;
 
-        // Bat dau transaction de tao booking va ghi log nhu mot thao tac atomic.
+        // Bat dau transaction de tao booking nhu mot thao tac atomic.
         try {
             conn = DBContext.getConnection();
             originalAutoCommit = conn.getAutoCommit();
@@ -544,6 +546,19 @@ public class BookingDAO {
             // Kiểm tra lại trạng thái sân trong transaction để tránh trùng lịch.
             if (!isFieldAvailable(conn, booking.getFieldId(), booking.getStartTime(), booking.getEndTime())) {
                 throw new SQLException("Khung giờ đã được đặt hoặc sân đang bảo trì.");
+            }
+            // Voucher đổi điểm được giữ ngay trong transaction tạo HOLD để không dùng cho booking khác.
+            if (booking.getUserVoucherId() != null) {
+                VoucherValidationResult reservation = voucherDAO.reserveOwnedRewardVoucher(
+                        conn,
+                        booking.getUserVoucherId(),
+                        booking.getCustomerId(),
+                        booking.getOriginalPrice()
+                );
+                if (!reservation.isValid()) {
+                    throw new SQLException(reservation.getMessage());
+                }
+                booking.setVoucherId(reservation.getVoucher().getId());
             }
 
             long bookingId;
@@ -557,12 +572,13 @@ public class BookingDAO {
                 ps.setTimestamp(5, Timestamp.valueOf(booking.getStartTime()));
                 ps.setTimestamp(6, Timestamp.valueOf(booking.getEndTime()));
                 setIntegerOrNull(ps, 7, booking.getVoucherId());
-                ps.setBigDecimal(8, safeMoney(booking.getOriginalPrice()));
-                ps.setBigDecimal(9, safeMoney(booking.getDiscountAmount()));
-                ps.setBigDecimal(10, safeMoney(booking.getTotalAmount()));
-                ps.setBigDecimal(11, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
-                ps.setBigDecimal(12, safeMoney(booking.getDepositAmount()));
-                ps.setTimestamp(13, Timestamp.valueOf(booking.getHoldExpiresAt()));
+                setLongOrNull(ps, 8, booking.getUserVoucherId());
+                ps.setBigDecimal(9, safeMoney(booking.getOriginalPrice()));
+                ps.setBigDecimal(10, safeMoney(booking.getDiscountAmount()));
+                ps.setBigDecimal(11, safeMoney(booking.getTotalAmount()));
+                ps.setBigDecimal(12, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
+                ps.setBigDecimal(13, safeMoney(booking.getDepositAmount()));
+                ps.setTimestamp(14, Timestamp.valueOf(booking.getHoldExpiresAt()));
 
                 try (ResultSet rs = ps.executeQuery()) {
                     // Neu DB khong tra ve id thi booking chua duoc tao hop le.
@@ -573,24 +589,10 @@ public class BookingDAO {
                 }
             }
 
-            // Business Rule BR-24: Ghi log trạng thái HOLD để audit vòng đời booking đã triển khai.
-            // Ghi lịch sử trạng thái để audit được booking mới tạo.
-            try (PreparedStatement ps = conn.prepareStatement(insertLog)) {
-                ps.setLong(1, bookingId);
-                // changedBy co the null neu log duoc sinh boi he thong.
-                if (changedBy == null) {
-                    ps.setNull(2, Types.BIGINT);
-                } else {
-                    ps.setLong(2, changedBy);
-                }
-                ps.setString(3, note);
-                ps.executeUpdate();
-            }
-
             conn.commit();
             return bookingId;
         } catch (SQLException e) {
-            // Co loi thi rollback de khong de lai booking/log lech nhau.
+            // Co loi thi rollback de khong de lai booking tao do dang.
             if (conn != null) {
                 conn.rollback();
             }
@@ -611,6 +613,7 @@ public class BookingDAO {
     public BookingView getBookingDetailByIdAndCustomerId(Long bookingId, Long customerId) throws SQLException {
         cancelExpiredHolds(customerId);
 
+        // SQL: Lấy chi tiết booking theo ownership Customer bằng query view dùng chung.
         String sql = baseBookingViewSql() + """
                 WHERE b.booking_id = ?
                   AND b.customer_id = ?
@@ -636,6 +639,7 @@ public class BookingDAO {
             throws SQLException {
         cancelExpiredHolds(customerId);
 
+        // SQL: Lấy toàn bộ booking con trong recurring group thuộc đúng Customer.
         String sql = baseBookingViewSql() + """
                 WHERE b.recurring_group_id = ?
                   AND b.customer_id = ?
@@ -665,6 +669,7 @@ public class BookingDAO {
      * Lấy booking_code theo booking_id và customer_id để sinh QR động mà không phụ thuộc cột qr_code.
      */
     public String getBookingCodeByIdAndCustomerId(Long bookingId, Long customerId) throws SQLException {
+        // SQL: Lấy booking_code theo booking_id/customer_id để bảo vệ quyền sở hữu.
         String sql = """
                 SELECT booking_code
                 FROM bookings
@@ -696,10 +701,9 @@ public class BookingDAO {
     public RecurringBookingCreationResult createRecurringBookingHolds(
             List<Booking> bookings,
             String repeatType,
-            LocalDate repeatUntil,
-            Long changedBy,
-            String note
+            LocalDate repeatUntil
     ) throws SQLException {
+        // SQL: Tạo group booking định kỳ để gom các booking con cùng lịch lặp.
         String insertRecurringGroup = """
                 INSERT INTO booking_recurring_groups (
                     customer_id,
@@ -711,6 +715,7 @@ public class BookingDAO {
                 VALUES (?, ?, ?, GETDATE())
                 """;
 
+        // SQL: Insert từng booking con ở trạng thái HOLD trong recurring group.
         String insertBooking = """
                 INSERT INTO bookings (
                     booking_code,
@@ -721,6 +726,7 @@ public class BookingDAO {
                     start_time,
                     end_time,
                     voucher_id,
+                    user_voucher_id,
                     original_price,
                     discount_amount,
                     total_amount,
@@ -732,19 +738,7 @@ public class BookingDAO {
                     updated_at
                 )
                 OUTPUT INSERTED.booking_id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
-                """;
-
-        String insertLog = """
-                INSERT INTO booking_status_logs (
-                    booking_id,
-                    old_status,
-                    new_status,
-                    changed_by,
-                    note,
-                    created_at
-                )
-                VALUES (?, NULL, 'HOLD', ?, ?, GETDATE())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'HOLD', ?, GETDATE(), GETDATE())
                 """;
 
         Connection conn = null;
@@ -808,41 +802,28 @@ public class BookingDAO {
                     ps.setTimestamp(6, Timestamp.valueOf(booking.getStartTime()));
                     ps.setTimestamp(7, Timestamp.valueOf(booking.getEndTime()));
                     setIntegerOrNull(ps, 8, booking.getVoucherId());
-                    ps.setBigDecimal(9, safeMoney(booking.getOriginalPrice()));
-                    ps.setBigDecimal(10, safeMoney(booking.getDiscountAmount()));
-                    ps.setBigDecimal(11, safeMoney(booking.getTotalAmount()));
-                    ps.setBigDecimal(12, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
-                    ps.setBigDecimal(13, safeMoney(booking.getDepositAmount()));
-                    ps.setTimestamp(14, Timestamp.valueOf(booking.getHoldExpiresAt()));
+                    setLongOrNull(ps, 9, booking.getUserVoucherId());
+                    ps.setBigDecimal(10, safeMoney(booking.getOriginalPrice()));
+                    ps.setBigDecimal(11, safeMoney(booking.getDiscountAmount()));
+                    ps.setBigDecimal(12, safeMoney(booking.getTotalAmount()));
+                    ps.setBigDecimal(13, safeMoney(firstNonNull(booking.getFinalAmount(), booking.getTotalAmount())));
+                    ps.setBigDecimal(14, safeMoney(booking.getDepositAmount()));
+                    ps.setTimestamp(15, Timestamp.valueOf(booking.getHoldExpiresAt()));
 
                     try (ResultSet rs = ps.executeQuery()) {
-                        // Moi booking con bat buoc phai tra ve id de ghi log dung.
+                        // Moi booking con bat buoc phai tra ve id de tra ve ket qua dung.
                         if (!rs.next()) {
                             throw new SQLException("Khong lay duoc booking_id sau khi tao booking.");
                         }
                         bookingIds.add(rs.getLong(1));
                     }
                 }
-
-                // Business Rule BR-24: Mỗi booking con đều có log HOLD để theo dõi trạng thái đã triển khai.
-                // Ghi log HOLD cho booking con vừa insert.
-                try (PreparedStatement ps = conn.prepareStatement(insertLog)) {
-                    ps.setLong(1, bookingIds.get(bookingIds.size() - 1));
-                    // changedBy co the null neu log duoc sinh boi he thong.
-                    if (changedBy == null) {
-                        ps.setNull(2, Types.BIGINT);
-                    } else {
-                        ps.setLong(2, changedBy);
-                    }
-                    ps.setString(3, note);
-                    ps.executeUpdate();
-                }
             }
 
             conn.commit();
             return new RecurringBookingCreationResult(bookingIds, skippedSlots, bookings.size());
         } catch (SQLException e) {
-            // Lỗi DB khi tạo group/booking/log thì rollback toàn bộ dữ liệu đã insert trong transaction.
+            // Lỗi DB khi tạo group/booking thì rollback toàn bộ dữ liệu đã insert trong transaction.
             if (conn != null) {
                 conn.rollback();
             }
@@ -857,6 +838,7 @@ public class BookingDAO {
     }
 
     public int getCancelBeforeHours() {
+        // SQL: Đọc cấu hình số giờ tối thiểu trước giờ bắt đầu được phép hủy booking.
         String sql = """
                 SELECT setting_value
                 FROM system_settings
@@ -881,17 +863,20 @@ public class BookingDAO {
 
     /**
      * Hủy booking của Customer bằng transaction có khóa bản ghi.
-     * Method kiểm tra ownership, trạng thái hiện tại và mốc giờ hủy trước khi đổi sang CANCELLED và ghi log.
+     * Method kiểm tra ownership, trạng thái hiện tại và mốc giờ hủy trước khi đổi sang CANCELLED.
      */
-    public void cancelBooking(Long bookingId, Long customerId, String reason, Long changedBy) throws SQLException {
+    public void cancelBooking(Long bookingId, Long customerId, String reason) throws SQLException {
+        // SQL: Khóa booking của Customer để kiểm tra trạng thái/hạn hủy trước khi update.
         String selectBooking = """
                 SELECT status,
-                       start_time
+                       start_time,
+                       user_voucher_id
                 FROM bookings WITH (UPDLOCK, HOLDLOCK)
                 WHERE booking_id = ?
                   AND customer_id = ?
                 """;
 
+        // SQL: Cập nhật booking sang CANCELLED và lưu lý do/thời điểm hủy.
         String updateBooking = """
                 UPDATE bookings
                 SET status = ?,
@@ -902,22 +887,10 @@ public class BookingDAO {
                   AND customer_id = ?
                 """;
 
-        String insertLog = """
-                INSERT INTO booking_status_logs (
-                    booking_id,
-                    old_status,
-                    new_status,
-                    changed_by,
-                    note,
-                    created_at
-                )
-                VALUES (?, ?, ?, ?, ?, GETDATE())
-                """;
-
         Connection conn = null;
         boolean originalAutoCommit = true;
 
-        // Bat dau transaction de khoa booking, cap nhat trang thai va ghi log cung luc.
+        // Bat dau transaction de khoa booking va cap nhat trang thai cung luc.
         try {
             conn = DBContext.getConnection();
             originalAutoCommit = conn.getAutoCommit();
@@ -925,6 +898,7 @@ public class BookingDAO {
 
             String oldStatus;
             LocalDateTime startTime;
+            Long userVoucherId;
             // Doc booking bang UPDLOCK/HOLDLOCK de tranh hai request huy cung luc.
             try (PreparedStatement ps = conn.prepareStatement(selectBooking)) {
                 ps.setLong(1, bookingId);
@@ -937,6 +911,7 @@ public class BookingDAO {
                     }
                     oldStatus = rs.getString("status");
                     startTime = toLocalDateTime(rs.getTimestamp("start_time"));
+                    userVoucherId = getLongOrNull(rs, "user_voucher_id");
                 }
             }
 
@@ -965,25 +940,14 @@ public class BookingDAO {
                 ps.setLong(4, customerId);
                 ps.executeUpdate();
             }
-
-            // Ghi log chuyen trang thai de audit duoc ai da huy.
-            try (PreparedStatement ps = conn.prepareStatement(insertLog)) {
-                ps.setLong(1, bookingId);
-                ps.setString(2, oldStatus);
-                ps.setString(3, STATUS_CANCELLED);
-                // changedBy co the null neu he thong thuc hien huy tu dong.
-                if (changedBy == null) {
-                    ps.setNull(4, Types.BIGINT);
-                } else {
-                    ps.setLong(4, changedBy);
-                }
-                ps.setString(5, reason);
-                ps.executeUpdate();
+            // Nếu booking HOLD đang giữ voucher đổi điểm, trả voucher về AVAILABLE khi hủy.
+            if (userVoucherId != null) {
+                voucherDAO.releaseReservedUserVoucher(conn, userVoucherId, customerId);
             }
 
             conn.commit();
         } catch (SQLException e) {
-            // Co loi khi huy thi rollback de booking va log khong bi lech.
+            // Co loi khi huy thi rollback de booking khong bi cap nhat do dang.
             if (conn != null) {
                 conn.rollback();
             }
@@ -1004,6 +968,7 @@ public class BookingDAO {
     public List<BookingView> getBookingHistoryByCustomerId(Long customerId) throws SQLException {
         cancelExpiredHolds(customerId);
 
+        // SQL: Lấy lịch sử booking, với recurring chỉ lấy booking đại diện trong group.
         String sql = baseBookingViewSql() + """
                 WHERE b.customer_id = ?
                   AND (
@@ -1038,6 +1003,7 @@ public class BookingDAO {
     public int getBookingCountByCustomerId(Long customerId) throws SQLException {
         cancelExpiredHolds(customerId);
 
+        // SQL: Đếm booking còn ý nghĩa thống kê của Customer.
         String sql = """
                 SELECT COUNT(*)
                 FROM bookings
@@ -1061,6 +1027,7 @@ public class BookingDAO {
     }
 
     public int getBookingCountWithComplexId(long id) {
+        // SQL: Đếm tổng booking theo complex để kiểm tra dữ liệu phụ thuộc.
         String sql = """
                 SELECT COUNT(*) AS total
                 FROM bookings
@@ -1082,6 +1049,7 @@ public class BookingDAO {
     }
 
     public int getBookingCountWithFieldId(long id) {
+        // SQL: Đếm tổng booking theo field để kiểm tra dữ liệu phụ thuộc.
         String sql = """
                 SELECT COUNT(*) AS total
                 FROM bookings
@@ -1103,6 +1071,7 @@ public class BookingDAO {
     }
 
     public Booking getBookingById(Long bookingId) {
+        // SQL: Lấy entity Booking thô theo id cho các luồng nội bộ cần dữ liệu gốc.
         String sql = """
                 SELECT booking_id,
                        booking_code,
@@ -1113,6 +1082,7 @@ public class BookingDAO {
                        start_time,
                        end_time,
                        voucher_id,
+                       user_voucher_id,
                        original_price,
                        discount_amount,
                        total_amount,
@@ -1157,6 +1127,8 @@ public class BookingDAO {
 
                     int voucherId = rs.getInt("voucher_id");
                     booking.setVoucherId(rs.wasNull() ? null : voucherId);
+                    long userVoucherId = rs.getLong("user_voucher_id");
+                    booking.setUserVoucherId(rs.wasNull() ? null : userVoucherId);
                     booking.setOriginalPrice(rs.getBigDecimal("original_price"));
                     booking.setDiscountAmount(rs.getBigDecimal("discount_amount"));
                     booking.setTotalAmount(rs.getBigDecimal("total_amount"));
@@ -1217,6 +1189,7 @@ public class BookingDAO {
         // Business Rule BR-05: Dọn HOLD hết hạn trước khi kiểm tra availability để slot quá hạn được mở lại.
         cancelExpiredHolds(conn, null);
 
+        // SQL: Kiểm tra atomic trạng thái sân, bảo trì và booking trùng bằng lock trong transaction.
         String sql = """
                 SELECT
                     CASE WHEN EXISTS (
@@ -1282,6 +1255,7 @@ public class BookingDAO {
      * OUTER APPLY gom tiền nhóm recurring và lấy payment mới nhất để view có thể hiển thị đúng trạng thái thanh toán.
      */
     private String baseBookingViewSql() {
+        // SQL: Query view booking dùng chung cho detail, history và admin list.
         return """
                 SELECT b.booking_id,
                        b.booking_code,
@@ -1303,6 +1277,7 @@ public class BookingDAO {
                        b.start_time,
                        b.end_time,
                        b.voucher_id,
+                       b.user_voucher_id,
                        v.code AS voucher_code,
                        grp.original_price,
                        grp.discount_amount,
@@ -1449,6 +1424,7 @@ public class BookingDAO {
     }
 
     public java.util.List<BookingView> getAdminBookingsPaginated(String search, String filter, int offset, int limit) throws SQLException {
+        // SQL: Dựng query danh sách booking admin với search/filter và phân trang.
         StringBuilder sql = new StringBuilder(baseBookingViewSql() + " WHERE b.status NOT IN ('EXPIRED') ");
 
         if (search != null && !search.trim().isEmpty()) {
@@ -1457,9 +1433,9 @@ public class BookingDAO {
 
         if (filter != null && !filter.trim().isEmpty()) {
             if ("revenue_today".equalsIgnoreCase(filter.trim())) {
-                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND CAST(i.issued_at AS DATE) = CAST(GETDATE() AS DATE)) ");
-            } else if ("revenue_7days".equalsIgnoreCase(filter.trim())) {
-                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -7, GETDATE())) ");
+                sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT', 'COMPLETED') ");
+            } else if ("revenue_30days".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND CAST(b.created_at AS DATE) >= CAST(DATEADD(day, -29, GETDATE()) AS DATE) AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT', 'COMPLETED') ");
             } else if ("bookings_today".equalsIgnoreCase(filter.trim())) {
                 sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
             }
@@ -1491,6 +1467,7 @@ public class BookingDAO {
     }
 
     public int countAdminBookings(String search, String filter) throws SQLException {
+        // SQL: Dựng query đếm booking admin dùng cùng filter/search với danh sách phân trang.
         StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM bookings b JOIN users u ON b.customer_id = u.user_id WHERE b.status NOT IN ('EXPIRED') ");
 
         if (search != null && !search.trim().isEmpty()) {
@@ -1499,9 +1476,9 @@ public class BookingDAO {
 
         if (filter != null && !filter.trim().isEmpty()) {
             if ("revenue_today".equalsIgnoreCase(filter.trim())) {
-                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND CAST(i.issued_at AS DATE) = CAST(GETDATE() AS DATE)) ");
-            } else if ("revenue_7days".equalsIgnoreCase(filter.trim())) {
-                sql.append(" AND EXISTS (SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id AND i.status = 'PAID' AND i.issued_at >= DATEADD(day, -7, GETDATE())) ");
+                sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT', 'COMPLETED') ");
+            } else if ("revenue_30days".equalsIgnoreCase(filter.trim())) {
+                sql.append(" AND CAST(b.created_at AS DATE) >= CAST(DATEADD(day, -29, GETDATE()) AS DATE) AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'PENDING_CHECKOUT_PAYMENT', 'COMPLETED') ");
             } else if ("bookings_today".equalsIgnoreCase(filter.trim())) {
                 sql.append(" AND CAST(b.created_at AS DATE) = CAST(GETDATE() AS DATE) ");
             }
@@ -1528,16 +1505,30 @@ public class BookingDAO {
     }
 
     /**
-     * Cập nhật trạng thái HOLD quá hạn và ghi log bằng một câu SQL dùng bảng tạm.
-     * Cách này giữ danh sách booking vừa bị hủy để log chính xác trong cùng transaction.
+     * Cập nhật trạng thái HOLD quá hạn để giải phóng slot.
      */
     private int cancelExpiredHolds(Connection conn, Long customerId) throws SQLException {
+        // SQL: Fragment tùy chọn để chỉ dọn HOLD hết hạn của một Customer khi cần.
         String customerFilter = customerId == null ? "" : "                  AND b.customer_id = ?\n";
+        // SQL: Lấy các voucher đang bị booking HOLD hết hạn giữ để trả lại sau khi cancel.
+        String selectReservedSql = """
+                SELECT b.user_voucher_id,
+                       b.customer_id
+                FROM bookings b WITH (UPDLOCK, HOLDLOCK)
+                WHERE b.status = 'HOLD'
+                  AND b.hold_expires_at IS NOT NULL
+                  AND b.hold_expires_at <= GETDATE()
+                  AND b.user_voucher_id IS NOT NULL
+                """ + customerFilter + """
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM payments p
+                      WHERE p.booking_id = b.booking_id
+                        AND p.status = 'SUCCESS'
+                  )
+                """;
+        // SQL: Cập nhật các booking HOLD quá hạn và chưa có payment SUCCESS sang CANCELLED.
         String sql = """
-                DECLARE @ExpiredBookings TABLE (
-                    booking_id BIGINT NOT NULL
-                );
-                
                 -- Business Rule BR-05: Booking HOLD quá hạn và chưa có payment SUCCESS bị hủy để giải phóng slot.
                 UPDATE b
                 SET b.status = 'CANCELLED',
@@ -1545,7 +1536,6 @@ public class BookingDAO {
                     b.cancelled_at = GETDATE(),
                     b.hold_expires_at = NULL,
                     b.updated_at = GETDATE()
-                OUTPUT INSERTED.booking_id INTO @ExpiredBookings (booking_id)
                 FROM bookings b
                 WHERE b.status = 'HOLD'
                   AND b.hold_expires_at IS NOT NULL
@@ -1557,33 +1547,39 @@ public class BookingDAO {
                       WHERE p.booking_id = b.booking_id
                         AND p.status = 'SUCCESS'
                   )
-                
-                -- Business Rule BR-24: Log trạng thái CANCELLED được ghi cho các HOLD bị hủy tự động.
-                INSERT INTO booking_status_logs (
-                    booking_id,
-                    old_status,
-                    new_status,
-                    changed_by,
-                    note,
-                    created_at
-                )
-                SELECT booking_id,
-                       'HOLD',
-                       'CANCELLED',
-                       CAST(NULL AS BIGINT),
-                       ?,
-                       GETDATE()
-                FROM @ExpiredBookings
                 """;
 
+        List<ReservedVoucherRelease> reservedVouchers = new ArrayList<>();
+        // Khóa trước các booking HOLD hết hạn để biết voucher nào cần trả sau khi cập nhật trạng thái.
+        try (PreparedStatement ps = conn.prepareStatement(selectReservedSql)) {
+            if (customerId != null) {
+                ps.setLong(1, customerId);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    reservedVouchers.add(new ReservedVoucherRelease(
+                            rs.getLong("user_voucher_id"),
+                            rs.getLong("customer_id")
+                    ));
+                }
+            }
+        }
+
+        int updatedRows;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, HOLD_EXPIRED_CANCEL_REASON);
             if (customerId != null) {
                 ps.setLong(2, customerId);
             }
-            ps.setString(customerId == null ? 2 : 3, HOLD_EXPIRED_CANCEL_REASON);
-            return ps.executeUpdate();
+            updatedRows = ps.executeUpdate();
         }
+
+        // Sau khi booking chuyển CANCELLED, user_vouchers RESERVED được trả về AVAILABLE trong cùng transaction.
+        for (ReservedVoucherRelease reservedVoucher : reservedVouchers) {
+            voucherDAO.releaseReservedUserVoucher(conn, reservedVoucher.userVoucherId(), reservedVoucher.customerId());
+        }
+
+        return updatedRows;
     }
 
     private Booking mapBooking(ResultSet rs) throws SQLException {
@@ -1603,6 +1599,7 @@ public class BookingDAO {
         booking.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         booking.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
         booking.setVoucherId(getIntegerOrNull(rs, "voucher_id"));
+        booking.setUserVoucherId(getLongOrNull(rs, "user_voucher_id"));
         booking.setOriginalPrice(rs.getBigDecimal("original_price"));
         booking.setDiscountAmount(rs.getBigDecimal("discount_amount"));
         booking.setTotalAmount(rs.getBigDecimal("total_amount"));
@@ -1641,6 +1638,7 @@ public class BookingDAO {
         view.setStartTime(toLocalDateTime(rs.getTimestamp("start_time")));
         view.setEndTime(toLocalDateTime(rs.getTimestamp("end_time")));
         view.setVoucherId(getIntegerOrNull(rs, "voucher_id"));
+        view.setUserVoucherId(getLongOrNull(rs, "user_voucher_id"));
         view.setVoucherCode(rs.getString("voucher_code"));
         view.setOriginalPrice(rs.getBigDecimal("original_price"));
         view.setDiscountAmount(rs.getBigDecimal("discount_amount"));
@@ -1673,6 +1671,7 @@ public class BookingDAO {
     }
 
     public BookingView getAdminBookingDetailById(Long bookingId) throws SQLException {
+        // SQL: Lấy chi tiết booking cho admin bằng query view dùng chung.
         String sql = baseBookingViewSql() + " WHERE b.booking_id = ? ";
 
         try (Connection conn = DBContext.getConnection();
@@ -1708,6 +1707,14 @@ public class BookingDAO {
         }
     }
 
+    private void setLongOrNull(PreparedStatement ps, int parameterIndex, Long value) throws SQLException {
+        if (value == null) {
+            ps.setNull(parameterIndex, Types.BIGINT);
+        } else {
+            ps.setLong(parameterIndex, value);
+        }
+    }
+
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
@@ -1718,6 +1725,9 @@ public class BookingDAO {
 
     private BigDecimal firstNonNull(BigDecimal first, BigDecimal second) {
         return first != null ? first : second;
+    }
+
+    private record ReservedVoucherRelease(long userVoucherId, long customerId) {
     }
 
     private record FieldPricingContext(Long complexId, Integer fieldTypeId, Long fieldId) {

@@ -74,14 +74,16 @@ public class StaffActionServlet extends HttpServlet {
             java.time.LocalTime end = parseTime(endStr);
             java.time.LocalTime now = java.time.LocalTime.now();
             
-            if (now.isBefore(start)) {
-                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                write(resp, "{\"error\":\"Ca trực của bạn chưa bắt đầu (Ca làm việc: " + startStr.substring(0,5) + " - " + endStr.substring(0,5) + "). Bạn không thể thực hiện thao tác này.\"}");
-                return;
+            boolean inShift = false;
+            if (start.isBefore(end) || start.equals(end)) {
+                inShift = !now.isBefore(start) && !now.isAfter(end);
+            } else {
+                inShift = !now.isBefore(start) || !now.isAfter(end);
             }
-            if (now.isAfter(end)) {
+
+            if (!inShift) {
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                write(resp, "{\"error\":\"Ca trực của bạn đã kết thúc. Bạn không thể thực hiện thao tác này.\"}");
+                write(resp, "{\"error\":\"Bạn không nằm trong thời gian của ca trực (Ca làm việc: " + startStr.substring(0,5) + " - " + endStr.substring(0,5) + "). Bạn không thể thực hiện thao tác này.\"}");
                 return;
             }
         }
@@ -202,7 +204,7 @@ public class StaffActionServlet extends HttpServlet {
         Long expectedComplexId = resolveStaffComplexId(user);
         if (user.getRoleId() == ROLE_STAFF && expectedComplexId == null) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            write(resp, "{\"error\":\"Không xác định được cơ sở trong ca trực hiện tại.\"}");
+            write(resp, "{\"error\":\"Không xác định được cụm sân trong ca trực hiện tại.\"}");
             return;
         }
 
@@ -287,7 +289,7 @@ public class StaffActionServlet extends HttpServlet {
 
         long bookingId = Long.parseLong(bookingIdStr.trim());
 
-        // Business Rule BR-12: Staff không được check-in booking thuộc cơ sở khác với ca trực hiện tại.
+        // Business Rule BR-12: Staff không được check-in booking thuộc cụm sân khác với ca trực hiện tại.
         // Security check: Verify that the staff's current shift facility matches the booking's facility
         User user = getSessionUser(req);
         java.util.Map<String, Object> booking = staffDAO.getBookingDetailForCheckin(bookingId);
@@ -300,7 +302,7 @@ public class StaffActionServlet extends HttpServlet {
         Long expectedComplexId = user != null ? resolveStaffComplexId(user) : null;
         if (user != null && user.getRoleId() == ROLE_STAFF && expectedComplexId == null) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            write(resp, "{\"error\":\"Không xác định được cơ sở trong ca trực hiện tại.\"}");
+            write(resp, "{\"error\":\"Không xác định được cụm sân trong ca trực hiện tại.\"}");
             return;
         }
 
@@ -313,7 +315,7 @@ public class StaffActionServlet extends HttpServlet {
             return;
         }
 
-        // Business Rule BR-13: DAO chỉ check-in booking CONFIRMED và ghi log check-in khi cập nhật thành công.
+        // Business Rule BR-13: DAO chỉ check-in booking CONFIRMED và tạo bản ghi check-in khi cập nhật thành công.
         boolean success = staffDAO.checkinBooking(bookingId, staffId, note);
 
         if (success) {
@@ -387,14 +389,16 @@ public class StaffActionServlet extends HttpServlet {
         java.time.LocalTime end = parseTime(endStr);
         java.time.LocalTime now = java.time.LocalTime.now();
 
-        if (now.isBefore(start)) {
-            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            write(resp, "{\"error\":\"Ca trực của bạn chưa bắt đầu. Bạn không thể thực hiện thao tác này.\"}");
-            return false;
+        boolean inShift = false;
+        if (start.isBefore(end) || start.equals(end)) {
+            inShift = !now.isBefore(start) && !now.isAfter(end);
+        } else {
+            inShift = !now.isBefore(start) || !now.isAfter(end);
         }
-        if (now.isAfter(end)) {
+
+        if (!inShift) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            write(resp, "{\"error\":\"Ca trực của bạn đã kết thúc. Bạn không thể thực hiện thao tác này.\"}");
+            write(resp, "{\"error\":\"Bạn không nằm trong thời gian của ca trực (Ca làm việc: " + startStr.substring(0,5) + " - " + endStr.substring(0,5) + "). Bạn không thể thực hiện thao tác này.\"}");
             return false;
         }
         return true;
@@ -408,7 +412,7 @@ public class StaffActionServlet extends HttpServlet {
         if (expectedComplexId != null) {
             Long bookingComplexId = asLong(booking.get("complexId"));
             if (bookingComplexId == null || !bookingComplexId.equals(expectedComplexId)) {
-                return "Lượt đặt sân này thuộc cơ sở khác. Bạn không thể thực hiện thao tác.";
+                return "Lượt đặt sân này thuộc cụm sân khác. Bạn không thể thực hiện thao tác.";
             }
         }
 
@@ -454,11 +458,34 @@ public class StaffActionServlet extends HttpServlet {
             return "Lịch đặt đã quá giờ nhận sân.";
         }
 
+        Object startObj = booking.get("startTime");
+        if (startObj != null) {
+            java.time.LocalDateTime startDt;
+            if (startObj instanceof java.sql.Timestamp) {
+                startDt = ((java.sql.Timestamp) startObj).toLocalDateTime();
+            } else if (startObj instanceof java.time.LocalDateTime) {
+                startDt = (java.time.LocalDateTime) startObj;
+            } else {
+                try {
+                    String str = startObj.toString();
+                    if (str.contains(".")) str = str.substring(0, str.indexOf("."));
+                    startDt = java.time.LocalDateTime.parse(str.replace(" ", "T"));
+                } catch (Exception e) {
+                    startDt = null;
+                }
+            }
+            if (startDt != null) {
+                if (java.time.LocalDateTime.now().plusHours(1).isBefore(startDt)) {
+                    return "Bạn chỉ được check-in trước giờ đá tối đa 1 tiếng.";
+                }
+            }
+        }
+
         return null;
     }
 
     private boolean isFacilityMismatch(String message) {
-        return message != null && message.startsWith("Lượt đặt sân này thuộc cơ sở khác");
+        return message != null && message.startsWith("Lượt đặt sân này thuộc cụm sân khác");
     }
 
     private Long asLong(Object value) {

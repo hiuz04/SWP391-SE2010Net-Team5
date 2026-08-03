@@ -6,7 +6,9 @@ import com.swp.model.User;
 import com.swp.model.Voucher;
 import com.swp.model.dto.UserVoucherDTO;
 import com.swp.model.dto.VoucherExchangeDTO;
+import com.swp.model.dto.VoucherRedeemResult;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,14 +17,20 @@ public class VoucherUserService {
     private static final VoucherDAO voucherDao = new VoucherDAO();
     private static final UserDAO userDao = new UserDAO();
 
+    /**
+     * Lấy voucher đổi điểm theo đúng quyền xem của Customer.
+     * VIP chỉ hợp lệ khi cờ VIP còn hạn, không chỉ dựa vào is_vip trong session.
+     */
     public List<VoucherExchangeDTO> getExchangeVouchers(String targetUser,
-                                                        boolean isVip) {
+                                                        User user) {
+        boolean activeVip = isVipCurrentlyValid(user);
 
         List<Voucher> vouchers =
-                voucherDao.getAllExchangeVouchers(targetUser, isVip);
+                voucherDao.getAllExchangeVouchers(targetUser, activeVip);
 
         List<VoucherExchangeDTO> result = new ArrayList<>();
 
+        // Map entity Voucher sang DTO vừa đủ cho trang Voucher Center.
         for (Voucher v : vouchers) {
             VoucherExchangeDTO dto = new VoucherExchangeDTO();
             dto.setId(v.getId());
@@ -36,6 +44,7 @@ public class VoucherUserService {
             dto.setExchangePoints(v.getExchangePoint());
             dto.setEndDate(v.getEndDate());
             dto.setTargetUser(v.getTargetUser());
+            dto.setDistributionType(v.getDistributionType());
 
             result.add(dto);
         }
@@ -43,11 +52,30 @@ public class VoucherUserService {
         return result;
     }
 
-    public boolean redeemVoucher(User user, long voucherId) {
+    /**
+     * Đổi voucher bằng điểm; DAO tự đọc giá/điểm/quyền từ DB thay vì tin frontend.
+     */
+    public VoucherRedeemResult redeemVoucher(User user, long voucherId) {
+        // Chỉ Customer hợp lệ mới được gọi DAO đổi voucher.
+        if (user == null || user.getUserId() == null || !"CUSTOMER".equalsIgnoreCase(user.getRoleName())) {
+            return VoucherRedeemResult.failure("Chỉ khách hàng mới được đổi voucher.");
+        }
         return voucherDao.redeemVoucher(user.getUserId(), voucherId);
     }
 
     public List<UserVoucherDTO> getUserVouchers(long userId, String status) {
         return voucherDao.getUserVouchers(userId, status);
+    }
+
+    private boolean isVipCurrentlyValid(User user) {
+        // Không có user id thì không thể xác minh VIP từ DB.
+        if (user == null || user.getUserId() == null) {
+            return false;
+        }
+
+        User latestUser = userDao.getUserById(user.getUserId()).orElse(user);
+        return latestUser.isVip()
+                && latestUser.getVipValidUntil() != null
+                && latestUser.getVipValidUntil().isAfter(LocalDateTime.now());
     }
 }

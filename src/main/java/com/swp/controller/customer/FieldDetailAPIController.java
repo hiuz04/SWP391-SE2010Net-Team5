@@ -65,6 +65,9 @@ public class FieldDetailAPIController extends HttpServlet {
                 .toList();
 
         detail.setComplexId(complexId);
+
+        detail.setComplexImages(complexService.getFootballComplexImg(complexId));
+
         detail.setComplexName(complex.getComplexName());
         detail.setComplexAddress(String.join(", ",
                 complex.getAddress(),

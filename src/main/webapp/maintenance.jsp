@@ -53,7 +53,8 @@
         </p>
         <p class="text-muted small mb-0">Xin lỗi vì sự bất tiện này.</p>
         <div class="mt-4 pt-3 border-top">
-            <a href="<%= ctx %>/login" class="btn btn-outline-secondary btn-sm">Dành cho Quản trị viên (Admin)</a>
+            <a href="<%= ctx %>/logout" class="btn btn-outline-secondary btn-sm" onclick="event.preventDefault(); document.getElementById('logoutForm').submit();">Trở về trang đăng nhập</a>
+            <form id="logoutForm" action="<%= ctx %>/logout" method="GET" style="display: none;"></form>
         </div>
     </div>
 </div>
